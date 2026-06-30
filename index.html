@@ -9,8 +9,8 @@
         :root {
             --primary: #0f172a;
             --accent: #2563eb;
-            --accent-tx: #d97706;
-            --accent-rx: #059669;
+            --accent-tx: #ea580c;
+            --accent-rx: #16a34a;
             --accent-comb: #db2777;
             --accent-synth: #8b5cf6;
             --bg-color: #f1f5f9;
@@ -140,15 +140,16 @@
 
         .canvas-container {
             position: relative;
-            height: 380px;
+            height: 360px;
             width: 100%;
             margin-bottom: 20px;
         }
 
         .split-viz {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: 32% 66%;
+            gap: 2%;
+            align-items: stretch;
         }
 
         .scale-viz, .placement-viz {
@@ -165,15 +166,18 @@
             display: flex;
             align-items: flex-end;
             justify-content: center;
-            height: 180px;
-            gap: 40px;
+            height: 240px;
+            gap: 25px;
             position: relative;
         }
 
         .placement-content {
-            height: 180px;
+            height: 240px;
             position: relative;
             width: 100%;
+            background: #111827; /* Dark chassis / Anechoic RF environment background */
+            border-radius: 6px;
+            overflow: hidden;
         }
 
         .human-figure {
@@ -183,7 +187,7 @@
         }
 
         .human-figure svg {
-            height: 130px;
+            height: 160px;
             fill: #94a3b8;
         }
 
@@ -192,11 +196,11 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-end;
-            height: 130px;
+            height: 160px;
         }
 
         #radar-box {
-            width: 40px;
+            width: 45px;
             background-color: var(--accent);
             border-radius: 4px;
             transition: height 0.1s ease-out;
@@ -354,7 +358,7 @@
         </div>
 
         <!-- Results Output -->
-        <div style="background: #f8fafc; border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; margin-top: 15px; overflow-y: auto; max-height: 420px;">
+        <div style="background: #f8fafc; border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; margin-top: 15px; overflow-y: auto; max-height: 380px;">
             <div class="section-title">Spatial Parameters & Array Size</div>
             <table class="results-table">
                 <tr><td>Virtual RX Channels:</td><td id="resVirtualChan">-</td></tr>
@@ -393,7 +397,7 @@
         <div class="split-viz">
             <!-- Left Side: Physical Array Size vs. Human Scale -->
             <div class="scale-viz">
-                <div class="viz-title">Physical Aperture vs. Human Scale</div>
+                <div class="viz-title">Physical Aperture vs. Human</div>
                 <div class="scale-content">
                     <div class="human-figure">
                         <svg viewBox="0 0 100 250">
@@ -404,22 +408,22 @@
                             <rect x="5" y="60" width="15" height="85" rx="5" />
                             <rect x="80" y="60" width="15" height="85" rx="5" />
                         </svg>
-                        <div style="font-size: 0.8rem; font-weight: bold; margin-top: 5px; color: #475569;">Human (1.8m)</div>
+                        <div style="font-size: 0.75rem; font-weight: bold; margin-top: 5px; color: #475569;">Human (1.8m)</div>
                     </div>
                     
                     <div class="radar-figure">
                         <div id="radar-box"></div>
-                        <div style="font-size: 0.8rem; font-weight: bold; margin-top: 5px; color: var(--accent);">Radar Aperture</div>
-                        <div id="radar-scale-label" style="font-size: 0.7rem; color: #64748b;">-</div>
+                        <div style="font-size: 0.75rem; font-weight: bold; margin-top: 5px; color: var(--accent);">Radar Aperture</div>
+                        <div id="radar-scale-label" style="font-size: 0.75rem; color: #64748b; font-weight: bold;">-</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side: Antenna Placement Visualization -->
+            <!-- Right Side: Antenna Placement Visualization Redesigned closer to real picture -->
             <div class="placement-viz">
-                <div class="viz-title">MIMO Spatial Topology (TX / RX / Virtual)</div>
+                <div class="viz-title">Physical PCB Layout Front-End View (Patch Element Traces)</div>
                 <div class="placement-content">
-                    <canvas id="placementCanvas" style="width: 100%; height: 100%;"></canvas>
+                    <canvas id="placementCanvas"></canvas>
                 </div>
             </div>
         </div>
@@ -452,6 +456,7 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         btn.classList.add('active');
+        calculateRadar();
     }
 
     function autoConfigureRadar() {
@@ -654,7 +659,7 @@
                         {
                             label: 'TX Directivity',
                             data: txData,
-                            borderColor: 'rgba(217, 119, 6, 0.7)',
+                            borderColor: 'rgba(234, 88, 12, 0.7)',
                             borderDash: [4, 4],
                             borderWidth: 1.5,
                             pointRadius: 0,
@@ -664,7 +669,7 @@
                         {
                             label: 'RX Directivity',
                             data: rxData,
-                            borderColor: 'rgba(5, 150, 105, 0.7)',
+                            borderColor: 'rgba(22, 163, 74, 0.7)',
                             borderDash: [4, 4],
                             borderWidth: 1.5,
                             pointRadius: 0,
@@ -712,13 +717,13 @@
     }
 
     function updateScaleVisualization(apertureSizeMeters) {
-        const PIXELS_PER_METER = 130 / 1.8;
+        const PIXELS_PER_METER = 160 / 1.8;
         let heightPx = apertureSizeMeters * PIXELS_PER_METER;
-        let displayHeight = Math.max(3, Math.min(150, heightPx));
+        let displayHeight = Math.max(4, Math.min(160, heightPx));
         
         const radarBox = document.getElementById('radar-box');
         radarBox.style.height = displayHeight + 'px';
-        radarBox.style.width = displayHeight > 80 ? '25px' : '40px';
+        radarBox.style.width = displayHeight > 90 ? '25px' : '45px';
         
         if (apertureSizeMeters > 1.8) {
             radarBox.style.backgroundColor = '#ef4444'; 
@@ -732,19 +737,32 @@
         const canvas = document.getElementById('placementCanvas');
         const ctx = canvas.getContext('2d');
         
-        // Match resolution to parent box sizes
-        const w = canvas.clientWidth;
-        const h = canvas.clientHeight;
+        // Dynamic pixel alignment configuration 
+        const container = canvas.parentElement;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
         canvas.width = w;
         canvas.height = h;
 
         ctx.clearRect(0, 0, w, h);
 
-        // Find spatial span limits to center and auto-scale spacing safely
+        // Render realistic microstrip PCB Substrate Base Layer
+        let pcbPadY = 15;
+        let pcbPadX = 20;
+        let pcbW = w - (2 * pcbPadX);
+        let pcbH = h - (2 * pcbPadY);
+
+        ctx.fillStyle = '#064e3b'; // Matte FR4 RF substrate Green
+        ctx.fillRect(pcbPadX, pcbPadY, pcbW, pcbH);
+        
+        // Inner grounding trace border line
+        ctx.strokeStyle = '#047857';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(pcbPadX + 4, pcbPadY + 4, pcbW - 8, pcbH - 8);
+
+        // Scaling logic based on actual elements positions
         let txMaxPos = (nTX - 1) * dTX;
         let rxMaxPos = (nRX - 1) * dRX;
-        
-        // Calculate all virtual positions
         let virtPositions = [];
         if (arch === 'digital') {
             for (let i = 0; i < nTX; i++) {
@@ -757,64 +775,109 @@
                 virtPositions.push(j * dRX);
             }
         }
-        let virtMaxPos = virtPositions.length > 0 ? Math.max(...virtPositions) : 0;
-        
-        let globalMaxPos = Math.max(txMaxPos, rxMaxPos, virtMaxPos, 0.1);
-        
-        // Padding boundaries
-        let padX = 30;
-        let scaleX = (w - (2 * padX)) / globalMaxPos;
+        let virtMaxPos = Math.max(...virtPositions, 0.1);
+        let absoluteMaxSpacing = Math.max(txMaxPos, rxMaxPos, virtMaxPos);
 
-        // Rows inside visualization box
-        let yTX = h * 0.25;
-        let yRX = h * 0.50;
-        let yVirt = h * 0.75;
+        // Establish boundaries for microstrip components placement
+        let drawAreaPad = 40;
+        let scaleX = (pcbW - (2 * drawAreaPad)) / absoluteMaxSpacing;
+        let startX = pcbPadX + drawAreaPad;
 
-        // Common draw tracking utilities
-        function drawElement(x, y, color, label, isOutline = false) {
-            ctx.fillStyle = color;
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            
-            ctx.beginPath();
-            if (isOutline) {
-                ctx.rect(x - 5, y - 5, 10, 10);
-                ctx.stroke();
+        let yTX = pcbPadY + (pcbH * 0.22);
+        let yRX = pcbPadY + (pcbH * 0.52);
+        let yVirt = pcbPadY + (pcbH * 0.82);
+
+        // High-fidelity Microstrip Patch Renderer function 
+        function drawMicrostripPatch(x, y, type) {
+            let patchW = 12;
+            let patchH = 16;
+            let feedW = 2;
+            let feedH = 12;
+
+            ctx.fillStyle = '#f59e0b'; // Gold plated copper alloy color trace
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 1;
+
+            if (type === 'TX') {
+                // Top elements feed downwards
+                ctx.fillRect(x - patchW/2, y - patchH/2, patchW, patchH);
+                ctx.strokeRect(x - patchW/2, y - patchH/2, patchW, patchH);
+                ctx.fillStyle = '#b45309';
+                ctx.fillRect(x - feedW/2, y + patchH/2, feedW, feedH);
+            } else if (type === 'RX') {
+                // Bottom elements feed upwards
+                ctx.fillRect(x - patchW/2, y - patchH/2, patchW, patchH);
+                ctx.strokeRect(x - patchW/2, y - patchH/2, patchW, patchH);
+                ctx.fillStyle = '#b45309';
+                ctx.fillRect(x - feedW/2, y - patchH/2 - feedH, feedW, feedH);
             } else {
-                ctx.fillRect(x - 5, y - 5, 10, 10);
+                // Virtual/Mathematical Matrix Nodes (Rendered as abstract cross-probe indicators)
+                let size = 6;
+                ctx.strokeStyle = 'rgba(244, 63, 94, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x - size, y); ctx.lineTo(x + size, y);
+                ctx.moveTo(x, y - size); ctx.lineTo(x, y + size);
+                ctx.stroke();
+                return;
             }
         }
 
-        // 1. Draw TX Row Axis Line
-        ctx.strokeStyle = '#cbd5e1';
+        // Draw Row Text Metadata Tags directly onto PCB silkscreen
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText('TX ARRAY (COPPER ETCH)', pcbPadX + 12, yTX - 18);
+        ctx.fillText('RX ARRAY (COPPER ETCH)', pcbPadX + 12, yRX - 18);
+        ctx.fillText(arch === 'digital' ? 'COMPUTATIONAL VIRTUAL APERTURE MATRIX' : 'PHASED ARRAY MODE CONTIGUOUS GRID', pcbPadX + 12, yVirt - 14);
+
+        // 1. Draw TX elements
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(padX, yTX); ctx.lineTo(w - padX, yTX); ctx.stroke();
-        ctx.fillStyle = '#64748b'; ctx.font = '10px sans-serif'; ctx.fillText('TX Array', 5, yTX + 3);
-
-        for(let i = 0; i < nTX; i++) {
-            let x = padX + (i * dTX * scaleX);
-            drawElement(x, yTX, 'var(--accent-tx)', 'TX' + i);
+        ctx.beginPath(); ctx.moveTo(startX, yTX); ctx.lineTo(startX + (txMaxPos * scaleX), yTX); ctx.stroke();
+        
+        for (let i = 0; i < nTX; i++) {
+            let x = startX + (i * dTX * scaleX);
+            drawMicrostripPatch(x, yTX, 'TX');
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '7px sans-serif';
+            ctx.fillText('T' + (i+1), x - 4, yTX - 11);
         }
 
-        // 2. Draw RX Row Axis Line
-        ctx.beginPath(); ctx.moveTo(padX, yRX); ctx.lineTo(w - padX, yRX); ctx.stroke();
-        ctx.fillStyle = '#64748b'; ctx.fillText('RX Array', 5, yRX + 3);
-
-        for(let j = 0; j < nRX; j++) {
-            let x = padX + (j * dRX * scaleX);
-            drawElement(x, yRX, 'var(--accent-rx)', 'RX' + j);
+        // 2. Draw RX elements
+        ctx.beginPath(); ctx.moveTo(startX, yRX); ctx.lineTo(startX + (rxMaxPos * scaleX), yRX); ctx.stroke();
+        
+        for (let j = 0; j < nRX; j++) {
+            let x = startX + (j * dRX * scaleX);
+            drawMicrostripPatch(x, yRX, 'RX');
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '7px sans-serif';
+            ctx.fillText('R' + (j+1), x - 4, yRX + 17);
         }
 
-        // 3. Draw Virtual Aperture Row Line
-        ctx.beginPath(); ctx.moveTo(padX, yVirt); ctx.lineTo(w - padX, yVirt); ctx.stroke();
-        ctx.fillStyle = '#64748b'; ctx.fillText(arch === 'digital' ? 'Virtual Array' : 'Active Array', 5, yVirt + 3);
-
-        // Filter duplicates visually to show overlapping densities cleanly
-        let uniqueVirt = [...new Set(virtPositions)].sort((a,b)=>a-b);
+        // 3. Draw Virtual Aperture Convolutions
+        ctx.beginPath(); ctx.moveTo(startX, yVirt); ctx.lineTo(startX + (virtMaxPos * scaleX), yVirt); ctx.stroke();
+        
+        let uniqueVirt = [...new Set(virtPositions)].sort((a,b) => a-b);
         uniqueVirt.forEach(pos => {
-            let x = padX + (pos * scaleX);
-            drawElement(x, yVirt, 'var(--accent-comb)', 'V', arch !== 'digital');
+            let x = startX + (pos * scaleX);
+            drawMicrostripPatch(x, yVirt, 'VIRTUAL');
         });
+
+        // Add physical board dimension lines at the bottom scale 
+        let dimensionY = h - 6;
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(startX, dimensionY); ctx.lineTo(startX, dimensionY - 4);
+        ctx.moveTo(startX, dimensionY - 2); ctx.lineTo(startX + (absoluteMaxSpacing * scaleX), dimensionY - 2);
+        ctx.moveTo(startX + (absoluteMaxSpacing * scaleX), dimensionY); ctx.lineTo(startX + (absoluteMaxSpacing * scaleX), dimensionY - 4);
+        ctx.stroke();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Total Spacing Span: ' + absoluteMaxSpacing.toFixed(2) + 'λ', startX + (absoluteMaxSpacing * scaleX)/2, dimensionY - 5);
+        ctx.textAlign = 'start'; // restore default
     }
 
     // Attach real-time input listeners to standard tabs
@@ -833,10 +896,7 @@
         autoConfigureRadar();
     }));
 
-    // Window resize handling to keep canvas layouts crisp
     window.addEventListener('resize', calculateRadar);
-
-    // Initial run
     calculateRadar();
 </script>
 
