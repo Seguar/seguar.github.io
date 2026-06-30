@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Multi-Domain Radar Simulator (MIMO/FMCW)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #2563eb;
+            --accent-tx: #d97706;
+            --accent-rx: #059669;
+            --accent-comb: #db2777;
+            --accent-synth: #8b5cf6;
+            --bg-color: #f1f5f9;
+            --panel-bg: #ffffff;
+            --text-main: #334155;
+            --border: #cbd5e1;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 1.8rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgb(0 0 0 / 0.05);
+            border: 1px solid var(--border);
+        }
+
+        .tab-container {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px 4px;
+            background: none;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            color: #64748b;
+            transition: all 0.2s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            font-size: 0.78rem;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-btn[data-target="design-tab"].active {
+            color: var(--accent-synth);
+            border-bottom-color: var(--accent-synth);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .control-group { margin-bottom: 15px; }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="range"], input[type="number"], select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .val-display { font-weight: bold; color: var(--accent); float: right; }
+        .val-tx { color: var(--accent-tx); }
+        .val-rx { color: var(--accent-rx); }
+        .val-synth { color: var(--accent-synth); }
+
+        .results-table {
+            width: 100%;
+            margin-top: 15px;
+            border-collapse: collapse;
+        }
+
+        .results-table td {
+            padding: 6px 4px;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .results-table td:last-child {
+            text-align: right;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .section-title {
+            margin: 15px 0 5px 0;
+            color: var(--primary);
+            font-size: 0.95rem;
+            border-bottom: 2px solid var(--accent);
+            display: inline-block;
+        }
+
+        .canvas-container {
+            position: relative;
+            height: 380px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .split-viz {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .scale-viz, .placement-viz {
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .scale-content {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            height: 180px;
+            gap: 40px;
+            position: relative;
+        }
+
+        .placement-content {
+            height: 180px;
+            position: relative;
+            width: 100%;
+        }
+
+        .human-figure {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .human-figure svg {
+            height: 130px;
+            fill: #94a3b8;
+        }
+
+        .radar-figure {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            height: 130px;
+        }
+
+        #radar-box {
+            width: 40px;
+            background-color: var(--accent);
+            border-radius: 4px;
+            transition: height 0.1s ease-out;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .viz-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Complete Multi-Domain Radar Simulator (MIMO/FMCW)</h1>
+</div>
+
+<div class="container">
+    <!-- Left Configuration Panel -->
+    <div class="panel">
+        <div class="tab-container">
+            <button class="tab-btn" data-target="design-tab" onclick="switchTab('design-tab', this)">Auto-Design</button>
+            <button class="tab-btn active" data-target="sys-tab" onclick="switchTab('sys-tab', this)">System</button>
+            <button class="tab-btn" data-target="wave-tab" onclick="switchTab('wave-tab', this)">Target/Wave</button>
+            <button class="tab-btn" data-target="tx-tab" onclick="switchTab('tx-tab', this)">TX Array</button>
+            <button class="tab-btn" data-target="rx-tab" onclick="switchTab('rx-tab', this)">RX Array</button>
+        </div>
+
+        <!-- Inverse Design Auto-Configurator Tab -->
+        <div id="design-tab" class="tab-content">
+            <div style="background: #f5f3ff; border: 1px solid #ddd6fe; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 15px; color: #4c1d95;">
+                Enter operational requirements. The system dynamically reverse-engineers the hardware parameters in real-time.
+            </div>
+            
+            <div class="control-group">
+                <label>Operating Frequency / Band <span class="val-display val-synth" id="valSynthFreq">77 GHz</span></label>
+                <select id="synthFreq">
+                    <option value="3e9">S-Band (~3 GHz) - Long Range/ATC</option>
+                    <option value="10e9">X-Band (~10 GHz) - Air/Weather</option>
+                    <option value="24e9">K-Band (~24 GHz) - Industrial</option>
+                    <option value="77e9" selected>W-Band (~77 GHz) - Automotive</option>
+                    <option value="94e9">W-Band (~94 GHz) - Imaging</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Desired Target Range <span class="val-display val-synth" id="valReqRange">150 m</span></label>
+                <input type="range" id="reqRange" min="10" max="50000" step="10" value="150">
+            </div>
+            <div class="control-group">
+                <label>Desired Range Resolution <span class="val-display val-synth" id="valReqRangeRes">30 cm</span></label>
+                <input type="range" id="reqRangeRes" min="5" max="200" step="5" value="30">
+            </div>
+            <div class="control-group">
+                <label>Desired Angular Res (HPBW) <span class="val-display val-synth" id="valReqAngle">2.0°</span></label>
+                <input type="range" id="reqAngleRes" min="0.5" max="20" step="0.5" value="2.0">
+            </div>
+            <div class="control-group">
+                <label>Target RCS to Detect <span class="val-display val-synth" id="valReqRCS">10 m²</span></label>
+                <input type="number" id="reqRCS" value="10" step="0.1">
+            </div>
+        </div>
+
+        <!-- System Configuration Tab -->
+        <div id="sys-tab" class="tab-content active">
+            <div class="control-group">
+                <label>Operating Frequency / Band <span class="val-display" id="valFreq">77 GHz</span></label>
+                <select id="inputFreq">
+                    <option value="3e9">S-Band (~3 GHz) - Long Range/ATC</option>
+                    <option value="10e9">X-Band (~10 GHz) - Air/Weather</option>
+                    <option value="24e9">K-Band (~24 GHz) - Industrial</option>
+                    <option value="77e9" selected>W-Band (~77 GHz) - Automotive</option>
+                    <option value="94e9">W-Band (~94 GHz) - Imaging</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Antenna Element Type</label>
+                <select id="inputType">
+                    <option value="isotropic">Isotropic (Omni, 0 dBi)</option>
+                    <option value="patch" selected>Microstrip Patch (~5 dBi)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Beamforming Architecture</label>
+                <select id="inputArch">
+                    <option value="digital" selected>Full Digital (MIMO Virtualization)</option>
+                    <option value="analog">Analog Phased Array</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Waveform & Target Tab -->
+        <div id="wave-tab" class="tab-content">
+            <div class="control-group">
+                <label>Transmit Peak Power (P_t) <span class="val-display" id="valPt">15.0 dBm</span></label>
+                <input type="range" id="inputPt" min="-10" max="100" step="0.1" value="15">
+            </div>
+            <div class="control-group">
+                <label>Target RCS (σ)</label>
+                <select id="inputRCS">
+                    <option value="0.01">0.01 m² (Small Bird / Drone)</option>
+                    <option value="1">1 m² (Pedestrian)</option>
+                    <option value="10" selected>10 m² (Passenger Car)</option>
+                    <option value="100">100 m² (Large Truck / Aircraft)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Sweep Bandwidth (B) <span class="val-display" id="valBW">1000 MHz</span></label>
+                <input type="range" id="inputBW" min="50" max="8000" step="10" value="1000">
+            </div>
+            <div class="control-group">
+                <label>Chirp Duration (T_c) <span class="val-display" id="valTc">40 µs</span></label>
+                <input type="range" id="inputTc" min="10" max="1000" step="5" value="40">
+            </div>
+            <div class="control-group">
+                <label>Detection Threshold SNR <span class="val-display" id="valSNRReq">12 dB</span></label>
+                <input type="range" id="inputSNRReq" min="3" max="25" step="1" value="12">
+            </div>
+        </div>
+
+        <!-- TX Tab Content -->
+        <div id="tx-tab" class="tab-content">
+            <div class="control-group">
+                <label>TX Antennas (N_TX) <span class="val-display val-tx" id="valTxN">3</span></label>
+                <input type="number" id="inputTxN" min="1" max="512" value="3">
+            </div>
+            <div class="control-group">
+                <label>TX Spacing (Rel to λ) <span class="val-display val-tx" id="valTxD">2.00</span></label>
+                <input type="number" id="inputTxD" min="0.1" max="100" step="0.05" value="2.0">
+            </div>
+            <div class="control-group">
+                <label>TX Steering Angle <span class="val-display val-tx" id="valTxAngle">0°</span></label>
+                <input type="range" id="inputTxAngle" min="-60" max="60" step="1" value="0">
+            </div>
+        </div>
+
+        <!-- RX Tab Content -->
+        <div id="rx-tab" class="tab-content">
+            <div class="control-group">
+                <label>RX Antennas (N_RX) <span class="val-display val-rx" id="valRxN">4</span></label>
+                <input type="number" id="inputRxN" min="1" max="1024" value="4">
+            </div>
+            <div class="control-group">
+                <label>RX Spacing (Rel to λ) <span class="val-display val-rx" id="valRxD">0.50</span></label>
+                <input type="number" id="inputRxD" min="0.1" max="2" step="0.05" value="0.5">
+            </div>
+            <div class="control-group">
+                <label>RX Steering Angle <span class="val-display val-rx" id="valRxAngle">0°</span></label>
+                <input type="range" id="inputRxAngle" min="-60" max="60" step="1" value="0">
+            </div>
+        </div>
+
+        <!-- Results Output -->
+        <div style="background: #f8fafc; border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; margin-top: 15px; overflow-y: auto; max-height: 420px;">
+            <div class="section-title">Spatial Parameters & Array Size</div>
+            <table class="results-table">
+                <tr><td>Virtual RX Channels:</td><td id="resVirtualChan">-</td></tr>
+                <tr><td>Combined HPBW:</td><td id="resHPBW">-</td></tr>
+                <tr><td>Unambiguous FOV:</td><td id="resFoV">-</td></tr>
+                <tr><td>TX Array Physical Size:</td><td id="resTxSize">-</td></tr>
+                <tr><td>RX Array Physical Size:</td><td id="resRxSize">-</td></tr>
+                <tr><td style="font-weight:bold;">Virtual Aperture Size:</td><td id="resVirtSize" style="font-weight:bold; color:var(--accent);">-</td></tr>
+            </table>
+
+            <div class="section-title">Hardware / Baseband Requirements</div>
+            <table class="results-table">
+                <tr><td>Range Resolution (ΔR):</td><td id="resRangeRes">-</td></tr>
+                <tr><td>Chirp Slope (S):</td><td id="resSlope">-</td></tr>
+                <tr><td>Max IF Freq / Baseband IBW:</td><td id="resIBW">-</td></tr>
+                <tr><td>Min ADC Sampling Rate:</td><td id="resADC">-</td></tr>
+            </table>
+
+            <div class="section-title">Radar Equation Performance</div>
+            <table class="results-table">
+                <tr><td>Total Array Gain (TX+RX):</td><td id="resTotalGain">-</td></tr>
+                <tr><td style="color:var(--accent); font-weight:bold;">Max Detectable Range (R_max):</td><td id="resMaxRange" style="font-size:1.1rem;">-</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Right Visualization Panel -->
+    <div class="panel">
+        <h3 style="margin: 0 0 10px 0; color: var(--primary); font-size: 1.1rem;">Combined Array Pattern Visualization</h3>
+        <div class="canvas-container">
+            <canvas id="patternChart"></canvas>
+        </div>
+        
+        <hr style="border: 0; border-top: 1px dashed var(--border); margin: 15px 0;">
+
+        <div class="split-viz">
+            <!-- Left Side: Physical Array Size vs. Human Scale -->
+            <div class="scale-viz">
+                <div class="viz-title">Physical Aperture vs. Human Scale</div>
+                <div class="scale-content">
+                    <div class="human-figure">
+                        <svg viewBox="0 0 100 250">
+                            <circle cx="50" cy="30" r="20" />
+                            <rect x="25" y="55" width="50" height="90" rx="10" />
+                            <rect x="30" y="140" width="15" height="100" rx="5" />
+                            <rect x="55" y="140" width="15" height="100" rx="5" />
+                            <rect x="5" y="60" width="15" height="85" rx="5" />
+                            <rect x="80" y="60" width="15" height="85" rx="5" />
+                        </svg>
+                        <div style="font-size: 0.8rem; font-weight: bold; margin-top: 5px; color: #475569;">Human (1.8m)</div>
+                    </div>
+                    
+                    <div class="radar-figure">
+                        <div id="radar-box"></div>
+                        <div style="font-size: 0.8rem; font-weight: bold; margin-top: 5px; color: var(--accent);">Radar Aperture</div>
+                        <div id="radar-scale-label" style="font-size: 0.7rem; color: #64748b;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Antenna Placement Visualization -->
+            <div class="placement-viz">
+                <div class="viz-title">MIMO Spatial Topology (TX / RX / Virtual)</div>
+                <div class="placement-content">
+                    <canvas id="placementCanvas" style="width: 100%; height: 100%;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let patternChartInstance = null;
+    const C = 299792458; 
+    const K_B = 1.380649e-23; 
+    const T_SYS = 290; 
+    const NF_DB = 10; 
+
+    function formatDistance(meters) {
+        if (isNaN(meters) || !isFinite(meters)) return "N/A";
+        if (meters >= 1000) return (meters / 1000).toFixed(2) + ' km';
+        if (meters >= 1) return meters.toFixed(2) + ' m';
+        return (meters * 100).toFixed(1) + ' cm';
+    }
+
+    function formatFreq(hz) {
+        if (isNaN(hz) || !isFinite(hz)) return "N/A";
+        if (hz >= 1e9) return (hz / 1e9).toFixed(2) + ' GHz';
+        if (hz >= 1e6) return (hz / 1e6).toFixed(2) + ' MHz';
+        return (hz / 1e3).toFixed(2) + ' kHz';
+    }
+
+    function switchTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    function autoConfigureRadar() {
+        const reqFreq = parseFloat(document.getElementById('synthFreq').value) || 77e9;
+        const reqRange = Math.max(1, parseFloat(document.getElementById('reqRange').value) || 150);
+        const reqRangeRes = Math.max(0.01, (parseFloat(document.getElementById('reqRangeRes').value) || 30) / 100);
+        const reqAngleRes = Math.max(0.1, parseFloat(document.getElementById('reqAngleRes').value) || 2.0);
+        const reqRCS = Math.max(0.001, parseFloat(document.getElementById('reqRCS').value) || 10);
+
+        const tc_s = Math.max(1e-6, (parseFloat(document.getElementById('inputTc').value) || 40) * 1e-6);
+        const snrReq_dB = parseFloat(document.getElementById('inputSNRReq').value) || 12;
+        const antennaType = document.getElementById('inputType').value || 'patch';
+
+        let neededBW_Hz = C / (2 * reqRangeRes);
+        let neededBW_MHz = neededBW_Hz / 1e6;
+
+        let lVirt = 50.7 / reqAngleRes; 
+        let rxSpacingLambda = 0.5; 
+        let neededVirtualElements = Math.max(1, Math.ceil(lVirt / rxSpacingLambda));
+
+        let neededTx = Math.max(1, Math.ceil(Math.sqrt(neededVirtualElements)));
+        let neededRx = Math.max(1, Math.ceil(neededVirtualElements / neededTx));
+        
+        let txSpacingLambda = neededRx * rxSpacingLambda;
+
+        let lambda = C / reqFreq;
+        let elementGain_dBi = (antennaType === 'patch') ? 5 : 0; 
+        let elementGain_lin = Math.pow(10, elementGain_dBi / 10);
+        let gt_lin = neededTx * elementGain_lin;
+        let gr_lin = neededRx * elementGain_lin;
+        let snrReq_lin = Math.pow(10, snrReq_dB / 10);
+        let nf_lin = Math.pow(10, NF_DB / 10);
+
+        let num = Math.pow(reqRange, 4) * Math.pow(4 * Math.PI, 3) * K_B * T_SYS * nf_lin * snrReq_lin;
+        let den = gt_lin * gr_lin * Math.pow(lambda, 2) * reqRCS * tc_s;
+        
+        let pt_W = num / Math.max(1e-20, den); 
+        let pt_dBm = 10 * Math.log10(Math.max(1e-20, pt_W)) + 30;
+
+        document.getElementById('inputFreq').value = reqFreq;
+
+        let bwSlider = document.getElementById('inputBW');
+        bwSlider.max = Math.max(parseFloat(bwSlider.max) || 8000, neededBW_MHz * 1.2);
+        bwSlider.value = neededBW_MHz.toFixed(0);
+
+        document.getElementById('inputTxN').value = neededTx;
+        document.getElementById('inputTxD').value = txSpacingLambda.toFixed(2);
+        document.getElementById('inputRxN').value = neededRx;
+        document.getElementById('inputRxD').value = rxSpacingLambda.toFixed(2);
+
+        let ptSlider = document.getElementById('inputPt');
+        ptSlider.max = Math.max(100, Math.ceil(pt_dBm + 10));
+        ptSlider.min = Math.min(-10, Math.floor(pt_dBm - 10));
+        ptSlider.value = pt_dBm.toFixed(1);
+
+        let rcsSelect = document.getElementById('inputRCS');
+        if (![...rcsSelect.options].some(opt => parseFloat(opt.value) === reqRCS)) {
+            let newOpt = new Option(`Custom (${reqRCS} m²)`, reqRCS);
+            rcsSelect.add(newOpt);
+        }
+        rcsSelect.value = reqRCS;
+        document.getElementById('inputArch').value = 'digital';
+
+        calculateRadar();
+    }
+
+    function calculateRadar() {
+        const freq = parseFloat(document.getElementById('inputFreq').value) || 77e9;
+        const antennaType = document.getElementById('inputType').value || 'patch';
+        const arch = document.getElementById('inputArch').value || 'digital';
+
+        const pt_dBm = parseFloat(document.getElementById('inputPt').value) || 15;
+        const rcs = Math.max(0.0001, parseFloat(document.getElementById('inputRCS').value) || 10);
+        const bw_Hz = Math.max(1e6, (parseFloat(document.getElementById('inputBW').value) || 1000) * 1e6);
+        const tc_s = Math.max(1e-6, (parseFloat(document.getElementById('inputTc').value) || 40) * 1e-6);
+        const snrReq_dB = parseFloat(document.getElementById('inputSNRReq').value) || 12;
+
+        const nTX = Math.max(1, parseInt(document.getElementById('inputTxN').value) || 3);
+        const dTX = Math.max(0.01, parseFloat(document.getElementById('inputTxD').value) || 2.0);
+        const angleTX = (parseFloat(document.getElementById('inputTxAngle').value) || 0) * Math.PI / 180;
+
+        const nRX = Math.max(1, parseInt(document.getElementById('inputRxN').value) || 4);
+        const dRX = Math.max(0.01, parseFloat(document.getElementById('inputRxD').value) || 0.5); 
+        const angleRX = (parseFloat(document.getElementById('inputRxAngle').value) || 0) * Math.PI / 180;
+
+        document.getElementById('valFreq').innerText = (freq / 1e9).toFixed(1) + ' GHz';
+        
+        let ptDisplay = pt_dBm.toFixed(1) + ' dBm';
+        if (pt_dBm > 60) ptDisplay += ` (${(Math.pow(10, (pt_dBm-60)/10)).toFixed(1)} kW)`;
+        else if (pt_dBm > 30) ptDisplay += ` (${(Math.pow(10, (pt_dBm-30)/10)).toFixed(1)} W)`;
+        document.getElementById('valPt').innerText = ptDisplay;
+        
+        document.getElementById('valBW').innerText = (bw_Hz / 1e6).toFixed(0) + ' MHz';
+        document.getElementById('valTc').innerText = (tc_s * 1e6).toFixed(0) + ' µs';
+        document.getElementById('valSNRReq').innerText = snrReq_dB + ' dB';
+        document.getElementById('valTxN').innerText = nTX;
+        document.getElementById('valTxD').innerText = dTX.toFixed(2) + ' λ';
+        document.getElementById('valTxAngle').innerText = (angleTX * 180 / Math.PI).toFixed(0) + '°';
+        document.getElementById('valRxN').innerText = nRX;
+        document.getElementById('valRxD').innerText = dRX.toFixed(2) + ' λ';
+        document.getElementById('valRxAngle').innerText = (angleRX * 180 / Math.PI).toFixed(0) + '°';
+
+        const lambda = C / freq;
+        const elementGain_dBi = (antennaType === 'patch') ? 5 : 0; 
+        const elementGain_lin = Math.pow(10, elementGain_dBi / 10);
+
+        let effectiveChannels = (arch === 'digital') ? (nTX * nRX) : nRX;
+        document.getElementById('resVirtualChan').innerText = effectiveChannels;
+
+        let virtualApertureLength = (arch === 'digital') ? (nTX * dTX) + (nRX * dRX) : Math.max(nTX * dTX, nRX * dRX);
+        let hpbwDeg = 50.7 / Math.max(0.01, virtualApertureLength);
+        document.getElementById('resHPBW').innerText = hpbwDeg.toFixed(2) + '°';
+
+        let fovLimit = 90;
+        if (dRX > 0.5) {
+            let fovVal = Math.min(1, Math.max(-1, 1 / (2 * dRX))); 
+            fovLimit = Math.asin(fovVal) * (180 / Math.PI);
+        }
+        document.getElementById('resFoV').innerText = fovLimit >= 89.9 ? '±90°' : '±' + fovLimit.toFixed(1) + '°';
+
+        let txPhysSize = nTX * dTX * lambda;
+        let rxPhysSize = nRX * dRX * lambda;
+        let virtSize = virtualApertureLength * lambda;
+        
+        document.getElementById('resTxSize').innerText = formatDistance(txPhysSize);
+        document.getElementById('resRxSize').innerText = formatDistance(rxPhysSize);
+        document.getElementById('resVirtSize').innerText = formatDistance(virtSize);
+
+        const rangeRes = C / (2 * bw_Hz);
+        const slope = bw_Hz / tc_s; 
+        
+        document.getElementById('resRangeRes').innerText = formatDistance(rangeRes);
+        document.getElementById('resSlope').innerText = (slope / 1e12).toFixed(2) + ' MHz/µs';
+
+        const pt_W = Math.pow(10, (pt_dBm - 30) / 10);
+        const gt_lin = nTX * elementGain_lin; 
+        const gr_lin = nRX * elementGain_lin;
+        const snrReq_lin = Math.pow(10, snrReq_dB / 10);
+        const nf_lin = Math.pow(10, NF_DB / 10);
+
+        let totalGainDB = 10 * Math.log10(gt_lin * gr_lin);
+        document.getElementById('resTotalGain').innerText = totalGainDB.toFixed(1) + ' dB';
+
+        const num = pt_W * gt_lin * gr_lin * Math.pow(lambda, 2) * rcs * tc_s;
+        const den = Math.max(1e-20, Math.pow(4 * Math.PI, 3) * K_B * T_SYS * nf_lin * snrReq_lin);
+        const rMax = Math.pow(num / den, 0.25);
+        document.getElementById('resMaxRange').innerText = formatDistance(rMax);
+
+        const ifMax_Hz = (slope * 2 * rMax) / C;
+        const adcSamplingRate = ifMax_Hz * 2; 
+
+        document.getElementById('resIBW').innerText = formatFreq(ifMax_Hz);
+        document.getElementById('resADC').innerText = (adcSamplingRate / 1e6).toFixed(1) + ' MSPS';
+
+        let labels = [];
+        let txData = [];
+        let rxData = [];
+        let combinedData = [];
+        
+        for (let deg = -90; deg <= 90; deg += 0.5) {
+            let rad = deg * Math.PI / 180;
+            let EF = 1;
+            if (antennaType === 'patch') EF = Math.pow(Math.cos(rad), 1.4); 
+
+            let psiTX = 2 * Math.PI * dTX * (Math.sin(rad) - Math.sin(angleTX));
+            let AFTX = (Math.abs(psiTX) < 1e-6) ? 1 : Math.sin(nTX * psiTX / 2) / (nTX * Math.sin(psiTX / 2));
+            
+            let psiRX = 2 * Math.PI * dRX * (Math.sin(rad) - Math.sin(angleRX));
+            let AFRX = (Math.abs(psiRX) < 1e-6) ? 1 : Math.sin(nRX * psiRX / 2) / (nRX * Math.sin(psiRX / 2));
+
+            let txDB = Math.max(-50, 20 * Math.log10(Math.max(1e-10, Math.abs(AFTX * EF))));
+            let rxDB = Math.max(-50, 20 * Math.log10(Math.max(1e-10, Math.abs(AFRX * EF))));
+            let combDB = (arch === 'digital') ? (txDB + rxDB) : rxDB; 
+
+            labels.push(deg);
+            txData.push(txDB);
+            rxData.push(rxDB);
+            combinedData.push(Math.max(-50, combDB));
+        }
+
+        renderMergedChart(labels, txData, rxData, combinedData);
+        updateScaleVisualization(virtSize);
+        drawAntennaPlacement(nTX, dTX, nRX, dRX, arch);
+    }
+
+    function renderMergedChart(labels, txData, rxData, combData) {
+        if (patternChartInstance) {
+            patternChartInstance.data.labels = labels;
+            patternChartInstance.data.datasets[0].data = txData;
+            patternChartInstance.data.datasets[1].data = rxData;
+            patternChartInstance.data.datasets[2].data = combData;
+            patternChartInstance.update('none'); 
+        } else {
+            const ctx = document.getElementById('patternChart').getContext('2d');
+            patternChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'TX Directivity',
+                            data: txData,
+                            borderColor: 'rgba(217, 119, 6, 0.7)',
+                            borderDash: [4, 4],
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'RX Directivity',
+                            data: rxData,
+                            borderColor: 'rgba(5, 150, 105, 0.7)',
+                            borderDash: [4, 4],
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'MIMO Combined Pattern',
+                            data: combData,
+                            borderColor: 'rgba(219, 39, 119, 1)',
+                            backgroundColor: 'rgba(219, 39, 119, 0.08)',
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            fill: true,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 0 },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Azimuth Angle (Degrees)' },
+                            ticks: { callback: function(v, i) { return i % 20 === 0 ? this.getLabelForValue(v) + '°' : ''; } }
+                        },
+                        y: { 
+                            title: { display: true, text: 'Directivity (dB)' },
+                            max: 0, 
+                            min: -50 
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                title: (c) => c[0].label + '° Azimuth',
+                                label: (c) => c.dataset.label + ': ' + c.raw.toFixed(1) + ' dB'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function updateScaleVisualization(apertureSizeMeters) {
+        const PIXELS_PER_METER = 130 / 1.8;
+        let heightPx = apertureSizeMeters * PIXELS_PER_METER;
+        let displayHeight = Math.max(3, Math.min(150, heightPx));
+        
+        const radarBox = document.getElementById('radar-box');
+        radarBox.style.height = displayHeight + 'px';
+        radarBox.style.width = displayHeight > 80 ? '25px' : '40px';
+        
+        if (apertureSizeMeters > 1.8) {
+            radarBox.style.backgroundColor = '#ef4444'; 
+        } else {
+            radarBox.style.backgroundColor = 'var(--accent)';
+        }
+        document.getElementById('radar-scale-label').innerText = formatDistance(apertureSizeMeters);
+    }
+
+    function drawAntennaPlacement(nTX, dTX, nRX, dRX, arch) {
+        const canvas = document.getElementById('placementCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Match resolution to parent box sizes
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        canvas.width = w;
+        canvas.height = h;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Find spatial span limits to center and auto-scale spacing safely
+        let txMaxPos = (nTX - 1) * dTX;
+        let rxMaxPos = (nRX - 1) * dRX;
+        
+        // Calculate all virtual positions
+        let virtPositions = [];
+        if (arch === 'digital') {
+            for (let i = 0; i < nTX; i++) {
+                for (let j = 0; j < nRX; j++) {
+                    virtPositions.push((i * dTX) + (j * dRX));
+                }
+            }
+        } else {
+            for (let j = 0; j < nRX; j++) {
+                virtPositions.push(j * dRX);
+            }
+        }
+        let virtMaxPos = virtPositions.length > 0 ? Math.max(...virtPositions) : 0;
+        
+        let globalMaxPos = Math.max(txMaxPos, rxMaxPos, virtMaxPos, 0.1);
+        
+        // Padding boundaries
+        let padX = 30;
+        let scaleX = (w - (2 * padX)) / globalMaxPos;
+
+        // Rows inside visualization box
+        let yTX = h * 0.25;
+        let yRX = h * 0.50;
+        let yVirt = h * 0.75;
+
+        // Common draw tracking utilities
+        function drawElement(x, y, color, label, isOutline = false) {
+            ctx.fillStyle = color;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            
+            ctx.beginPath();
+            if (isOutline) {
+                ctx.rect(x - 5, y - 5, 10, 10);
+                ctx.stroke();
+            } else {
+                ctx.fillRect(x - 5, y - 5, 10, 10);
+            }
+        }
+
+        // 1. Draw TX Row Axis Line
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(padX, yTX); ctx.lineTo(w - padX, yTX); ctx.stroke();
+        ctx.fillStyle = '#64748b'; ctx.font = '10px sans-serif'; ctx.fillText('TX Array', 5, yTX + 3);
+
+        for(let i = 0; i < nTX; i++) {
+            let x = padX + (i * dTX * scaleX);
+            drawElement(x, yTX, 'var(--accent-tx)', 'TX' + i);
+        }
+
+        // 2. Draw RX Row Axis Line
+        ctx.beginPath(); ctx.moveTo(padX, yRX); ctx.lineTo(w - padX, yRX); ctx.stroke();
+        ctx.fillStyle = '#64748b'; ctx.fillText('RX Array', 5, yRX + 3);
+
+        for(let j = 0; j < nRX; j++) {
+            let x = padX + (j * dRX * scaleX);
+            drawElement(x, yRX, 'var(--accent-rx)', 'RX' + j);
+        }
+
+        // 3. Draw Virtual Aperture Row Line
+        ctx.beginPath(); ctx.moveTo(padX, yVirt); ctx.lineTo(w - padX, yVirt); ctx.stroke();
+        ctx.fillStyle = '#64748b'; ctx.fillText(arch === 'digital' ? 'Virtual Array' : 'Active Array', 5, yVirt + 3);
+
+        // Filter duplicates visually to show overlapping densities cleanly
+        let uniqueVirt = [...new Set(virtPositions)].sort((a,b)=>a-b);
+        uniqueVirt.forEach(pos => {
+            let x = padX + (pos * scaleX);
+            drawElement(x, yVirt, 'var(--accent-comb)', 'V', arch !== 'digital');
+        });
+    }
+
+    // Attach real-time input listeners to standard tabs
+    const inputs = ['inputFreq', 'inputType', 'inputArch', 'inputPt', 'inputRCS', 'inputBW', 'inputTc', 'inputSNRReq', 'inputTxN', 'inputTxD', 'inputTxAngle', 'inputRxN', 'inputRxD', 'inputRxAngle'];
+    inputs.forEach(id => document.getElementById(id).addEventListener('input', calculateRadar));
+
+    // Attach real-time input listeners to Auto-Design tab
+    const autoInputs = ['synthFreq', 'reqRange', 'reqRangeRes', 'reqAngleRes', 'reqRCS'];
+    autoInputs.forEach(id => document.getElementById(id).addEventListener('input', () => {
+        const val = document.getElementById(id).value;
+        if(id === 'synthFreq') document.getElementById('valSynthFreq').innerText = (parseFloat(val)/1e9).toFixed(1) + ' GHz';
+        if(id === 'reqRange') document.getElementById('valReqRange').innerText = val + ' m';
+        if(id === 'reqRangeRes') document.getElementById('valReqRangeRes').innerText = val + ' cm';
+        if(id === 'reqAngleRes') document.getElementById('valReqAngle').innerText = val + '°';
+        if(id === 'reqRCS') document.getElementById('valReqRCS').innerText = val + ' m²';
+        autoConfigureRadar();
+    }));
+
+    // Window resize handling to keep canvas layouts crisp
+    window.addEventListener('resize', calculateRadar);
+
+    // Initial run
+    calculateRadar();
+</script>
+
+</body>
+</html>
