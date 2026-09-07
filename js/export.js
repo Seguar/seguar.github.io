@@ -38,7 +38,26 @@
     } else fallback();
   }
 
-  function download(filename, text, mime) {
+  /* ---------------- saving a file ----------------
+     Two hosts, two mechanisms. Served as a normal page (GitHub Pages, or
+     straight off disk) an anchor download works. Inside the Artifact viewer
+     it does not — the frame never downloads directly — so the page asks the
+     host through the `downloads` capability, which prompts the viewer.
+     `window.claude` is absent on a normal page, which is exactly how we tell
+     the two apart.                                                          */
+  var HOSTED = !!(window.claude && typeof window.claude.use === 'function');
+  var dlNs;                                   /* undefined = not yet resolved */
+
+  function getDownloads() {
+    if (dlNs !== undefined) return Promise.resolve(dlNs);
+    if (!HOSTED) { dlNs = null; return Promise.resolve(null); }
+    return window.claude.use('downloads').then(
+      function (d) { dlNs = d || null; return dlNs; },
+      function () { dlNs = null; return null; }
+    );
+  }
+
+  function browserDownload(filename, text, mime) {
     try {
       var blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
       var url = URL.createObjectURL(blob);
@@ -52,6 +71,32 @@
     } catch (e) {
       copy(text, filename);
     }
+  }
+
+  function download(filename, text, mime) {
+    getDownloads().then(function (d) {
+      if (!d) { browserDownload(filename, text, mime); return; }
+      d.save({ filename: filename, data: text }).then(
+        function (r) { if (r && r.status === 'saved') flash('Saved ' + filename); },
+        function (err) {
+          var code = err && err.code;
+          /* the viewer said no, or a prompt is already open — never retry */
+          if (code === 'declined' || code === 'rate_limited') return;
+          copy(text, filename);
+        }
+      );
+    });
+  }
+
+  /* In the Artifact viewer with no downloads grant, a save button is a lie:
+     hide it and leave the clipboard buttons, which always work. */
+  function hideDeadSaveButtons() {
+    if (!HOSTED) return;
+    getDownloads().then(function (d) {
+      if (d) return;
+      var els = document.querySelectorAll('button[data-dl]');
+      for (var i = 0; i < els.length; i++) els[i].classList.add('hidden');
+    });
   }
 
   /* ---------------- URL hash state ---------------- *
@@ -128,6 +173,7 @@
     flash: flash,
     copy: copy,
     download: download,
+    hideDeadSaveButtons: hideDeadSaveButtons,
     encodeState: encodeState,
     decodeState: decodeState,
     permalink: permalink,

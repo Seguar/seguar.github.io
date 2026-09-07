@@ -6,6 +6,9 @@
 <title>E-Band Distribution Comparison Tool</title>
 <meta name="description" content="Interactive hardware map and parameterized model comparing clock/reference and LO distribution and baseband split/combine architectures for a large tiled E-band (71-86 GHz) phased array.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;650&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 /* ============================================================================
    E-band distribution comparison tool â€” stylesheet
@@ -30,8 +33,10 @@
   --warn-soft:     #faefd8;
   --fail:          #9b2226;
   --fail-soft:     #f8e4e4;
-  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* IBM Plex: drawn for technical documentation, and Plex Mono has the
+     tabular figures this page leans on in every table and chart axis. */
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* series colours â€” chosen for light+dark legibility */
   --s1: #1c5f8b;
   --s2: #b3591a;
@@ -96,6 +101,16 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Keyboard focus must be visible everywhere, not only on the number inputs. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
 
 body {
   margin: 0;
@@ -890,7 +905,26 @@ footer.foot a { color: var(--ink-2); }
     } else fallback();
   }
 
-  function download(filename, text, mime) {
+  /* ---------------- saving a file ----------------
+     Two hosts, two mechanisms. Served as a normal page (GitHub Pages, or
+     straight off disk) an anchor download works. Inside the Artifact viewer
+     it does not â€” the frame never downloads directly â€” so the page asks the
+     host through the `downloads` capability, which prompts the viewer.
+     `window.claude` is absent on a normal page, which is exactly how we tell
+     the two apart.                                                          */
+  var HOSTED = !!(window.claude && typeof window.claude.use === 'function');
+  var dlNs;                                   /* undefined = not yet resolved */
+
+  function getDownloads() {
+    if (dlNs !== undefined) return Promise.resolve(dlNs);
+    if (!HOSTED) { dlNs = null; return Promise.resolve(null); }
+    return window.claude.use('downloads').then(
+      function (d) { dlNs = d || null; return dlNs; },
+      function () { dlNs = null; return null; }
+    );
+  }
+
+  function browserDownload(filename, text, mime) {
     try {
       var blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
       var url = URL.createObjectURL(blob);
@@ -904,6 +938,32 @@ footer.foot a { color: var(--ink-2); }
     } catch (e) {
       copy(text, filename);
     }
+  }
+
+  function download(filename, text, mime) {
+    getDownloads().then(function (d) {
+      if (!d) { browserDownload(filename, text, mime); return; }
+      d.save({ filename: filename, data: text }).then(
+        function (r) { if (r && r.status === 'saved') flash('Saved ' + filename); },
+        function (err) {
+          var code = err && err.code;
+          /* the viewer said no, or a prompt is already open â€” never retry */
+          if (code === 'declined' || code === 'rate_limited') return;
+          copy(text, filename);
+        }
+      );
+    });
+  }
+
+  /* In the Artifact viewer with no downloads grant, a save button is a lie:
+     hide it and leave the clipboard buttons, which always work. */
+  function hideDeadSaveButtons() {
+    if (!HOSTED) return;
+    getDownloads().then(function (d) {
+      if (d) return;
+      var els = document.querySelectorAll('button[data-dl]');
+      for (var i = 0; i < els.length; i++) els[i].classList.add('hidden');
+    });
   }
 
   /* ---------------- URL hash state ---------------- *
@@ -980,6 +1040,7 @@ footer.foot a { color: var(--ink-2); }
     flash: flash,
     copy: copy,
     download: download,
+    hideDeadSaveButtons: hideDeadSaveButtons,
     encodeState: encodeState,
     decodeState: decodeState,
     permalink: permalink,
@@ -4919,6 +4980,7 @@ footer.foot a { color: var(--ink-2); }
 
   loadState();
   setView(view.name);
+  X.hideDeadSaveButtons();
 })();
 
 

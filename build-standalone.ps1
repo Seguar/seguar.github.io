@@ -39,3 +39,19 @@ $html | Out-File -Encoding utf8 $out
 
 $kb = [Math]::Round((Get-Item $out).Length / 1024, 1)
 Write-Host "Wrote $out  ($kb KB, $($matches.Count) scripts inlined)"
+
+# --- artifact variant -----------------------------------------------------
+# The Artifact host supplies <!doctype>/<html>/<head>/<body>, so strip our own
+# document wrapper and emit only the page content.
+$frag = $html
+$frag = [regex]::Replace($frag, '(?is)^.*?<head[^>]*>', '')
+$frag = [regex]::Replace($frag, '(?is)</head>\s*<body[^>]*>', "`n")
+$frag = [regex]::Replace($frag, '(?is)</body>\s*</html>\s*$', '')
+# these are supplied by the host
+$frag = [regex]::Replace($frag, '(?i)<meta charset[^>]*>', '')
+$frag = [regex]::Replace($frag, '(?i)<meta name="viewport"[^>]*>', '')
+
+$outA = Join-Path $outDir 'artifact.html'
+$frag.Trim() | Out-File -Encoding utf8 $outA
+$kbA = [Math]::Round((Get-Item $outA).Length / 1024, 1)
+Write-Host "Wrote $outA ($kbA KB, artifact-ready fragment)"

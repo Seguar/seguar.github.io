@@ -849,4 +849,5 @@
 
   loadState();
   setView(view.name);
+  X.hideDeadSaveButtons();
 })();
