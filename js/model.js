@@ -144,8 +144,8 @@
       conf: 'scaled-estimate', why: 'Enters the VCO FOM expression as −10log10(P/1mW).' },
     { key: 'vcoCornerHz', label: 'VCO 1/f³ corner', units: 'Hz', value: 3e5, min: 1e3, max: 1e7, step: 1e3, group: 'LO architecture',
       conf: 'scaled-estimate', why: 'Below this the VCO noise steepens from 1/f² to 1/f³.' },
-    { key: 'uncorrInbandFrac', label: 'Uncorrelated in-band share', units: '-', value: 0.5, min: 0, max: 1, step: 0.05, group: 'LO architecture',
-      conf: 'engineering-guess', why: 'Fraction of A1’s in-band noise from per-tile PFD/CP/divider rather than the shared reference. THE most decision-critical unknown here — it must be measured, not assumed.' },
+    { key: 'uncorrInbandFrac', label: 'PFD/CP noise uncorrelated share', units: '-', value: 1, min: 0, max: 1, step: 0.05, group: 'LO architecture',
+      conf: 'engineering-guess', why: 'How much of the per-tile PFD/charge-pump/divider and flicker noise is genuinely independent between tiles. Physically it is close to 1: only shared bias or a shared reference buffer makes any of it common. The reference-derived term is handled separately and is always common. Lowering this is the optimistic case for A1 — it must be measured, not assumed.' },
 
     /* --- interconnect & packaging --- */
     { key: 'loMedium', label: 'LO line medium', units: '', value: 0, group: 'Interconnect & packaging',
@@ -257,7 +257,13 @@
         var pfdPart = lin(K.pllFloorDbc(fOsc, fPfd, g.fomPll));
         var flickPart = lin(K.pllFlickerDbc(f, fOsc, g.pllFlickNorm));
         var vcoPart = lin(K.vcoPnDbc(f, fOsc, fomVco, g.vcoPowerMw, g.vcoCornerHz));
-        var inband = (refPart + pfdPart + flickPart) * L.H2;
+        /* Kept apart deliberately: the reference-derived term is common to
+           every tile that shares the reference and must NEVER enter the
+           uncorrelated bucket, while the PFD/charge-pump/divider and flicker
+           terms are generated inside each tile and are uncorrelated. */
+        var inbandRef = refPart * L.H2;
+        var inbandLocal = (pfdPart + flickPart) * L.H2;
+        var inband = inbandRef + inbandLocal;
         var outband = vcoPart * L.S2;
         var atOsc = inband + outband;
         /* multiplication to fLo: phase multiplies, so +20log10(M) */
@@ -266,7 +272,13 @@
         var add = 0;
         if (M > 1 && multBlock) add += lin(K.additivePnDbc(f, multBlock.addPnFloorDbc, multBlock.addPnCornerHz, 1));
         if (ampCount > 0 && ampBlock) add += lin(K.additivePnDbc(f, ampBlock.addPnFloorDbc, ampBlock.addPnCornerHz, ampCount));
-        return { total: atLo + add, corrAtLo: atLo, uncorrAdd: add, inbandAtLo: inband * M * M, vcoAtLo: outband * M * M };
+        return {
+          total: atLo + add, corrAtLo: atLo, uncorrAdd: add,
+          inbandAtLo: inband * M * M,
+          inbandRefAtLo: inbandRef * M * M,
+          inbandLocalAtLo: inbandLocal * M * M,
+          vcoAtLo: outband * M * M
+        };
       };
     }
 
@@ -283,10 +295,15 @@
         abs: function (f) { return dbl(src(f).total); },
         parts: function (f) {
           var s = src(f);
-          /* the reference-derived in-band part is COMMON to all tiles;
-             the PFD/CP/divider share and the whole VCO part are not */
-          var corr = s.inbandAtLo * (1 - g.uncorrInbandFrac);
-          var unc = s.inbandAtLo * g.uncorrInbandFrac + s.vcoAtLo + s.uncorrAdd;
+          /* Reference-derived in-band noise is COMMON to every tile locked to
+             the same reference, so it cancels in the differential. The
+             PFD/CP/divider and flicker terms and the whole free-running VCO
+             term are generated per tile and do not cancel. uncorrInbandFrac
+             scales only the local in-band term, for the case where some of it
+             is common through shared bias or a shared reference buffer. */
+          var localUnc = s.inbandLocalAtLo * g.uncorrInbandFrac;
+          var corr = s.inbandRefAtLo + s.inbandLocalAtLo * (1 - g.uncorrInbandFrac);
+          var unc = localUnc + s.vcoAtLo + s.uncorrAdd;
           return { corr: corr, uncorr: unc };
         },
         decorrTau: 0,

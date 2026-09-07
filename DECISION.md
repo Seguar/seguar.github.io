@@ -42,35 +42,51 @@ costs 0.007 dB); 173 ps of residual delay inside a 6 cm sub-tile.
 
 | Metric | A1 Local PLL | A2 HF foldback | A3 Daisy chain | **A4 Mid + ×4** |
 |:---|---:|---:|---:|---:|
-| Residual inter-tile φ (°) | **24.8** | 0.835 | 0.847 | **0.821** |
-| — irreducible phase-noise part (°) | 24.8 | 0.193 | 0.235 | 0.104 |
-| Null-depth floor (dB) | **−21.3** | −50.7 | −50.6 | **−50.9** |
-| Distribution loss (dB) | 1.0 | **60.6** | 31.5 | 35.4 |
+| Residual inter-tile φ (°) | 3.24 | 0.835 | 0.847 | **0.821** |
+| — irreducible phase-noise part (°) | 3.14 | 0.193 | 0.235 | 0.104 |
+| Null-depth floor (dB) | −38.9 | −50.7 | −50.6 | **−50.9** |
+| Distribution loss (dB) | **1.0** | **60.6** | 31.5 | 35.4 |
 | Repeater amplifiers | **0** | 51 | 9 | 32 |
-| Distribution power (W) | 10.85 | 10.12 | 9.89 | 9.96 |
+| Distribution power (W) | 10.85 | 10.12 | **9.89** | 9.96 |
 | Share of array budget (%) | 11.4 | 10.7 | 10.4 | 10.5 |
 | Frequency on the board (GHz) | 0.1 | 78 | 39 | 19.5 |
-| Array-output EVM (%) | **1.80** | 4.11 | 3.38 | 3.37 |
+| Array-output EVM (%) | **1.08** | 4.11 | 3.38 | 3.37 |
 | Highest supportable QAM | **64QAM** | QPSK | 16QAM | 16QAM |
 | Static offset to calibrate (wraps) | 8.0 | 6.4 | **47.9** | 6.4 |
 | Risk | medium | high | high | **low** |
 
+All four **pass** the 5° coherence spec. The choice is therefore about margin,
+board cost and risk — not about one option failing outright.
+
 ## 3. Why A4
 
-**The coherence floor decides it, and it is a 30 dB effect.** A1's residual
-inter-tile phase error is 24.8°, essentially all of it irreducible free-running
-VCO noise above the PLL loop bandwidth. That puts its null floor at −21.3 dB
-against −50.9 dB for a shared LO. Nothing recovers this: at a 1 Hz BIST rate
-with loop gain µ = 0.3 the calibration corner is 0.048 Hz, while essentially
-all of the integrated phase error lives in the kHz-to-MHz decades.
+**Coherence margin is the first discriminator, and it is a 12 dB effect.** A1's
+residual inter-tile phase error is 3.24°, almost all of it irreducible
+free-running VCO and PFD noise above the PLL loop bandwidth. That puts its
+null-depth floor at −38.9 dB against −50.9 dB for a shared LO. It clears the
+5° spec, but with 1.5× margin against 6× for the shared-LO options, and nothing
+recovers the difference: at a 1 Hz BIST rate with loop gain µ = 0.3 the
+calibration corner is 0.048 Hz, while essentially all of the integrated phase
+error lives in the kHz-to-MHz decades. If the demonstration ever needs deeper
+nulls or more spatial streams, that 12 dB is the headroom you gave away.
 
 **But A1 is genuinely better for the link, and this is worth stating plainly.**
 Uncorrelated per-tile noise *averages down* by 10log10(25) = 14.0 dB in the
-coherent sum, so A1's array-output phase error is 1.03° against 1.93° for a
-shared LO — it is the only option that supports 64QAM at these defaults. This
-is exactly the effect the proposal's §4.7 identifies. The two budgets point in
-opposite directions, and the architecture choice is which one you refuse to
-give up. Beam coherence is the one that cannot be bought back later.
+coherent sum, so A1's array-output phase error is 0.62° against 1.94° for a
+single tile — it is the only option that supports 64QAM at these defaults,
+where the shared-LO options manage 16QAM. This is exactly the effect the
+proposal's §4.7 identifies, and the tool confirms it quantitatively. It also has
+by far the simplest board: 1.0 dB of distribution loss, **zero** repeater
+amplifiers, and no E-band or mid-band routing at all.
+
+The two budgets point in opposite directions, and the architecture choice is
+which one you refuse to give up. **Beam coherence is the one that cannot be
+bought back later** — EVM can be recovered with a better reference, a wider
+carrier-recovery loop or a lower modulation order, whereas the coherence floor
+is set by silicon that is already committed. That is the reasoning behind
+choosing A4, and it is a judgement call, not a numerical knockout. If the link
+budget turns out to demand 64QAM and nulling turns out not to matter, A1 is the
+better answer and the tool will say so.
 
 **Among the three shared-LO options, A4 wins on the board.** A2, A3 and A4 all
 land within 2 % of each other on residual phase error, so the decision falls to
@@ -167,12 +183,17 @@ topology choice, and the λ/10 test decides it.
 
 ## 6. What would overturn this
 
-- **The uncorrelated in-band share** (`uncorrInbandFrac`, set to 0.5 and an
-  explicit guess). How much of a tile PLL's in-band noise comes from its own
-  PFD/charge-pump/divider rather than the shared reference. Measure it on the
-  first tile silicon. If it is below ~0.1 and the loop bandwidth can be pushed
-  to several MHz, A1 closes most of the coherence gap and its modularity,
-  zero repeaters and 64QAM capability win.
+- **The PFD/CP uncorrelated share** (`uncorrInbandFrac`, set to 1.0). How much
+  of a tile PLL's own in-band noise is genuinely independent between tiles.
+  Physically it should be close to 1 — only shared bias or a shared reference
+  buffer makes any of it common — but it is the parameter A1's standing is most
+  sensitive to. Measure it on the first tile silicon. If it is materially below
+  1, or if the loop bandwidth can be pushed to several MHz, A1 closes the
+  coherence gap and its modularity, zero repeaters and 64QAM capability win.
+- **Whether 64QAM is required.** A1 is the only option reaching it at these
+  defaults. If the link budget demands it, that alone can outweigh the 12 dB of
+  coherence margin — widen the carrier-recovery bandwidth in the tool and see
+  where the crossover lands before deciding.
 - **Achievable E-band line loss.** A2 is ruled out at 0.872 dB/cm. SIW or WR-12
   changes that by an order of magnitude; if a low-loss E-band medium is
   affordable at acceptable assembly tolerance, re-run the comparison.
@@ -186,8 +207,9 @@ topology choice, and the λ/10 test decides it.
 
 ## 7. Open questions to close before tape-out
 
-1. Measure the correlated/uncorrelated split of the tile PLL in-band noise.
-   This single number reorders the ranking.
+1. Measure the correlated/uncorrelated split of the tile PLL in-band noise, and
+   the achievable loop bandwidth. Together they set A1's coherence floor and are
+   what the A1-versus-A4 choice actually turns on.
 2. Confirm a per-tile LO phase can be observed **at all**. An intra-tile TX→RX
    loopback driven by the same LO cancels the LO phase identically, so LO
    calibration needs a cross-tile path, a shared tone bus, or a bidirectional
