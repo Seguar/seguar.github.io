@@ -101,6 +101,11 @@
       conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 2 dies per tile that is 16, and 49 × 16 = 784 per rail.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
+    { key: 'elemDirDbi', label: 'Element directivity', units: 'dBi', value: 6, min: 0, max: 12, step: 0.5, group: 'Array & band',
+      conf: 'published-literature', why: 'A single E-band package radiator. 6 dBi is patch-like (roughly cos^2 in power, so a ±60° usable cone); a broader element scans further but gives less realised gain. This sets the realised array gain, since a sparse array gets N × element directivity rather than the filled-aperture 4πA/λ².' },
+    { key: 'latticePeriodic', label: 'Element lattice', units: '', value: 1, group: 'Array & band',
+      choices: [{ value: 1, label: 'Periodic — grating lobes' }, { value: 0, label: 'Aperiodic / thinned' }],
+      conf: 'engineering-guess', why: 'A periodic lattice coarser than λ/2 has discrete grating lobes; deliberately breaking the periodicity trades them for a raised, roughly uniform sidelobe floor near 1/N. Which one applies is a layout decision that has not been made yet, and the two look completely different on the pattern.' },
     { key: 'beamScanDeg', label: 'Beam steer angle', units: 'deg', value: 30, min: -75, max: 75, step: 1, group: 'Array & band',
       conf: 'scaled-estimate', why: 'Direction the Beam view steers to. Separate from the max scan angle, which sizes the TTD range and the worst-case squint.' },
     { key: 'txGainErrDb', label: 'TX amplitude spread', units: 'dB', value: 0.5, min: 0, max: 3, step: 0.05, group: 'Link & budget',
@@ -270,6 +275,79 @@
     g.loTapsTotal = g.nTilesTotal * Math.round(g.tapsPerTile);
     g.diesPlaced = Math.min(g.loTapsTotal, Math.round(g.nDies));
     g.diePopGainDb = 10 * Math.log10(Math.max(g.diesPlaced, 1) / Math.max(Math.round(g.nDies), 1));
+
+    /* ---------------------------------------------------------------- *
+     * THE ELEMENT LATTICE — the geometry that actually radiates.
+     *
+     * This is the layer the beam model was missing. One LO tap feeds one
+     * die, and a die carries 4 RX + 4 TX channels, so the radiating count
+     * follows from the tap count and is NOT a free choice. Antennas sit on
+     * the package rather than on the 2.5 mm die (4 elements at lambda/2
+     * span 5.8 mm, more than the die is wide), so the lattice pitch is set
+     * by how the elements are distributed over the tile, not by the die.
+     *
+     * The consequence is the headline fact about this architecture: with a
+     * few hundred elements over a 28 cm aperture the lattice is several
+     * wavelengths coarse, so the array keeps the BEAMWIDTH of the full
+     * aperture but only the GAIN of its element count, and the difference
+     * goes into grating lobes.
+     * ---------------------------------------------------------------- */
+    g.diesPerTile = Math.max(1, Math.round(g.tapsPerTile));
+    g.chPerDiePerDir = 4;                       /* 4 RX + 4 TX per die */
+    g.elemPerTile = g.diesPerTile * g.chPerDiePerDir;
+    g.nElem = g.nTilesTotal * g.elemPerTile;
+
+    /* Arrangement inside a tile. 8 elements factor as 4 x 2, so the tile is
+       4 elements wide and 2 deep; since tiles abut, the FULL lattice is then
+       uniform at tilePitch/4 along the cut axis. That consistency matters:
+       at band centre the intra-tile phase steer and the inter-tile delay
+       steer coincide, so AF(4, 1 cm) x AF(7, 4 cm) collapses exactly to
+       AF(28, 1 cm) — the full-aperture beamwidth is preserved, not
+       regressed, while the grating lobes now appear. */
+    var ex = Math.round(Math.sqrt(g.elemPerTile));
+    while (ex > 1 && g.elemPerTile % ex !== 0) ex--;
+    var ey = g.elemPerTile / ex;
+    g.elemPerTileX = Math.max(ex, ey);
+    g.elemPerTileY = Math.min(ex, ey);
+    g.elemDxCm = g.tileCm / g.elemPerTileX;
+    g.elemDyCm = g.tileCm / g.elemPerTileY;
+    g.elemDxM = g.elemDxCm / 100;
+    g.nElemX = g.tileCols * g.elemPerTileX;
+    g.elemDxLam = g.elemDxM / g.lambdaM;
+
+    var areaM2 = g.effApertureM * g.effApertureM;
+    /* uniform-lattice pitch that spreads nElem over the populated aperture */
+    g.elemSpacingM = g.nElem > 0 ? Math.sqrt(areaM2 / g.nElem) : g.lambdaM / 2;
+    g.elemSpacingCm = g.elemSpacingM * 100;
+    g.elemSpacingLam = g.elemSpacingM / g.lambdaM;
+    /* how far from a critically sampled lambda/2 lattice */
+    g.sparsityFactor = g.elemSpacingM / (g.lambdaM / 2);
+    g.nElemFilled = areaM2 / Math.pow(g.lambdaM / 2, 2);
+
+    /* directivity chain, all in dBi */
+    g.dFilledDbi = 10 * Math.log10(4 * Math.PI * areaM2 / (g.lambdaM * g.lambdaM));
+    g.dArrayDbi = 10 * Math.log10(Math.max(g.nElem, 1)) + g.elemDirDbi;
+    g.thinningLossDb = g.dFilledDbi - g.dArrayDbi;
+    g.apertureEffPct = 100 * Math.pow(10, -g.thinningLossDb / 10);
+
+    /* Grating lobes on the cut axis: first order at delta(sin) = lambda/dx.
+       Any spacing above lambda/2 puts one inside visible space, and for a
+       UNIFORM PERIODIC lattice a grating lobe is a full-amplitude replica of
+       the main beam — suppressed only by the element pattern. That
+       suppression is weak at these angles, which is why a periodic layout at
+       this element count is not viable. */
+    g.gratingDeltaSin = g.lambdaM / g.elemDxM;
+    g.gratingVisible = g.gratingDeltaSin < 2;
+    g.gratingDegBroadside = g.gratingDeltaSin <= 1
+      ? Math.asin(g.gratingDeltaSin) * K.DEG : NaN;
+    /* element-pattern suppression at the first grating lobe, in dB */
+    g.elemPowExp = Math.max(0, Math.pow(10, g.elemDirDbi / 10) / 2 - 1);
+    g.gratingSuppDb = isFinite(g.gratingDegBroadside)
+      ? 10 * Math.log10(Math.pow(Math.cos(K.deg2rad(g.gratingDegBroadside)), g.elemPowExp))
+      : NaN;
+    /* an aperiodic lattice trades the discrete lobes for a raised, roughly
+       uniform sidelobe floor near 1/N */
+    g.thinnedFloorDb = -10 * Math.log10(Math.max(g.nElem, 1));
     return g;
   }
 
