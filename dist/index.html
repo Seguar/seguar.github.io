@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en" data-theme="">
 <head>
 <meta charset="utf-8">
@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;650&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 /* ============================================================================
-   E-band distribution comparison tool â€” stylesheet
+   E-band distribution comparison tool — stylesheet
    Dense engineering-instrument aesthetic. Theme-aware (light default + dark).
    ========================================================================= */
 
@@ -37,7 +37,7 @@
      tabular figures this page leans on in every table and chart axis. */
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  /* series colours â€” chosen for light+dark legibility */
+  /* series colours — chosen for light+dark legibility */
   --s1: #1c5f8b;
   --s2: #b3591a;
   --s3: #6b4d9b;
@@ -263,7 +263,7 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--pass
 svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
 /* The aperture map is nearly square plus board margins top and bottom, so at
    full container width it grows taller than the viewport. Cap it so the whole
-   floorplan is visible at once â€” preserveAspectRatio letterboxes it. */
+   floorplan is visible at once — preserveAspectRatio letterboxes it. */
 svg.chart.map { max-height: 76vh; width: auto; max-width: 100%; margin: 0 auto; }
 svg.chart text { font: 10.5px var(--sans); fill: var(--ink-3); }
 svg.chart text.axlabel { font-size: 11px; fill: var(--ink-2); }
@@ -562,7 +562,7 @@ footer.foot a { color: var(--ink-2); }
 <script>
 /* ===== js/charts.js ===== */
 /* ============================================================================
-   charts.js â€” dependency-free inline-SVG plotting for the distribution tool.
+   charts.js — dependency-free inline-SVG plotting for the distribution tool.
    Deliberately no chart library: this has to work as a static GitHub Pages
    page with no build step, and phase-noise plots need a real log-decade axis.
    Exposes window.Charts.
@@ -803,7 +803,7 @@ footer.foot a { color: var(--ink-2); }
     return svg;
   }
 
-  /* stacked horizontal bars â€” for power/loss breakdowns */
+  /* stacked horizontal bars — for power/loss breakdowns */
   function stackChart(cfg) {
     var rows = (cfg.rows || []);
     var W = 660, rowH = 30, m = { l: 132, r: 62, t: 8, b: 34 };
@@ -870,7 +870,7 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/export.js ===== */
 /* ============================================================================
-   export.js â€” reproducibility plumbing.
+   export.js — reproducibility plumbing.
    URL-hash state (so a computed comparison is citable), CSV / Markdown / JSON
    export, clipboard, toast. Clipboard is the primary path because a page
    embedded in a sandboxed viewer cannot start a download.
@@ -900,7 +900,7 @@ footer.foot a { color: var(--ink-2); }
       var ok = false;
       try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
       ta.remove();
-      flash(ok ? (what || 'Copied') + ' copied to clipboard' : 'Copy blocked â€” select the text manually');
+      flash(ok ? (what || 'Copied') + ' copied to clipboard' : 'Copy blocked — select the text manually');
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
@@ -912,7 +912,7 @@ footer.foot a { color: var(--ink-2); }
   /* ---------------- saving a file ----------------
      Two hosts, two mechanisms. Served as a normal page (GitHub Pages, or
      straight off disk) an anchor download works. Inside the Artifact viewer
-     it does not â€” the frame never downloads directly â€” so the page asks the
+     it does not — the frame never downloads directly — so the page asks the
      host through the `downloads` capability, which prompts the viewer.
      `window.claude` is absent on a normal page, which is exactly how we tell
      the two apart.                                                          */
@@ -951,7 +951,7 @@ footer.foot a { color: var(--ink-2); }
         function (r) { if (r && r.status === 'saved') flash('Saved ' + filename); },
         function (err) {
           var code = err && err.code;
-          /* the viewer said no, or a prompt is already open â€” never retry */
+          /* the viewer said no, or a prompt is already open — never retry */
           if (code === 'declined' || code === 'rate_limited') return;
           copy(text, filename);
         }
@@ -1055,7 +1055,7 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/ui.js ===== */
 /* ============================================================================
-   ui.js â€” parameter panel, comparison tables, provenance ledger, formatting.
+   ui.js — parameter panel, comparison tables, provenance ledger, formatting.
    Presentation only: every number it shows comes from Model.evaluate().
    Exposes window.UI.
    ========================================================================= */
@@ -1065,7 +1065,7 @@ footer.foot a { color: var(--ink-2); }
   /* ------------------------------ formatting ------------------------------ */
 
   function sig(v, n) {
-    if (!isFinite(v)) return 'â€”';
+    if (!isFinite(v)) return '—';
     if (v === 0) return '0';
     var a = Math.abs(v);
     if (a >= 1e6 || a < 1e-4) return v.toExponential(Math.max(0, (n || 3) - 1)).replace('e+', 'e');
@@ -1075,7 +1075,7 @@ footer.foot a { color: var(--ink-2); }
 
   /* fixed-decimal formatter with a sensible default per magnitude */
   function num(v, dec) {
-    if (v === null || v === undefined || !isFinite(v)) return 'â€”';
+    if (v === null || v === undefined || !isFinite(v)) return '—';
     if (dec !== undefined) return v.toFixed(dec);
     var a = Math.abs(v);
     if (a >= 1000) return v.toFixed(0);
@@ -1269,8 +1269,8 @@ footer.foot a { color: var(--ink-2); }
       specTd.appendChild(document.createTextNode(
         r.specLabel !== undefined ? r.specLabel
           : (r.spec !== undefined && r.spec !== null
-            ? (r.better === 'high' ? 'â‰¥ ' : 'â‰¤ ') + num(r.spec, r.dec)
-            : 'â€”')));
+            ? (r.better === 'high' ? '≥ ' : '≤ ') + num(r.spec, r.dec)
+            : '—')));
       tr.appendChild(specTd);
       tbody.appendChild(tr);
     });
@@ -1283,7 +1283,7 @@ footer.foot a { color: var(--ink-2); }
     tableEl.querySelectorAll('tr').forEach(function (tr) {
       var cells = [];
       tr.querySelectorAll('th,td').forEach(function (c) {
-        cells.push(c.textContent.replace(/\s+/g, ' ').replace(/â€”/g, '-').trim());
+        cells.push(c.textContent.replace(/\s+/g, ' ').replace(/—/g, '-').trim());
       });
       if (tr.classList.contains('sect')) {
         // pad a section row so the CSV stays rectangular
@@ -1346,7 +1346,7 @@ footer.foot a { color: var(--ink-2); }
     if (summaryEl) {
       summaryEl.textContent = Object.keys(counts).map(function (k) {
         return counts[k] + ' ' + k;
-      }).join(' Â· ');
+      }).join(' · ');
     }
   }
 
@@ -1402,7 +1402,7 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/kernels.js ===== */
 /* ============================================================================
-   kernels.js â€” shared physics for the E-band distribution comparison.
+   kernels.js — shared physics for the E-band distribution comparison.
 
    Everything here is closed-form and unit-annotated. The three rules the whole
    tool depends on are enforced in this file:
@@ -1630,7 +1630,7 @@ footer.foot a { color: var(--ink-2); }
 
   /* Degrees of phase at fHz per picosecond of delay. 28.08 deg/ps at 78 GHz.
      Skew is accumulated in the TIME domain and converted ONCE, at the end,
-     at the output frequency â€” never at an intermediate frequency and then
+     at the output frequency — never at an intermediate frequency and then
      multiplied by M, which double-counts the multiplication. */
   function degPerPs(fHz) { return 360 * fHz * 1e-12; }
 
@@ -1650,7 +1650,7 @@ footer.foot a { color: var(--ink-2); }
   function calCornerHz(tUpdateS) { return 0.3017 / Math.max(tUpdateS, 1e-12); }
 
   /* CORRELATED (shared-source) noise across a path delay mismatch dTau.
-     It does NOT cancel perfectly â€” the residual is
+     It does NOT cancel perfectly — the residual is
         D(f) = |1 - e^{-j 2 pi f dTau}|^2 = 4 sin^2(pi f dTau)
      which is -64 dB at 1 MHz for 100 ps but only -4.2 dB at 1 GHz. This is
      why skew still matters with a shared LO, and why the answer depends
@@ -1692,7 +1692,7 @@ footer.foot a { color: var(--ink-2); }
         P_sl / P_peak = sigma^2 / N_indep
      N_indep is the number of INDEPENDENT radiating groups. Errors common
      within a tile and independent between tiles make N_indep the TILE count,
-     not the element count â€” which is why a per-tile LO error is far more
+     not the element count — which is why a per-tile LO error is far more
      damaging than a per-element one.
 
      This, not Ruze gain loss, decides the architecture: 4.2 deg RMS costs
@@ -1720,7 +1720,7 @@ footer.foot a { color: var(--ink-2); }
   }
 
   /* Pointing error of a DAISY CHAIN. Its per-hop errors form a random WALK
-     along the aperture, whose dominant spatial mode is a tilt â€” so the iid
+     along the aperture, whose dominant spatial mode is a tilt — so the iid
      formula above does not apply and understates it badly. The equivalent
      end-to-end tilt of a walk with per-hop sigma_nu over N hops is
      sigma_nu*sqrt(1.2*N), against sigma*sqrt(12/N) for iid errors: worse by
@@ -1731,7 +1731,7 @@ footer.foot a { color: var(--ink-2); }
   }
   /* RMS about the mean of a random walk of n steps, per step sigma:
      sqrt((n^2-1)/(6n)) ~ sqrt(n/6). Also the daisy chain's estimator
-     conditioning factor G â€” the reason its low measurement count is
+     conditioning factor G — the reason its low measurement count is
      misleading. */
   function walkRmsFactor(n) {
     if (n < 2) return 0;
@@ -1860,7 +1860,7 @@ footer.foot a { color: var(--ink-2); }
   /* -------------------------- baseband-specific ---------------------------
      A baseband delay is a GROUP-DELAY / squint error at the baseband edge
      frequency, NOT an LO phase error. 10 ps of baseband skew is 3.6 deg at
-     a 1 GHz rail edge â€” not 281 deg. Converting baseband delay to degrees at
+     a 1 GHz rail edge — not 281 deg. Converting baseband delay to degrees at
      78 GHz inflates the B-family numbers by a factor of 78 and is the most
      common error in this comparison. */
   function bbSkewDegAtEdge(tauPs, fEdgeHz) { return 360 * fEdgeHz * tauPs * 1e-12; }
@@ -1895,7 +1895,7 @@ footer.foot a { color: var(--ink-2); }
   }
 
   /* Cascaded IIP3 of n identical unity-gain stages: 1/P_tot = sum(1/P_j),
-     giving -10*log10(n) â€” NOT -20*log10(n), which would double the
+     giving -10*log10(n) — NOT -20*log10(n), which would double the
      requirement and wrongly kill a feasible 3-4 level tree. */
   function cascadeIip3PenaltyDb(nStages) { return 10 * Math.log10(Math.max(nStages, 1)); }
 
@@ -1952,7 +1952,7 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/topology.js ===== */
 /* ============================================================================
-   topology.js â€” the physical construction of each distribution network.
+   topology.js — the physical construction of each distribution network.
 
    ONE generator, consumed by BOTH the hardware map and the numeric model, so
    the drawing and the numbers can never disagree: the path lengths the map
@@ -1974,7 +1974,7 @@ footer.foot a { color: var(--ink-2); }
 
   /* ---------------------------------------------------------------- utils */
   function manhattan(x1, y1, x2, y2) {
-    /* horizontal first, then vertical â€” the classic corporate-feed look */
+    /* horizontal first, then vertical — the classic corporate-feed look */
     var segs = [];
     if (Math.abs(x2 - x1) > 1e-9) segs.push([x1, y1, x2, y1]);
     if (Math.abs(y2 - y1) > 1e-9) segs.push([x2, y1, x2, y2]);
@@ -2017,7 +2017,7 @@ footer.foot a { color: var(--ink-2); }
      Each tile carries `tapsPerTile` E-band RFIC dies (2.5 x 2.5 mm each, the
      existing taped-out part) laid out on a square grid, and an intra-tile LO
      fan-out from the tile's LO node to every die. Drawn to scale: a 2.5 mm
-     die on a 60 mm tile really is that small, and seeing that is the point â€”
+     die on a 60 mm tile really is that small, and seeing that is the point —
      it is why the LO last mile is a packaging problem.
 
      The fan-out is a two-level H: one trunk from the tile centre to each die
@@ -2078,7 +2078,7 @@ footer.foot a { color: var(--ink-2); }
   /* --------------------------------------------------- recursive corporate
      Deterministic recursive bisection: split the group along its longer
      extent into two halves of equal COUNT. Note that a 5x5 = 25-tile array
-     is not a power of two, so the tree is inherently unbalanced â€” a real,
+     is not a power of two, so the tree is inherently unbalanced — a real,
      deterministic (and therefore calibratable) skew source that the tool
      reports rather than hides.                                            */
   /* Walk a drawable segment, inserting repeater amplifiers wherever the loss
@@ -2174,7 +2174,7 @@ footer.foot a { color: var(--ink-2); }
   /* ------------------------------------------------------- daisy / serpent
      Boustrophedon order: row by row, reversing on odd rows, so consecutive
      tiles are always physical neighbours. Optionally split into `branches`
-     independent chains from the source to bound the chain length â€” a real
+     independent chains from the source to bound the chain length — a real
      design lever, since chain length drives both accumulated skew and the
      blast radius of a single dead buffer.                                  */
   function daisy(grid, opts) {
@@ -2227,7 +2227,7 @@ footer.foot a { color: var(--ink-2); }
         t.repeaters = walk.ampCount;
         maxHop = Math.max(maxHop, t.hop);
         maxAmps = Math.max(maxAmps, walk.ampCount);
-        /* the per-hop buffer re-amplifies, so the loss budget resets here â€”
+        /* the per-hop buffer re-amplifies, so the loss budget resets here —
            this is the daisy chain's one genuine electrical advantage */
         walk.sinceAmp = (opts.tapLossDb || 0);
         nodes.push({ type: 'buftap', x: t.cx, y: t.cy, label: 'buf+tap', freqHz: opts.freqHz, tile: t.i });
@@ -2235,7 +2235,7 @@ footer.foot a { color: var(--ink-2); }
       });
       /* the chain must be terminated, or the last tile sees a reflection */
       var last = chain[chain.length - 1];
-      nodes.push({ type: 'term', x: last.cx + grid.tileCm * 0.3, y: last.cy + grid.tileCm * 0.3, label: '50Î©', freqHz: opts.freqHz });
+      nodes.push({ type: 'term', x: last.cx + grid.tileCm * 0.3, y: last.cy + grid.tileCm * 0.3, label: '50Ω', freqHz: opts.freqHz });
     });
 
     return {
@@ -2271,11 +2271,11 @@ footer.foot a { color: var(--ink-2); }
       var M = Math.max(1, Math.round(g.pllMult));
       grid.tiles.forEach(function (t) {
         t.blocks = [{ type: 'pll', label: 'PLL' }];
-        if (M > 1) t.blocks.push({ type: 'mult', label: 'Ã—' + M });
+        if (M > 1) t.blocks.push({ type: 'mult', label: '×' + M });
         t.blocks.push({ type: 'amp', label: 'LO buf' });
       });
       net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
-        return { type: 'pll', x: t.cx, y: t.cy, label: 'PLL' + (M > 1 ? ' Ã—' + M : ''), freqHz: g.fLoGHz * 1e9, tile: t.i };
+        return { type: 'pll', x: t.cx, y: t.cy, label: 'PLL' + (M > 1 ? ' ×' + M : ''), freqHz: g.fLoGHz * 1e9, tile: t.i };
       }));
       return {
         net: net, distFreqHz: refHz, tileMultiplier: M, repeaters: reps,
@@ -2283,10 +2283,10 @@ footer.foot a { color: var(--ink-2); }
         bom: bomOf([
           ['refSource', 1, 'one board-level reference oscillator'],
           ['clkFanout', net.nodes.filter(function (n) { return n.type === 'split'; }).length, 'reference fanout buffers at tree nodes'],
-          ['refRepeater', reps, 'reference line repeaters (usually zero â€” the reference is electrically short)'],
+          ['refRepeater', reps, 'reference line repeaters (usually zero — the reference is electrically short)'],
           ['tilePll', grid.nTiles, 'one full PLL per tile, inside the 65nm BB+LO die'],
-          ['tileMult', M > 1 ? grid.nTiles : 0, 'per-tile Ã—' + M + ' multiplier to reach the LO'],
-          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile â€” mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
+          ['tileMult', M > 1 ? grid.nTiles : 0, 'per-tile ×' + M + ' multiplier to reach the LO'],
+          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile — mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
           ['loBuf78', grid.nTiles * g.tapsPerTile, 'per-tile LO buffers driving ' + g.tapsPerTile + ' RFIC taps']
         ]),
         note: 'No E-band routing on the board at all. Every tile is an independent synthesiser, so ' +
@@ -2321,12 +2321,12 @@ footer.foot a { color: var(--ink-2); }
           ['loSource78', 1, 'one central E-band source (PLL + VCO at 78 GHz)'],
           ['loSplit78', splits, 'E-band 1:2 splitters at every tree node'],
           ['loAmp78', reps + splits, 'E-band repeater and post-splitter driver amplifiers'],
-          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile â€” mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
+          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile — mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
           ['loBuf78', grid.nTiles * g.tapsPerTile, 'per-tile LO buffers driving ' + g.tapsPerTile + ' RFIC taps'],
           ['ebandTransition', grid.nTiles * 2, 'board-to-package E-band transitions (two per tile)']
         ]),
         note: 'Phase noise is fully correlated from one source, so it cancels in the inter-tile ' +
-              'differential â€” but every centimetre is E-band, so loss, amplifier count and power are the ' +
+              'differential — but every centimetre is E-band, so loss, amplifier count and power are the ' +
               'worst of the four, and the mechanical tolerance is measured in microns.'
       };
     },
@@ -2345,17 +2345,17 @@ footer.foot a { color: var(--ink-2); }
       var M = Math.max(1, Math.round((g.fLoGHz * 1e9) / fHz));
       grid.tiles.forEach(function (t) {
         t.blocks = [{ type: 'amp', label: 'buf' }, { type: 'tap', label: 'tap' }];
-        if (M > 1) t.blocks.push({ type: 'mult', label: 'Ã—' + M });
+        if (M > 1) t.blocks.push({ type: 'mult', label: '×' + M });
       });
       return {
         net: net, distFreqHz: fHz, tileMultiplier: M, repeaters: reps,
         kind: 'chain', chains: net.chains, maxHop: net.maxLevel,
         bom: bomOf([
           ['loSourceChain', 1, 'one source at ' + (fHz / 1e9).toFixed(1) + ' GHz'],
-          ['chainBuf', grid.nTiles, 'one buffer per hop â€” also the failure point'],
+          ['chainBuf', grid.nTiles, 'one buffer per hop — also the failure point'],
           ['chainTap', grid.nTiles, 'directional tap per tile'],
-          ['tileMult', M > 1 ? grid.nTiles : 0, 'per-tile Ã—' + M + ' multiplier'],
-          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile â€” mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
+          ['tileMult', M > 1 ? grid.nTiles : 0, 'per-tile ×' + M + ' multiplier'],
+          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile — mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
           ['loBuf78', grid.nTiles * g.tapsPerTile, 'per-tile LO buffers driving ' + g.tapsPerTile + ' RFIC taps'],
           ['chainTerm', net.chains, 'matched termination at each chain end']
         ]),
@@ -2367,7 +2367,7 @@ footer.foot a { color: var(--ink-2); }
     /* --------------------------------------------------------- A4 mid-mult
        Distribute at f_LO/M on a corporate tree, multiply at each tile.
        The board carries a manageable frequency; the die carries a
-       multiplier. Buys loss and power â€” NOT skew.                        */
+       multiplier. Buys loss and power — NOT skew.                        */
     'mid-mult': function (g, grid) {
       var M = Math.max(2, Math.round(g.midM));
       var fHz = g.fLoGHz * 1e9 / M;
@@ -2379,10 +2379,10 @@ footer.foot a { color: var(--ink-2); }
       var reps = countAmps(net.nodes);
       var splits = net.nodes.filter(function (n) { return n.type === 'split'; }).length;
       grid.tiles.forEach(function (t) {
-        t.blocks = [{ type: 'mult', label: 'Ã—' + M }, { type: 'amp', label: 'LO buf' }];
+        t.blocks = [{ type: 'mult', label: '×' + M }, { type: 'amp', label: 'LO buf' }];
       });
       net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
-        return { type: 'mult', x: t.cx, y: t.cy, label: 'Ã—' + M, freqHz: g.fLoGHz * 1e9, tile: t.i };
+        return { type: 'mult', x: t.cx, y: t.cy, label: '×' + M, freqHz: g.fLoGHz * 1e9, tile: t.i };
       }));
       return {
         net: net, distFreqHz: fHz, tileMultiplier: M, repeaters: reps,
@@ -2391,14 +2391,14 @@ footer.foot a { color: var(--ink-2); }
           ['loSourceMid', 1, 'one source at ' + (fHz / 1e9).toFixed(1) + ' GHz'],
           ['loSplitMid', splits, '1:2 splitters at ' + (fHz / 1e9).toFixed(1) + ' GHz'],
           ['loAmpMid', reps + Math.round(splits / 2), 'mid-frequency repeaters and drivers'],
-          ['tileMult', grid.nTiles, 'per-tile Ã—' + M + ' multiplier to 78 GHz'],
-          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile â€” mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
+          ['tileMult', grid.nTiles, 'per-tile ×' + M + ' multiplier to 78 GHz'],
+          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile — mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
           ['loBuf78', grid.nTiles * g.tapsPerTile, 'per-tile LO buffers driving ' + g.tapsPerTile + ' RFIC taps'],
           ['midTransition', grid.nTiles, 'board-to-package transition at ' + (fHz / 1e9).toFixed(1) + ' GHz (far more forgiving than E-band)']
         ]),
-        note: 'The board never carries E-band, so loss and amplifier count collapse. The Ã—' + M +
+        note: 'The board never carries E-band, so loss and amplifier count collapse. The ×' + M +
               ' multiplier adds exactly ' + (20 * Math.log10(M)).toFixed(1) + ' dB to L(f) and multiplies any ' +
-              'distributed phase error by ' + M + ' â€” so this buys loss and power, not skew.'
+              'distributed phase error by ' + M + ' — so this buys loss and power, not skew.'
       };
     }
   };
@@ -2410,7 +2410,7 @@ footer.foot a { color: var(--ink-2); }
   }
 
   /* ======================================================================
-     Baseband topologies â€” drawn as a ZOOM into one tile: nCh channels from
+     Baseband topologies — drawn as a ZOOM into one tile: nCh channels from
      nDies RFIC dies, combined to the tile output that feeds the RFSoC.
      Everything here is PER RAIL, and there are two rails (I and Q).
      ================================================================== */
@@ -2474,7 +2474,7 @@ footer.foot a { color: var(--ink-2); }
       return {
         id: id, nCh: nCh, levels: levels, hops: 0, links: links, nodes: nodes, W: W, H: H,
         bom: bomOf([
-          ['bbActiveCell', (nCh - 1) * 2, 'active combine cells, both rails â€” ' + (nCh - 1) + ' per rail over ' + levels + ' levels'],
+          ['bbActiveCell', (nCh - 1) * 2, 'active combine cells, both rails — ' + (nCh - 1) + ' per rail over ' + levels + ' levels'],
           ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA'],
           ['bbDecap', 1, 'supply decoupling sized for the active cells']
         ]),
@@ -2485,18 +2485,18 @@ footer.foot a { color: var(--ink-2); }
     return {
       id: id, nCh: nCh, levels: levels, hops: 0, links: links, nodes: nodes, W: W, H: H,
       bom: bomOf([
-        ['bbResistor', (nCh - 1) * 3 * 2, 'resistive star arms, both rails (a Wilkinson is impossible at baseband â€” no DC path, ~8 nH arms at 1 GHz)'],
+        ['bbResistor', (nCh - 1) * 3 * 2, 'resistive star arms, both rails (a Wilkinson is impossible at baseband — no DC path, ~8 nH arms at 1 GHz)'],
         ['bbRootAmp', 2, 'one root amplifier per rail to recover the network loss'],
         ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA'],
         ['bbTxDriver', 2, 'strong TX-direction driver fighting the whole tree']
       ]),
-      note: 'Purely passive and therefore essentially drift-free â€” the strongest argument for it. ' +
+      note: 'Purely passive and therefore essentially drift-free — the strongest argument for it. ' +
             'At baseband it must be RESISTIVE, not Wilkinson.'
     };
   }
 
   /* ======================================================================
-     BASEBAND INTER-TILE NETWORK â€” tiles to the RFSoC backend.
+     BASEBAND INTER-TILE NETWORK — tiles to the RFSoC backend.
 
      This is the second tier of the two-stage architecture and it is drawn on
      the same aperture as the LO network. The three options give genuinely
@@ -2531,7 +2531,7 @@ footer.foot a { color: var(--ink-2); }
     if (id === 'passive-50') {
       /* flat star: one summing node just inside the aperture edge */
       var sum = { x: apCm / 2, y: -0.9 };
-      nodes.push({ type: 'sum', x: sum.x, y: sum.y, label: 'Î£', freqHz: fBb });
+      nodes.push({ type: 'sum', x: sum.x, y: sum.y, label: 'Σ', freqHz: fBb });
       emit(sum.x, sum.y, root.x, root.y, 'bbroot', 0);
       grid.tiles.forEach(function (t) {
         var len = emit(t.bbX, t.bbY, sum.x, sum.y, 'bbarm', 1);
@@ -2552,7 +2552,7 @@ footer.foot a { color: var(--ink-2); }
         order = order.concat(row);
       }
       var px = order[0].bbX, py = order[0].bbY, acc = 0;
-      nodes.push({ type: 'term', x: px - grid.tileCm * 0.34, y: py, label: '50Î©', freqHz: fBb });
+      nodes.push({ type: 'term', x: px - grid.tileCm * 0.34, y: py, label: '50Ω', freqHz: fBb });
       emit(px - grid.tileCm * 0.34, py, px, py, 'bbhop', 0);
       order.forEach(function (t, k) {
         if (k > 0) acc += emit(px, py, t.bbX, t.bbY, 'bbhop', k);
@@ -2613,7 +2613,7 @@ footer.foot a { color: var(--ink-2); }
         totalRoutedCm: total,
         cellCount: nodes.filter(function (n) { return n.type === 'cell'; }).length,
         note: kind === 'star'
-          ? grid.nTiles + ' arms meeting at one summing node. Hierarchy buys a resistive combiner nothing, so the natural layout is a flat star â€” at the cost of long unequal arms and one large driver.'
+          ? grid.nTiles + ' arms meeting at one summing node. Hierarchy buys a resistive combiner nothing, so the natural layout is a flat star — at the cost of long unequal arms and one large driver.'
           : kind === 'bus'
             ? 'One bus tapped and passed at all ' + grid.nTiles + ' tiles. Shortest total wire of the three, but the delay accumulates monotonically along it.'
             : depth + ' levels of 2:1 active cells. Nominally equal path lengths, so the inter-tile skew comes from cell mismatch rather than geometry.'
@@ -2647,7 +2647,7 @@ footer.foot a { color: var(--ink-2); }
     return {
       lo: lo,
       bb: buildBb(g.bbOptionId || g.bbOption, g),   /* intra-tile, 32 channels */
-      bbInter: bbNet(grid, g),                      /* inter-tile, tiles â†’ RFSoC */
+      bbInter: bbNet(grid, g),                      /* inter-tile, tiles → RFSoC */
       grid: grid
     };
   }
@@ -2660,7 +2660,7 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/model.js ===== */
 /* ============================================================================
-   model.js â€” global parameters, block library, reference-source menu, and the
+   model.js — global parameters, block library, reference-source menu, and the
    evaluation of all seven distribution options.
 
    The central asymmetry this model exists to expose:
@@ -2670,7 +2670,7 @@ footer.foot a { color: var(--ink-2); }
      inter-tile differential (so it costs beam coherence: sidelobe floor and
      null depth). Correlated noise from a shared source does the opposite.
 
-   So per-tile PLLs and a shared LO are not "better and worse" â€” they trade
+   So per-tile PLLs and a shared LO are not "better and worse" — they trade
    link EVM against beam coherence, and the tool prices both.
 
    Exposes window.Model.
@@ -2703,7 +2703,7 @@ footer.foot a { color: var(--ink-2); }
   ];
 
   /* ===================================================================== *
-   * Block library â€” power / area / gain / additive noise.
+   * Block library — power / area / gain / additive noise.
    * Values are engineering estimates anchored to published mmWave IC work
    * unless labelled otherwise; every one is exposed in the ledger.
    * =================================================================== */
@@ -2713,13 +2713,13 @@ footer.foot a { color: var(--ink-2); }
     refRepeater:    { name: 'Reference line repeater', tech: '65nm CMOS', freqGHz: 0.1, powerMw: 20, gainDb: 10, areaMm2: 0.01, addPnFloorDbc: -160, addPnCornerHz: 1e4, conf: 'scaled-estimate', why: 'Rarely needed: a 30 cm board is electrically short at 100 MHz.' },
 
     tilePll:        { name: 'Per-tile PLL at f_LO/M', tech: '65nm LP CMOS', freqGHz: 19.5, powerMw: 42, gainDb: 0, areaMm2: 0.35, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'Integer-N ~20 GHz PLL in 65nm: VCO + dividers + PFD/CP + output buffer. Two independent block libraries gave 32 and 52 mW; 42 is the midpoint and both agree this block is comfortable.' },
-    tileMult:       { name: 'Per-tile Ã—M multiplier chain', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 86, gainDb: 13, areaMm2: 0.23, addPnFloorDbc: -152, addPnCornerHz: 2e5, conf: 'scaled-estimate', why: 'Two cascaded doublers 19.5â†’78 GHz, no filter needed. Power reconciled from 80 and 92 mW. NOTE: the two libraries disagreed by 12 dB on additive phase noise (âˆ’146 vs âˆ’158 dBc/Hz); âˆ’152 is the midpoint and this is the number A4â€™s floor rests on â€” measure it.' },
-    loChipletSige:  { name: 'SiGe LO last-mile chiplet', tech: 'SiGe BiCMOS (3rd die)', freqGHz: 78, powerMw: 165, gainDb: 20, areaMm2: 1.0, addPnFloorDbc: -155, addPnCornerHz: 3e5, conf: 'scaled-estimate', why: 'REQUIRED BY EVERY OPTION. A 78 GHz gain stage is not realisable in TSMC 65nm LP (fmax/f â‰ˆ 1.9): a 4-stage CMOS chain reaches â‰ˆ0 dBm Psat but must source +5.6 dBm into four RFIC taps. So the LO last mile leaves the 65nm tile and becomes a third die â€” the proposalâ€™s two-chip partition is really three.' },
+    tileMult:       { name: 'Per-tile ×M multiplier chain', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 86, gainDb: 13, areaMm2: 0.23, addPnFloorDbc: -152, addPnCornerHz: 2e5, conf: 'scaled-estimate', why: 'Two cascaded doublers 19.5→78 GHz, no filter needed. Power reconciled from 80 and 92 mW. NOTE: the two libraries disagreed by 12 dB on additive phase noise (−146 vs −158 dBc/Hz); −152 is the midpoint and this is the number A4’s floor rests on — measure it.' },
+    loChipletSige:  { name: 'SiGe LO last-mile chiplet', tech: 'SiGe BiCMOS (3rd die)', freqGHz: 78, powerMw: 165, gainDb: 20, areaMm2: 1.0, addPnFloorDbc: -155, addPnCornerHz: 3e5, conf: 'scaled-estimate', why: 'REQUIRED BY EVERY OPTION. A 78 GHz gain stage is not realisable in TSMC 65nm LP (fmax/f ≈ 1.9): a 4-stage CMOS chain reaches ≈0 dBm Psat but must source +5.6 dBm into four RFIC taps. So the LO last mile leaves the 65nm tile and becomes a third die — the proposal’s two-chip partition is really three.' },
     loBuf78:        { name: '78 GHz LO tap buffer', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 24, gainDb: 9, areaMm2: 0.07, addPnFloorDbc: -158, addPnCornerHz: 2e5, conf: 'published-literature', why: 'Per-tap E-band driver into the existing RFIC LO port. Reconciled from 18 and 30 mW; ~2.0 mW per dB of gain in SiGe against 7.4 in 65nm LP.' },
 
     loSource78:     { name: 'Central 78 GHz source', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 218, gainDb: 0, areaMm2: 0.95, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'E-band integer-N PLL that both makes 78 GHz cleanly and can drive +2 dBm. Reconciled from 187 and 250 mW.' },
     loSplit78:      { name: 'E-band 1:2 splitter', tech: 'RO3003 GCPW, on board', freqGHz: 78, powerMw: 0, gainDb: -3.5, areaMm2: 0.96, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'A PCB Wilkinson at 78 GHz is 0.8 dB better than on-chip, but every junction adds a mechanical discontinuity and an unrepeatable phase offset.' },
-    loAmp78:        { name: 'E-band repeater amplifier', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 45, gainDb: 12, areaMm2: 0.08, addPnFloorDbc: -152, addPnCornerHz: 2e5, conf: 'published-literature', why: 'Gain stage needed every few centimetres of E-band line. Each one is a separate SiGe die on the board â€” it cannot live in the 65nm tile.' },
+    loAmp78:        { name: 'E-band repeater amplifier', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 45, gainDb: 12, areaMm2: 0.08, addPnFloorDbc: -152, addPnCornerHz: 2e5, conf: 'published-literature', why: 'Gain stage needed every few centimetres of E-band line. Each one is a separate SiGe die on the board — it cannot live in the 65nm tile.' },
     ebandTransition:{ name: 'E-band board/package transition', tech: 'packaging', freqGHz: 78, powerMw: 0, gainDb: -0.9, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'Each E-band transition costs loss and, worse, an unrepeatable phase offset.' },
 
     loSourceChain:  { name: 'Chain source', tech: 'SiGe BiCMOS', freqGHz: 39, powerMw: 220, gainDb: 0, areaMm2: 0.7, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'PLL at the chain frequency.' },
@@ -2728,17 +2728,17 @@ footer.foot a { color: var(--ink-2); }
     chainTerm:      { name: 'Chain termination', tech: 'passive', freqGHz: 39, powerMw: 0, gainDb: 0, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Without it the chain end reflects back along every hop.' },
 
     loSourceMid:    { name: 'Mid-frequency source', tech: 'SiGe or 65nm CMOS', freqGHz: 19.5, powerMw: 180, gainDb: 0, areaMm2: 0.55, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'PLL at f_LO/M; far easier than a 78 GHz PLL.' },
-    loSplitMid:     { name: 'Mid-frequency 1:2 splitter', tech: 'on-board', freqGHz: 19.5, powerMw: 0, gainDb: -3.3, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Ideal 3 dB plus ~0.3 dB excess â€” a benign passive at this frequency.' },
-    loAmpMid:       { name: 'Mid-frequency amplifier', tech: '65nm CMOS or SiGe', freqGHz: 19.5, powerMw: 25, gainDb: 14, areaMm2: 0.05, addPnFloorDbc: -158, addPnCornerHz: 3e4, conf: 'published-literature', why: 'Cheap and well-characterised at 20â€“40 GHz in both technologies.' },
+    loSplitMid:     { name: 'Mid-frequency 1:2 splitter', tech: 'on-board', freqGHz: 19.5, powerMw: 0, gainDb: -3.3, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Ideal 3 dB plus ~0.3 dB excess — a benign passive at this frequency.' },
+    loAmpMid:       { name: 'Mid-frequency amplifier', tech: '65nm CMOS or SiGe', freqGHz: 19.5, powerMw: 25, gainDb: 14, areaMm2: 0.05, addPnFloorDbc: -158, addPnCornerHz: 3e4, conf: 'published-literature', why: 'Cheap and well-characterised at 20–40 GHz in both technologies.' },
     midTransition:  { name: 'Mid-frequency transition', tech: 'packaging', freqGHz: 19.5, powerMw: 0, gainDb: -0.25, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'A 20 GHz transition is routine; an E-band one is not.' },
 
-    bbActiveCell:   { name: 'Baseband active combine cell', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 1.5, gainDb: 0, areaMm2: 0.004, nfDb: 12, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Current-summing cell for a DCâ€“1 GHz rail. Both libraries independently gave â‰ˆ1.5 mW â€” far cheaper than a per-cell guess suggests, because power follows total load capacitance, not cell count.' },
-    bbVectorMod:    { name: 'IQ vector modulator + VGA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 6, gainDb: 0, areaMm2: 0.03, nfDb: 14, conf: 'scaled-estimate', why: 'Per-channel baseband phase/amplitude weight â€” the beamforming control point, and where a static LO phase offset is corrected. 32 per tile per rail dominates the tile power.' },
-    bbResistor:     { name: 'Resistive network arm', tech: '65nm poly resistor', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.0008, conf: 'scaled-estimate', why: 'Essentially free in area and perfectly stable â€” the passive networkâ€™s main virtue.' },
+    bbActiveCell:   { name: 'Baseband active combine cell', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 1.5, gainDb: 0, areaMm2: 0.004, nfDb: 12, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Current-summing cell for a DC–1 GHz rail. Both libraries independently gave ≈1.5 mW — far cheaper than a per-cell guess suggests, because power follows total load capacitance, not cell count.' },
+    bbVectorMod:    { name: 'IQ vector modulator + VGA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 6, gainDb: 0, areaMm2: 0.03, nfDb: 14, conf: 'scaled-estimate', why: 'Per-channel baseband phase/amplitude weight — the beamforming control point, and where a static LO phase offset is corrected. 32 per tile per rail dominates the tile power.' },
+    bbResistor:     { name: 'Resistive network arm', tech: '65nm poly resistor', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.0008, conf: 'scaled-estimate', why: 'Essentially free in area and perfectly stable — the passive network’s main virtue.' },
     bbRootAmp:      { name: 'Baseband root amplifier', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 25, gainDb: 18, areaMm2: 0.02, nfDb: 10, conf: 'scaled-estimate', why: 'Recovers the passive network loss and drives the RFSoC ADC input.' },
-    bbTap:          { name: 'Baseband bus tap', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 2, gainDb: -0.4, areaMm2: 0.002, conf: 'scaled-estimate', why: 'Its input capacitance is what collapses the daisy chainâ€™s bandwidth as N grows.' },
-    bbTxDriver:     { name: 'Baseband TX-direction driver', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 60, gainDb: 12, areaMm2: 0.03, conf: 'scaled-estimate', why: 'One driver fighting the whole tree plus N pad capacitances. The passive networkâ€™s hidden cost.' },
-    bbDecap:        { name: 'Supply decoupling', tech: '65nm MOM/MOS cap', freqGHz: 0, powerMw: 0, gainDb: 0, areaMm2: 0.27, conf: 'scaled-estimate', why: 'Sized for the active cellsâ€™ current ripple. Usually the real area cost, not the cells.' }
+    bbTap:          { name: 'Baseband bus tap', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 2, gainDb: -0.4, areaMm2: 0.002, conf: 'scaled-estimate', why: 'Its input capacitance is what collapses the daisy chain’s bandwidth as N grows.' },
+    bbTxDriver:     { name: 'Baseband TX-direction driver', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 60, gainDb: 12, areaMm2: 0.03, conf: 'scaled-estimate', why: 'One driver fighting the whole tree plus N pad capacitances. The passive network’s hidden cost.' },
+    bbDecap:        { name: 'Supply decoupling', tech: '65nm MOM/MOS cap', freqGHz: 0, powerMw: 0, gainDb: 0, areaMm2: 0.27, conf: 'scaled-estimate', why: 'Sized for the active cells’ current ripple. Usually the real area cost, not the cells.' }
   };
 
   /* ===================================================================== *
@@ -2747,26 +2747,26 @@ footer.foot a { color: var(--ink-2); }
   var PARAMS = [
     /* --- array & band --- */
     { key: 'fLoGHz', label: 'LO frequency', units: 'GHz', value: 78, min: 60, max: 95, step: 0.5, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'RFIC characterised with a 78 GHz LO; the band is 71â€“86 GHz. The proposalâ€™s own modelling text uses 75 GHz.' },
+      conf: 'measured/datasheet', why: 'RFIC characterised with a 78 GHz LO; the band is 71–86 GHz. The proposal’s own modelling text uses 75 GHz.' },
     { key: 'rfBwGHz', label: 'RF bandwidth', units: 'GHz', value: 2, min: 0.1, max: 5, step: 0.1, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'â‰ˆ2 GHz class per the RFIC front-end table.' },
+      conf: 'measured/datasheet', why: '≈2 GHz class per the RFIC front-end table.' },
     { key: 'apertureCm', label: 'Aperture side', units: 'cm', value: 30, min: 6, max: 60, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: '30 Ã— 30 cm array class from the proposal.' },
+      conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal.' },
     { key: 'tileCm', label: 'Tile side', units: 'cm', value: 6, min: 1.5, max: 15, step: 0.5, group: 'Array & band',
-      conf: 'published-literature', why: 'Sub-tiling to 5â€“10 cm keeps residual intra-tile delay under ~200 ps. 6 cm gives a 5Ã—5 grid over 30 cm.' },
+      conf: 'published-literature', why: 'Sub-tiling to 5–10 cm keeps residual intra-tile delay under ~200 ps. 6 cm gives a 5×5 grid over 30 cm.' },
     { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
       conf: 'measured/datasheet', why: 'One LO tap per RFIC die; 100 dies over 25 tiles is 4 dies per tile.' },
     { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 32, min: 2, max: 64, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: '4 dies Ã— (4 RX + 4 TX) = 32 channels per tile, per rail.' },
+      conf: 'measured/datasheet', why: '4 dies × (4 RX + 4 TX) = 32 channels per tile, per rail.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
-      conf: 'published-literature', why: 'The proposal evaluates squint at 60Â°, where it exceeds the beamwidth.' },
+      conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
 
     /* --- reference clock --- */
     { key: 'refSel', label: 'Reference clock', units: '', value: 2, group: 'Reference clock',
       choices: REF_SOURCES.map(function (r, i) { return { value: i, label: r.name }; }),
       conf: 'published-literature', why: 'Selecting a preset stamps its datasheet phase noise into the four fields below, which stay editable.' },
     { key: 'fRefMHz', label: 'Reference frequency', units: 'MHz', value: 100, min: 1, max: 4000, step: 1, group: 'Reference clock',
-      conf: 'published-literature', why: 'Also the PFD comparison frequency unless an R-divider is used. Higher is better for the in-band floor: âˆ’10log10(f_pfd).' },
+      conf: 'published-literature', why: 'Also the PFD comparison frequency unless an R-divider is used. Higher is better for the in-band floor: −10log10(f_pfd).' },
     { key: 'ref1k', label: 'Ref L(1 kHz)', units: 'dBc/Hz', value: -125, min: -180, max: -60, step: 1, group: 'Reference clock', conf: 'published-literature', why: 'Datasheet point of the selected reference.' },
     { key: 'ref10k', label: 'Ref L(10 kHz)', units: 'dBc/Hz', value: -145, min: -180, max: -60, step: 1, group: 'Reference clock', conf: 'published-literature', why: 'Datasheet point of the selected reference.' },
     { key: 'ref100k', label: 'Ref L(100 kHz)', units: 'dBc/Hz', value: -155, min: -180, max: -60, step: 1, group: 'Reference clock', conf: 'published-literature', why: 'Datasheet point of the selected reference.' },
@@ -2775,38 +2775,38 @@ footer.foot a { color: var(--ink-2); }
     /* --- LO architecture --- */
     { key: 'loOption', label: 'LO connection type', units: '', value: 3, group: 'LO architecture',
       choices: [
-        { value: 0, label: 'A1 Â· Local PLL + reference' },
-        { value: 1, label: 'A2 Â· High-frequency / foldback' },
-        { value: 2, label: 'A3 Â· Daisy chain' },
-        { value: 3, label: 'A4 Â· Mid-frequency + Ã—M' }
+        { value: 0, label: 'A1 · Local PLL + reference' },
+        { value: 1, label: 'A2 · High-frequency / foldback' },
+        { value: 2, label: 'A3 · Daisy chain' },
+        { value: 3, label: 'A4 · Mid-frequency + ×M' }
       ], conf: 'measured/datasheet', why: 'The four candidates from the proposal. This selects what the map draws.' },
-    { key: 'midM', label: 'Multiplier M (A4)', units: 'Ã—', value: 4, group: 'LO architecture',
-      choices: [{ value: 2, label: 'Ã—2 â†’ 39 GHz' }, { value: 3, label: 'Ã—3 â†’ 26 GHz' }, { value: 4, label: 'Ã—4 â†’ 19.5 GHz' },
-                { value: 6, label: 'Ã—6 â†’ 13 GHz' }, { value: 8, label: 'Ã—8 â†’ 9.75 GHz' }],
+    { key: 'midM', label: 'Multiplier M (A4)', units: '×', value: 4, group: 'LO architecture',
+      choices: [{ value: 2, label: '×2 → 39 GHz' }, { value: 3, label: '×3 → 26 GHz' }, { value: 4, label: '×4 → 19.5 GHz' },
+                { value: 6, label: '×6 → 13 GHz' }, { value: 8, label: '×8 → 9.75 GHz' }],
       conf: 'scaled-estimate', why: 'Distribution frequency is f_LO/M. M sets the 20log10(M) phase-noise penalty and the line loss.' },
     { key: 'chainFreqGHz', label: 'Chain frequency (A3)', units: 'GHz', value: 39, min: 5, max: 90, step: 1, group: 'LO architecture',
       conf: 'scaled-estimate', why: 'Frequency carried along the daisy chain. Below f_LO it needs a per-tile multiplier.' },
     { key: 'chainBranches', label: 'Chain branches (A3)', units: '-', value: 5, min: 1, max: 10, step: 1, group: 'LO architecture',
       conf: 'scaled-estimate', why: 'Splitting the serpentine into parallel chains bounds both accumulated skew and the blast radius of a dead buffer.' },
-    { key: 'pllMult', label: 'Post-PLL Ã—M (A1)', units: 'Ã—', value: 4, group: 'LO architecture',
-      choices: [{ value: 1, label: 'Ã—1 â€” PLL runs at 78 GHz' }, { value: 2, label: 'Ã—2' }, { value: 4, label: 'Ã—4' }, { value: 6, label: 'Ã—6' }],
+    { key: 'pllMult', label: 'Post-PLL ×M (A1)', units: '×', value: 4, group: 'LO architecture',
+      choices: [{ value: 1, label: '×1 — PLL runs at 78 GHz' }, { value: 2, label: '×2' }, { value: 4, label: '×4' }, { value: 6, label: '×6' }],
       conf: 'scaled-estimate', why: 'A per-tile PLL at 78/M plus a multiplier is far more practical in 65nm than a 78 GHz PLL.' },
     { key: 'pllLoopBwMHz', label: 'PLL loop bandwidth', units: 'MHz', value: 1, min: 0.01, max: 20, step: 0.01, group: 'LO architecture',
       conf: 'scaled-estimate', why: 'Below it the tile tracks the shared reference (correlated); above it the local VCO runs free (uncorrelated). The single most important A1 parameter.' },
-    { key: 'pllZeta', label: 'Loop damping Î¶', units: '-', value: 0.8, min: 0.3, max: 2, step: 0.05, group: 'LO architecture',
+    { key: 'pllZeta', label: 'Loop damping ζ', units: '-', value: 0.8, min: 0.3, max: 2, step: 0.05, group: 'LO architecture',
       conf: 'scaled-estimate', why: 'Type-II 2nd-order damping. Sets the jitter peaking near the loop bandwidth.' },
     { key: 'fomPll', label: 'PLL in-band FOM', units: 'dBc/Hz', value: -231, min: -238, max: -205, step: 1, group: 'LO architecture',
-      conf: 'published-literature', why: 'Normalised in-band floor. âˆ’231 is the documented LMX2594-class figure; âˆ’227 a good integer-N CMOS PLL; âˆ’220 a typical mmWave fractional-N.' },
+      conf: 'published-literature', why: 'Normalised in-band floor. −231 is the documented LMX2594-class figure; −227 a good integer-N CMOS PLL; −220 a typical mmWave fractional-N.' },
     { key: 'pllFlickNorm', label: 'PLL 1/f norm', units: 'dBc/Hz', value: -120, min: -140, max: -95, step: 1, group: 'LO architecture',
       conf: 'scaled-estimate', why: 'In-band flicker normalised to 1 Hz offset at a 1 GHz carrier.' },
     { key: 'fomVco', label: 'VCO FOM', units: 'dBc/Hz', value: -183, min: -195, max: -160, step: 1, group: 'LO architecture',
-      conf: 'published-literature', why: 'Good mmWave LC VCO. Oscillating directly at 78 GHz typically costs 8â€“12 dB of FOM.' },
+      conf: 'published-literature', why: 'Good mmWave LC VCO. Oscillating directly at 78 GHz typically costs 8–12 dB of FOM.' },
     { key: 'vcoPowerMw', label: 'VCO power', units: 'mW', value: 12, min: 1, max: 100, step: 1, group: 'LO architecture',
-      conf: 'scaled-estimate', why: 'Enters the VCO FOM expression as âˆ’10log10(P/1mW).' },
-    { key: 'vcoCornerHz', label: 'VCO 1/fÂ³ corner', units: 'Hz', value: 3e5, min: 1e3, max: 1e7, step: 1e3, group: 'LO architecture',
-      conf: 'scaled-estimate', why: 'Below this the VCO noise steepens from 1/fÂ² to 1/fÂ³.' },
+      conf: 'scaled-estimate', why: 'Enters the VCO FOM expression as −10log10(P/1mW).' },
+    { key: 'vcoCornerHz', label: 'VCO 1/f³ corner', units: 'Hz', value: 3e5, min: 1e3, max: 1e7, step: 1e3, group: 'LO architecture',
+      conf: 'scaled-estimate', why: 'Below this the VCO noise steepens from 1/f² to 1/f³.' },
     { key: 'uncorrInbandFrac', label: 'PFD/CP noise uncorrelated share', units: '-', value: 1, min: 0, max: 1, step: 0.05, group: 'LO architecture',
-      conf: 'engineering-guess', why: 'How much of the per-tile PFD/charge-pump/divider and flicker noise is genuinely independent between tiles. Physically it is close to 1: only shared bias or a shared reference buffer makes any of it common. The reference-derived term is handled separately and is always common. Lowering this is the optimistic case for A1 â€” it must be measured, not assumed.' },
+      conf: 'engineering-guess', why: 'How much of the per-tile PFD/charge-pump/divider and flicker noise is genuinely independent between tiles. Physically it is close to 1: only shared bias or a shared reference buffer makes any of it common. The reference-derived term is handled separately and is always common. Lowering this is the optimistic case for A1 — it must be measured, not assumed.' },
 
     /* --- interconnect & packaging --- */
     { key: 'loMedium', label: 'LO line medium', units: '', value: 0, group: 'Interconnect & packaging',
@@ -2815,41 +2815,41 @@ footer.foot a { color: var(--ink-2); }
       conf: 'published-literature', why: 'Sets the loss coefficients and effective permittivity used for loss, delay and skew.' },
     { key: 'maxSegLossDb', label: 'Max segment loss', units: 'dB', value: 8, min: 2, max: 30, step: 0.5, group: 'Interconnect & packaging',
       conf: 'scaled-estimate', why: 'Repeater spacing rule: a new amplifier is inserted whenever a segment would exceed this.' },
-    { key: 'lenTolUm', label: 'Length tolerance (1Ïƒ)', units: 'Âµm', value: 25, min: 1, max: 200, step: 1, group: 'Interconnect & packaging',
-      conf: 'published-literature', why: 'Per-segment etch and registration tolerance on a controlled-impedance board. At 78 GHz on RO3003, ~6 Âµm is one degree.' },
+    { key: 'lenTolUm', label: 'Length tolerance (1σ)', units: 'µm', value: 25, min: 1, max: 200, step: 1, group: 'Interconnect & packaging',
+      conf: 'published-literature', why: 'Per-segment etch and registration tolerance on a controlled-impedance board. At 78 GHz on RO3003, ~6 µm is one degree.' },
     { key: 'dkTolPct', label: 'Dk tolerance', units: '%', value: 1.3, min: 0.1, max: 5, step: 0.1, group: 'Interconnect & packaging',
-      conf: 'measured/datasheet', why: 'RO3003 is specified Â±0.04 on Dk = 3.00. Halved into âˆšÎµr, this is a large but STATIC (calibratable) phase error.' },
+      conf: 'measured/datasheet', why: 'RO3003 is specified ±0.04 on Dk = 3.00. Halved into √εr, this is a large but STATIC (calibratable) phase error.' },
     { key: 'tcPpmPerK', label: 'Delay tempco', units: 'ppm/K', value: 18.5, min: 0, max: 200, step: 0.5, group: 'Interconnect & packaging',
-      conf: 'measured/datasheet', why: 'CTE â‰ˆ 17 ppm/K with TCDk â‰ˆ âˆ’3 ppm/K for RO3003 gives â‰ˆ15.5 ppm/K of delay drift.' },
-    { key: 'dTTileK', label: 'Tile-to-tile Î”T', units: 'K', value: 15, min: 0, max: 60, step: 1, group: 'Interconnect & packaging',
+      conf: 'measured/datasheet', why: 'CTE ≈ 17 ppm/K with TCDk ≈ −3 ppm/K for RO3003 gives ≈15.5 ppm/K of delay drift.' },
+    { key: 'dTTileK', label: 'Tile-to-tile ΔT', units: 'K', value: 15, min: 0, max: 60, step: 1, group: 'Interconnect & packaging',
       conf: 'engineering-guess', why: 'Differential temperature across the aperture in operation. Drives the drift BIST has to track.' },
     { key: 'connSkewPs', label: 'Transition repeatability', units: 'ps', value: 0.5, min: 0, max: 20, step: 0.05, group: 'Interconnect & packaging',
-      conf: 'engineering-guess', why: 'Unrepeatable DELAY per board/package transition. Specified in time, not degrees, because mechanical repeatability is roughly constant in Âµm â€” which is exactly why every distribution frequency sees the same skew. 0.5 ps â‰ˆ 60 Âµm in this medium, and â‰ˆ14Â° at 78 GHz.' },
+      conf: 'engineering-guess', why: 'Unrepeatable DELAY per board/package transition. Specified in time, not degrees, because mechanical repeatability is roughly constant in µm — which is exactly why every distribution frequency sees the same skew. 0.5 ps ≈ 60 µm in this medium, and ≈14° at 78 GHz.' },
 
     /* --- baseband --- */
     { key: 'bbOption', label: 'BB split/combine', units: '', value: 2, group: 'Baseband',
-      choices: [{ value: 0, label: 'B1 Â· Passive resistive' }, { value: 1, label: 'B2 Â· Daisy chain' }, { value: 2, label: 'B3 Â· H-tree active' }],
+      choices: [{ value: 0, label: 'B1 · Passive resistive' }, { value: 1, label: 'B2 · Daisy chain' }, { value: 2, label: 'B3 · H-tree active' }],
       conf: 'measured/datasheet', why: 'The three candidates from the proposal. Selects what the tile-zoom diagram draws.' },
     { key: 'bbEdgeGHz', label: 'BB rail edge', units: 'GHz', value: 1, min: 0.1, max: 2.5, step: 0.1, group: 'Baseband',
-      conf: 'measured/datasheet', why: 'IQ downconversion of a 2 GHz RF band gives Â±1 GHz, so each rail is DCâ€“1 GHz. Using 2 GHz here inflates every noise number by 3 dB.' },
-    { key: 'bbCellSkewPs', label: 'BB cell skew (1Ïƒ)', units: 'ps', value: 3, min: 0.1, max: 40, step: 0.1, group: 'Baseband',
+      conf: 'measured/datasheet', why: 'IQ downconversion of a 2 GHz RF band gives ±1 GHz, so each rail is DC–1 GHz. Using 2 GHz here inflates every noise number by 3 dB.' },
+    { key: 'bbCellSkewPs', label: 'BB cell skew (1σ)', units: 'ps', value: 3, min: 0.1, max: 40, step: 0.1, group: 'Baseband',
       conf: 'scaled-estimate', why: 'Per-cell / per-junction delay mismatch, accumulating over the tree levels or chain hops.' },
     { key: 'rficGainDb', label: 'RFIC gain ahead of BB', units: 'dB', value: 30, min: 0, max: 50, step: 1, group: 'Baseband',
-      conf: 'measured/datasheet', why: 'RX gain is 20â€“40 dB. This is what makes the combinerâ€™s noise-figure penalty nearly irrelevant.' },
+      conf: 'measured/datasheet', why: 'RX gain is 20–40 dB. This is what makes the combiner’s noise-figure penalty nearly irrelevant.' },
     { key: 'ttdStepPs', label: 'Coarse TTD step', units: 'ps', value: 75, min: 10, max: 400, step: 5, group: 'Baseband',
-      conf: 'published-literature', why: '50â€“100 ps class per the proposal. Note the binding constraint is RANGE (866 ps at 60Â° over 30 cm), not resolution.' },
+      conf: 'published-literature', why: '50–100 ps class per the proposal. Note the binding constraint is RANGE (866 ps at 60° over 30 cm), not resolution.' },
 
     /* --- calibration --- */
     { key: 'fBistHz', label: 'BIST update rate', units: 'Hz', value: 1, min: 0.01, max: 1000, step: 0.01, group: 'Calibration',
-      conf: 'scaled-estimate', why: 'Calibration-state update rate. Note this need NOT equal the ~100 Hz beam-update rate â€” drift bandwidth is ~0.3â€“3 Hz.' },
+      conf: 'scaled-estimate', why: 'Calibration-state update rate. Note this need NOT equal the ~100 Hz beam-update rate — drift bandwidth is ~0.3–3 Hz.' },
     { key: 'bistNoiseDeg', label: 'BIST phase noise (1 meas)', units: 'deg', value: 1.5, min: 0.05, max: 20, step: 0.05, group: 'Calibration',
       conf: 'engineering-guess', why: 'Single-measurement phase-estimate error. Too aggressive a loop imports this instead of removing drift.' },
     { key: 'bistMeasRateHz', label: 'BIST measurement rate', units: 'Hz', value: 2000, min: 1, max: 1e6, step: 1, group: 'Calibration',
       conf: 'scaled-estimate', why: 'How fast individual BIST observations can be taken, setting how many average into one update.' },
-    { key: 'calLoopGain', label: 'Calibration loop gain Âµ', units: '-', value: 0.3, min: 0.02, max: 1, step: 0.02, group: 'Calibration',
-      conf: 'scaled-estimate', why: 'Tracking-loop gain. The calibration corner is f_cal = ÂµÂ·f_upd/2Ï€ â€” about 0.05 Hz at Âµ=0.3 and 1 Hz updates.' },
+    { key: 'calLoopGain', label: 'Calibration loop gain µ', units: '-', value: 0.3, min: 0.02, max: 1, step: 0.02, group: 'Calibration',
+      conf: 'scaled-estimate', why: 'Tracking-loop gain. The calibration corner is f_cal = µ·f_upd/2π — about 0.05 Hz at µ=0.3 and 1 Hz updates.' },
     { key: 'phaseBits', label: 'BB phase-shifter bits', units: 'bit', value: 7, min: 3, max: 12, step: 1, group: 'Calibration',
-      conf: 'scaled-estimate', why: 'Quantisation residual is LSB/âˆš12. There is no point buying bits below the irreducible noise floor.' },
+      conf: 'scaled-estimate', why: 'Quantisation residual is LSB/√12. There is no point buying bits below the irreducible noise floor.' },
 
     /* --- link & budget --- */
     { key: 'carrierTrackMHz', label: 'Carrier-recovery BW', units: 'MHz', value: 1, min: 0.001, max: 100, step: 0.001, group: 'Link & budget',
@@ -2857,9 +2857,9 @@ footer.foot a { color: var(--ink-2); }
     { key: 'evmShare', label: 'EVM share for LO', units: '-', value: 0.3, min: 0.05, max: 1, step: 0.05, group: 'Link & budget',
       conf: 'engineering-guess', why: 'Fraction of the total EVM budget allocated to LO phase noise; the rest goes to PA, ADC and channel.' },
     { key: 'arrayPowerW', label: 'Array power budget', units: 'W', value: 95, min: 5, max: 500, step: 1, group: 'Link & budget',
-      conf: 'scaled-estimate', why: '100 dies Ã— â‰ˆ840 mW for 4 TX + 4 RX at E-band. Distribution power is expressed as a fraction of this.' },
+      conf: 'scaled-estimate', why: '100 dies × ≈840 mW for 4 TX + 4 RX at E-band. Distribution power is expressed as a fraction of this.' },
     { key: 'specPhaseDeg', label: 'Inter-tile phase spec', units: 'deg', value: 5, min: 0.2, max: 30, step: 0.1, group: 'Link & budget',
-      conf: 'measured/datasheet', why: 'The proposalâ€™s own Eq. 16: |Ï†_dist| < 5Â° to avoid sidelobe degradation and squint amplification.' }
+      conf: 'measured/datasheet', why: 'The proposal’s own Eq. 16: |φ_dist| < 5° to avoid sidelobe degradation and squint amplification.' }
   ];
 
   var MEDIA_KEYS = ['ro3003_gcpw', 'ro3003_ms', 'siw_ro3003', 'wr12', 'ro4350_ms'];
@@ -2870,10 +2870,10 @@ footer.foot a { color: var(--ink-2); }
     { id: 'local-pll', name: 'A1 Local PLL + reference', short: 'Local PLL' },
     { id: 'hf-foldback', name: 'A2 High-frequency / foldback', short: 'HF foldback' },
     { id: 'daisy-chain', name: 'A3 Daisy chain', short: 'Daisy chain' },
-    { id: 'mid-mult', name: 'A4 Mid-frequency + Ã—M', short: 'Mid + Ã—M' }
+    { id: 'mid-mult', name: 'A4 Mid-frequency + ×M', short: 'Mid + ×M' }
   ];
   var BB_META = [
-    { id: 'passive-50', name: 'B1 Passive resistive', short: 'Passive 50 Î©' },
+    { id: 'passive-50', name: 'B1 Passive resistive', short: 'Passive 50 Ω' },
     { id: 'bb-daisy', name: 'B2 Baseband daisy chain', short: 'BB daisy' },
     { id: 'h-tree-active', name: 'B3 H-tree active', short: 'H-tree active' }
   ];
@@ -3016,7 +3016,7 @@ footer.foot a { color: var(--ink-2); }
     }
     [1e3, 1e4, 1e5, 1e6, 1e7, 1e8].forEach(function (f) { pnAtOffsets[f] = pn.abs(f); });
 
-    /* differential (inter-tile, mean-referred) curve â€” the decision curve */
+    /* differential (inter-tile, mean-referred) curve — the decision curve */
     var mr2 = Math.max(nT - 1, 0) / Math.max(nT, 1);
     function diffLin(f) { return pn.parts(f).uncorr * mr2; }
     var pnDiffCurve = pnCurve.map(function (p) {
@@ -3063,7 +3063,7 @@ footer.foot a { color: var(--ink-2); }
 
        (a) GEOMETRIC path-length imbalance. Known by construction from the
            drawn topology. A designer equalises it, and whatever is left is a
-           one-time static offset. It is a DESIGN REQUIREMENT, not an error â€”
+           one-time static offset. It is a DESIGN REQUIREMENT, not an error —
            reporting it as a phase error gives thousands of degrees, which is
            just "unknown phase" and wraps meaninglessly.
        (b) STATIC but unknown: Dk tolerance over the path. Large, removed by
@@ -3082,8 +3082,8 @@ footer.foot a { color: var(--ink-2); }
 
     /* (b) static and unknown until measured: Dk tolerance over the path,
        per-segment etch tolerance, and transition repeatability. These are
-       UNKNOWN but they do not fluctuate â€” a solder joint's phase is fixed
-       once assembled â€” so a single calibration removes all of them. They set
+       UNKNOWN but they do not fluctuate — a solder joint's phase is fixed
+       once assembled — so a single calibration removes all of them. They set
        the required correction RANGE, not the residual error. */
     var dkPs = lo.pathMeanCm * psPerCm * (0.5 * g.dkTolPct / 100);
     var segTolPs = (g.lenTolUm * 1e-4) * psPerCm;
@@ -3104,13 +3104,13 @@ footer.foot a { color: var(--ink-2); }
     var skewRmsPs = K.rss(skewStaticPs, skewDriftPs);
     var skewPeakPs = skewRmsPs * K.peakFactor(nT);
     /* Open-loop correction range the calibration must cover, in degrees at
-       the LO. Quoting it as an "error" would be wrong â€” it is a requirement,
+       the LO. Quoting it as an "error" would be wrong — it is a requirement,
        and it wraps, so the BIST must resolve the integer ambiguity too. */
     var correctionRangeDeg = skewStaticPs * degPs;
     var skewDeg78 = skewDriftPs * degPs;
     var skewRandomPs = skewDriftPs;
 
-    /* thermal drift of the differential path â€” what BIST must track */
+    /* thermal drift of the differential path — what BIST must track */
     var driftDegPerK = lo.pathMeanCm * psPerCm * g.tcPpmPerK * 1e-6 * degPs;
     var driftTotalDeg = driftDegPerK * g.dTTileK;
     /* assume the differential thermal excursion plays out over ~10 min */
@@ -3125,7 +3125,7 @@ footer.foot a { color: var(--ink-2); }
        working calibration leaves: differential phase noise above the
        calibration corner, the estimator's own injected noise, the drift it
        could not follow between updates, and phase-shifter quantisation.
-       No static term appears in the residual â€” that is what calibration IS. */
+       No static term appears in the residual — that is what calibration IS. */
     var interTileRawDeg = K.rss(phiDiffRawRad * K.DEG, correctionRangeDeg, driftTotalDeg);
     var interTileResidualDeg = K.rss(phiDiffCalRad * K.DEG, injDeg, driftResidDeg, quantDeg);
 
@@ -3134,7 +3134,7 @@ footer.foot a { color: var(--ink-2); }
     var splitLossDb = 0;
     if (lo.kind === 'tree') {
       /* A low-frequency reference tree is fanned out with ACTIVE CML/LVDS
-         buffers, not passive splitters, so it pays no 3 dB per level â€” the
+         buffers, not passive splitters, so it pays no 3 dB per level — the
          cost shows up as buffer power instead. Charging it passive split
          loss would be double-counting. */
       if (id !== 'local-pll') {
@@ -3180,8 +3180,8 @@ footer.foot a { color: var(--ink-2); }
     var bootAnchors = lo.tileMultiplier > 1 ? nT : 0;   /* 360/M lock ambiguity */
     var calBurdenScore = nMeasLo;
     var calBurdenDetail = nMeasLo + ' LO measurements per array pass, conditioning G = ' + condG.toFixed(2) +
-      (bootAnchors ? ', plus ' + bootAnchors + ' absolute anchors at every power-up (the Ã—' + lo.tileMultiplier +
-        ' lock ambiguity is ' + (360 / lo.tileMultiplier).toFixed(0) + 'Â° and is invisible at the distribution frequency)' : '');
+      (bootAnchors ? ', plus ' + bootAnchors + ' absolute anchors at every power-up (the ×' + lo.tileMultiplier +
+        ' lock ambiguity is ' + (360 / lo.tileMultiplier).toFixed(0) + '° and is invisible at the distribution frequency)' : '');
 
     /* ---------------- per-tile map values ---------------- */
     /* Per-tile map values. Deliberately NOT "phase error in degrees" from the
@@ -3262,7 +3262,7 @@ footer.foot a { color: var(--ink-2); }
     var nCh = bb.nCh, levels = bb.levels;
     var side = Math.max(1, Math.round(g.apertureCm / g.tileCm));
     var nT = side * side;
-    /* The INTER-TILE tier â€” the network the hardware map draws from tiles to
+    /* The INTER-TILE tier — the network the hardware map draws from tiles to
        the RFSoC. Built from the same generator, so the path lengths below are
        the ones on the map. */
     var grid2 = window.Topo.makeGrid(gg);
@@ -3272,7 +3272,7 @@ footer.foot a { color: var(--ink-2); }
        unequal, for an H-tree nominally equal, for a bus a monotonic ramp.
 
        Crucially this is a GROUP-DELAY error, so unlike an LO phase offset a
-       phase calibration cannot remove it â€” but the architecture already has a
+       phase calibration cannot remove it — but the architecture already has a
        per-tile coarse true-time-delay element, and compensating inter-tile
        delay is exactly what it is for. So the residual is the TTD's own
        quantisation, plus whatever exceeds its range. That reframes the
@@ -3289,7 +3289,7 @@ footer.foot a { color: var(--ink-2); }
     var lossTotalDb, nfPenaltyDb, requiredGainDb;
     if (id === 'passive-50') {
       /* at baseband a matched resistive star's S21 is a VOLTAGE ratio of
-         1/N, so its insertion loss is 20log10(N) â€” but the coherent array
+         1/N, so its insertion loss is 20log10(N) — but the coherent array
          gain of +10log10(N) offsets half of it. Never double-count. */
       lossTotalDb = K.resistiveSplitLossDb(nCh) - 10 * Math.log10(nCh);
       var fPost = K.db2lin(10);
@@ -3379,7 +3379,7 @@ footer.foot a { color: var(--ink-2); }
       calBurdenScore: nCh, calBurdenDetail: nCh + ' per-channel baseband weights per rail; group delay must be ' +
         'measured with a two-tone or swept baseband loopback, since a single-tone phase measurement cannot ' +
         'distinguish a delay error from a phase error',
-      gainLossDb: squintLossDb, sllDb: NaN, pointingErrDeg: Math.abs(rampSteerDeg), evmPct: NaN, maxQam: 'â€”',
+      gainLossDb: squintLossDb, sllDb: NaN, pointingErrDeg: Math.abs(rampSteerDeg), evmPct: NaN, maxQam: '—',
       feasibility: id === 'passive-50'
         ? 'realisable and essentially drift-free; the cost is TX-direction drive power'
         : (id === 'bb-daisy' ? 'bandwidth collapses as channel count grows' : 'realisable; needs group-delay BIST'),
@@ -3414,16 +3414,16 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/budget.js ===== */
 /* ============================================================================
-   budget.js â€” derives the REQUIREMENT the options are judged against.
+   budget.js — derives the REQUIREMENT the options are judged against.
 
    There are two separate budgets and conflating them is the classic error:
 
-     COHERENCE budget â€” on the inter-tile DIFFERENTIAL phase error. Sets the
+     COHERENCE budget — on the inter-tile DIFFERENTIAL phase error. Sets the
        scattered-sidelobe / null-depth floor at 10log10(sigma^2/N) and hence
        the achievable spatial-multiplexing SINR. Ruze gain loss is in here
        too but is a red herring: 4.2 deg RMS costs 0.023 dB.
 
-     EVM budget â€” on the ARRAY-OUTPUT ABSOLUTE phase noise, integrated from
+     EVM budget — on the ARRAY-OUTPUT ABSOLUTE phase noise, integrated from
        the carrier-recovery loop bandwidth up. Uncorrelated per-tile noise
        averages down by N here, so this budget and the coherence budget can
        point in opposite directions.
@@ -3471,32 +3471,32 @@ footer.foot a { color: var(--ink-2); }
        different quantity */
     var coherenceCands = [
       { name: '0.1 dB array gain loss', v: sigFor01dB },
-      { name: 'âˆ’30 dB null floor', v: sigFor30 },
+      { name: '−30 dB null floor', v: sigFor30 },
       { name: 'proposal Eq. 16', v: sigProposal }
     ];
     var binding = coherenceCands.reduce(function (a, b) { return b.v < a.v ? b : a; });
 
     var cells = [
-      { k: 'Beamwidth (broadside)', n: hpbw.toFixed(2), unit: 'Â°',
-        d: g.apertureCm + ' cm aperture at ' + g.fLoGHz + ' GHz. At ' + g.scanDegMax + 'Â° scan it widens to ' + hpbwScan.toFixed(2) + 'Â°.' },
-      { k: 'Inter-tile phase spec', n: binding.v.toFixed(2), unit: 'Â° RMS', binding: true,
+      { k: 'Beamwidth (broadside)', n: hpbw.toFixed(2), unit: '°',
+        d: g.apertureCm + ' cm aperture at ' + g.fLoGHz + ' GHz. At ' + g.scanDegMax + '° scan it widens to ' + hpbwScan.toFixed(2) + '°.' },
+      { k: 'Inter-tile phase spec', n: binding.v.toFixed(2), unit: '° RMS', binding: true,
         d: 'Binding criterion: ' + binding.name + '. Applies to the DIFFERENTIAL error between tiles.' },
       { k: 'Null-depth floor at spec', n: K.rmsSllDb(binding.v / K.DEG, nT).toFixed(1), unit: 'dB',
-        d: '10log10(ÏƒÂ²/N) with N = ' + nT + ' independent tiles. This, not gain loss, is what the architecture buys.' },
-      { k: 'Array-output EVM budget', n: sigForEvm.toFixed(2), unit: 'Â° RMS',
+        d: '10log10(σ²/N) with N = ' + nT + ' independent tiles. This, not gain loss, is what the architecture buys.' },
+      { k: 'Array-output EVM budget', n: sigForEvm.toFixed(2), unit: '° RMS',
         d: qam + ' at ' + (evmLimit).toFixed(2) + '% allocated to the LO. Applies to ABSOLUTE array-output noise, integrated from ' + g.carrierTrackMHz + ' MHz up.' },
       { k: 'Skew equivalent of spec', n: (binding.v / K.degPerPs(g.fLoHz)).toFixed(2), unit: 'ps',
-        d: 'At ' + g.fLoGHz + ' GHz, 1 ps = ' + K.degPerPs(g.fLoHz).toFixed(1) + 'Â°. Skew is accumulated in time and converted once, here.' },
+        d: 'At ' + g.fLoGHz + ' GHz, 1 ps = ' + K.degPerPs(g.fLoHz).toFixed(1) + '°. Skew is accumulated in time and converted once, here.' },
       { k: 'TTD range required', n: tauRangePs.toFixed(0), unit: 'ps',
-        d: 'Full aperture at ' + g.scanDegMax + 'Â°. RANGE binds, not resolution: a ' + g.ttdStepPs + ' ps step costs only ' + ttdLossDb.toFixed(3) + ' dB.' },
+        d: 'Full aperture at ' + g.scanDegMax + '°. RANGE binds, not resolution: a ' + g.ttdStepPs + ' ps step costs only ' + ttdLossDb.toFixed(3) + ' dB.' },
       { k: 'Sub-tile residual delay', n: tauSubTilePs.toFixed(0), unit: 'ps',
-        d: g.tileCm + ' cm tile at ' + g.scanDegMax + 'Â°. Squint over the band is ' + squintDeg.toFixed(2) + 'Â° against a ' + hpbwScan.toFixed(2) + 'Â° beam.' }
+        d: g.tileCm + ' cm tile at ' + g.scanDegMax + '°. Squint over the band is ' + squintDeg.toFixed(2) + '° against a ' + hpbwScan.toFixed(2) + '° beam.' }
     ];
 
     var note = 'Two independent budgets. The <strong>inter-tile phase spec</strong> of ' +
-      '<span class="kv">' + binding.v.toFixed(2) + 'Â° RMS</span> applies to the <em>differential</em> error between ' +
+      '<span class="kv">' + binding.v.toFixed(2) + '° RMS</span> applies to the <em>differential</em> error between ' +
       'tiles and is what sets the null-depth floor; it is set here by <em>' + binding.name + '</em>. The ' +
-      '<strong>array-output EVM budget</strong> of <span class="kv">' + sigForEvm.toFixed(2) + 'Â° RMS</span> applies to ' +
+      '<strong>array-output EVM budget</strong> of <span class="kv">' + sigForEvm.toFixed(2) + '° RMS</span> applies to ' +
       'the <em>absolute</em> phase noise seen by the link after the coherent sum, where uncorrelated per-tile noise ' +
       'has already averaged down by 10log10(' + nT + ') = ' + (10 * Math.log10(nT)).toFixed(1) + ' dB. An architecture can ' +
       'pass one and fail the other, which is exactly what distinguishes the four LO options.';
@@ -3521,7 +3521,7 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/decision.js ===== */
 /* ============================================================================
-   decision.js â€” the written recommendation, generated from the live numbers.
+   decision.js — the written recommendation, generated from the live numbers.
 
    Hard constraints gate first (an option that fails the coherence spec or is
    not realisable in the stated technology cannot be chosen on points), then
@@ -3633,49 +3633,49 @@ footer.foot a { color: var(--ink-2); }
 
     t.push('### The decision');
     t.push('For the LO and reference distribution, take **' + pick.name + '**' +
-      (pick.r.tileMultiplier > 1 ? ' at Ã—' + pick.r.tileMultiplier + ', distributing ' + n(pick.r.distFreqGHz) + ' GHz on the board' : '') +
+      (pick.r.tileMultiplier > 1 ? ' at ×' + pick.r.tileMultiplier + ', distributing ' + n(pick.r.distFreqGHz) + ' GHz on the board' : '') +
       '. For the baseband split and combine, take **' + bpick.name + '**.');
 
     t.push('### Why, in numbers');
-    t.push('The requirement is an inter-tile differential phase error below `' + n(budget.sigSpecDeg) + 'Â° RMS` ' +
+    t.push('The requirement is an inter-tile differential phase error below `' + n(budget.sigSpecDeg) + '° RMS` ' +
       '(binding criterion: ' + budget.bindingName + '), which at ' + nT + ' independent tiles corresponds to a ' +
       'scattered-sidelobe and null-depth floor of `' + n(budget.nullFloorDb, 1) + ' dB`. Separately, the link needs the ' +
-      '*absolute* array-output phase noise below `' + n(budget.sigForEvmDeg) + 'Â° RMS` for ' + budget.qam + '.');
+      '*absolute* array-output phase noise below `' + n(budget.sigForEvmDeg) + '° RMS` for ' + budget.qam + '.');
 
-    t.push('The four options land as follows on the metric that cannot be calibrated away â€” the residual ' +
+    t.push('The four options land as follows on the metric that cannot be calibrated away — the residual ' +
       'inter-tile phase error:');
     loRank.slice().sort(function (a, b) { return a.r.interTileResidualDeg - b.r.interTileResidualDeg; })
       .forEach(function (o) {
-        t.push('- **' + o.short + '**: `' + n(o.r.interTileResidualDeg) + 'Â°` residual, null floor `' +
+        t.push('- **' + o.short + '**: `' + n(o.r.interTileResidualDeg) + '°` residual, null floor `' +
           n(o.r.sllDb, 1) + ' dB`, loss `' + n(o.r.lossTotalDb, 1) + ' dB`, power `' +
           n(o.r.powerTotalMw / 1000, 2) + ' W` (`' + n(o.r.powerFracOfArray, 1) + '%` of the array), ' +
           'calibration must span `' + n(o.r.correctionWraps, 1) + '` wraps of static offset' +
-          (o.eligible ? '' : o.infeasible ? ' â€” **not realisable as configured**' : ' â€” **fails the coherence spec**'));
+          (o.eligible ? '' : o.infeasible ? ' — **not realisable as configured**' : ' — **fails the coherence spec**'));
       });
 
     t.push('#### The decisive asymmetry');
-    t.push('A per-tile PLL and a shared LO are not simply better and worse â€” they trade *link EVM* against ' +
+    t.push('A per-tile PLL and a shared LO are not simply better and worse — they trade *link EVM* against ' +
       '*beam coherence*, in opposite directions:');
     t.push('- With independent per-tile PLLs, the uncorrelated VCO noise **averages down** by 10log10(' + nT + ') = `' +
       n(10 * Math.log10(nT), 1) + ' dB` in the coherent sum, so the array-output absolute phase error is only `' +
-      n(a1.phiArrayDeg) + 'Â°` against `' + n(a1.phiRmsDeg) + 'Â°` for a single tile. That is the option\'s genuine strength, ' +
-      'and it is the effect the proposal\'s Â§4.7 is pointing at.');
+      n(a1.phiArrayDeg) + '°` against `' + n(a1.phiRmsDeg) + '°` for a single tile. That is the option\'s genuine strength, ' +
+      'and it is the effect the proposal\'s §4.7 is pointing at.');
     t.push('- But the same uncorrelated noise appears **in full** in the inter-tile differential: `' +
-      n(a1.interTileResidualDeg) + 'Â°`, giving a null floor of `' + n(a1.sllDb, 1) + ' dB`. A shared LO reaches `' +
-      n(a4.interTileResidualDeg) + 'Â°` and `' + n(a4.sllDb, 1) + ' dB` â€” a difference of `' +
+      n(a1.interTileResidualDeg) + '°`, giving a null floor of `' + n(a1.sllDb, 1) + ' dB`. A shared LO reaches `' +
+      n(a4.interTileResidualDeg) + '°` and `' + n(a4.sllDb, 1) + ' dB` — a difference of `' +
       n(Math.abs(a1.sllDb - a4.sllDb), 1) + ' dB` in the coherence floor, which directly caps how many spatial streams ' +
       'the array can separate.');
-    t.push('BIST cannot recover this. At a ' + n(g.fBistHz) + ' Hz update rate with loop gain Âµ = ' + n(g.calLoopGain) +
-      ', the calibration corner is `' + n(a1.fCalHz, 3) + ' Hz` â€” essentially all of the integrated phase error lives ' +
+    t.push('BIST cannot recover this. At a ' + n(g.fBistHz) + ' Hz update rate with loop gain µ = ' + n(g.calLoopGain) +
+      ', the calibration corner is `' + n(a1.fCalHz, 3) + ' Hz` — essentially all of the integrated phase error lives ' +
       'in the kHz-to-MHz decades, far above it. Calibration re-centres the LUT and removes thermal drift; it does ' +
       'nothing to the VCO-driven inter-tile noise.');
 
     t.push('#### What mid-frequency distribution does and does not buy');
-    t.push('The Ã—' + Math.round(g.midM) + ' multiplier adds exactly `' + n(20 * Math.log10(g.midM), 1) +
+    t.push('The ×' + Math.round(g.midM) + ' multiplier adds exactly `' + n(20 * Math.log10(g.midM), 1) +
       ' dB` to L(f) and multiplies any distributed phase error by ' + Math.round(g.midM) + '. Since an ideal multiplier ' +
       'preserves *time* delay and multiplies *phase*, the output phase error from a given physical length mismatch is ' +
-      '`2Ï€Â·f_LOÂ·Ï„` **regardless of the distribution frequency**. So A4 buys no skew relief over A2 â€” both sit at `' +
-      n(a4.skewDeg78) + 'Â°` and `' + n(a2.skewDeg78) + 'Â°` for the same tolerances and topology.');
+      '`2π·f_LO·τ` **regardless of the distribution frequency**. So A4 buys no skew relief over A2 — both sit at `' +
+      n(a4.skewDeg78) + '°` and `' + n(a2.skewDeg78) + '°` for the same tolerances and topology.');
     t.push('What it does buy is the board. Distributing ' + n(a4.distFreqGHz) + ' GHz instead of ' + g.fLoGHz +
       ' GHz drops the line loss from `' + n(a2.lossPerCmDb, 2) + ' dB/cm` to `' + n(a4.lossPerCmDb, 2) + ' dB/cm`, the ' +
       'total distribution loss from `' + n(a2.lossTotalDb, 1) + ' dB` to `' + n(a4.lossTotalDb, 1) + ' dB`, the repeater ' +
@@ -3684,32 +3684,32 @@ footer.foot a { color: var(--ink-2); }
       'transition from the board, which is where the unrepeatable phase offsets live.');
 
     t.push('#### A constraint that applies to all four, and changes the chip partition');
-    t.push('!!! warn A 78 GHz gain stage is **not realisable in TSMC 65 nm LP CMOS** (f_max/f â‰ˆ 1.9). A four-stage ' +
+    t.push('!!! warn A 78 GHz gain stage is **not realisable in TSMC 65 nm LP CMOS** (f_max/f ≈ 1.9). A four-stage ' +
       'CMOS chain reaches roughly 0 dBm saturated, and the already-taped-out RFIC needs about +5.6 dBm to drive its ' +
       'four LO taps. Two independently-built block libraries reached this conclusion separately.');
     t.push('The consequence is architectural, not incremental: **the LO last mile cannot live in the 65 nm BB+LO ' +
       'tile**. Every one of the four options therefore needs a small SiGe LO chiplet at each tile, and the ' +
       'proposal\'s two-chip partition (SiGe RF front end + 65 nm BB+LO tile) is really a **three-chip** partition. ' +
       'At `' + n(res.blocks.loChipletSige.powerMw, 0) + ' mW` and `' + n(res.blocks.loChipletSige.areaMm2, 1) +
-      ' mmÂ²` per tile that is `' + n(res.blocks.loChipletSige.powerMw * nT / 1000, 2) + ' W` across the array, and ' +
-      'it is in every option\'s budget above, so it does not change the ranking â€” but it does change the tape-out plan.');
+      ' mm²` per tile that is `' + n(res.blocks.loChipletSige.powerMw * nT / 1000, 2) + ' W` across the array, and ' +
+      'it is in every option\'s budget above, so it does not change the ranking — but it does change the tape-out plan.');
     t.push('It does change how much SiGe each option needs, and that is a real discriminator. A2 and A3 need SiGe ' +
-      'for the whole distribution network â€” every repeater and every splitter on the board. A4 needs it only for the ' +
-      'Ã—' + Math.round(g.midM) + ' multiplier and the taps, a single well-defined block that can be de-risked on its own. ' +
+      'for the whole distribution network — every repeater and every splitter on the board. A4 needs it only for the ' +
+      '×' + Math.round(g.midM) + ' multiplier and the taps, a single well-defined block that can be de-risked on its own. ' +
       'That is the strongest practical argument for A4 beyond the numbers.');
 
     t.push('#### Why not the daisy chain');
     t.push('The chain has the fewest interconnects and the simplest layout, and its delay ramp is deterministic, so ' +
-      'a single calibration removes it â€” at the calibration frequency. Two things rule it out as the primary choice. ' +
+      'a single calibration removes it — at the calibration frequency. Two things rule it out as the primary choice. ' +
       'First, its per-hop errors form a random **walk** along the aperture whose dominant spatial mode is a beam tilt, ' +
-      'so its pointing error is `' + n(a3.pointingErrDeg, 3) + 'Â°` against `' + n(a4.pointingErrDeg, 3) + 'Â°` for the tree ' +
-      'â€” the iid formula does not apply and understates it badly. Second, the residual ramp survives calibration ' +
+      'so its pointing error is `' + n(a3.pointingErrDeg, 3) + '°` against `' + n(a4.pointingErrDeg, 3) + '°` for the tree ' +
+      '— the iid formula does not apply and understates it badly. Second, the residual ramp survives calibration ' +
       'across the band as a pure frequency-dependent steer that only true time delay can remove. With ' +
       Math.round(g.chainBranches) + ' branches the worst chain is ' + (res.lo['daisy-chain'].topo.lo.maxHop || 0) +
       ' hops deep, and one dead buffer disables every tile downstream of it.');
     t.push('Its static offset also accumulates to `' + n(a3.correctionWraps, 0) + '` full wraps at the LO, against `' +
       n(a4.correctionWraps, 0) + '` for the tree. Since a narrowband phase measurement resolves delay only modulo one ' +
-      'LO period, that many wraps makes the integer ambiguity a genuine estimation problem rather than a detail â€” the ' +
+      'LO period, that many wraps makes the integer ambiguity a genuine estimation problem rather than a detail — the ' +
       'BIST would have to measure group delay over the full baseband span just to know which wrap each tile is in.');
 
     t.push('#### Baseband');
@@ -3724,10 +3724,10 @@ footer.foot a { color: var(--ink-2); }
     t.push('- **Bus**: only `' + n(b2.interRoutedCm, 0) + ' cm` of wire but the average signal travels `' +
       n(b2.interPathMeanCm, 0) + ' cm` along it, giving `' + n(b2.interGeoRawPs, 0) + ' ps`.');
     t.push('- **H-tree**: `' + n(b3.interRoutedCm, 0) + ' cm` of wire with paths from `' + n(b3.interPathMeanCm, 0) +
-      '` to `' + n(b3.interPathMaxCm, 0) + ' cm` â€” nominally equal, so only `' + n(b3.interGeoRawPs, 0) + ' ps`.');
+      '` to `' + n(b3.interPathMaxCm, 0) + ' cm` — nominally equal, so only `' + n(b3.interGeoRawPs, 0) + ' ps`.');
     t.push('Baseband skew is a **group-delay** error, so unlike an LO phase offset no phase calibration touches it. ' +
       'But the architecture already carries a per-tile coarse true-time-delay element, and absorbing inter-tile ' +
-      'delay is exactly its job â€” so the honest comparison is against its `' + n(b3.ttdRangeAvailPs, 0) +
+      'delay is exactly its job — so the honest comparison is against its `' + n(b3.ttdRangeAvailPs, 0) +
       ' ps` range. The bus loses outright: `' + n(b2.interUncompPs, 0) + ' ps` of its ramp is **beyond that range**, ' +
       'leaving `' + n(b2.squintLossDb, 1) + ' dB` of band-averaged squint loss. Star and H-tree both fall inside it ' +
       'and land on the same TTD-quantisation floor of `' + n(b3.interGeoSkewPs) + ' ps`.');
@@ -3735,15 +3735,15 @@ footer.foot a { color: var(--ink-2); }
       'rather than on steering the beam: `' + n(b1.ttdRangeConsumedPct, 0) + '%` for the star against `' +
       n(b3.ttdRangeConsumedPct, 0) + '%` for the H-tree. Add `' + n(b1.interLossDb, 1) + ' dB` of inter-tile line ' +
       'loss for the star against `' + n(b3.interLossDb, 1) + ' dB`, and `' + n(b1.interRoutedCm / Math.max(b3.interRoutedCm, 1), 1) +
-      'Ã—` the routed wire, and the H-tree wins on the network, not on the cells.');
+      '×` the routed wire, and the H-tree wins on the network, not on the cells.');
     t.push('The noise-figure argument usually made for active combining is nearly vacuous here: with ' +
       n(g.rficGainDb, 0) + ' dB of RFIC gain ahead of it, even the passive network costs only `' +
       n(b1.nfPenaltyDb, 2) + ' dB`. Do not lead with it.');
     t.push('Two constraints deserve to be stated explicitly because they are easy to get wrong. A baseband delay is a ' +
       '**group-delay** error at the ' + n(g.bbEdgeGHz) + ' GHz rail edge, not a phase error at ' + g.fLoGHz +
-      ' GHz: `' + n(bpick.r.skewRmsPs) + ' ps` of skew is `' + n(bpick.r.skewEdgeDeg) + 'Â°` at the band edge, not `' +
-      n(bpick.r.skewRmsPs * window.K.degPerPs(g.fLoHz), 0) + 'Â°`. And at baseband B1 must be a **resistive** network, ' +
-      'not a Wilkinson â€” there is no DC path through a Wilkinson and its arms would need ~8 nH at 1 GHz.');
+      ' GHz: `' + n(bpick.r.skewRmsPs) + ' ps` of skew is `' + n(bpick.r.skewEdgeDeg) + '°` at the band edge, not `' +
+      n(bpick.r.skewRmsPs * window.K.degPerPs(g.fLoHz), 0) + '°`. And at baseband B1 must be a **resistive** network, ' +
+      'not a Wilkinson — there is no DC path through a Wilkinson and its arms would need ~8 nH at 1 GHz.');
 
     t.push('### What would change this answer');
     t.push('- **The uncorrelated in-band share.** A1\'s standing depends on how much of its in-band noise comes from ' +
@@ -3762,17 +3762,17 @@ footer.foot a { color: var(--ink-2); }
 
     t.push('### Open questions to close before tape-out');
     t.push('1. Measure the correlated/uncorrelated split of the tile PLL in-band noise. This single number reorders the ranking.');
-    t.push('2. Confirm that a per-tile LO phase can be observed at all. An intra-tile TXâ†’RX loopback driven by the ' +
+    t.push('2. Confirm that a per-tile LO phase can be observed at all. An intra-tile TX→RX loopback driven by the ' +
       'same LO cancels the LO phase identically, so LO calibration needs a cross-tile path, a shared tone bus, or a ' +
       'bidirectional tap on a real LO wire.');
     t.push('3. Specify the BIST to measure **group delay** across the baseband span, not phase at one frequency. ' +
       'A narrowband phase measurement resolves delay only modulo `' + n(1000 / (g.fLoGHz), 2) +
       ' ps` at ' + g.fLoGHz + ' GHz, and cannot distinguish a delay error from a phase error at all.');
-    t.push('4. Decide the Ã—M lock ambiguity strategy. A Ã—' + Math.round(g.midM) + ' multiplier locks with a `' +
-      n(360 / Math.round(g.midM), 0) + 'Â°` ambiguity that is invisible at the distribution frequency and reappears at ' +
+    t.push('4. Decide the ×M lock ambiguity strategy. A ×' + Math.round(g.midM) + ' multiplier locks with a `' +
+      n(360 / Math.round(g.midM), 0) + '°` ambiguity that is invisible at the distribution frequency and reappears at ' +
       'every power-up, forcing ' + nT + ' absolute anchors at boot.');
-    t.push('5. Fix the baseband impedance regime per tier before choosing among B1/B2/B3 â€” matched-50 Î© versus ' +
-      'voltage or current mode is worth more decibels than the topology choice, and the Î»/10 test decides it.');
+    t.push('5. Fix the baseband impedance regime per tier before choosing among B1/B2/B3 — matched-50 Ω versus ' +
+      'voltage or current mode is worth more decibels than the topology choice, and the λ/10 test decides it.');
 
     return t.join('\n');
   }
@@ -3793,12 +3793,12 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/diagram.js ===== */
 /* ============================================================================
-   diagram.js â€” the interactive hardware map.
+   diagram.js — the interactive hardware map.
 
    Draws the aperture floorplan, the selected distribution network, and the
    block symbols at their real positions, straight from Topo.build(). Line
    WEIGHT and COLOUR encode the frequency each segment carries, so "what
-   frequency is actually on the board" is visible at a glance â€” which is the
+   frequency is actually on the board" is visible at a glance — which is the
    whole architectural question.
 
    Click a tile for its own path length, loss, skew, phase error and power.
@@ -3828,13 +3828,13 @@ footer.foot a { color: var(--ink-2); }
   }
   var BAND_STYLE = {
     ref:   { stroke: 'var(--s1)', w: 1.3, name: 'reference / low frequency (< 2 GHz)' },
-    mid:   { stroke: 'var(--s4)', w: 2.2, name: 'mid frequency (2â€“50 GHz)' },
+    mid:   { stroke: 'var(--s4)', w: 2.2, name: 'mid frequency (2–50 GHz)' },
     eband: { stroke: 'var(--s2)', w: 3.4, name: 'E-band (> 50 GHz)' }
   };
   /* The baseband tier gets its own visual language so the two networks can be
      read at once: one hue, dashed, and anchored to the lower right of each
      tile rather than its centre. */
-  var BB_STYLE = { stroke: 'var(--s3)', w: 1.9, dash: '4 2.5', name: 'baseband, tiles â†’ RFSoC' };
+  var BB_STYLE = { stroke: 'var(--s3)', w: 1.9, dash: '4 2.5', name: 'baseband, tiles → RFSoC' };
 
   /* -------------------------- sequential colour ramp -------------------- */
   var RAMP = ['#1c5f8b', '#7fb3cc', '#e8d9a0', '#d98a4a', '#9b2226'];
@@ -3880,7 +3880,7 @@ footer.foot a { color: var(--ink-2); }
         break;
       case 'mult':
         g.appendChild(el('rect', { x: -14, y: -9, width: 28, height: 18, rx: 3, fill: 'var(--bg-panel)', stroke: 'var(--s5)', 'stroke-width': 1.6 }));
-        g.appendChild(el('text', { y: 3.6, 'text-anchor': 'middle', fill: 'var(--s5)', 'font-size': 9.5 }, label || 'Ã—M'));
+        g.appendChild(el('text', { y: 3.6, 'text-anchor': 'middle', fill: 'var(--s5)', 'font-size': 9.5 }, label || '×M'));
         break;
       case 'term':
         g.appendChild(el('rect', { x: -7, y: -4, width: 14, height: 8, fill: 'var(--bg-panel)', stroke: 'var(--ink-3)', 'stroke-width': 1.2 }));
@@ -3899,7 +3899,7 @@ footer.foot a { color: var(--ink-2); }
         break;
       case 'sum':
         g.appendChild(el('circle', { r: 7, fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.6 }));
-        g.appendChild(el('text', { y: 3.6, 'text-anchor': 'middle', fill: 'var(--s3)', 'font-size': 10 }, 'Î£'));
+        g.appendChild(el('text', { y: 3.6, 'text-anchor': 'middle', fill: 'var(--s3)', 'font-size': 10 }, 'Σ'));
         break;
       case 'drv':
         g.appendChild(el('path', { d: 'M-5 -5 L5.5 0 L-5 5 Z', fill: 'var(--s3)', 'fill-opacity': 0.25, stroke: 'var(--s3)', 'stroke-width': 1.4 }));
@@ -3926,7 +3926,7 @@ footer.foot a { color: var(--ink-2); }
     var scale = 640 / apCm;
     var W = PAD * 2 + apCm * scale;
     /* room above the aperture for the RFSoC backend, and below it for the
-       LO source â€” the two networks enter from opposite edges */
+       LO source — the two networks enter from opposite edges */
     var H = PAD * 2 + (TOP_CM + apCm + SRC_CM) * scale;
     function X(cm) { return PAD + cm * scale; }
     function Y(cm) { return PAD + (cm + TOP_CM) * scale; }
@@ -3939,7 +3939,7 @@ footer.foot a { color: var(--ink-2); }
       fill: 'var(--bg-sunken)', stroke: 'var(--rule-strong)', 'stroke-width': 1.4, rx: 3
     }));
     svg.appendChild(el('text', { x: X(apCm / 2), y: Y(0) - 12, 'text-anchor': 'middle', fill: 'var(--ink-3)' },
-      apCm.toFixed(0) + ' cm aperture Â· ' + grid.rows + 'Ã—' + grid.cols + ' = ' + grid.nTiles +
+      apCm.toFixed(0) + ' cm aperture · ' + grid.rows + '×' + grid.cols + ' = ' + grid.nTiles +
       ' tiles of ' + grid.tileCm.toFixed(1) + ' cm'));
 
     /* ---- tiles, coloured by the chosen metric ---- */
@@ -3966,7 +3966,7 @@ footer.foot a { color: var(--ink-2); }
         'routed path ' + t.pathCm.toFixed(1) + ' cm\n' +
         (t.hop ? 'chain hop ' + t.hop + '\n' : 'tree level ' + t.level + '\n') +
         (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
-                'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + 'Â°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
+                'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
       r.addEventListener('click', function () { onSelect(t.i); });
       tileG.appendChild(r);
 
@@ -3994,8 +3994,8 @@ footer.foot a { color: var(--ink-2); }
             fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb, 'stroke-width': 0.9
           });
           rect.appendChild(el('title', null,
-            'tile ' + t.i + ' Â· RFIC die ' + d.i + '\n' +
-            '2.5 Ã— 2.5 mm SiGe, 4 RX + 4 TX with IQ baseband\n' +
+            'tile ' + t.i + ' · RFIC die ' + d.i + '\n' +
+            '2.5 × 2.5 mm SiGe, 4 RX + 4 TX with IQ baseband\n' +
             'one 78 GHz LO tap, fed by the intra-tile fan-out'));
           dieG.appendChild(rect);
           /* the LO tap port itself */
@@ -4024,7 +4024,7 @@ footer.foot a { color: var(--ink-2); }
         if (!view.showBlocks && n.type !== 'backend') return;
         var gl = glyph(n.type, n.label, n.freqHz);
         gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
-        gl.appendChild(el('title', null, 'baseband Â· ' + (n.label || n.type)));
+        gl.appendChild(el('title', null, 'baseband · ' + (n.label || n.type)));
         bbNodeG.appendChild(gl);
       });
       svg.appendChild(bbNodeG);
@@ -4032,7 +4032,7 @@ footer.foot a { color: var(--ink-2); }
       svg.appendChild(el('text', {
         x: X(bbi.root.x), y: Y(bbi.root.y) - 17, 'text-anchor': 'middle',
         fill: 'var(--s3)', 'font-size': 10.5
-      }, 'baseband backend Â· ' + bbi.kind + ' Â· ' + bbi.totalRoutedCm.toFixed(0) + ' cm routed'));
+      }, 'baseband backend · ' + bbi.kind + ' · ' + bbi.totalRoutedCm.toFixed(0) + ' cm routed'));
     }
 
     /* ---- LO / reference tier, weighted and coloured by frequency ---- */
@@ -4062,7 +4062,7 @@ footer.foot a { color: var(--ink-2); }
       var src = lo.net.source;
       svg.appendChild(el('text', {
         x: X(src.x), y: Y(src.y) + 25, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 10.5
-      }, (view.sourceLabel || 'source') + ' Â· ' +
+      }, (view.sourceLabel || 'source') + ' · ' +
          (lo.distFreqHz >= 1e9 ? (lo.distFreqHz / 1e9).toFixed(2) + ' GHz' : (lo.distFreqHz / 1e6).toFixed(0) + ' MHz') +
          ' on the board'));
     }
@@ -4117,7 +4117,7 @@ footer.foot a { color: var(--ink-2); }
       dl.className = 'li';
       dl.innerHTML = '<span style="display:inline-block;width:9px;height:9px;background:var(--ink);opacity:.62;' +
         'border:0.9px solid ' + BAND_STYLE.eband.stroke + '"></span>' +
-        t0.dies.length + ' RFIC dies per tile, 2.5 mm, to scale â€” each with one 78 GHz LO tap';
+        t0.dies.length + ' RFIC dies per tile, 2.5 mm, to scale — each with one 78 GHz LO tap';
       wrap.appendChild(dl);
     }
 
@@ -4137,7 +4137,7 @@ footer.foot a { color: var(--ink-2); }
       var li = document.createElement('span');
       li.className = 'li';
       var s = el('svg', { width: 20, height: 16, viewBox: '-10 -8 20 16' });
-      var gl = glyph(ty, ty === 'mult' ? 'Ã—M' : 'PLL', 78e9);
+      var gl = glyph(ty, ty === 'mult' ? '×M' : 'PLL', 78e9);
       s.appendChild(gl);
       li.appendChild(s);
       li.appendChild(document.createTextNode(names[ty] || ty));
@@ -4162,16 +4162,16 @@ footer.foot a { color: var(--ink-2); }
       ['Repeaters in path', String(t.repeaters)]
     ];
     if (t.m) {
-      rows.push(['â€” electrical â€”', '']);
+      rows.push(['— electrical —', '']);
       rows.push(['Path loss at ' + (lo.distFreqHz / 1e9).toFixed(2) + ' GHz', t.m.lossDb.toFixed(2) + ' dB']);
       rows.push(['Skew vs array mean', t.m.skewPs.toFixed(2) + ' ps']);
       rows.push(['Static offset to resolve', t.m.wraps.toFixed(2) + ' wraps at ' + g.fLoGHz + ' GHz']);
-      rows.push(['Thermal drift, uncalibrated', t.m.driftDeg.toFixed(2) + 'Â°']);
+      rows.push(['Thermal drift, uncalibrated', t.m.driftDeg.toFixed(2) + '°']);
       rows.push(['Distribution power for this tile', t.m.powerMw.toFixed(0) + ' mW']);
     }
     var bbi = built.bbInter;
     if (bbi) {
-      rows.push(['â€” baseband tier â€”', '']);
+      rows.push(['— baseband tier —', '']);
       rows.push(['Network', bbi.kind + (bbi.kind === 'htree' ? ' (' + bbi.depth + ' levels)' : '')]);
       rows.push(['Routed path to backend', t.bbPathCm.toFixed(1) + ' cm']);
       rows.push([bbi.kind === 'bus' ? 'Bus tap position' : 'Tree level',
@@ -4179,13 +4179,13 @@ footer.foot a { color: var(--ink-2); }
       rows.push(['Deviation from mean path', (t.bbPathCm - bbi.pathMeanCm).toFixed(1) + ' cm']);
     }
     if (t.dies && t.dies.length) {
-      rows.push(['â€” RFIC dies in this tile â€”', '']);
-      rows.push(['E-band dies', t.dies.length + ' Ã— 2.5 Ã— 2.5 mm SiGe']);
+      rows.push(['— RFIC dies in this tile —', '']);
+      rows.push(['E-band dies', t.dies.length + ' × 2.5 × 2.5 mm SiGe']);
       rows.push(['Channels', (t.dies.length * 8) + ' (4 RX + 4 TX per die, IQ baseband)']);
       rows.push(['78 GHz LO taps', String(t.dies.length)]);
       rows.push(['Intra-tile LO fan-out', t.tapRoutedCm.toFixed(1) + ' cm routed at ' + g.fLoGHz + ' GHz']);
     }
-    rows.push(['â€” blocks in this tile â€”', '']);
+    rows.push(['— blocks in this tile —', '']);
     (t.blocks || []).forEach(function (b) { rows.push([b.label, b.type]); });
 
     var tb = document.createElement('table');
@@ -4197,7 +4197,7 @@ footer.foot a { color: var(--ink-2); }
         tr.className = 'sect';
         var td = document.createElement('td');
         td.colSpan = 2;
-        td.textContent = r[0].replace(/â€”/g, '').trim();
+        td.textContent = r[0].replace(/—/g, '').trim();
         tr.appendChild(td);
       } else {
         var a = document.createElement('td'); a.textContent = r[0];
@@ -4251,7 +4251,7 @@ footer.foot a { color: var(--ink-2); }
         sm.textContent = lib ? (lib.tech + ' @ ' + lib.freqGHz + ' GHz') : b.blockKey;
         c0.appendChild(sm);
         tr2.appendChild(c0);
-        [String(b.count), isFinite(unit) ? unit.toFixed(0) + ' mW' : 'â€”', isFinite(sub) ? (sub / 1000).toFixed(2) + ' W' : 'â€”'].forEach(function (v) {
+        [String(b.count), isFinite(unit) ? unit.toFixed(0) + ' mW' : '—', isFinite(sub) ? (sub / 1000).toFixed(2) + ' W' : '—'].forEach(function (v) {
           var c = document.createElement('td'); c.className = 'v'; c.textContent = v; tr2.appendChild(c);
         });
         var cw = document.createElement('td');
@@ -4299,7 +4299,7 @@ footer.foot a { color: var(--ink-2); }
       fill: 'var(--bg-sunken)', stroke: 'var(--rule-strong)', 'stroke-width': 1.2
     }));
     svg.appendChild(el('text', { x: W / 2, y: 17, 'text-anchor': 'middle', fill: 'var(--ink-3)' },
-      'one tile: ' + bb.nCh + ' baseband channels per rail (I and Q identical) â†’ tile output'));
+      'one tile: ' + bb.nCh + ' baseband channels per rail (I and Q identical) → tile output'));
 
     bb.links.forEach(function (L) {
       svg.appendChild(el('line', {
@@ -4337,7 +4337,7 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/content.js ===== */
 /* ============================================================================
-   content.js â€” the static prose: method/equations and the honesty ledger.
+   content.js — the static prose: method/equations and the honesty ledger.
    Kept out of app.js so the text can be edited without touching logic.
    Exposes window.Content.
    ========================================================================= */
@@ -4352,17 +4352,17 @@ footer.foot a { color: var(--ink-2); }
     'its provenance; see the Assumptions tab before quoting anything.',
 
     '### The three rules the model enforces',
-    '**1. 20log10 versus 10log10.** Phase multiplies, so an Ã—M multiplier or a Ã·N PLL scales phase noise power by ' +
-    'MÂ², i.e. `+20log10(M)`. Independent noise powers add, so *n* uncorrelated contributors give `+10log10(n)`. ' +
+    '**1. 20log10 versus 10log10.** Phase multiplies, so an ×M multiplier or a ÷N PLL scales phase noise power by ' +
+    'M², i.e. `+20log10(M)`. Independent noise powers add, so *n* uncorrelated contributors give `+10log10(n)`. ' +
     'The PFD/charge-pump term gets `+10log10(f_pfd)` because it is an independent-event rate whose power density ' +
     'is linear in rate. Using 20log10 on a count of cascaded buffers overstates a 4-hop chain by 6 dB; using ' +
     '10log10 on N understates the reference term by 28.9 dB at N = 780.',
 
     '**2. Correlated versus uncorrelated.** Noise from a shared source is common-mode across tiles. It cancels in ' +
-    'the inter-tile differential â€” but only to within the path delay mismatch, with residual kernel ' +
-    '`4Â·sinÂ²(Ï€Â·fÂ·Î”Ï„)`, which is âˆ’64 dB at 1 MHz for 100 ps but only âˆ’4.2 dB at 1 GHz. Noise from independent ' +
+    'the inter-tile differential — but only to within the path delay mismatch, with residual kernel ' +
+    '`4·sin²(π·f·Δτ)`, which is −64 dB at 1 MHz for 100 ps but only −4.2 dB at 1 GHz. Noise from independent ' +
     'per-tile oscillators does not cancel at all. The differential of two independent identical sources is 3.01 dB ' +
-    'above one of them; referred to the array *mean* rather than to a neighbour it is `(Nâˆ’1)/N` of the per-tile ' +
+    'above one of them; referred to the array *mean* rather than to a neighbour it is `(N−1)/N` of the per-tile ' +
     'variance, about 3 dB below the pairwise figure. The tool reports the mean-referred number, because that is ' +
     'what beamforming sees.',
 
@@ -4373,27 +4373,27 @@ footer.foot a { color: var(--ink-2); }
     'problem as a small uncalibratable one.',
 
     '### Phase noise',
-    'A type-II second-order loop with natural frequency `f_n` and damping Î¶, parameterised by the âˆ’3 dB closed-loop ' +
+    'A type-II second-order loop with natural frequency `f_n` and damping ζ, parameterised by the −3 dB closed-loop ' +
     'bandwidth `f_c`:',
-    '    |H|Â²   = (1 + 4Î¶Â²uÂ²) / ((1âˆ’uÂ²)Â² + 4Î¶Â²uÂ²),   u = f/f_n',
-    '    |1âˆ’H|Â² = uâ´ / ((1âˆ’uÂ²)Â² + 4Î¶Â²uÂ²)',
-    'Note that `|1âˆ’H|Â² â‰  1 âˆ’ |H|Â²`: H and 1âˆ’H sum to unity in complex amplitude, not in power, so near `f_c` the ' +
+    '    |H|²   = (1 + 4ζ²u²) / ((1−u²)² + 4ζ²u²),   u = f/f_n',
+    '    |1−H|² = u⁴ / ((1−u²)² + 4ζ²u²)',
+    'Note that `|1−H|² ≠ 1 − |H|²`: H and 1−H sum to unity in complex amplitude, not in power, so near `f_c` the ' +
     'total can sit several dB above what the complementary assumption predicts. The one-line Butterworth ' +
     'approximation satisfies the complementary relation by construction and therefore always underestimates the ' +
-    'peaking region â€” it is not used here.',
+    'peaking region — it is not used here.',
     'The composite, referred to the oscillator and then multiplied to the LO:',
-    '    L_osc(f) = |H|Â²Â·(L_ref + 20log10 N  +  FOM_pll + 20log10 f_out âˆ’ 10log10 f_pfd  +  L_flicker)',
-    '               + |1âˆ’H|Â²Â·L_vco(f)',
-    '    L_LO(f)  = L_osc(f) + 20log10(M) âŠ• L_mult,add âŠ• 10log10(n_amp)Â·L_amp,add',
-    'The in-band identity `FOM + 10log10(f_pfd) + 20log10(N) â‰¡ FOM + 20log10(f_out) âˆ’ 10log10(f_pfd)` is worth ' +
+    '    L_osc(f) = |H|²·(L_ref + 20log10 N  +  FOM_pll + 20log10 f_out − 10log10 f_pfd  +  L_flicker)',
+    '               + |1−H|²·L_vco(f)',
+    '    L_LO(f)  = L_osc(f) + 20log10(M) ⊕ L_mult,add ⊕ 10log10(n_amp)·L_amp,add',
+    'The in-band identity `FOM + 10log10(f_pfd) + 20log10(N) ≡ FOM + 20log10(f_out) − 10log10(f_pfd)` is worth ' +
     'reading twice: raising the comparison frequency buys 10 dB per decade, and inserting an R-divider to lower it ' +
     'costs the same, even though `f_ref` never changed.',
 
     '### Integration',
     'L(f) is single-sideband, so the phase PSD is twice it:',
-    '    Ï†_rmsÂ² = 2Â·âˆ« L_lin(f) df      t_j = Ï†_rms / (2Ï€Â·f_carrier)',
+    '    φ_rms² = 2·∫ L_lin(f) df      t_j = φ_rms / (2π·f_carrier)',
     'Omitting the factor of 2 understates every phase error by 1.5 dB. Integration uses the piecewise power-law ' +
-    'segment rule, with the `p = âˆ’1` branch (`Sâ‚fâ‚Â·ln(fâ‚‚/fâ‚)`) that a âˆ’10 dB/decade segment requires â€” a linear ' +
+    'segment rule, with the `p = −1` branch (`S₁f₁·ln(f₂/f₁)`) that a −10 dB/decade segment requires — a linear ' +
     'trapezoid on a log grid overestimates convex regions badly.',
     'Integration limits are parameters, not hidden constants, because they answer different questions. The **EVM** ' +
     'figure runs from the carrier-recovery loop bandwidth to the rail edge; the **beam-error** figure runs from the ' +
@@ -4401,62 +4401,62 @@ footer.foot a { color: var(--ink-2); }
 
     '### Skew',
     'Accumulated in the **time** domain and converted **once**, at the output frequency:',
-    '    Î”Ï†(f_LO) = 360Â·f_LOÂ·Ï„        1 ps = 28.08Â° at 78 GHz',
-    'This is the algebra behind the tool\'s least intuitive result. An ideal Ã—M multiplier preserves time delay and ' +
-    'multiplies phase by exactly the factor by which the frequency was reduced, so a path delay Ï„ always produces ' +
-    '`2Ï€Â·f_LOÂ·Ï„` at the output **regardless of the distribution frequency**. Low-frequency or mid-frequency ' +
+    '    Δφ(f_LO) = 360·f_LO·τ        1 ps = 28.08° at 78 GHz',
+    'This is the algebra behind the tool\'s least intuitive result. An ideal ×M multiplier preserves time delay and ' +
+    'multiplies phase by exactly the factor by which the frequency was reduced, so a path delay τ always produces ' +
+    '`2π·f_LO·τ` at the output **regardless of the distribution frequency**. Low-frequency or mid-frequency ' +
     'distribution therefore buys *no* skew relief. It buys loss, power, amplifier count, packaging tolerance in ' +
-    'fractional-wavelength terms, and phase-measurement resolution â€” all real, none of them skew.',
+    'fractional-wavelength terms, and phase-measurement resolution — all real, none of them skew.',
     'Contributions: the topology\'s own path-length spread (deterministic, calibratable); per-segment etch ' +
-    'tolerance accumulating as âˆšn; Dk tolerance acting on the whole path (large but static); and transition ' +
+    'tolerance accumulating as √n; Dk tolerance acting on the whole path (large but static); and transition ' +
     'repeatability. A daisy chain\'s per-hop errors are a random **walk**, not iid, with RMS-about-mean factor ' +
-    '`âˆš((nÂ²âˆ’1)/6n)`, so the iid pointing formula does not apply to it.',
+    '`√((n²−1)/6n)`, so the iid pointing formula does not apply to it.',
 
     '### Calibration',
     'A sample-and-hold corrector of update period T has error kernel',
-    '    W(f,T) = 2Â·(1 âˆ’ sin(2Ï€fT)/(2Ï€fT)),    W â†’ 2 for f â‰« 1/T,    W = 1 at f = 0.3017/T',
+    '    W(f,T) = 2·(1 − sin(2πfT)/(2πfT)),    W → 2 for f ≫ 1/T,    W = 1 at f = 0.3017/T',
     'so a corrector *injects* the high-frequency content of its own samples: calibration is not free above its ' +
-    'bandwidth. The tool models the tracking loop as first-order with corner `f_cal = ÂµÂ·f_upd/2Ï€` and adds the ' +
-    'injected measurement noise `Ïƒ_bistÂ·âˆš(Âµ/(2âˆ’Âµ)/N_avg)` separately. Drift residual is ' +
-    '`âˆš((rateÂ·T)Â²/3 + Ïƒ_bistÂ²/N_avg)`, which has a minimum at `TÂ³ = 3ÏƒÂ²/(2Â·rateÂ²Â·f_meas)`.',
+    'bandwidth. The tool models the tracking loop as first-order with corner `f_cal = µ·f_upd/2π` and adds the ' +
+    'injected measurement noise `σ_bist·√(µ/(2−µ)/N_avg)` separately. Drift residual is ' +
+    '`√((rate·T)²/3 + σ_bist²/N_avg)`, which has a minimum at `T³ = 3σ²/(2·rate²·f_meas)`.',
     'A ~100 Hz beam-update rate is **not** a 100 Hz calibration rate and does not need to be: the drift bandwidth ' +
     'is fractions of a hertz, and nothing at 100 Hz touches the kHz-to-MHz decades where essentially all the ' +
     'integrated phase error lives.',
-    '!!! warn An intra-tile TXâ†’RX loopback driven by the same LO cancels the LO phase **identically** â€” it can ' +
+    '!!! warn An intra-tile TX→RX loopback driven by the same LO cancels the LO phase **identically** — it can ' +
     'never observe the tile\'s LO phase. LO calibration requires a cross-tile path, a shared tone bus, or a ' +
     'bidirectional tap on a real LO wire. A narrowband phase measurement also resolves delay only modulo one LO ' +
     'period (12.8 ps at 78 GHz), so the BIST must measure group delay across the baseband span.',
 
     '### Beam metrics',
-    '    gain loss      G/Gâ‚€ = exp(âˆ’Ïƒ_Ï†Â²)',
-    '    sidelobe floor P_sl/P_pk = Ïƒ_Ï†Â² / N_indep',
-    '    pointing (iid) Î´Î¸ = Ïƒ_Ï†Â·âˆš12Â·Î» / (2Ï€Â·âˆšNÂ·DÂ·cosÎ¸)',
-    '    squint         Î”Î¸ â‰ˆ Î¸Â·(B/2)/f_c        (proposal Eq. 6)',
-    '    band loss      G = âŸ¨exp(âˆ’(2Ï€Â·Î”fÂ·Ïƒ_Ï„)Â²)âŸ© over the band',
+    '    gain loss      G/G₀ = exp(−σ_φ²)',
+    '    sidelobe floor P_sl/P_pk = σ_φ² / N_indep',
+    '    pointing (iid) δθ = σ_φ·√12·λ / (2π·√N·D·cosθ)',
+    '    squint         Δθ ≈ θ·(B/2)/f_c        (proposal Eq. 6)',
+    '    band loss      G = ⟨exp(−(2π·Δf·σ_τ)²)⟩ over the band',
     'Ruze gain loss is reported but should not be used to choose: at these error levels it is negligible ' +
-    '(4.2Â° RMS costs 0.023 dB). The **sidelobe and null-depth floor** is the metric that separates the ' +
+    '(4.2° RMS costs 0.023 dB). The **sidelobe and null-depth floor** is the metric that separates the ' +
     'architectures, because it caps the achievable spatial-multiplexing SINR. `N_indep` is the number of ' +
-    'independent radiating groups â€” for a per-tile LO error that is the **tile** count, not the element count, ' +
+    'independent radiating groups — for a per-tile LO error that is the **tile** count, not the element count, ' +
     'which is why a per-tile error is far more damaging than a per-element one.',
 
     '### Baseband',
     'The baseband network sits after the mixer, so it contributes **zero** phase noise at the carrier: M1 and M2 ' +
     'are reported as not applicable for family B rather than fabricated. Its metrics are gain/phase error, skew, ' +
     'loss and power.',
-    'A baseband delay is a group-delay error at the rail edge, `Î”Ï† = 360Â·f_bÂ·Ï„` with `f_b â‰¤ 1 GHz` â€” never at ' +
-    '78 GHz. IQ downconversion of a 2 GHz RF band gives Â±1 GHz, so each rail is DCâ€“1 GHz and the per-rail noise ' +
+    'A baseband delay is a group-delay error at the rail edge, `Δφ = 360·f_b·τ` with `f_b ≤ 1 GHz` — never at ' +
+    '78 GHz. IQ downconversion of a 2 GHz RF band gives ±1 GHz, so each rail is DC–1 GHz and the per-rail noise ' +
     'bandwidth is 1 GHz; using 2 GHz inflates every integrated-noise figure by 3 dB. Everything is per rail and ' +
     'there are two rails, so cell counts, power, decoupling and area all double.',
-    'Passive split loss `10log10(N)` and coherent array gain `+10log10(N)` cancel exactly â€” the tool credits each ' +
+    'Passive split loss `10log10(N)` and coherent array gain `+10log10(N)` cancel exactly — the tool credits each ' +
     'once. A matched resistive star\'s S21 is a *voltage* ratio of 1/N, hence `20log10(N)`, but that penalty ' +
     'applies only if every port is matched: a high-impedance or current-mode node gives 0 dB of coherent transfer. ' +
     'The choice of impedance regime is worth more decibels than the choice among B1/B2/B3. At baseband B1 means a ' +
-    '**resistive** network â€” a Wilkinson passes no DC and would need ~8 nH arms at 1 GHz.',
-    'The active tree\'s output-referred cell noise is `vÂ²Â·(2 âˆ’ 2^(1âˆ’n))`, bounded at twice one cell for any N; ' +
+    '**resistive** network — a Wilkinson passes no DC and would need ~8 nH arms at 1 GHz.',
+    'The active tree\'s output-referred cell noise is `v²·(2 − 2^(1−n))`, bounded at twice one cell for any N; ' +
     'naive Friis overstates a 6-level tree threefold. Its power is set by total load capacitance and target ' +
-    'bandwidth, not by a fixed mW per cell, so fewer stronger buffers beat many weak ones â€” add levels only for ' +
+    'bandwidth, not by a fixed mW per cell, so fewer stronger buffers beat many weak ones — add levels only for ' +
     'isolation, skew control or wire-capacitance shielding. Cascaded IIP3 for n unity-gain stages is ' +
-    '`âˆ’10log10(n)`, not `âˆ’20log10(n)`.'
+    '`−10log10(n)`, not `−20log10(n)`.'
   ].join('\n');
 
   var HONESTY = [
@@ -4468,11 +4468,11 @@ footer.foot a { color: var(--ink-2); }
     '- **Uncorrelated in-band share** (`uncorrInbandFrac`, default 0.5). How much of a tile PLL\'s in-band noise ' +
     'comes from its own PFD/charge-pump/divider rather than the shared reference. This single number reorders the ' +
     'LO ranking and is labelled *engineering-guess*. Measure it on the first tile silicon.',
-    '- **Transition repeatability** (`connPhaseDeg`, default 3Â°). Unrepeatable phase per board/package transition. ' +
+    '- **Transition repeatability** (`connPhaseDeg`, default 3°). Unrepeatable phase per board/package transition. ' +
     'At E-band this is the difference between a calibratable offset and a rework-sensitive one, and it is a guess.',
-    '- **Tile-to-tile Î”T** (`dTTileK`, default 8 K). Sets the drift BIST must track. Needs thermal measurement of ' +
+    '- **Tile-to-tile ΔT** (`dTTileK`, default 8 K). Sets the drift BIST must track. Needs thermal measurement of ' +
     'a populated tile, not a datasheet.',
-    '- **BIST phase-measurement noise** (`bistNoiseDeg`, default 1.5Â°). Determines whether calibration removes ' +
+    '- **BIST phase-measurement noise** (`bistNoiseDeg`, default 1.5°). Determines whether calibration removes ' +
     'drift or imports noise. Unknown until the BIST paths are measured.',
     '- **EVM share allocated to the LO** (`evmShare`, default 0.3). A budgeting decision, not a measurement.',
 
@@ -4485,14 +4485,14 @@ footer.foot a { color: var(--ink-2); }
     'is worse, A4\'s advantage over A1 narrows.',
 
     '### Structural simplifications',
-    '- The corporate tree is built by recursive bisection into halves of equal *count*. For a 5Ã—5 grid that is ' +
+    '- The corporate tree is built by recursive bisection into halves of equal *count*. For a 5×5 grid that is ' +
     'inherently unbalanced, which the tool reports as deterministic skew. A real design would likely use a 5-way ' +
     'split or pad to a power of two, changing the skew and the block count.',
     '- Routing is Manhattan and the path length is the drawn length. Real boards have keep-outs, vias and layer ' +
     'transitions that add both length and discontinuities.',
     '- Mutual coupling between distribution lines, and coupling into the antenna aperture, is not modelled at all. ' +
     'The proposal treats coupling as a calibration state; nothing here contributes to it.',
-    '- Amplifier compression, LO leakage, and spurious tones from the multipliers are not modelled. The Ã—M lock ' +
+    '- Amplifier compression, LO leakage, and spurious tones from the multipliers are not modelled. The ×M lock ' +
     'ambiguity is reported as a calibration burden but its spur consequences are not costed.',
     '- The thermal drift rate is assumed to play out over ten minutes to convert a total excursion into a rate. ' +
     'That divisor is a guess and it moves the drift residual directly.',
@@ -4515,7 +4515,7 @@ footer.foot a { color: var(--ink-2); }
 
 /* ===== js/app.js ===== */
 /* ============================================================================
-   app.js â€” state, routing, and rendering.
+   app.js — state, routing, and rendering.
    Exposes nothing; runs on load.
    ========================================================================= */
 (function () {
@@ -4535,7 +4535,7 @@ footer.foot a { color: var(--ink-2); }
   var TILE_METRICS = [
     { key: 'skewPs', label: 'skew vs array mean (ps)' },
     { key: 'wraps', label: 'static offset (wraps to resolve)' },
-    { key: 'driftDeg', label: 'thermal drift (Â°, uncalibrated)' },
+    { key: 'driftDeg', label: 'thermal drift (°, uncalibrated)' },
     { key: 'lossDb', label: 'path loss (dB)' },
     { key: 'powerMw', label: 'distribution power (mW)' }
   ];
@@ -4581,82 +4581,82 @@ footer.foot a { color: var(--ink-2); }
 
   /* --------------------------- number formatting ------------------------- */
   function n(v, d) { return UI.num(v, d); }
-  function str(v) { return (v === null || v === undefined) ? 'â€”' : String(v); }
+  function str(v) { return (v === null || v === undefined) ? '—' : String(v); }
 
   /* =====================================================================
      Table row specifications
      ================================================================== */
   function loRows(budget) {
     var offs = [1e3, 1e4, 1e5, 1e6, 1e7, 1e8];
-    var rows = [{ section: 'M1 Â· phase noise at ' + n(state.fLoGHz, 0) + ' GHz (dBc/Hz)' }];
+    var rows = [{ section: 'M1 · phase noise at ' + n(state.fLoGHz, 0) + ' GHz (dBc/Hz)' }];
     offs.forEach(function (f) {
       rows.push({
         name: 'L(' + C.fLabel(f) + ')', field: '__pn' + f, better: 'low', dec: 1,
-        fmt: function (v, res) { return res.pnAtOffsets ? n(res.pnAtOffsets[f], 1) : 'â€”'; }
+        fmt: function (v, res) { return res.pnAtOffsets ? n(res.pnAtOffsets[f], 1) : '—'; }
       });
     });
-    rows.push({ section: 'M2 Â· integrated phase error & jitter' });
-    rows.push({ name: 'Single-tile Ï† RMS', sub: 'integrated ' + n(state.carrierTrackMHz) + ' MHz â†’ ' + n(state.bbEdgeGHz) + ' GHz', field: 'phiRmsDeg', units: 'Â°', better: 'low' });
-    rows.push({ name: 'Array-output Ï† RMS', sub: 'uncorrelated noise averaged down by N', field: 'phiArrayDeg', units: 'Â°', better: 'low', spec: budget.sigForEvmDeg });
+    rows.push({ section: 'M2 · integrated phase error & jitter' });
+    rows.push({ name: 'Single-tile φ RMS', sub: 'integrated ' + n(state.carrierTrackMHz) + ' MHz → ' + n(state.bbEdgeGHz) + ' GHz', field: 'phiRmsDeg', units: '°', better: 'low' });
+    rows.push({ name: 'Array-output φ RMS', sub: 'uncorrelated noise averaged down by N', field: 'phiArrayDeg', units: '°', better: 'low', spec: budget.sigForEvmDeg });
     rows.push({ name: 'RMS jitter', field: 'jitterFs', units: 'fs', better: 'low', dec: 1 });
-    rows.push({ section: 'M3 Â· inter-tile phase error (mean-referred)' });
-    rows.push({ name: 'Raw, uncalibrated', field: 'interTileRawDeg', units: 'Â°', better: 'low' });
-    rows.push({ name: 'Residual after BIST', sub: 'the number that decides the architecture', field: 'interTileResidualDeg', units: 'Â°', better: 'low', spec: budget.sigSpecDeg });
-    rows.push({ name: 'Â· differential phase noise', field: 'pnDiffCalDeg', units: 'Â°', better: 'low' });
-    rows.push({ name: 'Â· injected BIST noise', field: 'injDeg', units: 'Â°', better: 'low' });
-    rows.push({ name: 'Â· drift residual', field: 'driftResidDeg', units: 'Â°', better: 'low' });
-    rows.push({ name: 'Â· phase-shifter quantisation', field: 'quantDeg', units: 'Â°', better: 'low' });
-    rows.push({ section: 'M4 Â· inter-tile skew â€” static (calibratable) vs drifting (not)' });
+    rows.push({ section: 'M3 · inter-tile phase error (mean-referred)' });
+    rows.push({ name: 'Raw, uncalibrated', field: 'interTileRawDeg', units: '°', better: 'low' });
+    rows.push({ name: 'Residual after BIST', sub: 'the number that decides the architecture', field: 'interTileResidualDeg', units: '°', better: 'low', spec: budget.sigSpecDeg });
+    rows.push({ name: '· differential phase noise', field: 'pnDiffCalDeg', units: '°', better: 'low' });
+    rows.push({ name: '· injected BIST noise', field: 'injDeg', units: '°', better: 'low' });
+    rows.push({ name: '· drift residual', field: 'driftResidDeg', units: '°', better: 'low' });
+    rows.push({ name: '· phase-shifter quantisation', field: 'quantDeg', units: '°', better: 'low' });
+    rows.push({ section: 'M4 · inter-tile skew — static (calibratable) vs drifting (not)' });
     rows.push({ name: 'Total RMS skew', field: 'skewRmsPs', units: 'ps', better: 'low' });
     rows.push({ name: 'Peak skew', field: 'skewPeakPs', units: 'ps', better: 'low' });
     rows.push({
-      name: 'Geometric path imbalance', sub: 'known by construction â€” equalise it in layout',
+      name: 'Geometric path imbalance', sub: 'known by construction — equalise it in layout',
       field: 'pathImbalancePs', units: 'ps', better: 'low',
-      fmt: function (v, r) { return isFinite(v) ? n(v) + ' ps (' + n(r.pathImbalanceWraps, 1) + ' wraps)' : 'â€”'; }
+      fmt: function (v, r) { return isFinite(v) ? n(v) + ' ps (' + n(r.pathImbalanceWraps, 1) + ' wraps)' : '—'; }
     });
-    rows.push({ name: 'Â· Dk tolerance over the path', field: 'dkSkewPs', units: 'ps', better: 'low' });
-    rows.push({ name: 'Â· etch tolerance, accumulated', field: 'etchSkewPs', units: 'ps', better: 'low' });
-    rows.push({ name: 'Â· transition repeatability', field: 'transSkewPs', units: 'ps', better: 'low' });
+    rows.push({ name: '· Dk tolerance over the path', field: 'dkSkewPs', units: 'ps', better: 'low' });
+    rows.push({ name: '· etch tolerance, accumulated', field: 'etchSkewPs', units: 'ps', better: 'low' });
+    rows.push({ name: '· transition repeatability', field: 'transSkewPs', units: 'ps', better: 'low' });
     rows.push({
-      name: 'Correction range needed', sub: 'all of the above is static â€” calibration removes it, but must resolve the wraps',
-      field: 'correctionRangeDeg', units: 'Â°', better: 'low',
-      fmt: function (v, r) { return isFinite(v) ? n(v, 0) + 'Â° (' + n(r.correctionWraps, 1) + ' wraps)' : 'â€”'; }
+      name: 'Correction range needed', sub: 'all of the above is static — calibration removes it, but must resolve the wraps',
+      field: 'correctionRangeDeg', units: '°', better: 'low',
+      fmt: function (v, r) { return isFinite(v) ? n(v, 0) + '° (' + n(r.correctionWraps, 1) + ' wraps)' : '—'; }
     });
     rows.push({
-      name: 'Thermal drift skew', sub: 'what BIST must track, over ' + n(state.dTTileK, 0) + ' K â€” see the residual row for what is left',
+      name: 'Thermal drift skew', sub: 'what BIST must track, over ' + n(state.dTTileK, 0) + ' K — see the residual row for what is left',
       field: 'skewDriftPs', units: 'ps', better: 'low'
     });
     rows.push({
       name: 'Drift skew as phase at LO',
-      sub: 'exceeds the ' + n(budget.sigSpecDeg) + 'Â° spec on its own â€” which is why BIST is mandatory, not optional. Identical for every distribution frequency: that is the algebra.',
-      field: 'skewDeg78', units: 'Â°', better: 'low'
+      sub: 'exceeds the ' + n(budget.sigSpecDeg) + '° spec on its own — which is why BIST is mandatory, not optional. Identical for every distribution frequency: that is the algebra.',
+      field: 'skewDeg78', units: '°', better: 'low'
     });
     rows.push({ name: 'Delay per cm in this medium', field: 'psPerCm', units: 'ps/cm', dec: 1 });
-    rows.push({ name: 'Thermal sensitivity', field: 'driftDegPerK', units: 'Â°/K', better: 'low' });
-    rows.push({ section: 'M5 Â· distribution loss' });
+    rows.push({ name: 'Thermal sensitivity', field: 'driftDegPerK', units: '°/K', better: 'low' });
+    rows.push({ section: 'M5 · distribution loss' });
     rows.push({ name: 'Total loss', field: 'lossTotalDb', units: 'dB', better: 'low', dec: 1 });
-    rows.push({ name: 'Â· line loss', field: 'lineLossDb', units: 'dB', better: 'low', dec: 1 });
-    rows.push({ name: 'Â· split / tap loss', field: 'splitLossDb', units: 'dB', better: 'low', dec: 1 });
+    rows.push({ name: '· line loss', field: 'lineLossDb', units: 'dB', better: 'low', dec: 1 });
+    rows.push({ name: '· split / tap loss', field: 'splitLossDb', units: 'dB', better: 'low', dec: 1 });
     rows.push({ name: 'Loss per cm', sub: 'at the distributed frequency', field: 'lossPerCmDb', units: 'dB/cm', better: 'low' });
     rows.push({ name: 'Compensating gain required', field: 'requiredGainDb', units: 'dB', better: 'low', dec: 1 });
-    rows.push({ section: 'M6 Â· power' });
+    rows.push({ section: 'M6 · power' });
     rows.push({ name: 'Total distribution power', field: 'powerTotalMw', units: 'W', better: 'low', fmt: function (v) { return n(v / 1000, 2); } });
     rows.push({ name: 'Per tile', field: 'powerPerTileMw', units: 'mW', better: 'low', dec: 0 });
     rows.push({ name: 'Share of array budget', field: 'powerFracOfArray', units: '%', better: 'low', dec: 1 });
     rows.push({ section: 'Beam consequences' });
-    rows.push({ name: 'Sidelobe / null-depth floor', sub: '10log10(ÏƒÂ²/N) â€” the decisive metric', field: 'sllDb', units: 'dB', better: 'low', dec: 1 });
-    rows.push({ name: 'Array gain loss', sub: 'Ruze â€” negligible at these levels', field: 'gainLossDb', units: 'dB', better: 'low', dec: 3 });
-    rows.push({ name: 'Pointing error', field: 'pointingErrDeg', units: 'Â°', better: 'low', dec: 3, spec: budget.pointBudgetDeg });
+    rows.push({ name: 'Sidelobe / null-depth floor', sub: '10log10(σ²/N) — the decisive metric', field: 'sllDb', units: 'dB', better: 'low', dec: 1 });
+    rows.push({ name: 'Array gain loss', sub: 'Ruze — negligible at these levels', field: 'gainLossDb', units: 'dB', better: 'low', dec: 3 });
+    rows.push({ name: 'Pointing error', field: 'pointingErrDeg', units: '°', better: 'low', dec: 3, spec: budget.pointBudgetDeg });
     rows.push({ name: 'Array-output EVM', field: 'evmPct', units: '%', better: 'low' });
     rows.push({ name: 'Highest supportable QAM', field: 'maxQam', fmt: function (v, r) { return str(r.maxQam); } });
     rows.push({ section: 'Hardware' });
     rows.push({ name: 'Frequency on the board', field: 'distFreqGHz', units: 'GHz', dec: 2 });
-    rows.push({ name: 'Per-tile multiplication', field: 'tileMultiplier', units: 'Ã—', dec: 0 });
+    rows.push({ name: 'Per-tile multiplication', field: 'tileMultiplier', units: '×', dec: 0 });
     rows.push({ name: 'Mean routed path', field: 'pathMeanCm', units: 'cm', better: 'low', dec: 1 });
     rows.push({ name: 'Total routed length', field: 'totalRoutedCm', units: 'cm', better: 'low', dec: 0 });
     rows.push({ name: 'Repeater amplifiers', field: 'repeaters', better: 'low', dec: 0 });
     rows.push({ name: 'Splitters', field: 'splitCount', better: 'low', dec: 0 });
-    rows.push({ name: 'Distribution area per tile', field: 'areaPerTileMm2', units: 'mmÂ²', better: 'low' });
+    rows.push({ name: 'Distribution area per tile', field: 'areaPerTileMm2', units: 'mm²', better: 'low' });
     rows.push({ name: 'LO measurements per array pass', field: 'calBurdenScore', better: 'low', dec: 0, noteField: 'calBurdenDetail' });
     rows.push({ name: 'Feasibility', field: 'feasibility', fmt: function (v, r) { return str(r.feasibility); } });
     rows.push({ name: 'Risk', field: 'riskLevel', fmt: function (v, r) { return str(r.riskLevel); } });
@@ -4665,22 +4665,22 @@ footer.foot a { color: var(--ink-2); }
 
   function bbRows(budget) {
     return [
-      { section: 'M1 / M2 Â· phase noise & jitter' },
+      { section: 'M1 / M2 · phase noise & jitter' },
       { name: 'L(f) at the carrier', sub: 'the network sits after the mixer', field: 'pnNA', fmt: function () { return 'n/a'; } },
       { name: 'Contribution to E-band jitter', field: 'jitterFs', fmt: function () { return 'n/a'; } },
-      { section: 'Inter-tile tier â€” the network drawn on the hardware map' },
+      { section: 'Inter-tile tier — the network drawn on the hardware map' },
       {
         name: 'Inter-tile topology', field: 'interKind',
-        fmt: function (v, r) { return r.interKind + (r.interKind === 'htree' ? ' Â· ' + r.interDepth + ' levels' : ''); }
+        fmt: function (v, r) { return r.interKind + (r.interKind === 'htree' ? ' · ' + r.interDepth + ' levels' : ''); }
       },
       { name: 'Mean routed path to backend', field: 'interPathMeanCm', units: 'cm', better: 'low', dec: 1 },
       { name: 'Longest path to backend', field: 'interPathMaxCm', units: 'cm', better: 'low', dec: 1 },
       { name: 'Total routed length', field: 'interRoutedCm', units: 'cm', better: 'low', dec: 0 },
       {
-        name: 'Geometric skew, raw', sub: 'from unequal arm lengths â€” this is the coarse TTD range the option demands',
+        name: 'Geometric skew, raw', sub: 'from unequal arm lengths — this is the coarse TTD range the option demands',
         field: 'interGeoRawPs', units: 'ps', better: 'low', dec: 0,
         fmt: function (v, r) {
-          return n(v, 0) + ' ps' + (r.interUncompPs > 0.5 ? ' â€” ' + n(r.interUncompPs, 0) + ' beyond TTD range' : ' (within TTD range)');
+          return n(v, 0) + ' ps' + (r.interUncompPs > 0.5 ? ' — ' + n(r.interUncompPs, 0) + ' beyond TTD range' : ' (within TTD range)');
         }
       },
       {
@@ -4692,28 +4692,28 @@ footer.foot a { color: var(--ink-2); }
         field: 'ttdRangeConsumedPct', units: '%', better: 'low', dec: 0
       },
       { name: 'Inter-tile line loss', field: 'interLossDb', units: 'dB', better: 'low', dec: 2 },
-      { section: 'M3 / M4 Â· gain-phase error & skew (both tiers)' },
+      { section: 'M3 / M4 · gain-phase error & skew (both tiers)' },
       { name: 'RMS skew across ports', field: 'skewRmsPs', units: 'ps', better: 'low' },
-      { name: 'Â· intra-tile part', field: 'skewIntraPs', units: 'ps', better: 'low' },
+      { name: '· intra-tile part', field: 'skewIntraPs', units: 'ps', better: 'low' },
       { name: 'Peak skew', field: 'skewPeakPs', units: 'ps', better: 'low' },
       { name: 'Systematic ramp', field: 'skewSystematicPs', units: 'ps', better: 'low' },
-      { name: 'Phase error at rail edge', sub: 'at ' + n(state.bbEdgeGHz) + ' GHz â€” NOT at ' + n(state.fLoGHz, 0) + ' GHz', field: 'skewEdgeDeg', units: 'Â°', better: 'low' },
-      { name: 'Residual after calibration', field: 'interTileResidualDeg', units: 'Â°', better: 'low' },
-      { name: 'Beam steer from the ramp', sub: 'survives phase calibration; needs TTD', field: 'rampSteerDeg', units: 'Â°', better: 'low', dec: 3 },
+      { name: 'Phase error at rail edge', sub: 'at ' + n(state.bbEdgeGHz) + ' GHz — NOT at ' + n(state.fLoGHz, 0) + ' GHz', field: 'skewEdgeDeg', units: '°', better: 'low' },
+      { name: 'Residual after calibration', field: 'interTileResidualDeg', units: '°', better: 'low' },
+      { name: 'Beam steer from the ramp', sub: 'survives phase calibration; needs TTD', field: 'rampSteerDeg', units: '°', better: 'low', dec: 3 },
       { name: 'Band-averaged squint loss', field: 'squintLossDb', units: 'dB', better: 'low', dec: 3 },
-      { section: 'M5 Â· loss & noise' },
+      { section: 'M5 · loss & noise' },
       { name: 'Net insertion loss', sub: 'split loss and array gain already netted', field: 'lossTotalDb', units: 'dB', better: 'low', dec: 1 },
       { name: 'Noise-figure penalty', sub: 'behind ' + n(state.rficGainDb, 0) + ' dB of RFIC gain', field: 'nfPenaltyDb', units: 'dB', better: 'low', dec: 2 },
       { name: 'Compensating gain required', field: 'requiredGainDb', units: 'dB', better: 'low', dec: 1 },
-      { name: 'âˆ’3 dB bandwidth', field: 'bwGHz', units: 'GHz', better: 'high' },
+      { name: '−3 dB bandwidth', field: 'bwGHz', units: 'GHz', better: 'high' },
       { name: 'Cascaded IIP3 penalty', field: 'iip3PenaltyDb', units: 'dB', better: 'low', dec: 1 },
-      { section: 'M6 Â· power & area' },
+      { section: 'M6 · power & area' },
       { name: 'Per tile, both rails', field: 'powerPerTileMw', units: 'mW', better: 'low', dec: 0 },
       { name: 'Array total', field: 'powerTotalMw', units: 'W', better: 'low', fmt: function (v) { return n(v / 1000, 2); } },
       { name: 'Share of array budget', field: 'powerFracOfArray', units: '%', better: 'low', dec: 2 },
-      { name: 'Area per tile, both rails', field: 'areaPerTileMm2', units: 'mmÂ²', better: 'low', dec: 3 },
+      { name: 'Area per tile, both rails', field: 'areaPerTileMm2', units: 'mm²', better: 'low', dec: 3 },
       { section: 'Stability & burden' },
-      { name: 'Delay drift', field: 'driftDegPerK', units: 'Â°/K', better: 'low', dec: 3 },
+      { name: 'Delay drift', field: 'driftDegPerK', units: '°/K', better: 'low', dec: 3 },
       { name: 'Channels to calibrate per rail', field: 'calBurdenScore', better: 'low', dec: 0, noteField: 'calBurdenDetail' },
       { name: 'Feasibility', field: 'feasibility', fmt: function (v, r) { return str(r.feasibility); } },
       { name: 'Risk', field: 'riskLevel', fmt: function (v, r) { return str(r.riskLevel); } }
@@ -4771,7 +4771,7 @@ footer.foot a { color: var(--ink-2); }
     if (res.g.loOptionId === 'mid-mult') {
       seg(mount, 'Multiplication factor', 'midM',
         M.PARAMS.filter(function (p) { return p.key === 'midM'; })[0].choices,
-        'Ã—M adds exactly <span class="kv">' + n(20 * Math.log10(state.midM), 1) + ' dB</span> to L(f) and multiplies ' +
+        '×M adds exactly <span class="kv">' + n(20 * Math.log10(state.midM), 1) + ' dB</span> to L(f) and multiplies ' +
         'distributed phase error by ' + Math.round(state.midM) + '. It buys loss and power, not skew.');
     }
     if (res.g.loOptionId === 'local-pll') {
@@ -4791,14 +4791,14 @@ footer.foot a { color: var(--ink-2); }
       M.PARAMS.filter(function (p) { return p.key === 'loMedium'; })[0].choices,
       'Loss at ' + n(sel.distFreqGHz, 2) + ' GHz in this medium: <span class="kv">' + n(sel.lossPerCmDb, 3) +
       ' dB/cm</span>. One degree at ' + n(state.fLoGHz, 0) + ' GHz is <span class="kv">' +
-      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' Âµm</span> of physical length.');
+      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length.');
 
     seg(mount, 'Baseband split / combine', 'bbOption',
       M.PARAMS.filter(function (p) { return p.key === 'bbOption'; })[0].choices,
       res.bb[res.g.bbOptionId].note);
 
     document.getElementById('pickerNote').textContent =
-      budget.nTiles + ' tiles Â· ' + n(state.tapsPerTile * budget.nTiles, 0) + ' LO taps Â· ' +
+      budget.nTiles + ' tiles · ' + n(state.tapsPerTile * budget.nTiles, 0) + ' LO taps · ' +
       n(state.chPerTile * budget.nTiles, 0) + ' BB channels per rail';
   }
 
@@ -4812,7 +4812,7 @@ footer.foot a { color: var(--ink-2); }
     document.getElementById('mapTitle').innerHTML =
       'Hardware map <span class="tag">' + M.LO_META[Math.round(state.loOption)].name + '</span>' +
       '<span class="grow">' + n(sel.distFreqGHz, 2) + ' GHz on the board' +
-      (sel.tileMultiplier > 1 ? ', Ã—' + sel.tileMultiplier + ' at each tile' : '') + '</span>';
+      (sel.tileMultiplier > 1 ? ', ×' + sel.tileMultiplier + ' at each tile' : '') + '</span>';
 
     /* toolbar: tile colour metric + block visibility */
     var tb = document.getElementById('mapToolbar');
@@ -4886,22 +4886,22 @@ footer.foot a { color: var(--ink-2); }
     var pass = sel.interTileResidualDeg <= budget.sigSpecDeg;
     UI.renderBudget(document.getElementById('mapStatsMount'), null, null, {
       cells: [
-        { k: 'Inter-tile residual', n: n(sel.interTileResidualDeg), unit: 'Â°', binding: !pass,
-          d: (pass ? 'within' : 'OVER') + ' the ' + n(budget.sigSpecDeg) + 'Â° spec. Irreducible part: ' + n(sel.pnDiffCalDeg) + 'Â°.' },
-        { k: 'Null-depth floor', n: n(sel.sllDb, 1), unit: 'dB', d: 'from 10log10(ÏƒÂ²/N) at ' + budget.nTiles + ' tiles' },
-        { k: 'Distribution loss', n: n(sel.lossTotalDb, 1), unit: 'dB', d: n(sel.lossPerCmDb, 3) + ' dB/cm Ã— ' + n(sel.pathMeanCm, 1) + ' cm plus splits and transitions' },
+        { k: 'Inter-tile residual', n: n(sel.interTileResidualDeg), unit: '°', binding: !pass,
+          d: (pass ? 'within' : 'OVER') + ' the ' + n(budget.sigSpecDeg) + '° spec. Irreducible part: ' + n(sel.pnDiffCalDeg) + '°.' },
+        { k: 'Null-depth floor', n: n(sel.sllDb, 1), unit: 'dB', d: 'from 10log10(σ²/N) at ' + budget.nTiles + ' tiles' },
+        { k: 'Distribution loss', n: n(sel.lossTotalDb, 1), unit: 'dB', d: n(sel.lossPerCmDb, 3) + ' dB/cm × ' + n(sel.pathMeanCm, 1) + ' cm plus splits and transitions' },
         { k: 'Distribution power', n: n(sel.powerTotalMw / 1000, 2), unit: 'W', d: n(sel.powerFracOfArray, 1) + '% of the ' + n(state.arrayPowerW, 0) + ' W array budget' },
         { k: 'Repeater amps', n: n(sel.repeaters, 0), unit: '', d: sel.splitCount + ' splitters, ' + n(sel.totalRoutedCm, 0) + ' cm routed' },
-        { k: 'RMS skew', n: n(sel.skewRmsPs), unit: 'ps', d: n(sel.skewDeg78) + 'Â° at the LO Â· spec is ' + n(budget.skewSpecPs) + ' ps' },
+        { k: 'RMS skew', n: n(sel.skewRmsPs), unit: 'ps', d: n(sel.skewDeg78) + '° at the LO · spec is ' + n(budget.skewSpecPs) + ' ps' },
         {
           k: 'Array-output EVM', n: n(sel.evmPct), unit: '%',
           binding: sel.evmPct > budget.evmLimitPct,
-          d: 'from ' + n(sel.phiArrayDeg) + 'Â° absolute Â· supports ' + sel.maxQam +
-             '. This is what the reference clock changes â€” the differential is common-mode and does not move.'
+          d: 'from ' + n(sel.phiArrayDeg) + '° absolute · supports ' + sel.maxQam +
+             '. This is what the reference clock changes — the differential is common-mode and does not move.'
         },
         {
           k: 'Baseband', n: n(bsel.interGeoRawPs, 0), unit: 'ps',
-          d: bsel.interKind + ' Â· ' + n(bsel.ttdRangeConsumedPct, 0) + '% of TTD range, ' +
+          d: bsel.interKind + ' · ' + n(bsel.ttdRangeConsumedPct, 0) + '% of TTD range, ' +
              n(bsel.interRoutedCm, 0) + ' cm routed, ' + n(bsel.powerPerTileMw, 0) + ' mW/tile'
         }
       ]
@@ -4941,14 +4941,14 @@ footer.foot a { color: var(--ink-2); }
     }
     var lp = dec.loPick, bp = dec.bbPick;
     verdict('LO', lp.name,
-      'Residual inter-tile phase error <span class="kv">' + n(lp.r.interTileResidualDeg) + 'Â°</span> against a <span class="kv">' +
-      n(budget.sigSpecDeg) + 'Â°</span> spec, null floor <span class="kv">' + n(lp.r.sllDb, 1) + ' dB</span>, ' +
+      'Residual inter-tile phase error <span class="kv">' + n(lp.r.interTileResidualDeg) + '°</span> against a <span class="kv">' +
+      n(budget.sigSpecDeg) + '°</span> spec, null floor <span class="kv">' + n(lp.r.sllDb, 1) + ' dB</span>, ' +
       'distribution power <span class="kv">' + n(lp.r.powerFracOfArray, 1) + '%</span> of the array. ' +
-      'Runner-up: ' + (dec.loRank[1] ? dec.loRank[1].short : 'â€”') + '.');
+      'Runner-up: ' + (dec.loRank[1] ? dec.loRank[1].short : '—') + '.');
     verdict('Baseband', bp.name,
       'Squint loss <span class="kv">' + n(bp.r.squintLossDb, 3) + ' dB</span>, noise-figure penalty <span class="kv">' +
       n(bp.r.nfPenaltyDb, 2) + ' dB</span>, <span class="kv">' + n(bp.r.powerPerTileMw, 0) + ' mW</span> per tile ' +
-      'across both rails. Runner-up: ' + (dec.bbRank[1] ? dec.bbRank[1].short : 'â€”') + '.');
+      'across both rails. Runner-up: ' + (dec.bbRank[1] ? dec.bbRank[1].short : '—') + '.');
 
     /* charts */
     var cc = document.getElementById('compareCharts');
@@ -4973,7 +4973,7 @@ footer.foot a { color: var(--ink-2); }
       sec.appendChild(box);
       cc.appendChild(sec);
     }
-    barPanel('Residual inter-tile phase error', 'interTileResidualDeg', 'Â°', budget.sigSpecDeg);
+    barPanel('Residual inter-tile phase error', 'interTileResidualDeg', '°', budget.sigSpecDeg);
     barPanel('Sidelobe / null-depth floor', 'sllDb', 'dB', budget.nullFloorDb);
     barPanel('Distribution power', 'powerTotalMw', 'W', null, function (v) { return v / 1000; });
     barPanel('Distribution loss', 'lossTotalDb', 'dB', null);
@@ -5014,12 +5014,12 @@ footer.foot a { color: var(--ink-2); }
       'but it is <em>not</em> the curve that decides the architecture.');
 
     pnPanel('pnDiffMount', 'pnDiffCurve', 'pnDiffNote',
-      'The <strong>differential</strong> phase noise between a tile and the array mean â€” the part that does not ' +
+      'The <strong>differential</strong> phase noise between a tile and the array mean — the part that does not ' +
       'cancel and that no calibration removes. For the shared-source options this is only the repeater and ' +
-      'multiplier additive noise plus the delay-decorrelation residual <span class="kv">4sinÂ²(Ï€fÎ”Ï„)</span>; for ' +
+      'multiplier additive noise plus the delay-decorrelation residual <span class="kv">4sin²(πfΔτ)</span>; for ' +
       'per-tile PLLs it is the full free-running oscillator noise above the loop bandwidth. Integrated, that is ' +
-      '<span class="kv">' + n(a1.pnDiffCalDeg) + 'Â°</span> for local PLLs against <span class="kv">' +
-      n(a4.pnDiffCalDeg) + 'Â°</span> for mid-frequency distribution â€” a gap of <span class="kv">' +
+      '<span class="kv">' + n(a1.pnDiffCalDeg) + '°</span> for local PLLs against <span class="kv">' +
+      n(a4.pnDiffCalDeg) + '°</span> for mid-frequency distribution — a gap of <span class="kv">' +
       n(Math.abs(a1.sllDb - a4.sllDb), 1) + ' dB</span> in the resulting null floor.');
 
     pnPanel('pnArrayMount', 'pnArrayCurve', 'pnArrayNote',
@@ -5031,11 +5031,11 @@ footer.foot a { color: var(--ink-2); }
 
     /* jitter table */
     var rows = [
-      { name: 'Single-tile Ï† RMS', field: 'phiRmsDeg', units: 'Â°', better: 'low' },
-      { name: 'Array-output Ï† RMS', field: 'phiArrayDeg', units: 'Â°', better: 'low', spec: budget.sigForEvmDeg },
+      { name: 'Single-tile φ RMS', field: 'phiRmsDeg', units: '°', better: 'low' },
+      { name: 'Array-output φ RMS', field: 'phiArrayDeg', units: '°', better: 'low', spec: budget.sigForEvmDeg },
       { name: 'RMS jitter', field: 'jitterFs', units: 'fs', better: 'low', dec: 1 },
-      { name: 'Inter-tile differential Ï†, raw', field: 'pnDiffRawDeg', units: 'Â°', better: 'low' },
-      { name: 'Inter-tile differential Ï†, calibrated', field: 'pnDiffCalDeg', units: 'Â°', better: 'low', spec: budget.sigSpecDeg },
+      { name: 'Inter-tile differential φ, raw', field: 'pnDiffRawDeg', units: '°', better: 'low' },
+      { name: 'Inter-tile differential φ, calibrated', field: 'pnDiffCalDeg', units: '°', better: 'low', spec: budget.sigSpecDeg },
       { name: 'Calibration corner f_cal', field: 'fCalHz', units: 'Hz', dec: 3 },
       { name: 'Array-output EVM', field: 'evmPct', units: '%', better: 'low' },
       { name: 'Highest supportable QAM', field: 'maxQam', fmt: function (v, r) { return str(r.maxQam); } }
@@ -5083,50 +5083,50 @@ footer.foot a { color: var(--ink-2); }
       cc.appendChild(sec);
     }
 
-    /* 1 â€” multiplication factor M */
+    /* 1 — multiplication factor M */
     var Ms = [2, 3, 4, 6, 8];
     panel('Mid-frequency option vs multiplication factor M',
       'Larger M means a lower distribution frequency: less loss and power, but <span class="kv">20log10(M)</span> ' +
-      'more phase noise and MÃ— amplification of every distributed phase error and BIST measurement error. The ' +
-      'skew curve is flat by construction â€” that is the algebra, not an artefact.',
+      'more phase noise and M× amplification of every distributed phase error and BIST measurement error. The ' +
+      'skew curve is flat by construction — that is the algebra, not an artefact.',
       C.sweepChart({
         series: [
-          { name: 'residual inter-tile Ï† (Â°)', color: 'var(--s1)', markers: true,
+          { name: 'residual inter-tile φ (°)', color: 'var(--s1)', markers: true,
             points: Ms.map(function (m) { return { x: m, y: sweepEval('mid-mult', { midM: m }).interTileResidualDeg }; }) },
           { name: 'distribution loss (dB)', color: 'var(--s2)', markers: true,
             points: Ms.map(function (m) { return { x: m, y: sweepEval('mid-mult', { midM: m }).lossTotalDb }; }) },
           { name: 'distribution power (W)', color: 'var(--s4)', markers: true,
             points: Ms.map(function (m) { return { x: m, y: sweepEval('mid-mult', { midM: m }).powerTotalMw / 1000 }; }) },
-          { name: 'skew at LO (Â°)', color: 'var(--s3)', dashed: true, markers: true,
+          { name: 'skew at LO (°)', color: 'var(--s3)', dashed: true, markers: true,
             points: Ms.map(function (m) { return { x: m, y: sweepEval('mid-mult', { midM: m }).skewDeg78 }; }) }
         ],
         xLabel: 'multiplication factor M', yLabel: 'value', height: 280,
-        hLine: budget.sigSpecDeg, hLabel: 'Ï† spec'
+        hLine: budget.sigSpecDeg, hLabel: 'φ spec'
       }), [
-        { name: 'residual Ï† (Â°)', color: 'var(--s1)' }, { name: 'loss (dB)', color: 'var(--s2)' },
-        { name: 'power (W)', color: 'var(--s4)' }, { name: 'skew at LO (Â°)', color: 'var(--s3)', dashed: false }
+        { name: 'residual φ (°)', color: 'var(--s1)' }, { name: 'loss (dB)', color: 'var(--s2)' },
+        { name: 'power (W)', color: 'var(--s4)' }, { name: 'skew at LO (°)', color: 'var(--s3)', dashed: false }
       ]);
 
-    /* 2 â€” PLL loop bandwidth */
+    /* 2 — PLL loop bandwidth */
     var bws = [0.03, 0.1, 0.3, 1, 3, 10];
     panel('Local-PLL option vs loop bandwidth',
       'The single most important A1 parameter. A wider loop lets each tile track the shared reference over more of ' +
-      'the spectrum, shrinking the uncorrelated band â€” but it also lets more in-band PFD noise through. The ' +
+      'the spectrum, shrinking the uncorrelated band — but it also lets more in-band PFD noise through. The ' +
       'minimum is the best A1 can do, and it is still bounded by the uncorrelated in-band share ' +
       '(<span class="kv">' + n(state.uncorrInbandFrac, 2) + '</span>, a guess).',
       C.sweepChart({
         series: [{
-          name: 'residual inter-tile Ï† (Â°)', color: 'var(--s1)', markers: true,
+          name: 'residual inter-tile φ (°)', color: 'var(--s1)', markers: true,
           points: bws.map(function (b) { return { x: b, y: sweepEval('local-pll', { pllLoopBwMHz: b }).interTileResidualDeg }; })
         }, {
           name: 'array-output EVM (%)', color: 'var(--s4)', markers: true,
           points: bws.map(function (b) { return { x: b, y: sweepEval('local-pll', { pllLoopBwMHz: b }).evmPct }; })
         }],
         xLabel: 'PLL loop bandwidth (MHz)', yLabel: 'value', height: 260,
-        hLine: budget.sigSpecDeg, hLabel: 'Ï† spec'
-      }), [{ name: 'residual Ï† (Â°)', color: 'var(--s1)' }, { name: 'EVM (%)', color: 'var(--s4)' }]);
+        hLine: budget.sigSpecDeg, hLabel: 'φ spec'
+      }), [{ name: 'residual φ (°)', color: 'var(--s1)' }, { name: 'EVM (%)', color: 'var(--s4)' }]);
 
-    /* 3 â€” BIST update rate: the genuine optimum */
+    /* 3 — BIST update rate: the genuine optimum */
     var rates = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100];
     panel('Residual vs BIST update rate',
       'Too slow leaves thermal drift; too fast imports measurement noise, so there is a real optimum. Note the ' +
@@ -5139,16 +5139,16 @@ footer.foot a { color: var(--ink-2); }
             points: rates.map(function (r) { return { x: Math.log10(r), y: sweepEval(m.id, { fBistHz: r }).interTileResidualDeg }; })
           };
         }),
-        xLabel: 'log10(BIST update rate / Hz)', yLabel: 'residual inter-tile Ï† (Â°)', height: 260,
+        xLabel: 'log10(BIST update rate / Hz)', yLabel: 'residual inter-tile φ (°)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
       }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
 
-    /* 4 â€” tile count */
+    /* 4 — tile count */
     var tiles = [2, 3, 4, 5, 6, 8, 10];
     panel('Scaling with tile count',
       'Tile side is swept from ' + n(state.apertureCm / 2, 1) + ' cm down, holding the aperture fixed. More tiles ' +
-      'means more independent LO instances: the coherence floor at <span class="kv">10log10(ÏƒÂ²/N)</span> improves ' +
-      'with N for a fixed Ïƒ, but Ïƒ itself grows with routing depth.',
+      'means more independent LO instances: the coherence floor at <span class="kv">10log10(σ²/N)</span> improves ' +
+      'with N for a fixed σ, but σ itself grows with routing depth.',
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
@@ -5159,16 +5159,16 @@ footer.foot a { color: var(--ink-2); }
             })
           };
         }),
-        xLabel: 'number of tiles', yLabel: 'residual inter-tile Ï† (Â°)', height: 260,
+        xLabel: 'number of tiles', yLabel: 'residual inter-tile φ (°)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
       }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
 
-    /* 5 â€” length tolerance */
+    /* 5 — length tolerance */
     var tols = [2, 5, 10, 25, 50, 100];
     panel('Skew vs mechanical length tolerance',
       'At ' + n(state.fLoGHz, 0) + ' GHz one degree is <span class="kv">' +
-      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' Âµm</span> of physical length in this medium. This is ' +
-      'the same curve for every distribution frequency, because an ideal multiplier preserves time delay â€” the ' +
+      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length in this medium. This is ' +
+      'the same curve for every distribution frequency, because an ideal multiplier preserves time delay — the ' +
       'reason mid-frequency distribution buys no skew relief.',
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
@@ -5177,11 +5177,11 @@ footer.foot a { color: var(--ink-2); }
             points: tols.map(function (t) { return { x: t, y: sweepEval(m.id, { lenTolUm: t }).skewDeg78 }; })
           };
         }),
-        xLabel: 'per-segment length tolerance (Âµm, 1Ïƒ)', yLabel: 'skew at LO (Â° RMS)', height: 260,
+        xLabel: 'per-segment length tolerance (µm, 1σ)', yLabel: 'skew at LO (° RMS)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
       }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
 
-    /* 6 â€” aperture */
+    /* 6 — aperture */
     var aps = [10, 15, 20, 30, 40, 50];
     panel('Scaling with aperture',
       'Loss and power scale with routed length, so the shared-LO options degrade as the aperture grows while the ' +
@@ -5259,7 +5259,7 @@ footer.foot a { color: var(--ink-2); }
     t.textContent = '';
     var thead = document.createElement('thead');
     var htr = document.createElement('tr');
-    ['Block', 'Tech', 'f (GHz)', 'Power (mW)', 'Gain (dB)', 'Area (mmÂ²)', 'Add. PN floor', 'Confidence', 'Basis'].forEach(function (h, i) {
+    ['Block', 'Tech', 'f (GHz)', 'Power (mW)', 'Gain (dB)', 'Area (mm²)', 'Add. PN floor', 'Confidence', 'Basis'].forEach(function (h, i) {
       var th = UI.elt('th', null, h);
       if (i === 8) th.style.textAlign = 'left';
       htr.appendChild(th);
@@ -5279,7 +5279,7 @@ footer.foot a { color: var(--ink-2); }
       tr.appendChild(UI.elt('td', 'v', b.powerMw));
       tr.appendChild(UI.elt('td', 'v', b.gainDb));
       tr.appendChild(UI.elt('td', 'v', b.areaMm2));
-      tr.appendChild(UI.elt('td', 'v', b.addPnFloorDbc ? b.addPnFloorDbc + ' dBc/Hz' : 'â€”'));
+      tr.appendChild(UI.elt('td', 'v', b.addPnFloorDbc ? b.addPnFloorDbc + ' dBc/Hz' : '—'));
       var cf = UI.elt('td');
       cf.appendChild(UI.elt('span', 'conf ' + UI.confClass(b.conf), UI.confShort(b.conf)));
       tr.appendChild(cf);
@@ -5371,12 +5371,12 @@ footer.foot a { color: var(--ink-2); }
     var host = document.getElementById(m.id);
     if (!host) return;
     var table = host.tagName === 'TABLE' ? host : host.querySelector('table');
-    if (!table) { X.flash('Nothing to export yet â€” open that view first'); return; }
+    if (!table) { X.flash('Nothing to export yet — open that view first'); return; }
     var rows = UI.tableToRows(table);
     var foot = [
       'Generated by the E-band distribution comparison tool.',
       'Configuration: ' + (X.encodeState(overrides()) || 'all defaults'),
-      'Architecture-selection estimates, not measured data â€” see the honesty ledger.'
+      'Architecture-selection estimates, not measured data — see the honesty ledger.'
     ];
     if (mode === 'dl') X.download(m.file, X.toCsv(rows), 'text/csv');
     else if (fmt === 'csv') X.copy(X.toCsv(rows), 'CSV');
@@ -5436,4 +5436,3 @@ footer.foot a { color: var(--ink-2); }
 </script>
 </body>
 </html>
-
