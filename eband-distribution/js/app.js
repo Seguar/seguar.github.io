@@ -13,7 +13,17 @@
   var state = {};
   var view = {
     name: 'map', selected: 0, tileMetric: 'skewPs',
-    showBlocks: true, showLo: true, showBb: true, showDies: true
+    showBlocks: true, showLo: true, showBb: true, showDies: true,
+    /* Systems view: transient UI state only. The saved systems themselves
+       live in localStorage via window.Systems; `shared` holds systems that
+       arrived in a link, which are deliberately NOT written to storage
+       until the user imports them — a URL should not be able to overwrite
+       what someone saved. */
+    sys: {
+      diffOnly: false, deltaMode: false, baseline: null,
+      renaming: null, confirmDelete: null, confirmClear: false, shared: [],
+      excluded: {}
+    }
   };
 
   var TILE_METRICS = [
@@ -30,6 +40,15 @@
     var over = X.decodeState(location.hash);
     Object.keys(over).forEach(function (k) {
       if (k === '_v') { view.name = over[k]; return; }
+      /* A comparison set carried in the link is decoded but NOT stored: it
+         appears in the roster marked "from link" with an Import button. A
+         URL is input from wherever it came, and it should not be able to
+         silently replace systems someone saved. */
+      if (k === '_sys') {
+        try { view.sys.shared = window.Systems.decodeSet(over[k], DEFAULTS); }
+        catch (e) { view.sys.shared = []; }
+        return;
+      }
       if (!(k in DEFAULTS)) return;
       var v = parseFloat(over[k]);
       if (isFinite(v)) state[k] = v;
@@ -1224,6 +1243,25 @@
      ================================================================== */
   var last = null;
 
+  /* Everything derived from ONE parameter set, in one place, so that the
+     Systems view evaluates a saved system by exactly the path the main
+     window uses — a comparison built from a second, parallel evaluation
+     path is a comparison that can disagree with the thing it compares.
+     light: true drops the plot-only parts of the beam evaluation and
+     coarsens two sampling grids (see beam.js) — measured agreement with
+     the full evaluation is within 0.031 dB on every scalar a comparison
+     row shows, which is below the precision any of them is displayed to,
+     but it is not exact and the docstring in beam.js says so. */
+  function bundleFor(st, opts) {
+    var res = M.evaluate(st);
+    var budget = window.Budget.derive(res.g, '64QAM');
+    var dec = window.Decision.build(res, budget);
+    var g = res.g;
+    var beam = window.Beam.evaluate(g, budget, res.lo[g.loOptionId], res.bb[g.bbOptionId],
+      opts && opts.light ? { light: true } : undefined);
+    return { res: res, g: g, budget: budget, dec: dec, beam: beam };
+  }
+
   function render() {
     var res = M.evaluate(state);
     var budget = window.Budget.derive(res.g, '64QAM');
@@ -1254,11 +1292,1069 @@
     if (view.name === 'sweeps') renderSweeps(res, budget);
     if (view.name === 'decision') renderDecision(res, budget, dec);
     if (view.name === 'assumptions') renderAssumptions(res);
+    if (view.name === 'systems') renderSystems();
     if (view.name === 'method') UI.renderProse(document.getElementById('methodMount'), window.Content.METHOD);
+    /* the nav badge is visible from every view, so it updates outside the
+       systems branch */
+    var navc = document.getElementById('navSysCount');
+    if (navc) {
+      var ns = window.Systems.count();
+      navc.textContent = ns ? ' (' + ns + ')' : '';
+    }
 
     document.getElementById('footNote').innerHTML =
       'Architecture-selection instrument, not a validated simulator &mdash; read the honesty ledger before quoting a number. ' +
       'Model recomputed live from ' + M.PARAMS.length + ' parameters; the map and the tables share one topology generator.';
+  }
+
+  /* =====================================================================
+     SYSTEMS — several saved parameter sets, side by side.
+
+     Three things in here exist to stop the view being confidently wrong:
+
+     1. Each saved system is evaluated through bundleFor(), the same
+        function the main window uses. There is no second code path that
+        could drift out of step with the thing it is comparing.
+
+     2. The derived requirement is a FUNCTION OF THE PARAMETERS — the
+        inter-tile budget moves with the array geometry and the EVM
+        allocation. So a system with a coarser tile pitch is judged against
+        a laxer spec, and "passes" more easily. Pass/fail colouring is
+        therefore per column against that column's own requirement
+        (specField, see ui.js), the requirement gets its own panel above
+        the results, and the note says so in words.
+
+     3. A comparison of results with no view of the inputs is unreadable,
+        so the differing parameters get a panel of their own, and it lists
+        parameters added to the tool since a system was saved rather than
+        pretending the system had an opinion about them.
+     ================================================================== */
+  var SYS = window.Systems;
+
+  /* Saved systems plus any that arrived in a link, capped so the two
+     sources together cannot exceed the column limit — 12 saved and 12
+     shared would otherwise render 24 columns against a limit whose whole
+     purpose is readability. */
+  function sysAll() {
+    var own = SYS.list();
+    var room = Math.max(0, SYS.limit() - own.length);
+    return own.concat((view.sys.shared || []).slice(0, room));
+  }
+
+  /* One evaluated system. The FLAT metric record is what gets memoised,
+     not the bundle: a bundle keeps five 800-2400-point pattern arrays that
+     nothing in this view reads, and holding 12 of those alive is megabytes
+     of garbage for no benefit. */
+  function sysEntry(rec) {
+    var r = SYS.resolveState(rec, DEFAULTS);
+    var packed = SYS.evaluated(r.state, function (st) {
+      var b = bundleFor(st, { light: true });
+      return { flat: flattenBundle(b, st), warnings: b.res.warnings || [] };
+    }, 'sys-light-v1');
+    return {
+      rec: rec, state: r.state, filled: r.filled, unknown: r.unknown,
+      flat: packed.flat, warnings: packed.warnings
+    };
+  }
+
+  var LO_FIELDS = ['interTileResidualDeg', 'interTileRawDeg', 'pnDiffCalDeg', 'driftResidDeg',
+    'phiRmsDeg', 'phiArrayDeg', 'jitterFs', 'skewRmsPs', 'skewPeakPs', 'skewDriftPs', 'skewDeg78',
+    'correctionRangeDeg', 'correctionWraps', 'lossTotalDb', 'lossPerCmDb', 'requiredGainDb',
+    'powerTotalMw', 'powerPerTileMw', 'powerFracOfArray', 'sllDb', 'gainLossDb', 'pointingErrDeg',
+    'evmDb', 'evmPct', 'maxQam', 'distFreqGHz', 'tileMultiplier', 'pathMeanCm', 'totalRoutedCm',
+    'repeaters', 'splitCount', 'areaPerTileMm2', 'calBurdenScore', 'feasibility', 'riskLevel'];
+
+  var BB_FIELDS = ['interKind', 'interPathMaxCm', 'interRoutedCm', 'interGeoRawPs', 'interGeoSkewPs',
+    'interUncompPs', 'ttdRangeConsumedPct', 'skewRmsPs', 'skewPeakPs', 'skewEdgeDeg',
+    'interTileResidualDeg', 'rampSteerDeg', 'squintLossDb', 'lossTotalDb', 'nfPenaltyDb',
+    'requiredGainDb', 'bwGHz', 'iip3PenaltyDb', 'powerPerTileMw', 'powerTotalMw',
+    'powerFracOfArray', 'areaPerTileMm2', 'calBurdenScore', 'feasibility', 'riskLevel'];
+
+  /* Flatten one system into the single flat record UI.renderTable wants.
+     Prefixes keep the three sources from colliding — lo_ and bb_ both have
+     skewRmsPs and they are different numbers. */
+  function flattenBundle(bundle, st) {
+    var g = bundle.g, bd = bundle.budget, bm = bundle.beam;
+    var lo = bundle.res.lo[g.loOptionId], bb = bundle.res.bb[g.bbOptionId];
+    var o = {};
+    LO_FIELDS.forEach(function (k) { o['lo_' + k] = lo[k]; });
+    BB_FIELDS.forEach(function (k) { o['bb_' + k] = bb[k]; });
+
+    o.req_sigSpecDeg = bd.sigSpecDeg;
+    o.req_binding = bd.bindingName;
+    o.req_nullFloorDb = bd.nullFloorDb;
+    o.req_evmLimitDb = bd.evmLimitDb;
+    o.req_pointDeg = bd.pointBudgetDeg;
+    o.req_skewPs = bd.skewSpecPs;
+    o.req_nTiles = bd.nTiles;
+    o.req_hpbwScan = bd.hpbwScan;
+    o.req_tauRangePs = bd.tauRangePs;
+    o.req_sigForEvmDeg = bd.sigForEvmDeg;
+    /* the comparable quantity when the specs themselves differ */
+    o.margin_sigDeg = bd.sigSpecDeg - lo.interTileResidualDeg;
+
+    o.g_tileCols = g.tileCols;
+    o.g_nTilesTotal = g.nTilesTotal;
+    o.g_effApertureCm = g.effApertureCm;
+    o.g_diesPlaced = g.diesPlaced;
+    o.g_nElem = g.nElem;
+    o.g_elemDxLam = g.elemDxLam;
+    /* The lattice's lobe count exists whatever the layout mode, because it
+       is a property of the lattice — but an APERIODIC layout does not
+       radiate them, and reporting "42 grating lobes" in the same column
+       that reports "worst grating lobe: none" is a contradiction on one
+       screen. The comparison reports the effective count. */
+    o.g_lobeCount = Math.round(g.latticePeriodic) === 1 ? g.lobeCount : 0;
+    o.g_latticeMode = Math.round(g.latticePeriodic) === 1 ? 'periodic' : 'aperiodic';
+    o.g_thinningLossDb = g.thinningLossDb;
+    o.g_dCellDbi = g.dCellDbi;
+    o.g_farFieldM = g.farFieldM;
+    o.g_latLabel = g.lat ? g.lat.label : '—';
+    o.g_minSepCm = g.minSepCm;
+    o.g_elemLabel = g.elem ? g.elem.label : '—';
+
+    o.bm_dFilledDbi = bm.dFilledDbi;
+    o.bm_dArrayDbi = bm.dArrayDbi;
+    o.bm_realisedDbi = bm.realisedDbi;
+    o.bm_scanLossDb = bm.scanLossDb;
+    o.bm_hpbwDeg = bm.m.hpbwDeg;
+    o.bm_sllDb = bm.m.sllDb;
+    o.bm_gratingDb = bm.mWide.gratingDb;
+    o.bm_gratingAtDeg = bm.mWide.gratingAtDeg;
+    o.bm_floorNearDb = bm.floorNearDb;
+    o.bm_floorFarDb = bm.floorFarDb;
+    o.bm_edgeLossDb = bm.edgeLossDb;
+    o.bm_taperLossDb = bm.taperLossDb;
+    o.bm_squintBeamwidths = bm.squintBeamwidths;
+    o.bm_ttdWorstDb = bm.ttd ? bm.ttd.worstDb : NaN;
+    o.bm_ttdAtScanDb = bm.ttd ? bm.ttd.atScanDb : NaN;
+
+    o.tot_powerW = (lo.powerTotalMw + bb.powerTotalMw) / 1000;
+    o.tot_powerFrac = lo.powerFracOfArray + bb.powerFracOfArray;
+    /* NOT summed into one "area per tile". Both are mm² per tile, but the
+       LO figure is the whole LO bill of materials divided by the tile count
+       — so it carries a smeared share of one-off board items and moves with
+       the tile count — while the baseband figure is genuine per-tile
+       silicon. Adding them produces a number that behaves like neither, so
+       they are reported separately and their sum is labelled as an
+       attribution rather than a measurement. */
+    o.lo_areaAttribMm2 = lo.areaPerTileMm2;
+    o.bb_areaPerTileMm2 = bb.areaPerTileMm2;
+    o.tot_areaPerTileMm2 = lo.areaPerTileMm2 + bb.areaPerTileMm2;
+
+    /* headroom, so two columns pinned to the filled-aperture cap by the
+       min() in dArrayDbi can be seen to be pinned rather than equal */
+    o.g_dElHeadroomDb = g.dElHeadroomDb;
+    o.g_dArrayRawDbi = g.dArrayRawDbi;
+    o.g_pitchExact = g.aperturePitchExact ? 'exact' : 'under-fills';
+    o.g_marginCm = g.apertureMarginCm;
+    o.bm_hpbwResolved = bm.m.hpbwResolved ? 'yes' : 'NOT RESOLVED';
+
+    /* the architecture itself, as text, because two systems that differ
+       only in which option is selected must not look identical */
+    var loMeta = M.LO_META[Math.round(st.loOption)];
+    var bbMeta = M.BB_META[Math.round(st.bbOption)];
+    o.arch_lo = loMeta ? loMeta.short : '—';
+    o.arch_bb = bbMeta ? bbMeta.short : '—';
+    o.arch_ref = g.refName || '—';
+    return o;
+  }
+
+  function sysMetricRows() {
+    return [
+      { section: 'Architecture' },
+      { name: 'LO / reference distribution', field: 'arch_lo', fmt: function (v, r) { return str(r.arch_lo); } },
+      { name: 'Baseband split / combine', field: 'arch_bb', fmt: function (v, r) { return str(r.arch_bb); } },
+      { name: 'Reference clock', field: 'arch_ref', fmt: function (v, r) { return str(r.arch_ref); } },
+      { name: 'Frequency on the board', field: 'lo_distFreqGHz', units: 'GHz', dec: 2 },
+      { name: 'Per-tile multiplication', field: 'lo_tileMultiplier', units: '×', dec: 0 },
+
+      { section: 'Array' },
+      {
+        name: 'Tiles', field: 'g_nTilesTotal', dec: 0, noDelta: true, alsoFields: ['g_tileCols'],
+        fmt: function (v, r) { return n(r.g_tileCols, 0) + '×' + n(r.g_tileCols, 0) + ' = ' + n(v, 0); }
+      },
+      {
+        name: 'Populated aperture', sub: 'the tile grid is floored, never rounded, so it can under-fill the panel',
+        field: 'g_effApertureCm', units: 'cm', dec: 1, alsoFields: ['g_pitchExact', 'g_marginCm'],
+        fmt: function (v, r) {
+          return n(v, 1) + (r.g_pitchExact === 'exact' ? '' : ' (−' + n(r.g_marginCm, 2) + ' cm/side)');
+        }
+      },
+      { name: 'Dies placed', field: 'g_diesPlaced', dec: 0 },
+      { name: 'Radiating elements', field: 'g_nElem', dec: 0 },
+      {
+        name: 'Element lattice', field: 'g_elemDxLam', units: 'λ', dec: 2, noDelta: true,
+        alsoFields: ['g_latLabel', 'g_minSepCm'],
+        fmt: function (v, r) { return n(v, 2) + 'λ · ' + str(r.g_latLabel); }
+      },
+      { name: 'Element pattern model', field: 'g_elemLabel', noDelta: true, fmt: function (v, r) { return str(r.g_elemLabel); } },
+
+      { section: 'M3 · inter-tile phase error — the metric that decides it' },
+      {
+        name: 'Residual after BIST', sub: 'judged against each system’s OWN derived requirement',
+        field: 'lo_interTileResidualDeg', units: '°', better: 'low', specField: 'req_sigSpecDeg'
+      },
+      {
+        /* THE row that makes the moving-spec trap visible in the table
+           itself rather than only in the prose above it. A system with a
+           coarser tile pitch gets a laxer requirement, so it can show a
+           worse residual and still be green; the margin is what actually
+           compares, and it is rankable because it already contains each
+           column's own threshold. */
+        name: 'Margin to requirement', sub: 'spec − residual; this is the comparable quantity when the specs differ',
+        field: 'margin_sigDeg', units: '°', better: 'high', dec: 2
+      },
+      { name: 'Raw, uncalibrated', sub: 'before any calibration — not a deliverable number', field: 'lo_interTileRawDeg', units: '°', better: 'low', rank: false },
+      { name: '· differential phase noise', field: 'lo_pnDiffCalDeg', units: '°', better: 'low' },
+      { name: '· drift residual', field: 'lo_driftResidDeg', units: '°', better: 'low' },
+      { name: 'Baseband residual', field: 'bb_interTileResidualDeg', units: '°', better: 'low' },
+
+      { section: 'M1 / M2 · phase noise & jitter' },
+      { name: 'Single-tile φ RMS', field: 'lo_phiRmsDeg', units: '°', better: 'low' },
+      { name: 'Array-output φ RMS', field: 'lo_phiArrayDeg', units: '°', better: 'low', specField: 'req_sigForEvmDeg' },
+      { name: 'RMS jitter', field: 'lo_jitterFs', units: 'fs', better: 'low', dec: 1 },
+      {
+        name: 'Array-output EVM', field: 'lo_evmDb', units: 'dB', better: 'low', specField: 'req_evmLimitDb',
+        fmt: function (v, r) { return isFinite(v) ? n(v, 1) + ' (' + n(r.lo_evmPct, 2) + '%)' : '—'; }
+      },
+      { name: 'Highest supportable QAM', field: 'lo_maxQam', fmt: function (v, r) { return str(r.lo_maxQam); } },
+
+      { section: 'M4 · skew' },
+      {
+        /* deliberately NOT judged against budget.skewSpecPs. That spec is
+           the phase spec divided by 28.08°/ps, i.e. ~0.18 ps, while this
+           number includes the hundreds of picoseconds of Dk and etch
+           tolerance that one calibration removes. Colouring every column
+           red at a 1000x margin makes the whole table's colouring
+           meaningless. The row that carries the spec is the residual. */
+        name: 'LO RMS skew', sub: 'mostly static and calibratable — see the residual row for what survives',
+        field: 'lo_skewRmsPs', units: 'ps', better: 'low', rank: false
+      },
+      { name: 'LO thermal drift skew', sub: 'what BIST has to track', field: 'lo_skewDriftPs', units: 'ps', better: 'low' },
+      { name: 'Correction range needed', field: 'lo_correctionRangeDeg', units: '°', better: 'low', dec: 0, fmt: function (v, r) { return isFinite(v) ? n(v, 0) + '° (' + n(r.lo_correctionWraps, 1) + ' wraps)' : '—'; } },
+      { name: 'Baseband geometric skew after TTD', field: 'bb_interGeoSkewPs', units: 'ps', better: 'low' },
+      { name: 'Baseband beam steer from the ramp', field: 'bb_rampSteerDeg', units: '°', better: 'low', dec: 3 },
+      { name: 'TTD range consumed by routing', field: 'bb_ttdRangeConsumedPct', units: '%', better: 'low', dec: 0 },
+
+      { section: 'M5 · loss' },
+      { name: 'LO distribution loss', field: 'lo_lossTotalDb', units: 'dB', better: 'low', dec: 1 },
+      {
+        /* measured at each option's own distribution frequency, and
+           sometimes in a different medium, so the lowest number is not the
+           better engineering choice */
+        name: 'LO loss per cm', sub: 'at each system’s own distribution frequency — not comparable across families',
+        field: 'lo_lossPerCmDb', units: 'dB/cm', better: 'low', rank: false
+      },
+      { name: 'Baseband net insertion loss', field: 'bb_lossTotalDb', units: 'dB', better: 'low', dec: 1 },
+      { name: 'Baseband NF penalty', field: 'bb_nfPenaltyDb', units: 'dB', better: 'low', dec: 2 },
+
+      { section: 'M6 · power & area' },
+      { name: 'LO distribution power', field: 'lo_powerTotalMw', units: 'W', better: 'low', scale: 1e-3, dec: 2 },
+      { name: 'Baseband power', field: 'bb_powerTotalMw', units: 'W', better: 'low', scale: 1e-3, dec: 2 },
+      { name: 'Distribution total', sub: 'LO + baseband, both rails', field: 'tot_powerW', units: 'W', better: 'low', dec: 2 },
+      { name: 'Share of array budget', field: 'tot_powerFrac', units: '%', better: 'low', dec: 1 },
+      {
+        name: 'LO area attributed per tile', sub: 'whole LO bill of materials ÷ tile count, so it carries a share of one-off board items',
+        field: 'lo_areaAttribMm2', units: 'mm²', better: 'low', dec: 2, rank: false
+      },
+      { name: 'Baseband area per tile', sub: 'genuine per-tile silicon, both rails', field: 'bb_areaPerTileMm2', units: 'mm²', better: 'low', dec: 3 },
+      {
+        name: 'Both, attributed per tile', sub: 'the sum of two differently-defined quantities — an attribution, not a measurement',
+        field: 'tot_areaPerTileMm2', units: 'mm²', better: 'low', dec: 2, rank: false
+      },
+      { name: 'Repeater amplifiers', field: 'lo_repeaters', better: 'low', dec: 0 },
+
+      { section: 'Beam · from the corrected lattice model' },
+      {
+        name: 'Directivity', sub: 'min(N·D_el, filled aperture)', field: 'bm_dArrayDbi', units: 'dBi', better: 'high', dec: 2,
+        fmt: function (v, r) {
+          return n(v, 2) + (isFinite(r.g_dElHeadroomDb) && r.g_dElHeadroomDb <= 0 ? ' (capped)' : '');
+        },
+        alsoFields: ['g_dArrayRawDbi']
+      },
+      { name: 'Realised gain', sub: 'after scan, error and the antenna-side chain', field: 'bm_realisedDbi', units: 'dBi', better: 'high', dec: 2 },
+      { name: 'Element-to-cell fill gap', sub: 'not a thinning loss — recoverable up to the cell ceiling', field: 'g_thinningLossDb', units: 'dB', better: 'low', dec: 2, rank: false },
+      { name: 'Element directivity headroom', sub: 'how much of the gap the element could still recover', field: 'g_dElHeadroomDb', units: 'dB', better: 'high', dec: 2 },
+      {
+        name: 'Beamwidth', field: 'bm_hpbwDeg', units: '°', dec: 3, alsoFields: ['bm_hpbwResolved'],
+        fmt: function (v, r) { return r.bm_hpbwResolved === 'yes' ? n(v, 3) : 'not resolved'; }
+      },
+      { name: 'First sidelobe', field: 'bm_sllDb', units: 'dB', better: 'low', dec: 1 },
+      {
+        name: 'Worst grating lobe', sub: 'positive means it beats the intended beam',
+        field: 'bm_gratingDb', units: 'dB', better: 'low', dec: 2,
+        fmt: function (v, r) { return isFinite(v) ? n(v, 2) + ' @ ' + n(r.bm_gratingAtDeg, 1) + '°' : 'none'; }
+      },
+      {
+        name: 'Grating lobes in visible space', field: 'g_lobeCount', better: 'low', dec: 0,
+        alsoFields: ['g_latticeMode'],
+        fmt: function (v, r) {
+          return r.g_latticeMode === 'aperiodic' ? 'none (aperiodic)' : n(v, 0);
+        }
+      },
+      { name: 'Lattice mode', field: 'g_latticeMode', noDelta: true, fmt: function (v, r) { return str(r.g_latticeMode); } },
+      { name: 'Error floor, near beam', field: 'bm_floorNearDb', units: 'dB', better: 'low', dec: 1 },
+      { name: 'Error floor, between lobes', field: 'bm_floorFarDb', units: 'dB', better: 'low', dec: 1 },
+      { name: 'TTD quantisation lobe', sub: 'deterministic worst case at band edge', field: 'bm_ttdWorstDb', units: 'dB', better: 'low', dec: 1 },
+      { name: 'Band-edge loss', field: 'bm_edgeLossDb', units: 'dB', better: 'low', dec: 3 },
+      { name: 'Squint without inter-tile TTD', field: 'bm_squintBeamwidths', units: 'beamwidths', better: 'low', dec: 2 },
+
+      { section: 'Judgement' },
+      { name: 'LO feasibility', field: 'lo_feasibility', fmt: function (v, r) { return str(r.lo_feasibility); } },
+      { name: 'LO risk', field: 'lo_riskLevel', fmt: function (v, r) { return str(r.lo_riskLevel); } },
+      { name: 'Baseband feasibility', field: 'bb_feasibility', fmt: function (v, r) { return str(r.bb_feasibility); } },
+      { name: 'LO measurements per array pass', field: 'lo_calBurdenScore', better: 'low', dec: 0 }
+    ];
+  }
+
+  function sysReqRows() {
+    return [
+      { name: 'Binding requirement', sub: 'inter-tile differential phase error', field: 'req_sigSpecDeg', units: '°', dec: 2 },
+      { name: 'What binds it', field: 'req_binding', fmt: function (v, r) { return str(r.req_binding); } },
+      { name: 'Implied null-depth floor', field: 'req_nullFloorDb', units: 'dB', dec: 1 },
+      { name: 'Array-output EVM limit', field: 'req_evmLimitDb', units: 'dB', dec: 1 },
+      { name: 'Absolute φ for that EVM', field: 'req_sigForEvmDeg', units: '°', dec: 2 },
+      { name: 'Pointing budget', field: 'req_pointDeg', units: '°', dec: 3 },
+      { name: 'Skew equivalent of the spec', field: 'req_skewPs', units: 'ps', dec: 2 },
+      { name: 'Independent tiles', field: 'req_nTiles', dec: 0 },
+      { name: 'Beamwidth at max scan', field: 'req_hpbwScan', units: '°', dec: 3 },
+      { name: 'TTD range required', field: 'req_tauRangePs', units: 'ps', dec: 0 }
+    ];
+  }
+
+  /* ---------------------------------------------------------------------
+     the roster: name, architecture, what it overrides, and row actions
+     ------------------------------------------------------------------- */
+  function renderSysRoster(entries) {
+    var mount = document.getElementById('sysRosterMount');
+    mount.textContent = '';
+    var curKey = SYS.stateKey(state);
+
+    var t = document.createElement('table');
+    t.className = 'grid';
+    var thead = document.createElement('thead'), htr = document.createElement('tr');
+    ['Compare', 'System', 'Architecture', 'Changed from defaults', 'Status', ''].forEach(function (h, i) {
+      var th = UI.elt('th', null, h);
+      if (i === 1 || i === 2 || i === 3) th.style.textAlign = 'left';
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr); t.appendChild(thead);
+
+    var tb = document.createElement('tbody');
+    entries.forEach(function (e, i) {
+      var rec = e.rec, isCur = SYS.stateKey(e.state) === curKey;
+      var tr = document.createElement('tr');
+      var chkTd = UI.elt('td');
+      var chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = !(view.sys.excluded || {})[rec.id];
+      chk.title = 'Include this system in the comparison tables and charts';
+      chk.setAttribute('aria-label', 'Include ' + rec.name + ' in the comparison');
+      chk.addEventListener('change', function () {
+        view.sys.excluded = view.sys.excluded || {};
+        if (chk.checked) delete view.sys.excluded[rec.id];
+        else view.sys.excluded[rec.id] = true;
+        render();
+      });
+      chkTd.appendChild(chk);
+      tr.appendChild(chkTd);
+
+      /* name — click to rename in place */
+      var nameTd = UI.elt('td', 'mn');
+      if (view.sys.renaming === rec.id) {
+        var inp = document.createElement('input');
+        inp.type = 'text'; inp.value = rec.name; inp.maxLength = 48;
+        inp.style.cssText = 'font:12px var(--mono);width:100%;padding:3px 5px;border:1px solid var(--accent);border-radius:4px;background:var(--bg-panel);color:var(--ink)';
+        inp.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') { SYS.update(rec.id, { name: inp.value }); view.sys.renaming = null; render(); }
+          if (ev.key === 'Escape') { view.sys.renaming = null; render(); }
+        });
+        inp.addEventListener('blur', function () {
+          if (view.sys.renaming !== rec.id) return;
+          SYS.update(rec.id, { name: inp.value }); view.sys.renaming = null; render();
+        });
+        nameTd.appendChild(inp);
+        setTimeout(function () { inp.focus(); inp.select(); }, 0);
+      } else {
+        var nb = document.createElement('button');
+        nb.className = 'btn';
+        nb.style.cssText = 'border:0;background:none;padding:0;font:inherit;font-weight:500;text-align:left;color:var(--ink)';
+        nb.textContent = rec.name;
+        nb.title = rec.shared ? 'From a shared link — rename after importing' : 'Click to rename';
+        if (!rec.shared) nb.addEventListener('click', function () { view.sys.renaming = rec.id; render(); });
+        nameTd.appendChild(nb);
+        if (rec.note) nameTd.appendChild(UI.elt('small', null, rec.note));
+      }
+      tr.appendChild(nameTd);
+
+      var f = e.flat;
+      var archTd = UI.elt('td', null, f.arch_lo + ' + ' + f.arch_bb);
+      archTd.style.textAlign = 'left';
+      archTd.appendChild(UI.elt('small', null, f.arch_ref + ' · ' + n(e.state.tileCm, 2) + ' cm tiles · ' + n(f.g_nTilesTotal, 0) + ' tiles'));
+      tr.appendChild(archTd);
+
+      var ov = SYS.overrides(rec, DEFAULTS);
+      var ovKeys = Object.keys(ov);
+      var ovTd = UI.elt('td', null, ovKeys.length ? ovKeys.length + ' parameter' + (ovKeys.length === 1 ? '' : 's') : 'none');
+      ovTd.style.textAlign = 'left';
+      if (ovKeys.length) {
+        ovTd.title = ovKeys.map(function (k) {
+          var p = paramByKey(k);
+          return (p ? p.label : k) + ' = ' + ov[k] + (p && p.units ? ' ' + p.units : '');
+        }).join('\n');
+        ovTd.appendChild(UI.elt('small', null, ovKeys.slice(0, 3).map(function (k) {
+          var p = paramByKey(k);
+          return p ? p.label : k;
+        }).join(', ') + (ovKeys.length > 3 ? ', …' : '')));
+      }
+      tr.appendChild(ovTd);
+
+      var stTd = UI.elt('td');
+      if (isCur) stTd.appendChild(UI.elt('span', 'badge acc', 'loaded'));
+      if (rec.shared) stTd.appendChild(UI.elt('span', 'badge warn', 'from link'));
+      if (e.filled.length) {
+        var sb = UI.elt('span', 'badge warn', e.filled.length + ' filled');
+        sb.title = 'Saved before these parameters existed, so they take today\'s defaults:\n' +
+          e.filled.map(function (k) { var p = paramByKey(k); return (p ? p.label : k) + ' = ' + DEFAULTS[k]; }).join('\n');
+        stTd.appendChild(sb);
+      }
+      /* Consistency warnings are computed for every system and were being
+         thrown away. That mattered: a system whose tap count exceeds the
+         die inventory reports inflated power, area and BOM, and the banner
+         that would have said so on the map view is hidden here. */
+      var fails = e.warnings.filter(function (w) { return w.severity === 'fail'; });
+      var warns = e.warnings.filter(function (w) { return w.severity === 'warn'; });
+      if (fails.length) {
+        var fb = UI.elt('span', 'badge fail', fails.length === 1 ? 'inconsistent' : fails.length + ' failures');
+        fb.title = fails.map(function (w) { return w.message; }).join('\n\n');
+        stTd.appendChild(fb);
+      }
+      if (warns.length) {
+        var wb = UI.elt('span', 'badge warn', warns.length + ' warning' + (warns.length === 1 ? '' : 's'));
+        wb.title = warns.map(function (w) { return w.message; }).join('\n\n');
+        stTd.appendChild(wb);
+      }
+      if (!isCur && !rec.shared && !e.filled.length && !fails.length && !warns.length) {
+        stTd.appendChild(UI.elt('span', 'badge pass', 'saved'));
+      }
+      tr.appendChild(stTd);
+
+      var actTd = UI.elt('td');
+      actTd.style.whiteSpace = 'nowrap';
+      function mk(label, title, fn, cls) {
+        var b = document.createElement('button');
+        b.className = 'btn' + (cls ? ' ' + cls : '');
+        b.style.cssText = 'padding:2px 7px;margin-left:3px;font-size:11px';
+        b.textContent = label; b.title = title;
+        b.addEventListener('click', fn);
+        actTd.appendChild(b);
+        return b;
+      }
+      mk('Load', 'Replace the main window\'s parameters with this system', function () {
+        state = {};
+        Object.keys(e.state).forEach(function (k) { state[k] = e.state[k]; });
+        syncHash();
+        setView('map');
+        X.flash('Loaded "' + rec.name + '"');
+      });
+      mk('Copy', 'Save another system with these parameters, to tweak', function () {
+        /* rec.state, NOT e.state: the resolved state has today's defaults
+           filled in for parameters that did not exist when the original was
+           saved, and a copy must not silently claim an opinion the original
+           never had */
+        var r2 = SYS.save(rec.name + ' (copy)', rec.state, { note: rec.note });
+        if (!r2.ok) { X.flash(r2.reason === 'full' ? 'At the ' + SYS.limit() + '-system limit' : 'Could not save'); return; }
+        render();
+      });
+      if (!rec.shared) {
+        mk('↑', 'Move left', function () { SYS.move(rec.id, -1); render(); });
+        mk('↓', 'Move right', function () { SYS.move(rec.id, 1); render(); });
+        if (view.sys.confirmDelete === rec.id) {
+          mk('Delete?', 'Click again to delete', function () {
+            SYS.remove(rec.id); view.sys.confirmDelete = null; render();
+            X.flash('Deleted "' + rec.name + '"');
+          }, 'pri');
+        } else {
+          mk('✕', 'Delete this system', function () { view.sys.confirmDelete = rec.id; render(); });
+        }
+      } else {
+        mk('Import', 'Add this shared system to your own saved list', function () {
+          var r2 = SYS.save(rec.name, e.state, { note: 'imported from a shared link' });
+          if (!r2.ok) { X.flash(r2.reason === 'full' ? 'At the ' + SYS.limit() + '-system limit' : 'Could not save'); return; }
+          view.sys.shared = (view.sys.shared || []).filter(function (s) { return s.id !== rec.id; });
+          render();
+        });
+        mk('✕', 'Dismiss', function () {
+          view.sys.shared = (view.sys.shared || []).filter(function (s) { return s.id !== rec.id; });
+          render();
+        });
+      }
+      tr.appendChild(actTd);
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    mount.appendChild(t);
+  }
+
+  function paramByKey(k) {
+    for (var i = 0; i < M.PARAMS.length; i++) if (M.PARAMS[i].key === k) return M.PARAMS[i];
+    return null;
+  }
+
+  /* UI.renderTable builds thead/tbody straight into the element it is given,
+     so it needs a real <table>. The other views hand it one from the HTML;
+     these panels own scrolling wrappers instead, so the table is created
+     here — appending a <thead> to a <div> renders nothing at all, silently. */
+  function tableIn(mountId) {
+    var mount = document.getElementById(mountId);
+    mount.textContent = '';
+    var t = document.createElement('table');
+    t.className = 'grid sticky1';
+    mount.appendChild(t);
+    return t;
+  }
+
+  function setPermalink() {
+    var o = overrides();
+    o._v = 'systems';
+    var enc = SYS.encodeSet(SYS.list(), DEFAULTS);
+    if (enc) o._sys = enc;
+    return X.permalink(o);
+  }
+
+  /* ---------------------------------------------------------------------
+     the differing-inputs panel
+     ------------------------------------------------------------------- */
+  function renderSysParams(entries) {
+    var mount = document.getElementById('sysParamMount');
+    mount.textContent = '';
+    var keys = SYS.differingKeys(entries.map(function (e) { return e.state; }));
+    /* order them the way the parameter panel does, so the table reads like
+       the control it mirrors */
+    var ordered = M.PARAMS.filter(function (p) { return keys.indexOf(p.key) >= 0; });
+
+    document.getElementById('sysParamHdr').textContent = ordered.length
+      ? ordered.length + ' of ' + M.PARAMS.length + ' parameters differ'
+      : 'every parameter identical across these systems';
+
+    if (!ordered.length) {
+      mount.innerHTML = '<p class="note" style="padding:10px 12px">These systems have identical parameters. ' +
+        'Any difference in the results table above would be a bug — there is nothing here to explain it.</p>';
+      document.getElementById('sysParamHdr').textContent = 'no differences';
+      return;
+    }
+
+    var t = document.createElement('table');
+    t.className = 'grid sticky1';
+    var thead = document.createElement('thead'), htr = document.createElement('tr');
+    htr.appendChild(UI.elt('th', null, 'Parameter'));
+    entries.forEach(function (e) { htr.appendChild(UI.elt('th', null, e.rec.name)); });
+    htr.appendChild(UI.elt('th', null, 'Today’s default'));
+    thead.appendChild(htr); t.appendChild(thead);
+
+    var tb = document.createElement('tbody');
+    var lastGroup = null;
+    ordered.forEach(function (p) {
+      if (p.group !== lastGroup) {
+        lastGroup = p.group;
+        var str2 = document.createElement('tr');
+        str2.className = 'sect';
+        var td = UI.elt('td', null, p.group);
+        td.colSpan = entries.length + 2;
+        str2.appendChild(td);
+        tb.appendChild(str2);
+      }
+      var tr = document.createElement('tr');
+      var nameTd = UI.elt('td', 'mn');
+      nameTd.appendChild(document.createTextNode(p.label + (p.units ? ' (' + p.units + ')' : '')));
+      nameTd.appendChild(UI.elt('small', null, p.key));
+      nameTd.title = p.why || '';
+      tr.appendChild(nameTd);
+
+      var vals = entries.map(function (e) { return e.state[p.key]; });
+      var finite = vals.filter(function (v) { return isFinite(v); });
+      var vlo = finite.length ? Math.min.apply(null, finite) : NaN;
+      var vhi = finite.length ? Math.max.apply(null, finite) : NaN;
+
+      entries.forEach(function (e, i) {
+        var v = vals[i];
+        var txt = choiceLabel(p, v);
+        var td = UI.elt('td', 'v' + (v !== DEFAULTS[p.key] ? ' warn' : ''), txt);
+        if (isFinite(v) && vhi !== vlo) {
+          td.title = (v === vhi ? 'highest' : v === vlo ? 'lowest' : '') +
+            ' · default ' + choiceLabel(p, DEFAULTS[p.key]);
+        }
+        tr.appendChild(td);
+      });
+      tr.appendChild(UI.elt('td', 'v', choiceLabel(p, DEFAULTS[p.key])));
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    mount.appendChild(t);
+  }
+
+  function choiceLabel(p, v) {
+    if (p.choices) {
+      for (var i = 0; i < p.choices.length; i++) {
+        if (Math.abs(p.choices[i].value - v) < 1e-9) return p.choices[i].label;
+      }
+    }
+    return UI.num(v, undefined);
+  }
+
+  /* ---------------------------------------------------------------------
+     head-to-head charts
+     ------------------------------------------------------------------- */
+  var SYS_COLORS = ['var(--s1)', 'var(--s2)', 'var(--s4)', 'var(--s3)', 'var(--s5)',
+    'var(--accent)', 'var(--pass)', 'var(--warn)'];
+
+  function renderSysCharts(entries, flats) {
+    var mount = document.getElementById('sysChartsMount');
+    mount.textContent = '';
+    if (entries.length < 2) {
+      mount.innerHTML = '<p class="note">Save a second system to see the head-to-head bars.</p>';
+      return;
+    }
+    /* zeroBase:false on every decibel chart. A dB or dBi value is already a
+       ratio to somewhere else, so anchoring the axis at zero compresses the
+       0.5 dB that decides the architecture into a single pixel, and a
+       negative reference line falls off the axis entirely. */
+    var specs = [
+      { title: 'Inter-tile residual phase error', field: 'lo_interTileResidualDeg', unit: '°', spec: 'req_sigSpecDeg', dec: 2 },
+      { title: 'Margin to each system’s own requirement', field: 'margin_sigDeg', unit: '°', dec: 2, zeroBase: true },
+      { title: 'Distribution power, LO + baseband', field: 'tot_powerW', unit: 'W', dec: 2 },
+      { title: 'Null-depth floor from the LO residual', field: 'lo_sllDb', unit: 'dB', dec: 1, spec: 'req_nullFloorDb', zeroBase: false },
+      { title: 'Realised gain at the steer angle', field: 'bm_realisedDbi', unit: 'dBi', dec: 2, zeroBase: false },
+      { title: 'Worst grating lobe vs the intended beam', field: 'bm_gratingDb', unit: 'dB', dec: 2, zeroBase: false },
+      { title: 'Array-output EVM', field: 'lo_evmDb', unit: 'dB', dec: 1, spec: 'req_evmLimitDb', zeroBase: false }
+    ];
+    specs.forEach(function (s) {
+      var bars = entries.map(function (e, i) {
+        return {
+          name: e.rec.name, value: flats[i][s.field], color: SYS_COLORS[i % SYS_COLORS.length],
+          label: UI.num(flats[i][s.field], s.dec) + ' ' + s.unit
+        };
+      }).filter(function (b) { return isFinite(b.value); });
+      if (!bars.length) return;
+      /* the spec differs per system, so the reference line is the STRICTEST
+         one and the caption says whose it is */
+      var hLine, hLabel;
+      if (s.spec) {
+        var svAll = flats.map(function (f) { return f[s.spec]; });
+        var sv = svAll.filter(isFinite);
+        if (sv.length) {
+          /* "better: low" metrics take the strictest (smallest) spec;
+             the dB metrics here are all "smaller is better" too, so the
+             strictest is the minimum in every case. When the specs differ
+             the label says whose it is, because a single line across bars
+             judged by different thresholds is otherwise a lie. */
+          hLine = Math.min.apply(null, sv);
+          var spread = Math.max.apply(null, sv) - hLine;
+          var owner = entries[svAll.indexOf(hLine)];
+          hLabel = (spread > 1e-9 ? 'strictest spec' : 'spec') +
+            (spread > 1e-9 && owner ? ' (' + owner.rec.name + ')' : '');
+        }
+      }
+      var sec = document.createElement('section');
+      sec.className = 'panel';
+      var h = document.createElement('h2');
+      h.textContent = s.title;
+      sec.appendChild(h);
+      var box = document.createElement('div');
+      box.className = 'chartbox';
+      box.appendChild(C.barChart({
+        bars: bars, xLabel: s.unit, hLine: hLine, hLabel: hLabel,
+        zeroBase: s.zeroBase === false ? false : undefined
+      }));
+      sec.appendChild(box);
+      mount.appendChild(sec);
+    });
+  }
+
+  /* ---------------------------------------------------------------------
+     the view
+     ------------------------------------------------------------------- */
+  function renderSystems() {
+    var recs = sysAll();
+    /* Evaluated once, then split: the roster lists every system, the tables
+       and charts use only the ones ticked for comparison. Saving a system
+       and comparing it are different acts — at eight columns the table
+       stops being readable, and the usual move is to keep a library and
+       look at three of them at a time. */
+    var allEntries = recs.map(sysEntry);
+    var ex = view.sys.excluded || {};
+    var entries = allEntries.filter(function (e) { return !ex[e.rec.id]; });
+    if (!entries.length) entries = allEntries;    /* never an empty comparison */
+    var flats = entries.map(function (e) { return e.flat; });
+
+    var nSaved = SYS.list().length, nShared = (view.sys.shared || []).length;
+    var nOff = allEntries.length - entries.length;
+    document.getElementById('sysHdr').textContent =
+      nSaved + ' saved' + (nShared ? ' · ' + nShared + ' from a shared link' : '') +
+      (nOff ? ' · ' + nOff + ' excluded from the comparison' : '') +
+      ' · limit ' + SYS.limit();
+    var navc = document.getElementById('navSysCount');
+    if (navc) navc.textContent = nSaved ? ' (' + nSaved + ')' : '';
+
+    /* ---- roster toolbar ---- */
+    var tb = document.getElementById('sysToolbar');
+    tb.textContent = '';
+    function tbtn(label, title, fn, cls) {
+      var b = document.createElement('button');
+      b.className = 'btn' + (cls ? ' ' + cls : '');
+      b.textContent = label; b.title = title;
+      b.addEventListener('click', fn);
+      tb.appendChild(b);
+      return b;
+    }
+    tbtn('Save current parameters', 'Snapshot the main window\'s parameter set as a new system', function () {
+      saveCurrentSystem();
+    }, 'pri');
+    tbtn('Copy link to this set', 'A permalink that carries every saved system', function () {
+      X.copy(setPermalink(), 'Comparison-set link');
+    });
+    if (nSaved) {
+      if (view.sys.confirmClear) {
+        tbtn('Delete all ' + nSaved + '?', 'Click again to delete every saved system', function () {
+          SYS.clear(); view.sys.confirmClear = false; render(); X.flash('All saved systems deleted');
+        }, 'pri');
+      } else {
+        tbtn('Clear all', 'Delete every saved system', function () { view.sys.confirmClear = true; render(); });
+      }
+    }
+
+    if (!recs.length) {
+      document.getElementById('sysRosterMount').innerHTML =
+        '<p class="note" style="padding:12px">Nothing saved yet. Set the parameters up in the main window, ' +
+        'name the configuration in the box under the parameter list, and press <strong>Save system</strong>. ' +
+        'Do that two or more times and this page compares them column by column — same numbers, same model, ' +
+        'one evaluation path.</p>';
+      ['sysReqMount', 'sysMetricMount', 'sysParamMount'].forEach(function (id) {
+        document.getElementById(id).textContent = '';
+      });
+      document.getElementById('sysChartsMount').textContent = '';
+      ['sysReqHdr', 'sysResultsHdr', 'sysParamHdr'].forEach(function (id) {
+        document.getElementById(id).textContent = '';
+      });
+      document.getElementById('sysReqNote').textContent = '';
+      document.getElementById('sysNote').innerHTML = storageNote();
+      document.getElementById('sysResultsToolbar').textContent = '';
+      return;
+    }
+
+    renderSysRoster(allEntries);
+    document.getElementById('sysNote').innerHTML = storageNote() +
+      ' A saved system stores its <strong>whole</strong> parameter set, not the difference from the defaults, ' +
+      'so it keeps the numbers it was costed with even if a default changes later. Parameters added to the tool ' +
+      'after a system was saved are filled from today\'s defaults and flagged, because the system never expressed ' +
+      'an opinion about them.' +
+      (nShared
+        ? ' <strong>The ' + nShared + ' system' + (nShared === 1 ? '' : 's') + ' marked “from link” ' +
+          (nShared === 1 ? 'is' : 'are') + ' not stored</strong> until you press Import, so a link cannot ' +
+          'overwrite what you saved. A link carries each system as a difference from the defaults, which keeps ' +
+          'it short but means a shared system is pinned to <em>your</em> defaults rather than the sender\'s — ' +
+          'if the two of you are on different versions of the tool, the numbers can differ from what they saw.'
+        : '');
+
+    /* ---- options + results for the shared table renderer ---- */
+    /* Parameters that change what KIND of system this is, rather than how
+       well it performs. When these differ between columns, whole blocks of
+       the table stop being a comparison of distribution architectures and
+       become a comparison of two different arrays — so the column says so
+       instead of the reader having to notice. */
+    var KIND_KEYS = ['fLoGHz', 'rfBwGHz', 'apertureCm', 'latticePeriodic', 'elemModelSel',
+      'elemDirDbi', 'inTileLattice', 'beamScanDeg', 'scanDegMax'];
+    var kindVary = KIND_KEYS.filter(function (k) {
+      var first = entries.length ? entries[0].state[k] : undefined;
+      return entries.some(function (e) { return e.state[k] !== first; });
+    });
+
+    var curKey = SYS.stateKey(state);
+    var opts = entries.map(function (e, i) {
+      var isCur = SYS.stateKey(e.state) === curKey;
+      var fails = e.warnings.filter(function (w) { return w.severity === 'fail'; }).length;
+      var badge = null, badgeClass = 'acc';
+      if (fails) { badge = 'inconsistent'; badgeClass = 'fail'; }
+      else if (isCur) { badge = 'loaded in main window'; badgeClass = 'acc'; }
+      else if (e.rec.shared) { badge = 'from link'; badgeClass = 'warn'; }
+      else if (e.filled.length) { badge = e.filled.length + ' filled from defaults'; badgeClass = 'warn'; }
+      var tips = [e.rec.note || ''];
+      if (fails) {
+        tips.push('INCONSISTENT: ' + e.warnings.filter(function (w) { return w.severity === 'fail'; })
+          .map(function (w) { return w.message; }).join(' '));
+      }
+      if (e.rec.shared) tips.push('From a shared link: stored as a difference from defaults, so it is pinned to YOUR defaults, not the sender\'s.');
+      if (kindVary.length) {
+        tips.push('Differs from the other columns in: ' + kindVary.map(function (k) {
+          var p = paramByKey(k);
+          return (p ? p.label : k) + ' = ' + choiceLabel(p, e.state[k]);
+        }).join(', '));
+      }
+      return {
+        id: e.rec.id, name: e.rec.name,
+        topology: tips.filter(Boolean).join('\n\n'),
+        badge: badge, badgeClass: badgeClass
+      };
+    });
+    var results = {};
+    entries.forEach(function (e, i) { results[e.rec.id] = flats[i]; });
+
+    /* ---- requirement panel ----
+       "Identical" has to be judged over the WHOLE requirement, not over the
+       binding spec alone. Two systems can share a 5.00° binding spec and
+       still differ by 3 dB in the null depth that spec buys, because the
+       floor is 10log10(sigma^2/N) and N is the tile count. Reporting them
+       as "identical requirement" because one number matched would hide the
+       exact trap this panel exists to expose. */
+    var reqRows = sysReqRows();
+    var reqDiff = reqRows.filter(function (r) {
+      var vals = flats.map(function (f) { return f[r.field]; });
+      var first = typeof vals[0] === 'number' ? vals[0].toPrecision(9) : String(vals[0]);
+      return vals.some(function (v) {
+        return (typeof v === 'number' ? v.toPrecision(9) : String(v)) !== first;
+      });
+    });
+    var specs = flats.map(function (f) { return f.req_sigSpecDeg; });
+    var sameSpec = specs.every(function (v) { return Math.abs(v - specs[0]) < 1e-6; });
+    UI.renderTable(tableIn('sysReqMount'), opts, results, reqRows, null,
+      { firstHeader: 'Derived requirement', lastHeader: 'Spread' });
+
+    document.getElementById('sysReqHdr').textContent = !reqDiff.length
+      ? 'identical across all ' + entries.length + ' systems'
+      : reqDiff.length + ' of ' + reqRows.length + ' requirement quantities differ' +
+        (sameSpec ? ' — though the binding spec is the same ' + n(specs[0], 2) + '°' : '');
+
+    if (!reqDiff.length) {
+      document.getElementById('sysReqNote').innerHTML =
+        'Every system here is judged against the same requirement, so the pass/fail colouring in the results ' +
+        'table below compares like with like.';
+    } else {
+      var diffNames = reqDiff.map(function (r) { return r.name; }).join(', ');
+      document.getElementById('sysReqNote').innerHTML =
+        '<strong>Read this before the results table.</strong> The requirement is <em>derived</em>, not fixed — it ' +
+        'follows from the array geometry and the EVM allocation — and it is not the same for these systems: ' +
+        '<span class="kv">' + diffNames + '</span> differ. ' +
+        (sameSpec
+          ? 'Note in particular that the <em>binding spec is identical</em> (' + n(specs[0], 2) + '°) while what ' +
+            'that spec buys is not: the null-depth floor is 10log10(σ²/N), so the system with fewer tiles gets ' +
+            '<span class="kv">' + n(Math.max.apply(null, flats.map(function (f) { return f.req_nullFloorDb; })) -
+              Math.min.apply(null, flats.map(function (f) { return f.req_nullFloorDb; })), 1) +
+            ' dB</span> less null depth for meeting the same phase-error number. Two systems can both go green ' +
+            'and not be equally good.'
+          : 'The binding spec itself runs from <span class="kv">' + n(Math.min.apply(null, specs), 2) +
+            '°</span> to <span class="kv">' + n(Math.max.apply(null, specs), 2) + '°</span>, so a system can go ' +
+            'green by having a laxer requirement rather than a better distribution network.') +
+        ' Pass/fail in the results table is per column against that column’s <em>own</em> requirement, which is ' +
+        'the honest comparison; a requirement column showing a range is marked <span class="kv">*</span>. ' +
+        'Compare the raw numbers, not only the colours.';
+    }
+
+    /* ---- results panel ---- */
+    var rt = document.getElementById('sysResultsToolbar');
+    rt.textContent = '';
+    function toggle(label, on, title, fn) {
+      var b = document.createElement('button');
+      b.className = 'btn' + (on ? ' pri' : '');
+      b.textContent = label; b.title = title;
+      b.addEventListener('click', fn);
+      rt.appendChild(b);
+    }
+    toggle('Differences only', view.sys.diffOnly, 'Hide rows where every system agrees', function () {
+      view.sys.diffOnly = !view.sys.diffOnly; render();
+    });
+    if (entries.length > 1) {
+      toggle('Δ vs baseline', view.sys.deltaMode, 'Show each value as a difference from the baseline system', function () {
+        view.sys.deltaMode = !view.sys.deltaMode; render();
+      });
+      var sel = document.createElement('select');
+      sel.style.cssText = 'font:12px var(--mono);padding:4px 6px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--bg-panel);color:var(--ink)';
+      sel.title = 'Which system the Δ column is measured from';
+      entries.forEach(function (e) {
+        var o = document.createElement('option');
+        o.value = e.rec.id; o.textContent = 'baseline: ' + e.rec.name;
+        sel.appendChild(o);
+      });
+      sel.value = view.sys.baseline && results[view.sys.baseline] ? view.sys.baseline : entries[0].rec.id;
+      view.sys.baseline = sel.value;
+      sel.addEventListener('change', function () { view.sys.baseline = sel.value; render(); });
+      rt.appendChild(sel);
+    }
+
+    var rows = sysMetricRows();
+    if (view.sys.diffOnly) rows = filterDifferingRows(rows, opts, results);
+    rows = view.sys.deltaMode && entries.length > 1
+      ? deltaRows(rows, results[view.sys.baseline])
+      : applyScales(rows);
+
+    UI.renderTable(tableIn('sysMetricMount'), opts, results, rows, null,
+      { firstHeader: 'Metric', lastHeader: 'Requirement' });
+    document.getElementById('sysResultsHdr').textContent =
+      entries.length + ' system' + (entries.length === 1 ? '' : 's') + ' · ' +
+      rows.filter(function (r) { return !r.section; }).length + ' metrics' +
+      (view.sys.diffOnly ? ' (identical rows hidden)' : '') +
+      (view.sys.deltaMode ? ' · Δ from ' + (results[view.sys.baseline] ? optName(opts, view.sys.baseline) : '?') : '');
+
+    /* the kind-of-system warning, stated once above the table rather than
+       left in tooltips */
+    var kindEl = document.getElementById('sysKindNote');
+    var kindWrap = document.getElementById('sysKindWrap');
+    if (kindEl) {
+      if (!kindVary.length) {
+        kindEl.classList.add('hidden');
+        if (kindWrap) kindWrap.classList.add('hidden');
+        kindEl.textContent = '';
+      } else {
+        kindEl.classList.remove('hidden');
+        if (kindWrap) kindWrap.classList.remove('hidden');
+        kindEl.innerHTML = '<strong>These are not all the same array.</strong> ' +
+          kindVary.map(function (k) {
+            var p = paramByKey(k);
+            return '<span class="kv">' + (p ? p.label : k) + '</span>';
+          }).join(', ') + ' differ between columns, so the rows below are not purely a comparison of ' +
+          'distribution architectures — every gain, beamwidth, jitter and wrap-count figure also moves with ' +
+          'the array itself. That is a legitimate thing to compare, but say which it is before quoting a row.';
+      }
+    }
+
+    renderSysParams(entries);
+    renderSysCharts(entries, flats);
+  }
+
+  function optName(opts, id) {
+    for (var i = 0; i < opts.length; i++) if (opts[i].id === id) return opts[i].name;
+    return id;
+  }
+
+  function storageNote() {
+    return SYS.available()
+      ? 'Saved systems live in this browser only — they are not uploaded anywhere, and they survive a reload. ' +
+        'Use the set link to move them to another machine or into the thesis.'
+      : '<strong>This browser is not letting the page store data</strong> (a private window, or an embedding ' +
+        'context that blocks site data). Systems saved now will work for this session but will be gone on ' +
+        'reload — copy the set link if you need to keep them.';
+  }
+
+  /* Rows on which at least two systems disagree, keeping the section
+     headings that still have rows under them.
+
+     A row is compared over EVERY field it displays, not just r.field. Rows
+     whose fmt prints a second value — the lattice label next to the pitch,
+     the lobe angle next to its level, the wraps next to the correction
+     range — would otherwise be hidden as "identical" while showing visibly
+     different text. The rectangular-vs-sheared lattice is exactly that
+     case: the pitch is identical by construction and only the label
+     differs, so the row that proves the lattices differ was the one being
+     hidden. */
+  function filterDifferingRows(rows, opts, results) {
+    /* Compare what the cell will actually SAY, not the underlying float.
+       Comparing raw values to nine significant figures kept rows that read
+       "0.804 | 0.804 | 0.804" because they differed in the seventh decimal
+       — "differences only" has to mean differences you can see. Rendering
+       the cell also compares every field the row displays, which is what
+       made the lattice-label row visible again. */
+    function cellText(r, res) {
+      var v = res[r.field];
+      var num = (typeof v === 'number' && isFinite(v)) ? v : NaN;
+      if (r.fmt) return String(r.fmt(num, res));
+      var scaled = isFinite(num) && isFinite(r.scale) ? num * r.scale : num;
+      return UI.num(scaled, r.dec);
+    }
+    var keep = rows.map(function (r) {
+      if (r.section) return false;
+      var first = null, seen = false, diff = false;
+      opts.forEach(function (o) {
+        var res = results[o.id] || {};
+        var s = cellText(r, res);
+        (r.alsoFields || []).forEach(function (fld) { s += '' + String(res[fld]); });
+        if (!seen) { first = s; seen = true; return; }
+        if (s !== first) diff = true;
+      });
+      return diff;
+    });
+    var out = [];
+    rows.forEach(function (r, i) {
+      if (r.section) {
+        /* include the heading only if something under it survives */
+        for (var j = i + 1; j < rows.length && !rows[j].section; j++) {
+          if (keep[j]) { out.push(r); break; }
+        }
+      } else if (keep[i]) out.push(r);
+    });
+    return out;
+  }
+
+  /* Wrap every numeric row so it prints the signed difference from the
+     baseline system.
+
+     Two traps here, both of which produced wrong numbers on the first cut.
+     (1) A row that converted units inside its own fmt — power held in mW
+     under a header saying W — printed the raw difference, i.e. milliwatts
+     labelled as watts, a live factor-1000 error. Unit conversion is now a
+     declared `scale` on the row so both paths apply it. (2) Rows whose fmt
+     prints something a difference cannot express (a lattice label, "7×7 =
+     49") declare noDelta and stay absolute. Text rows are left alone
+     regardless — a delta of "H-tree" is not a thing. */
+  function deltaRows(rows, baseFlat) {
+    if (!baseFlat) return rows;
+    return rows.map(function (r) {
+      if (r.section || r.noDelta) return r;
+      var bv = baseFlat[r.field];
+      if (typeof bv !== 'number' || !isFinite(bv)) return r;
+      var sc = isFinite(r.scale) ? r.scale : 1;
+      var out = {};
+      Object.keys(r).forEach(function (k) { out[k] = r[k]; });
+      out.fmt = function (v) {
+        if (typeof v !== 'number' || !isFinite(v)) return '—';
+        var d = (v - bv) * sc;
+        if (Math.abs(d) < 1e-12) return '=';
+        return (d > 0 ? '+' : '') + UI.num(d, r.dec);
+      };
+      out.specField = undefined;
+      out.spec = undefined;
+      out.specLabel = 'Δ';
+      return out;
+    });
+  }
+
+  /* A declared `scale` also has to apply when NOT in delta mode, or the
+     column would show millwatts under a "W" header — the same defect the
+     other way round. Applied once, here, so the two paths cannot diverge. */
+  function applyScales(rows) {
+    return rows.map(function (r) {
+      if (r.section || !isFinite(r.scale) || r.fmt) return r;
+      var out = {};
+      Object.keys(r).forEach(function (k) { out[k] = r[k]; });
+      out.fmt = function (v) {
+        return (typeof v === 'number' && isFinite(v)) ? UI.num(v * r.scale, r.dec) : '—';
+      };
+      /* the requirement column must be scaled to match */
+      if (isFinite(r.spec)) out.spec = r.spec * r.scale;
+      return out;
+    });
+  }
+
+  function saveCurrentSystem() {
+    var box = document.getElementById('saveName');
+    var g = last ? last.res.g : null;
+    var auto = g
+      ? (M.LO_META[Math.round(state.loOption)].short + ' + ' + M.BB_META[Math.round(state.bbOption)].short +
+         ' · ' + n(state.tileCm, 2) + ' cm')
+      : 'System ' + (SYS.count() + 1);
+    var name = (box && box.value.trim()) || auto;
+    var r = SYS.save(name, state, {
+      lo: M.LO_META[Math.round(state.loOption)].id,
+      bb: M.BB_META[Math.round(state.bbOption)].id
+    });
+    if (!r.ok) {
+      X.flash(r.reason === 'full'
+        ? 'At the ' + SYS.limit() + '-system limit — delete one first'
+        : 'Could not save this system');
+      return;
+    }
+    if (box) box.value = '';
+    render();
+    X.flash(r.persisted ? 'Saved "' + name + '"' : 'Saved "' + name + '" (this session only — storage blocked)');
   }
 
   /* ------------------------------- routing ------------------------------- */
@@ -1270,10 +2366,21 @@
     document.querySelectorAll('.view').forEach(function (v) {
       v.classList.toggle('hidden', v.id !== 'view-' + name);
     });
-    /* the picker and budget banner only make sense on the map/compare views */
+    /* the picker and budget banner only make sense on the map/compare views.
+       On the Systems view the single banner would be actively wrong — each
+       system has its own derived requirement, and that comparison has its
+       own panel inside the view. */
     var showPick = name === 'map';
     document.getElementById('pickerPanel').classList.toggle('hidden', !showPick);
-    document.getElementById('budgetPanel').classList.toggle('hidden', name === 'assumptions' || name === 'method');
+    document.getElementById('budgetPanel').classList.toggle('hidden',
+      name === 'assumptions' || name === 'method' || name === 'systems');
+    /* clear the two-step confirmations when leaving, so returning to the
+       view never finds a primed Delete button */
+    if (name !== 'systems') {
+      view.sys.confirmDelete = null;
+      view.sys.confirmClear = false;
+      view.sys.renaming = null;
+    }
     render();
   }
 
@@ -1284,7 +2391,10 @@
     lo:     { id: 'loTable',    title: 'LO / reference distribution comparison', file: 'lo-distribution.csv' },
     bb:     { id: 'bbTable',    title: 'Baseband split / combine comparison',    file: 'bb-distribution.csv' },
     assume: { id: 'assumeTable', title: 'Parameter provenance',                  file: 'assumptions.csv' },
-    bom:    { id: 'bomMount',   title: 'Hardware bill of materials',             file: 'bom.csv' }
+    bom:    { id: 'bomMount',   title: 'Hardware bill of materials',             file: 'bom.csv' },
+    sys:      { id: 'sysMetricMount', title: 'Saved systems — results',          file: 'systems-results.csv' },
+    sysparam: { id: 'sysParamMount',  title: 'Saved systems — differing inputs', file: 'systems-inputs.csv' },
+    sysreq:   { id: 'sysReqMount',    title: 'Saved systems — derived requirement', file: 'systems-requirement.csv' }
   };
 
   /* kind: lo | bb | assume | bom | decision ;  fmt: md | csv ;  mode: copy | dl */
@@ -1300,11 +2410,34 @@
     var table = host.tagName === 'TABLE' ? host : host.querySelector('table');
     if (!table) { X.flash('Nothing to export yet — open that view first'); return; }
     var rows = UI.tableToRows(table);
-    var foot = [
-      'Generated by the E-band distribution comparison tool.',
-      'Configuration: ' + (X.encodeState(overrides()) || 'all defaults'),
-      'Architecture-selection estimates, not measured data — see the honesty ledger.'
-    ];
+    /* A systems export spans several configurations, so quoting the CURRENT
+       parameter set as "the configuration" would be actively misleading —
+       the permalink of the whole set goes in instead. */
+    var isSys = kind.indexOf('sys') === 0;
+    var foot = ['Generated by the E-band distribution comparison tool.'];
+    if (isSys) {
+      /* The export scrapes the rendered table, so it inherits whatever
+         display mode is on. A Δ-mode table exported without saying so is a
+         table of differences under absolute-value headers — the footnote
+         has to record the mode, and it lists the columns actually rendered
+         rather than the saved list, which can differ when a shared link
+         contributed columns. */
+      var cols = [].map.call(
+        document.querySelectorAll('#' + m.id + ' table thead th'),
+        function (th) { return th.textContent; }).slice(1, -1);
+      foot.push('Systems compared: ' + (cols.join(' | ') || '(none)'));
+      if (kind === 'sys' && view.sys.deltaMode) {
+        foot.push('DISPLAY MODE: differences from the baseline system, not absolute values.');
+      }
+      if (kind === 'sys' && view.sys.diffOnly) {
+        foot.push('DISPLAY MODE: rows identical across all systems are omitted.');
+      }
+      foot.push('Each system is judged against its OWN derived requirement; see the requirement panel.');
+      foot.push('Set permalink: ' + setPermalink());
+    } else {
+      foot.push('Configuration: ' + (X.encodeState(overrides()) || 'all defaults'));
+    }
+    foot.push('Architecture-selection estimates, not measured data — see the honesty ledger.');
     if (mode === 'dl') X.download(m.file, X.toCsv(rows), 'text/csv');
     else if (fmt === 'csv') X.copy(X.toCsv(rows), 'CSV');
     else X.copy(X.toMarkdown(rows, { title: m.title, footnotes: foot }), 'Markdown table');
@@ -1339,6 +2472,10 @@
   });
   document.getElementById('permaBtn').addEventListener('click', function () {
     X.copy(X.permalink(overrides()), 'Permalink');
+  });
+  document.getElementById('saveSysBtn').addEventListener('click', function () { saveCurrentSystem(); });
+  document.getElementById('saveName').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); saveCurrentSystem(); }
   });
   /* light -> dark -> follow system -> light. Light is the shipped default;
      the inline script in the document head applies it before first paint. */
