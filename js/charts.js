@@ -295,11 +295,69 @@
     return d;
   }
 
+  /* ------------------------------------------------------------------ *
+   * uvChart: direction cosines (u,v) over the visible hemisphere. Built
+   * for the grating-lobe map, which is the only honest way to show a
+   * sparse 2-D lattice — two principal-plane cuts hide most of the lobes.
+   * cfg = { lobes:[{u,v,relDb}], u0, v0, height, ringsDeg:[..],
+   *         label, floorDb }
+   * ------------------------------------------------------------------ */
+  function uvChart(cfg) {
+    var H = cfg.height || 340, W = 660;
+    var m = { l: 40, r: 12, t: 10, b: 34 };
+    var side = Math.min(W - m.l - m.r, H - m.t - m.b);
+    var cx = m.l + side / 2, cy = m.t + side / 2, R = side / 2;
+    var svg = el('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet', role: 'img' });
+
+    function X(u) { return cx + u * R; }
+    function Y(v) { return cy - v * R; }
+
+    (cfg.ringsDeg || [30, 60]).forEach(function (d) {
+      var r = Math.sin(d * Math.PI / 180) * R;
+      svg.appendChild(el('circle', { cx: cx, cy: cy, r: r, class: 'gl', fill: 'none' }));
+      svg.appendChild(el('text', { x: cx + r * 0.707 + 2, y: cy - r * 0.707 - 3, 'text-anchor': 'start' }, d + '°'));
+    });
+    svg.appendChild(el('circle', { cx: cx, cy: cy, r: R, class: 'ax', fill: 'none' }));
+    svg.appendChild(el('text', { x: cx + R + 4, y: cy - 4, 'text-anchor': 'start' }, '90°'));
+    svg.appendChild(el('line', { class: 'gl', x1: cx - R, y1: cy, x2: cx + R, y2: cy }));
+    svg.appendChild(el('line', { class: 'gl', x1: cx, y1: cy - R, x2: cx, y2: cy + R }));
+
+    var floor = cfg.floorDb === undefined ? -20 : cfg.floorDb;
+    (cfg.lobes || []).forEach(function (L) {
+      var t = Math.max(0, Math.min(1, (L.relDb - floor) / (0 - floor)));
+      var r = 2.2 + 5.2 * t;
+      var c = el('circle', {
+        cx: X(L.u), cy: Y(L.v), r: r,
+        fill: t > 0.75 ? 'var(--s5)' : t > 0.4 ? 'var(--s2)' : 'var(--ink-3)',
+        'fill-opacity': (0.35 + 0.55 * t).toFixed(2)
+      });
+      c.appendChild(el('title', null,
+        'θ ' + L.thetaDeg.toFixed(2) + '°, φ ' + L.phiDeg.toFixed(1) + '° · ' +
+        L.relDb.toFixed(2) + ' dB · (m,n) = (' + L.m + ',' + L.n + ')'));
+      svg.appendChild(c);
+    });
+
+    /* the intended beam */
+    var bx = X(cfg.u0 || 0), by = Y(cfg.v0 || 0);
+    svg.appendChild(el('line', { class: 'ax', x1: bx - 7, y1: by, x2: bx + 7, y2: by, stroke: 'var(--s4)' }));
+    svg.appendChild(el('line', { class: 'ax', x1: bx, y1: by - 7, x2: bx, y2: by + 7, stroke: 'var(--s4)' }));
+    svg.appendChild(el('text', { x: bx + 9, y: by - 6, 'text-anchor': 'start', fill: 'var(--s4)' }, 'beam'));
+
+    svg.appendChild(el('text', { class: 'axlabel', x: cx, y: H - 4, 'text-anchor': 'middle' },
+      cfg.label || 'u = sinθ·cosφ  (scan plane)'));
+    svg.appendChild(el('text', {
+      class: 'axlabel', x: 0, y: 0, 'text-anchor': 'middle',
+      transform: 'translate(11,' + cy + ') rotate(-90)'
+    }, 'v = sinθ·sinφ'));
+    return svg;
+  }
+
   window.Charts = {
     lineChart: lineChart,
     sweepChart: sweepChart,
     barChart: barChart,
     stackChart: stackChart,
+    uvChart: uvChart,
     legend: legend,
     fLabel: fLabel
   };

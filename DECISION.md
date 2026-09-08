@@ -230,6 +230,92 @@ topology choice, and the λ/10 test decides it.
   single high-gain beam with sub-degree pointing, the gain-loss criterion
   applies instead, every option passes with margin, and A1 wins.
 
+## 6b. Antenna-side caveat: the lattice decides the ordering
+
+This section was added after the pattern model was corrected and independently
+reviewed. It does not change the LO or baseband decision — both reviewers
+confirmed that the 10log10(N) beam-output averaging of uncorrelated per-tile
+PLL noise against its full appearance in the inter-tile differential is
+independent of the lattice, and so is the three-chip partition of §4. What it
+changes is the **order in which the coherence argument may be made**, and it
+adds one parameter to the list of architectural choices.
+
+Numbers here are at the tool's current default (4 cm tiles, 7×7 = 49 tiles,
+2 dies per tile, 392 elements), not at the 6 cm configuration §1–§6 were
+written against.
+
+**1. The error floor is not the binding metric on a periodic lattice.**
+392 elements over 28 cm is a 2.60λ × 5.20λ lattice. That puts
+π·A_cell/λ² = **42 grating lobes** inside the horizon, and because a uniform
+progressive-phase array has |AF| = N at every one of them, only the element
+pattern suppresses them: the binding lobe sits at **11.08° and is 0.081 dB
+below the main beam**. Steered to 30° a grating lobe is **0.59 dB above** the
+intended beam; at 45°, 1.48 dB above. The array is angularly ambiguous 43 ways.
+Against that, the whole distribution-error floor is at −45 to −47 dB. So on a
+periodic lattice the null-depth floor of §1 is **not** what limits the array —
+it becomes the binding metric only once the lattice is made aperiodic. The
+coherence argument is correct, but it has a precondition, and the precondition
+has to be stated first.
+
+**2. Making it aperiodic lands back on the distribution network.** Aperiodicity
+costs no gain — N·D_el is unchanged; the 43 lattice beams are redistributed
+into a floor, mean −25.9 dB with an expected peak near −19.0 dB. But breaking
+the periodicity properly needs ~7.8 mm RMS position randomisation, and
+dithering within one 1 × 2 cm cell supplies at most 2.9 mm, which leaves a
+quasi-grating residue near −14 dB at the old lobe angles. Doing it properly
+means positions that do **not** repeat tile to tile — i.e. tiles that are no
+longer identical, per-element position and phase calibration that is mandatory
+rather than optional, and therefore a higher calibration bandwidth and
+stability requirement on exactly the distribution network this thesis is about.
+
+**3. The element, not the layout, is the recoverable term.** The 16.31 dB gap
+between the 392-element directivity (31.93 dBi) and the filled aperture
+(48.24 dBi) is not a thinning loss to be accepted. It is exactly
+10log10(4π·A_cell/(λ²·D_el)) — the ratio of the element's effective area
+(4.68 mm²) to its cell (200 mm²), i.e. 2.34% — and identically 10log10 of the
+43 co-equal lattice beams. It closes as element directivity rises toward the
+22.31 dBi ceiling a 1 × 2 cm cell can support. A cell-filling *nulled* radiator
+puts its sinc nulls exactly on the reciprocal lattice, removing every grating
+lobe at broadside and recovering the full 48.24 dBi — but only at broadside:
+at 5° the first lobe is already 10.8 dB down and falling, and steered to 30° a
+grating lobe overtakes the beam by 13 dB. That is a broadside instrument, and
+it is what the *first* version of the tool's pattern model was accidentally
+describing.
+
+**4. The TTD step is an architectural parameter, and it is set by the
+quantisation lobe, not by the squint loss.** §1 justifies the 75 ps step on
+loss: it costs 0.007 dB. That is true and it is the wrong criterion. The
+quantisation residual e_t = Δτ·round(τ_t/Δτ) − τ_t is deterministic, exactly
+zero at broadside, and common to a whole tile column when scanning in one
+plane — so it averages by 7, not 49, and scatters into the scan plane. Swept
+over commanded angles at ±1 GHz it produces a **discrete lobe at −18.8 dB**
+(worst at 53° commanded), against −25.8 dB from the angle-averaged variance
+proxy and −45 dB for everything else in the error budget. It is the dominant
+band-edge artefact by a wide margin. A finer step buys it down directly
+(−42 dB at 5 ps by the same measure), so the LSB should be specified against
+the lobe, with the loss figure as a secondary check.
+
+**5. Two free improvements, at zero cost in channels, dies or tile pitch.**
+"8 elements per tile" does not mean 4×2. Every sublattice of index 8 that
+contains the tile lattice keeps all tiles identical, and 4×2 is the **worst**
+of them: it puts the binding lobe at 11.08°, against 15.77° for the sheared
+lattice a1 = (1,−1) cm, a2 = (0,2) cm, which also raises minimum element
+separation from 1.00 to 1.41 cm and so reduces coupling. It does not rescue a
+periodic layout and it does not reduce the lobe count, which is fixed by
+element density alone — it is simply strictly better, and it is the right
+starting point for a perturbed-aperiodic design. Separately, a compact filled
+λ/2 array of the same 392 elements would be 3.8 × 3.8 cm, have a 5.1° beam and
+the **same** 31.93 dBi. Spreading 392 channels over 28 cm buys angular
+resolution and buys zero gain.
+
+**Consequence for how this is presented.** The 28 cm panel is not justified by
+array performance; it is justified by the research question, which is LO and
+baseband distribution over a 30 cm baseline. The demonstrator should be labelled
+a **sparse / thinned interferometric aperture** and scored with sparse-array
+metrics — grating-lobe or pedestal level, ambiguity count, PSF sidelobe
+statistics, G/T — not with "full-aperture beamwidth plus −13.26 dB uniform
+sidelobe level", which is the one figure of merit it does not earn.
+
 ## 7. Open questions to close before tape-out
 
 1. Measure the correlated/uncorrelated split of the tile PLL in-band noise, and

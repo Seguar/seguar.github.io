@@ -101,6 +101,43 @@
     'independent radiating groups — for a per-tile LO error that is the **tile** count, not the element count, ' +
     'which is why a per-tile error is far more damaging than a per-element one.',
 
+    '### The pattern model',
+    'The Beam view does not use those closed forms. It sums the actual lattice, because on an array this sparse ' +
+    'the geometry decides the answer and a single-axis formula gets it wrong.',
+    '**Lobe set.** Grating lobes are the reciprocal lattice of the element lattice, scaled by λ:',
+    '    (u,v)_lobe = (u₀,v₀) + λ·(m·b₁ + n·b₂),    aᵢ·b_j = δᵢ_j',
+    'so their number in visible space is `π·A_cell/λ²` and is fixed by element **density** alone — changing the ' +
+    'lattice shape moves lobes but removes none. Taking `λ/dx` on one axis reports whichever lobe happens to lie ' +
+    'on that axis, which is not the binding one. For a uniform progressive-phase array |AF| = N at every lobe ' +
+    '(Dirichlet kernel), so only the element pattern suppresses them, and lobes are ranked by **level**, not by ' +
+    'angle: when the beam is scanned a high-order lobe can land closer to boresight than the beam itself and so ' +
+    'exceed it.',
+    '**Directivity.** `D = min(N·D_el, 4π·A_pop/λ²)`. The gap to the filled aperture is exactly',
+    '    Δ = 10log10(4π·A_cell/(λ²·D_el)) = 10log10(A_cell / A_eff,element)',
+    'i.e. a statement about the *element*, not about thinning — and identically 10log10 of the number of lattice ' +
+    'lobes, since that is what the radiated power is split among. It closes as `D_el` rises toward the cell ' +
+    'ceiling `4π·A_cell/λ²`. Aperiodicity does not change `N·D_el` at all: it redistributes the lobes into a ' +
+    'floor, mean `1/N`, with expected **peak** higher by `10log10(ln(2L/λ))`.',
+    '**Errors.** Grouped errors (tile-common, die-common, per-element, amplitude) use the exact mean pattern',
+    '    E|AF|² = e₁|AF₀|² + (e₂−e₁)·N_t|S_t|² + (e₃−e₂)·N_d|S_d|² + ((1+σ_A²)−e₃)·N_e',
+    '    e₁ = exp(−(σ_T²+σ_D²+σ_E²)) ≤ e₂ = exp(−(σ_D²+σ_E²)) ≤ e₃ = exp(−σ_E²)',
+    'which integrates to exactly `N_e(1+σ_A²)` — power is conserved by construction. The consequence is that the ' +
+    'scatter from a grouped error is **not flat**: it carries the shape of that group\'s own pattern, so it sits ' +
+    'at `σ²/N_group` only at the main beam and at that group\'s comb angles, and falls to `σ²/N_elem` between ' +
+    'them. Adding `σ_T²/N_t` flat at every angle — as an earlier version did — radiates 10log10(M) too much ' +
+    'scattered power. Amplitude spread does not reduce the coherent field (E[1+δ] = 1); it raises total radiated ' +
+    'power, so it belongs in the denominator of the gain derate, not in the exponent.',
+    '**TTD quantisation** is deterministic, not random: `e_t = Δτ·round(τ_t/Δτ) − τ_t`, exactly zero at ' +
+    'broadside, and the band-centre part is absorbed by the per-tile phase trim so only `−2π(f−f_c)·e_t` ' +
+    'survives. It is computed exactly and carried in the coherent field. Scanning in one plane it is common to a ' +
+    'whole tile **column**, so it averages by the 1-D tile count and scatters into the scan plane; the worst case ' +
+    'over commanded angles runs about 7 dB above the `Δτ²/12` variance proxy, which is therefore reported as a ' +
+    'labelled angle-average rather than as the answer.',
+    '**Mean versus realised.** Everything above is an expectation. No array radiates it, and it cannot show a ' +
+    'null filling in at a specific angle; the expected peak error sidelobe on a cut exceeds the mean floor by ' +
+    '`10log10(ln(2L/λ))` ≈ 7 dB. A seeded element-by-element realisation is drawn alongside the mean for that ' +
+    'reason.',
+
     '### Baseband',
     'The baseband network sits after the mixer, so it contributes **zero** phase noise at the carrier: M1 and M2 ' +
     'are reported as not applicable for family B rather than fabricated. Its metrics are gain/phase error, skew, ' +
@@ -165,25 +202,37 @@
     'as a uniformly illuminated continuous aperture the width of the tile pitch, which made its sinc nulls fall ' +
     'exactly on the tile-grid grating lobes and cancel them. That is right for contiguous *filled* subarrays and ' +
     'wrong here, and it hid the dominant effect in the whole view.',
-    '- **The element positions are assumed, not designed.** Eight elements per tile are spread as a uniform 4×2 ' +
-    'grid, giving a 2.6λ lattice along the cut. A real layout might cluster the four elements of a die instead, ' +
-    'which is worse — clusters on the 4 cm tile pitch put grating lobes every 5.5°. The layout has not been done, ' +
-    'so treat the lattice as a parameter, not a result.',
+    '- **The element positions are assumed, not designed.** The in-tile lattice is now a selectable sublattice ' +
+    'rather than a hard-coded 4×2, but it is still a choice made in this tool and not by a layout. A real layout ' +
+    'might cluster the four elements of a die instead, which is worse — clusters on the 4 cm tile pitch put ' +
+    'grating lobes every 5.5°. Treat the lattice as a parameter, not a result.',
     '- **The aperiodic mode is a model, not a design.** It replaces the periodic structure with the full-aperture ' +
     'main lobe plus a uniform 1/N floor. A real thinned array has a specific, non-uniform sidelobe structure that ' +
     'depends on the actual positions, and achieving the ideal floor takes deliberate optimisation.',
     '- **No mutual coupling, no edge truncation, no feed or mismatch loss.** At these spacings coupling is weaker ' +
     'than in a λ/2 array, but the element pattern in an array is not the isolated element pattern, and the realised ' +
     'gain will be below the figure shown.',
-    '- **The element pattern is an idealised cos^n.** A real E-band package radiator has ripple, finite ground-plane ' +
-    'effects and a pattern that varies across the band. The cos^n exponent is derived from the element directivity ' +
-    'parameter, so it is only as good as that number.',
-    '- **One principal-plane cut, not the full sphere.** The y-axis lattice is coarser (2 cm against 1 cm at the ' +
-    'default), so the orthogonal cut has grating lobes at a smaller angle than the plot shows. Directivity is ' +
-    'computed from the element count, not by integrating the modelled pattern, so the two are not tied together.',
-    '- **TTD quantisation is folded into a random variance** as τ²/3. Quantisation error is deterministic given ' +
-    'the commanded delay, not random, so this is an approximation that is only reasonable across many beam ' +
-    'positions.',
+    '- **The element pattern is an idealised cos^n** (or an idealised uniformly illuminated cell). A real E-band ' +
+    'package radiator has ripple, finite ground-plane effects, separate E- and H-plane widths and a pattern that ' +
+    'varies across the band. Worse, one cos^n cannot be both directivity-matched and HPBW-matched, and the two ' +
+    'differ by about 7 dB of scan loss at 60° — so the element model is now an explicit selector, and the right ' +
+    'fix is one *embedded* pattern from EM simulation used for suppression, scan loss and floor shape alike.',
+    '- **Cuts are cuts.** The lobe positions and levels come from the full 2-D reciprocal lattice, and the (u,v) ' +
+    'map shows all of them, but the plotted patterns are still two principal-plane cuts and most lobes lie in ' +
+    'neither. Directivity is computed from the element count with the cell ceiling applied, not by integrating ' +
+    'the modelled pattern, so the two are consistent by construction rather than by verification.',
+    '- **Realised gain is one lumped number.** The antenna-side loss chain is a single parameter. Its dominant ' +
+    'term — package feed routing at 0.15–0.35 dB/mm — is *position dependent* by 1–3 dB within a tile, which is ' +
+    'an amplitude taper and not an offset, and there is no G/T anywhere in the tool even though on RX that loss ' +
+    'sits in front of the LNA.',
+    '- **All error classes are i.i.d.** Thermal gradients across the panel, supply droop, LO amplitude tilt along ' +
+    'the feed and the periodic intra-tile feed taper are none of those things. They produce pointing error, ' +
+    'near-in sidelobe growth and gain loss rather than a σ²/N floor, and they are what actually sets measured ' +
+    'sidelobe level at −9 to −12 dB against the −13.26 dB a uniform aperture predicts. Nothing in this tool ' +
+    'models them.',
+    '- **No polarisation, and no IQ image beam in the pattern.** Cross-pol is absent entirely. The mirror beam a ' +
+    'baseband-steered array puts at −θ₀ is carried as a parameter and reported, not radiated in the plot, because ' +
+    'a phase-only error model cannot produce it.',
 
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
@@ -198,5 +247,139 @@
     'the sub-scores and raw inputs beside it.'
   ].join('\n');
 
-  window.Content = { METHOD: METHOD, HONESTY: HONESTY };
+  /* ---------------------------------------------------------------------
+     Beam-view caveats. Written as a function because the numbers that make
+     each caveat concrete come from the current parameter set, and a caveat
+     without a number is decoration.
+     ------------------------------------------------------------------- */
+  function num(v, d) { return window.UI.num(v, d); }
+
+  function beamCaveats(g, b) {
+    var periodic = Math.round(g.latticePeriodic) === 1;
+    var worst = b.lobes && b.lobes.length ? b.lobes[0] : null;
+    var off = (b.lobes || []).filter(function (L) {
+      var a = Math.abs(L.phiDeg);
+      return !(a < 1 || Math.abs(a - 180) < 1 || Math.abs(a - 90) < 1);
+    }).length;
+    var out = [];
+
+    out.push('!!! warn This is a scalar, co-polarised, mean-plus-one-realisation pattern model of an ' +
+      'array whose antennas do not exist yet. It is built to rank distribution architectures, and the ' +
+      'LO and baseband conclusions do not depend on the lattice. The antenna-side numbers do, and ' +
+      'the list below is what is missing from them.');
+
+    out.push('### Not in the model at all');
+    out.push('- **Cross-polarisation.** There is no polarisation in the model. Real AiP arrays run −15 ' +
+      'to −20 dB cross-pol on boresight, degrading to −10 to −13 dB at 20–30° off-axis, with cross-pol ' +
+      'grating lobes of their own. For a massive-MIMO channel argument that matters as much as co-pol ' +
+      'sidelobes.');
+    out.push('- **The IQ image beam.** Baseband IQ vector-modulator phase shifting leaves a residual ' +
+      'conjugate-phase component, which radiates as a *mirror* beam steered to −θ₀ — here ' +
+      num(-g.beamScanDeg, 0) + '° — at about the image-rejection level, ' + num(-g.imageRejDb, 0) +
+      ' dBc. It is routinely measured on baseband-steered arrays, and it is the one spur a phase-only ' +
+      'error model can never produce, so it is carried as its own parameter rather than folded in.');
+    out.push('- **Active element pattern and the embedded environment.** One isolated element pattern ' +
+      'is used for all ' + g.nElem + ' elements. In reality ' + num(4 * (g.tileCols - 1) * g.tileCols / (g.tileCols * g.tileCols) * 100, 0) +
+      '% of tiles are boundary tiles, each tile has its own finite ' + num(g.tileCm, 0) + ' cm ground ' +
+      'plane, the ground is electrically discontinuous across every tile seam (slot radiation, ripple, ' +
+      'cross-pol) and the package supports surface waves at −20 to −25 dB. Expect ±0.5–1.5 dB of ' +
+      'element-pattern ripple and 1–3 dB of left/right asymmetry in every measured cut, plus possible ' +
+      'narrow scan-blindness dips that no cos^n model can represent.');
+    out.push('- **Correlated, non-averaging errors.** Every error class here is i.i.d. and therefore ' +
+      'averages as σ²/N. The ones that actually set measured sidelobe level do not: ' + num(g.nTilesTotal, 0) +
+      ' tiles at 2–3 W over ' + num(g.effApertureCm * g.effApertureCm, 0) + ' cm² gives thermal ' +
+      'gradients, and supply droop, LO amplitude tilt along a ' + num(g.effApertureCm, 0) + ' cm feed ' +
+      'and the periodic intra-tile feed taper are all deterministic and spatially smooth or periodic. ' +
+      'A linear component steers the beam, a quadratic one broadens it, and neither appears in any ' +
+      'σ²/N floor. This is why measured near-in SLL comes in at −9 to −12 dB against the −13.26 dB a ' +
+      'uniform aperture predicts.');
+    out.push('- **Scan-dependent active mismatch**, and the step-wise variation of true peak ' +
+      'directivity of a few tenths of a dB as grating lobes cross into and out of visible space as the ' +
+      'beam steers.');
+    out.push('- **Correlated channel failures.** A single dead die removes 4 channels *inside one ' +
+      'tile* — ' + num(10 * Math.log10(1 - 4 / g.nElem), 2) + ' dB of gain plus a localised aperture ' +
+      'defect — which is a different pattern effect from 4 independent dead elements.');
+
+    out.push('### In the model, but optimistic or approximate');
+    out.push('- **One cos^n element cannot do two jobs.** The directivity-matched element (n = ' +
+      num(g.elem.nDir, 2) + ', HPBW ' + num(2 * Math.acos(Math.pow(0.5, 1 / Math.max(g.elem.nDir, 1e-6))) * 180 / Math.PI, 0) +
+      '°) is honest about grating-lobe suppression and optimistic about scan loss by roughly 7 dB at ' +
+      '60°; the HPBW-matched patch (n = ' + num(g.elem.nHpbw, 2) + ') is the other way round. The ' +
+      'element-pattern selector exposes the choice, and the right fix is one *embedded* pattern from ' +
+      'EM simulation used for both. A real patch also needs separate E- and H-plane exponents: at ' +
+      '20–25° the E/H difference is 0.2–0.8 dB, which matters when a lobe is being called ' +
+      (worst ? num(-worst.relDb, 2) : '0.1') + ' dB down.');
+    out.push('- **Directivity, not gain.** N·D_el is a lossless directivity. The realised-gain figure ' +
+      'subtracts a single lumped ' + num(g.antLossDb, 1) + ' dB for the antenna-side chain; the real ' +
+      'chain is itemised in that parameter and its package-feed term is *position dependent* by 1–3 dB ' +
+      'within a tile, which is a taper, not an offset. RX has no G/T in this tool at all, and package ' +
+      'loss sits in front of the LNA.');
+    out.push('- **Two error-floor numbers, not one curve.** The grouped-error mean pattern is exact and ' +
+      'power-conserving, but it is reported at two representative angles (' + num(b.floorNearDb, 1) +
+      ' dB where the tile factor peaks, ' + num(b.floorFarDb, 1) + ' dB between) rather than as a ' +
+      'continuous shaped floor. The plotted trace does carry the correct shape.');
+    out.push('- **Which σ belongs to which grouping level is an assumption, not a derivation.** The ' +
+      'phase-versus-amplitude headline flips on it: if the ' + num(b.sigTileDeg) + '° were per-element ' +
+      'rather than tile-common, the near-beam floor would move to the far-out value. The partition is ' +
+      'exposed as three separate parameters precisely so that it can be argued with.');
+    out.push('- **Measurability.** 2D²/λ = **' + num(g.farFieldM, 1) + ' m**. A ' + num(b.m.hpbwDeg, 3) +
+      '° beam and a −13 dB sidelobe cannot be verified in the far field of any lab. This needs planar ' +
+      'near-field scanning — λ/2 = ' + num(g.lambdaM * 500, 2) + ' mm steps over more than ' +
+      num(g.effApertureCm, 0) + ' × ' + num(g.effApertureCm, 0) + ' cm is about ' +
+      num(Math.pow(g.effApertureCm * 10 / (g.lambdaM * 500), 2), 0) + ' points per frequency per beam ' +
+      'state, at ~λ/50 = ' + num(g.lambdaM * 1e6 / 50, 0) + ' µm probe accuracy — or a CATR with a ' +
+      num(g.effApertureCm, 0) + ' cm quiet zone at ' + num(g.fLoGHz, 0) + ' GHz. Calibrating ' +
+      g.nElem + ' channels through that is a research problem of its own, not a step in a plan.');
+
+    if (periodic) {
+      out.push('### The architecture question this raises');
+      out.push('With ' + g.nElem + ' channels hard-capped by the die inventory, the axis of choice is ' +
+        'what each channel\'s *radiator* looks like — and peak directivity N·D_el does not distinguish ' +
+        'the options. Four self-consistent answers:');
+      out.push('1. **Periodic, small elements** (this configuration). ' + num(b.m.hpbwDeg, 3) +
+        '° beam, ' + num(g.dArrayDbi, 1) + ' dBi, ' + g.lobeCount + ' grating lobes, worst ' +
+        (worst ? num(worst.relDb, 2) : '?') + ' dB — and when scanned the strongest lobe in the ' +
+        'pattern need not be the intended one. Angularly ambiguous ' + (g.lobeCount + 1) + ' ways. ' +
+        'Defensible as an LO/baseband coherence testbed against a cooperative source at a known angle; ' +
+        'not defensible as an array.');
+      out.push('2. **Aperiodic / thinned over the same aperture.** Same beamwidth, same ' +
+        num(g.dArrayDbi, 1) + ' dBi — aperiodicity costs no gain — no grating lobes, and a pedestal at ' +
+        num(g.thinnedFloorDb, 1) + ' dB mean / ' + num(g.thinnedPeakDb, 1) + ' dB expected peak. ' +
+        'Needs ' + num(g.thinNeedRmsMm, 1) + ' mm RMS position randomisation that does *not* repeat ' +
+        'tile to tile, so tiles stop being identical and per-element calibration becomes mandatory. ' +
+        'That raises the calibration bandwidth and stability requirement on exactly the distribution ' +
+        'network this thesis is about.');
+      out.push('3. **One passive cell-filling subarray per channel** (the *nulled* element option). ' +
+        'Its nulls land on the reciprocal lattice, i.e. on every grating lobe, and it recovers the ' +
+        'element/cell gap up to ' + num(g.dCellDbi, 1) + ' dBi per element. 2 GHz is only ' +
+        num(g.rfBwGHz / g.fLoGHz * 100, 1) + '% fractional bandwidth, so a narrowband passive subarray ' +
+        'is easy. But the nulls sit on the lobes only at broadside, and the element rolls off fastest ' +
+        'along the *long* cell axis (about 3 dB at 5° for a ' + num(Math.max(g.elemDxCm, g.elemDyCm), 0) +
+        ' cm side, against 0.8 dB along the short one), so this is a broadside-to-a-few-degrees ' +
+        'instrument. Select it and steer away from broadside to watch a grating lobe overtake the beam ' +
+        'by more than 10 dB. It is also what the *first* version of this model was accidentally ' +
+        'describing — which is why its answer looked so good.');
+      out.push('4. **Compact filled λ/2 array of the same ' + g.nElem + ' elements.** ' +
+        num(Math.sqrt(g.nElem) * g.lambdaM * 50, 1) + ' × ' + num(Math.sqrt(g.nElem) * g.lambdaM * 50, 1) +
+        ' cm aperture, a ' + num(0.886 * g.lambdaM / (Math.sqrt(g.nElem) * g.lambdaM / 2) * 180 / Math.PI, 1) +
+        '° beam, the **same** ' + num(g.dArrayDbi, 1) + ' dBi, no grating lobes, full scan. That is the ' +
+        'punchline worth stating plainly: spreading ' + g.nElem + ' channels over ' +
+        num(g.effApertureCm, 0) + ' cm buys angular *resolution* and buys zero gain.');
+      out.push('So the ' + num(g.effApertureCm, 0) + ' cm panel is not justified by array performance; ' +
+        'it is justified by the research question, which is LO and baseband distribution over a ' +
+        num(g.effApertureCm, 0) + ' cm baseline. The deliverable should be labelled a **sparse / ' +
+        'thinned interferometric aperture** and scored with sparse-array metrics — grating-lobe or ' +
+        'pedestal level, ambiguity count, PSF sidelobe statistics, G/T — rather than with ' +
+        '"full-aperture beamwidth plus −13.26 dB uniform SLL", which is the one figure of merit it does ' +
+        'not earn.');
+    }
+
+    if (off > 0) {
+      out.push('!!! info ' + off + ' of the ' + g.lobeCount + ' grating lobes lie in neither principal ' +
+        'plane and appear in neither cut on this page. The (u,v) map is the only place they are visible.');
+    }
+    return out.join('\n');
+  }
+
+  window.Content = { METHOD: METHOD, HONESTY: HONESTY, beamCaveats: beamCaveats };
 })();

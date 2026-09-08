@@ -237,6 +237,22 @@
     t.push('- **Whether nulling is actually required.** The whole coherence argument rests on null depth and spatial ' +
       'multiplexing. If the demonstration only needs a single high-gain beam with sub-degree pointing, the gain-loss ' +
       'criterion applies instead, every option passes with margin, and A1 wins on modularity and board simplicity.');
+    if (Math.round(g.latticePeriodic) === 1 && g.lobeCount > 0) {
+      t.push('- **The antenna lattice, which decides whether any of this is the binding metric.** At the current ' +
+        'geometry the element lattice puts `' + g.lobeCount + '` grating lobes inside the horizon and the binding ' +
+        'one is only `' + n(-g.gratingSuppDb, 2) + ' dB` below the main beam, against the `' +
+        n(budget.nullFloorDb, 1) + ' dB` coherence floor this whole comparison is judged on. On a ' +
+        '**periodic** lattice the null-depth floor is therefore ' +
+        'not what limits the array — the coherence argument becomes decisive only once the lattice is made ' +
+        'aperiodic, and that ordering has to be stated before the floor is quoted. Making it aperiodic costs no ' +
+        'gain but forces non-identical tiles and mandatory per-element calibration, which raises the requirement on ' +
+        'this very distribution network. See the Beam view.');
+    }
+    t.push('- **The coarse TTD step, which is set by the quantisation lobe and not by the squint loss.** The ' +
+      'quantisation residual is deterministic, exactly zero at broadside, and common to a whole tile column when ' +
+      'scanning in one plane, so it averages by the 1-D tile count and scatters into the scan plane as a discrete ' +
+      'lobe. At `' + g.ttdStepPs + ' ps` that lobe is tens of dB above everything else in the error budget at the ' +
+      'band edges, while the loss criterion says the step is nearly free. Specify the LSB against the lobe.');
 
     t.push('### Open questions to close before tape-out');
     t.push('1. Measure the correlated/uncorrelated split of the tile PLL in-band noise. This single number reorders the ranking.');

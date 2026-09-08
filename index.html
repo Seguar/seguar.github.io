@@ -197,13 +197,28 @@
           </div>
         </section>
         <section class="panel">
-          <h2>Full hemisphere <span class="tag">where the sparse lattice shows</span>
+          <h2>Grating-lobe map <span class="tag">the whole 2-D set</span>
+            <span class="grow" id="beamLobeHdr"></span></h2>
+          <div class="chartgrid">
+            <div id="beamUvMount"></div>
+            <div class="tscroll" id="beamLobeTableMount"></div>
+          </div>
+          <div class="body"><p class="note" id="beamLobeNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>In-tile lattice <span class="tag">8 elements per tile does not mean 4&times;2</span>
+            <span class="grow" id="beamLatHdr"></span></h2>
+          <div class="tscroll" id="beamLatTableMount"></div>
+          <div class="body"><p class="note" id="beamLatNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>Full hemisphere <span class="tag">both principal planes</span>
             <span class="grow" id="beamWideHdr"></span></h2>
           <div id="beamWideMount"></div>
           <div class="body"><p class="note" id="beamWideNote"></p></div>
         </section>
         <section class="panel">
-          <h2>Main beam, zoomed <span class="tag">TX vs RX</span></h2>
+          <h2>Main beam, zoomed <span class="tag">mean pattern vs one realisation</span></h2>
           <div id="beamCutMount"></div>
           <div class="body"><p class="note" id="beamCutNote"></p></div>
         </section>
@@ -212,6 +227,10 @@
             <span class="grow">phase-steered subarray against a delay-steered tile grid</span></h2>
           <div id="beamSquintMount"></div>
           <div class="body"><p class="note" id="beamSquintNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>What this pattern does not include <span class="tag">read before quoting a number</span></h2>
+          <div class="body"><div class="prose" id="beamCaveats"></div></div>
         </section>
       </div>
 
@@ -281,6 +300,7 @@
 <script src="js/export.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/kernels.js"></script>
+<script src="js/lattice.js"></script>
 <script src="js/topology.js"></script>
 <script src="js/model.js"></script>
 <script src="js/budget.js"></script>

@@ -1,40 +1,69 @@
 /* ============================================================================
    beam.js — what the beam actually looks like with the chosen architecture.
 
-   THE GEOMETRY IS IN THE EQUATIONS. An earlier version modelled each tile as
-   a uniformly illuminated CONTINUOUS aperture the size of the tile pitch.
-   That is the pattern of a *filled* subarray, and this array is nothing like
-   filled: a 4 cm tile carries 8 radiators where a filled tile at lambda/2
-   would need about 441. Because the assumed subarray width equalled the tile
-   pitch exactly, its sinc nulls landed precisely on the tile-grid grating
-   lobes and cancelled them — the correct result for contiguous filled
-   subarrays, and completely wrong here. The model was assuming away the
-   grating lobes the real array has.
+   THE GEOMETRY IS IN THE EQUATIONS. Three successive versions of this file
+   got it wrong in three different ways, and all three defects are now gone:
 
-   The corrected pattern is three factors, built from the real lattice:
+   1. The first modelled each tile as a uniformly illuminated CONTINUOUS
+      aperture the size of the tile pitch. That is a *filled* subarray, and
+      because its sinc nulls landed exactly on the tile-grid grating lobes it
+      cancelled them — the right answer for contiguous filled subarrays, and
+      completely wrong for 8 radiators in a 4 cm tile (a filled tile at
+      lambda/2 needs 433). It was assuming away the grating lobes the real
+      array has, and simultaneously assuming 100% aperture efficiency: the
+      same defect seen in pattern space and in gain space.
 
-       element pattern  x  intra-tile array factor  x  tile-grid array factor
+   2. The second used the real lattice but only ONE axis of it. It reported
+      the first grating lobe as asin(lambda/dx) = 22.60 deg at -0.34 dB and
+      missed the binding lobe entirely: dy = 2 cm puts one at 11.08 deg,
+      suppressed by 0.08 dB. It also could not see the other 40 — this
+      lattice puts pi*A_cell/lambda^2 = 42 grating lobes in visible space,
+      most of them in neither principal plane. Lobes now come from the 2-D
+      reciprocal lattice (lattice.js) and are reported by LEVEL, not by which
+      axis they happen to sit on.
 
-   with the intra-tile factor steered CHROMATICALLY (elements are baseband
-   phase shifted, correct only at band centre) and the tile-grid factor
-   steered ACHROMATICALLY (tiles carry coarse true time delay). Pattern
-   multiplication is legitimate because every tile is identical.
+   3. The second also added error power as a single flat term
+      var_tile/N_tiles + var_elem/N_elem at every angle. That creates power:
+      the tile-error scatter is not flat, it carries the tile's own pattern
+      |S(u)|^2, so radiating it flat at its PEAK level puts 10log10(8) = 9 dB
+      too much scattered power into the hemisphere. The exact mean pattern
+      for hierarchically grouped errors is used instead:
 
-   Consistency: at band centre both steer alike and AF(4, 1 cm) x AF(7, 4 cm)
-   collapses exactly to AF(28, 1 cm), so the full-aperture beamwidth
-   0.886*lambda/(D cos theta) and the -13.26 dB uniform first sidelobe are
-   preserved — the previously validated results are not regressed.
+        E|AF|^2 = e1*|AF_0|^2 + (e2-e1)*N_t|S_t|^2
+                             + (e3-e2)*N_d|S_d|^2 + ((1+sA^2)-e3)*N_e
 
-   ABSOLUTE GAIN is reported, not only a peak-normalised shape. A sparse array
-   keeps the BEAMWIDTH of its aperture but only the GAIN of its element count,
-   and the difference goes into sidelobes. Here that gap is ~16 dB, larger
-   than every error effect in the tool, and a peak-normalised plot hides it.
+      with e1 = exp(-(sT^2+sD^2+sE^2)) <= e2 = exp(-(sD^2+sE^2))
+             <= e3 = exp(-sE^2) <= 1+sA^2, so every coefficient is
+      non-negative, and integrating against the element pattern returns
+      exactly N_e(1+sA^2) — power is conserved by construction, and the
+      "floor" is correctly several dB higher near the beam and at the
+      intra-tile comb angles than it is between them. Both are reported.
 
-   ERRORS use per-class group counts. The LO residual is common to the
-   elements of a tile (N = tiles) while amplitude spread and phase-shifter
-   quantisation are per element (N = elements). Dividing both by the tile
-   count — as an earlier version did — overstates the amplitude contribution
-   by 10log10(elements/tiles) and inverts which error class dominates.
+   4. TTD quantisation was applied as a random variance, and that variance
+      was wrong: budget.js already returns step/sqrt(12), an RMS, and this
+      file then divided its square by a further 3 — understating the term by
+      4.77 dB. It is not random anyway. The commanded delays are a ramp in
+      tile index, so the residual e_t = step*round(tau_t/step) - tau_t is a
+      deterministic rounding sequence: exactly zero at broadside, periodic at
+      commensurate scan angles (where it makes a discrete quantisation lobe
+      several dB above any variance estimate) and equidistributed elsewhere.
+      It is now computed exactly and carried in the coherent field, and the
+      worst case is found by sweeping the commanded angle. Scanning in the
+      phi = 0 plane it is also common to a whole tile COLUMN, so it averages
+      by the 1-D tile count and scatters into the scan plane.
+
+   Pattern factorisation is used only where it is legitimate. The ideal
+   excitation is progressive, so intra-tile x tile-grid is exact, and at band
+   centre AF(4,1cm) x AF(7,4cm) collapses to AF(28,1cm) — the full-aperture
+   beamwidth and the -13.26 dB uniform first sidelobe are preserved. Errors
+   are not progressive, so they are handled by the exact grouped-error mean
+   above, and a seeded Monte-Carlo REALISATION is drawn alongside it, because
+   a mean pattern can never show a null filling in at a specific angle and
+   systematically understates the peak error sidelobe (by 10log10(ln(2L/lam))
+   = 7.0 dB here).
+
+   ABSOLUTE GAIN is reported, with directivity kept separate from realised
+   gain.
 
    Exposes window.Beam.
    ========================================================================= */
@@ -45,133 +74,243 @@
 
   function ampSigma(dbRms) { return Math.log(10) / 20 * dbRms; }
 
-  /* Element power pattern cos^n(theta) over the forward hemisphere. For a
-     cos^n power pattern the directivity is 2(n+1), so n follows from the
-     element directivity: 6 dBi -> n = 10^0.6/2 - 1 = 0.99. Returned as
-     POWER, since that is how it enters every term. */
-  function elemPow(sinT, n) {
-    var c2 = 1 - sinT * sinT;
-    if (c2 <= 0) return 0;
-    return Math.pow(Math.sqrt(c2), n);
+  /* deterministic PRNG, so a realisation does not flicker on every
+     re-render and can be quoted */
+  function rng(seed) {
+    var s = (seed >>> 0) || 1;
+    return function () {
+      s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
+      return s / 4294967296;
+    };
   }
-
-  /* Voltage array factor of N equally spaced elements at pitch d, steered to
-     steerSin. Dirichlet kernel, normalised to 1 at its peak. This is where
-     grating lobes come from: it returns to full amplitude whenever
-     (d/lambda)(sinT - steerSin) is an integer. */
-  function afV(N, d, lam, sinT, steerSin) {
-    if (N <= 1) return 1;
-    var psi = Math.PI * d / lam * (sinT - steerSin);
-    var s = Math.sin(psi);
-    if (Math.abs(s) < 1e-12) return 1;
-    return Math.sin(N * psi) / (N * s);
-  }
-
-  /* Continuous uniformly illuminated aperture of width L — used only for the
-     aperiodic/thinned lattice, where the periodic structure is deliberately
-     broken and only the main lobe of the full aperture survives coherently. */
-  function apertureV(L, lam, sinT, steerSin) {
-    var x = Math.PI * L / lam * (sinT - steerSin);
-    return Math.abs(x) < 1e-9 ? 1 : Math.sin(x) / x;
+  function gauss(r) {
+    var u = Math.max(r(), 1e-12), v = r();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
 
   /* ---------------------------------------------------------------------
-     One principal-plane cut.
-     o: { nElemX, elemPerTileX, nTiles1D, elemDxM, tilePitchM, apertureM,
-          fHz, fCenterHz, scanDeg, elemPowExp, periodic,
-          sigTilePhaseDeg, sigElemPhaseDeg, sigAmpDb,
-          nTiles, nElem, ttdResidPs, degMin, degMax, points }
-     Returns dB relative to the error-free peak, plus the absolute chain.
+     Everything about the array that depends on neither frequency nor angle.
      ------------------------------------------------------------------- */
-  function cut(o) {
-    var lam = K.C0 / o.fHz;
-    var s0 = Math.sin(K.deg2rad(o.scanDeg));
-    /* elements inside a tile are phase-steered at band centre, so their beam
-       walks as fc/f; the tile grid is delay-steered and stays put */
-    var sIntra = s0 * (o.fCenterHz / o.fHz);
+  function ctxOf(g) {
+    var p = g.tileCm / 100;
+    var Nt1 = Math.max(1, Math.round(g.tileCols));
+    var offs = (g.latOffsetsCm || [[0, 0]]).map(function (o) { return [o[0] / 100, o[1] / 100]; });
+    var u0 = Math.sin(K.deg2rad(g.beamScanDeg));
 
-    /* TTD quantisation survives only as its frequency-dependent part: at band
-       centre the per-tile phase shifter absorbs the fixed offset. */
-    var ttdPhi = 2 * Math.PI * (o.fHz - o.fCenterHz) * (o.ttdResidPs || 0) * 1e-12;
-
-    var sigT = K.deg2rad(o.sigTilePhaseDeg || 0);
-    var sigE = K.deg2rad(o.sigElemPhaseDeg || 0);
-    var sigA = ampSigma(o.sigAmpDb || 0);
-    /* the TTD residual is a per-tile error, like the LO residual */
-    var varTile = sigT * sigT + ttdPhi * ttdPhi / 3;
-    var varElem = sigE * sigE + sigA * sigA;
-    var coh = Math.exp(-(varTile + varElem));
-    /* scattered power reappears spread over the pattern, and each class is
-       divided by ITS OWN number of independent groups */
-    var diffuse = varTile / Math.max(o.nTiles, 1) + varElem / Math.max(o.nElem, 1);
-
-    var d0 = o.degMin === undefined ? -90 : o.degMin;
-    var d1 = o.degMax === undefined ? 90 : o.degMax;
-    var n = o.points || 1601;
-    var pts = [];
-    for (var i = 0; i < n; i++) {
-      var deg = d0 + (d1 - d0) * i / (n - 1);
-      var sinT = Math.sin(K.deg2rad(deg));
-      var ep = elemPow(sinT, o.elemPowExp);
-      var afTot;
-      if (o.periodic) {
-        afTot = afV(o.elemPerTileX, o.elemDxM, lam, sinT, sIntra) *
-                afV(o.nTiles1D, o.tilePitchM, lam, sinT, s0);
-      } else {
-        /* aperiodic: the lattice is deliberately non-periodic, so the discrete
-           grating lobes break up. Only the full-aperture main lobe survives
-           coherently; the rest lands in a roughly uniform floor near 1/N. */
-        afTot = apertureV(o.apertureM, lam, sinT, s0);
-      }
-      var pCoh = ep * afTot * afTot;
-      var thinFloor = o.periodic ? 0 : ep / Math.max(o.nElem, 1);
-      pts.push({
-        deg: deg,
-        ideal: 10 * Math.log10(Math.max(pCoh + thinFloor, 1e-14)),
-        real: 10 * Math.log10(Math.max(pCoh * coh + ep * diffuse + thinFloor, 1e-14))
-      });
+    /* per-COLUMN TTD quantisation residual, computed exactly */
+    var stepS = Math.max(g.ttdStepPs || 0, 0) * 1e-12;
+    var e = [], eMaxPs = 0;
+    for (var t = 0; t < Nt1; t++) {
+      var tau = p * t * u0 / K.C0;
+      var q = stepS > 0 ? stepS * Math.round(tau / stepS) - tau : 0;
+      e.push(q);
+      eMaxPs = Math.max(eMaxPs, Math.abs(q) * 1e12);
     }
+
+    /* die grouping: contiguous groups of the sorted in-tile offsets, which
+       for the rectangular lattice is one row per die */
+    var nDie = Math.max(1, Math.round(g.diesPerTile || 1));
+    var per = Math.max(1, Math.round(offs.length / nDie));
     return {
-      points: pts, coh: coh, diffuse: diffuse,
-      diffuseDb: 10 * Math.log10(Math.max(diffuse, 1e-14)),
-      varTile: varTile, varElem: varElem,
-      ruzeLossDb: -10 * Math.log10(coh)
+      p: p, Nt1: Nt1, Nt: Nt1 * Nt1, offs: offs, dieOffs: offs.slice(0, per),
+      M: offs.length, Md: per, nDiePerTile: nDie,
+      Nd: Nt1 * Nt1 * nDie, Ne: Nt1 * Nt1 * offs.length,
+      u0: u0, v0: 0, fc: g.fLoHz, e: e, eMaxPs: eMaxPs, stepS: stepS,
+      elem: g.elem, periodic: Math.round(g.latticePeriodic) === 1,
+      apertureM: g.effApertureM, lamC: K.C0 / g.fLoHz
     };
   }
 
-  /* Angles where grating lobes actually land when the beam is steered:
-     sin(theta_g) = sin(theta_0) + m*lambda/dx, for every m that stays in
-     visible space. NOT scanDeg +/- the broadside angle — that small-angle
-     shortcut put them tens of degrees wrong at 30 deg of scan. */
-  function gratingAngles(scanDeg, deltaSin) {
-    var out = [];
-    if (!(deltaSin > 0) || !isFinite(deltaSin)) return out;
-    var s0 = Math.sin(K.deg2rad(scanDeg));
-    for (var m = -12; m <= 12; m++) {
-      if (m === 0) continue;
-      var s = s0 + m * deltaSin;
-      if (Math.abs(s) <= 1) out.push(Math.asin(s) * K.DEG);
+  /* Coherent geometry at one (u,v) and frequency: the squared magnitudes the
+     mean-pattern formula needs. */
+  function geomAt(c, f, u, v) {
+    var k = 2 * Math.PI * f / K.C0, rho = c.fc / f;
+    var ur = u - rho * c.u0, vr = v - rho * c.v0;
+    var ar = 0, ai = 0, dr = 0, di = 0, i, ph;
+    for (i = 0; i < c.offs.length; i++) {
+      ph = k * (c.offs[i][0] * ur + c.offs[i][1] * vr);
+      ar += Math.cos(ph); ai += Math.sin(ph);
+      if (i < c.dieOffs.length) { dr += Math.cos(ph); di += Math.sin(ph); }
+    }
+    var xr = 0, xi = 0, w = 2 * Math.PI * (f - c.fc);
+    for (i = 0; i < c.Nt1; i++) {
+      ph = k * c.p * i * (u - c.u0) - w * c.e[i];
+      xr += Math.cos(ph); xi += Math.sin(ph);
+    }
+    var yr = 0, yi = 0;
+    for (i = 0; i < c.Nt1; i++) {
+      ph = k * c.p * i * (v - c.v0);
+      yr += Math.cos(ph); yi += Math.sin(ph);
+    }
+    var ss = ar * ar + ai * ai, ds = dr * dr + di * di;
+    var gs = (xr * xr + xi * xi) * (yr * yr + yi * yi);
+    return { af0: ss * gs, ss: ss, ds: ds, ep: c.elem.powAt(u, v) };
+  }
+
+  /* One aperiodic-lattice point. The periodicity is deliberately broken, so
+     only the full-aperture main lobe survives coherently and the rest lands
+     in a floor near 1/N — mean 1/N, expected PEAK higher by
+     10log10(ln(2L/lambda)). */
+  function geomAperiodic(c, f, u, v) {
+    var lam = K.C0 / f;
+    var x = Math.PI * c.apertureM / lam * (u - c.u0);
+    var y = Math.PI * c.apertureM / lam * (v - c.v0);
+    var sx = Math.abs(x) < 1e-9 ? 1 : Math.sin(x) / x;
+    var sy = Math.abs(y) < 1e-9 ? 1 : Math.sin(y) / y;
+    var a = sx * sy * c.Ne;
+    return { af0: a * a, ss: c.M, ds: c.Md, ep: c.elem.powAt(u, v), thin: c.Ne };
+  }
+
+  /* Geometry along one cut in the plane phi. */
+  function geomCut(c, f, phiDeg, d0, d1, npts) {
+    var cp = Math.cos(K.deg2rad(phiDeg)), sp = Math.sin(K.deg2rad(phiDeg));
+    var n = npts || 1601, out = [];
+    for (var i = 0; i < n; i++) {
+      var deg = d0 + (d1 - d0) * i / (n - 1);
+      var s = Math.sin(K.deg2rad(deg));
+      var q = c.periodic ? geomAt(c, f, s * cp, s * sp) : geomAperiodic(c, f, s * cp, s * sp);
+      q.deg = deg;
+      out.push(q);
     }
     return out;
   }
 
-  /* Metrics read off a cut.
-     The main beam is measured at the INTENDED direction, not at the global
-     maximum: on a coarse periodic lattice a grating lobe can outrank the
-     intended beam, and a naive peak-finder then reports the pattern as
-     pointing tens of degrees away with a huge "pointing error". Both are
-     reported, plus a flag for whether the intended beam is actually the
-     strongest thing in the hemisphere. */
-  function metrics(res, scanDeg, deltaSin) {
-    var pts = res.points;
+  /* ---------------------------------------------------------------------
+     One error set. TX and RX differ only in amplitude spread, so the
+     geometry is computed once and used twice.
+     ------------------------------------------------------------------- */
+  function errorSet(c, err) {
+    var sT = K.deg2rad(err.sigTileDeg || 0), sD = K.deg2rad(err.sigDieDeg || 0);
+    var sE = K.deg2rad(err.sigElemDeg || 0), sA = ampSigma(err.sigAmpDb || 0);
+    var vT = sT * sT, vD = sD * sD, vE = sE * sE, vA = sA * sA;
+    var e1 = Math.exp(-(vT + vD + vE)), e2 = Math.exp(-(vD + vE)), e3 = Math.exp(-vE);
+    var cT = (e2 - e1) * c.Nt, cD = (e3 - e2) * c.Nd, cE = (1 + vA - e3) * c.Ne;
+    var n2 = c.Ne * c.Ne;
+    return {
+      vT: vT, vD: vD, vE: vE, vA: vA, e1: e1, e2: e2, e3: e3,
+      cT: cT, cD: cD, cE: cE,
+      /* the floor where the tile pattern peaks — main beam and the intra-tile
+         comb angles — and the floor between those, where |S|^2 falls to its
+         angle average. Both relative to the error-free peak Ne^2. */
+      floorNearDb: 10 * Math.log10(Math.max(
+        (cT * c.M * c.M + cD * c.Md * c.Md + cE) / n2, 1e-16)),
+      floorFarDb: 10 * Math.log10(Math.max(
+        (cT * c.M + cD * c.Md + cE) / n2, 1e-16))
+    };
+  }
 
-    /* global maximum */
-    var peak = -Infinity, pi = 0;
-    for (var i = 0; i < pts.length; i++) if (pts[i].real > peak) { peak = pts[i].real; pi = i; }
+  /* Peak-normalised dB traces from geometry + errors. */
+  function pattern(c, geom, es, peakRef) {
+    var pts = [];
+    for (var i = 0; i < geom.length; i++) {
+      var q = geom[i];
+      var scat = es.cT * q.ss + es.cD * q.ds + es.cE + (q.thin || 0);
+      pts.push({
+        deg: q.deg,
+        ideal: 10 * Math.log10(Math.max(q.ep * (q.af0 + (q.thin || 0)) / peakRef, 1e-16)),
+        real: 10 * Math.log10(Math.max(q.ep * (es.e1 * q.af0 + scat) / peakRef, 1e-16))
+      });
+    }
+    return pts;
+  }
 
-    /* the local maximum nearest the intended direction = the main beam */
-    var mi = 0, bestD = Infinity;
-    for (var k = 0; k < pts.length; k++) {
+  /* ---------------------------------------------------------------------
+     A seeded REALISATION: one draw of the random errors, summed element by
+     element. This is what a mean pattern cannot show — nulls fill in at
+     specific angles, and the peak error sidelobe runs about 7 dB above the
+     mean floor. TX only, on the zoomed cut, to keep it cheap.
+     ------------------------------------------------------------------- */
+  function realise(c, f, phiDeg, d0, d1, npts, err, seed) {
+    var r = rng(seed || 12345);
+    var sT = K.deg2rad(err.sigTileDeg || 0), sD = K.deg2rad(err.sigDieDeg || 0);
+    var sE = K.deg2rad(err.sigElemDeg || 0), sA = ampSigma(err.sigAmpDb || 0);
+    var ox = [], oy = [], tX = [], tY = [], ph = [], am = [];
+    var w = 2 * Math.PI * (f - c.fc);
+    for (var tx = 0; tx < c.Nt1; tx++) {
+      for (var ty = 0; ty < c.Nt1; ty++) {
+        var pt = gauss(r) * sT;
+        var pd = [];
+        for (var d = 0; d < c.nDiePerTile; d++) pd.push(gauss(r) * sD);
+        for (var m = 0; m < c.M; m++) {
+          ox.push(c.offs[m][0]); oy.push(c.offs[m][1]);
+          tX.push(tx * c.p); tY.push(ty * c.p);
+          ph.push(pt + pd[Math.min(pd.length - 1, Math.floor(m / Math.max(c.Md, 1)))] +
+                  gauss(r) * sE - w * c.e[tx]);
+          am.push(1 + gauss(r) * sA);
+        }
+      }
+    }
+    var cp = Math.cos(K.deg2rad(phiDeg)), sp = Math.sin(K.deg2rad(phiDeg));
+    var k = 2 * Math.PI * f / K.C0, rho = c.fc / f, out = [];
+    for (var i = 0; i < npts; i++) {
+      var deg = d0 + (d1 - d0) * i / (npts - 1);
+      var s = Math.sin(K.deg2rad(deg));
+      var u = s * cp, v = s * sp;
+      /* offsets are phase-steered at fc (chromatic); tiles are delay-steered
+         (achromatic) */
+      var uo = u - rho * c.u0, vo = v - rho * c.v0, ut = u - c.u0, vt = v - c.v0;
+      var re = 0, im = 0;
+      for (var j = 0; j < ox.length; j++) {
+        var q = k * (ox[j] * uo + oy[j] * vo + tX[j] * ut + tY[j] * vt) + ph[j];
+        re += am[j] * Math.cos(q); im += am[j] * Math.sin(q);
+      }
+      out.push({ deg: deg, p: c.elem.powAt(u, v) * (re * re + im * im) });
+    }
+    return out;
+  }
+
+  /* ---------------------------------------------------------------------
+     Deterministic TTD-quantisation sweep: the peak scattered lobe over the
+     commanded-angle grid at band edge, its level at the current angle, and
+     the angle-averaged variance proxy that understates both.
+     ------------------------------------------------------------------- */
+  function ttdSweep(g, c, fEdge) {
+    var stepS = c.stepS, p = c.p, N = c.Nt1;
+    if (!(stepS > 0) || N < 2) return null;
+    var w = 2 * Math.PI * (fEdge - c.fc);
+    var best = { db: -Infinity, scanDeg: NaN }, atCur = -Infinity;
+    var maxScan = Math.max(Math.abs(g.scanDegMax || 60), Math.abs(g.beamScanDeg));
+    for (var sd = 0; sd <= maxScan + 1e-9; sd += 0.25) {
+      var u0 = Math.sin(K.deg2rad(sd)), dpsi = [], mean = 0, t;
+      for (t = 0; t < N; t++) {
+        var tau = p * t * u0 / K.C0;
+        dpsi.push(-w * (stepS * Math.round(tau / stepS) - tau));
+        mean += dpsi[t];
+      }
+      mean /= N;
+      /* the common part is a harmless global phase; scattered power is what
+         is left after removing it */
+      var peak = 0;
+      for (var iu = 0; iu <= 360; iu++) {
+        var du = -2 + 4 * iu / 360;
+        var re = 0, im = 0;
+        for (t = 0; t < N; t++) {
+          var a = 2 * Math.PI * p * t * du / c.lamC;
+          re += (dpsi[t] - mean) * Math.cos(a);
+          im += (dpsi[t] - mean) * Math.sin(a);
+        }
+        peak = Math.max(peak, (re * re + im * im) / (N * N));
+      }
+      var db = 10 * Math.log10(Math.max(peak, 1e-18));
+      if (db > best.db) best = { db: db, scanDeg: sd };
+      if (Math.abs(sd - Math.abs(g.beamScanDeg)) < 0.13) atCur = db;
+    }
+    var rms = w * stepS / Math.sqrt(12);
+    return {
+      worstDb: best.db, worstScanDeg: best.scanDeg, atScanDb: atCur,
+      proxyDb: 10 * Math.log10(Math.max(rms * rms / N, 1e-18)),
+      proxyRmsDeg: rms * K.DEG, peakResidPs: c.eMaxPs, stepPs: stepS * 1e12
+    };
+  }
+
+  /* ---------------------------------------------------------------------
+     Metrics read off a cut. HPBW and taper sidelobes come from the sampled
+     trace; grating lobes come from the analytic 2-D lattice, because a
+     sampled principal-plane cut cannot see a lobe off the plane.
+     ------------------------------------------------------------------- */
+  function metrics(pts, scanDeg, lobeTable) {
+    var mi = 0, bestD = Infinity, k;
+    for (k = 0; k < pts.length; k++) {
       var d = Math.abs(pts[k].deg - scanDeg);
       if (d < bestD) { bestD = d; mi = k; }
     }
@@ -185,119 +324,181 @@
     var resolved = pts[lo].real <= main - 3 && pts[hi].real <= main - 3;
     var hpbw = resolved ? pts[hi].deg - pts[lo].deg : NaN;
 
-    /* classify every lobe outside the main beam: is it near a predicted
-       grating angle, or is it an ordinary taper sidelobe? */
-    var gAng = gratingAngles(scanDeg, deltaSin);
-    var tolerance = Math.max(1.5, (hpbw || 1) * 1.5);
-    var sll = -Infinity, gl = -Infinity, glDeg = NaN;
+    var peak = -Infinity, pk = 0;
+    for (k = 0; k < pts.length; k++) if (pts[k].real > peak) { peak = pts[k].real; pk = k; }
+
+    var sll = -Infinity, sllDeg = NaN;
     for (var j = 1; j < pts.length - 1; j++) {
       if (j >= lo - 1 && j <= hi + 1) continue;
       if (!(pts[j].real >= pts[j - 1].real && pts[j].real >= pts[j + 1].real)) continue;
-      var isGrating = false;
-      for (var q = 0; q < gAng.length; q++) {
-        if (Math.abs(pts[j].deg - gAng[q]) < tolerance) { isGrating = true; break; }
+      var isG = false;
+      for (var q = 0; q < (lobeTable || []).length; q++) {
+        if (Math.abs(Math.sin(K.deg2rad(pts[j].deg)) - lobeTable[q].u) < 0.02) { isG = true; break; }
       }
-      if (isGrating) {
-        if (pts[j].real > gl) { gl = pts[j].real; glDeg = pts[j].deg; }
-      } else if (pts[j].real > sll) sll = pts[j].real;
+      if (isG) continue;
+      if (pts[j].real > sll) { sll = pts[j].real; sllDeg = pts[j].deg; }
     }
 
+    var gl = (lobeTable && lobeTable.length) ? lobeTable[0] : null;
     return {
-      mainDb: main, mainAtDeg: pts[mi].deg,
-      pointErrDeg: pts[mi].deg - scanDeg,
-      peakDb: peak, peakAtDeg: pts[pi].deg,
-      /* is the intended beam the strongest lobe in the hemisphere? */
-      beamIsPeak: Math.abs(pts[pi].deg - pts[mi].deg) < Math.max(1, (hpbw || 1)),
-      peakExcessDb: peak - main,
+      mainDb: main, mainAtDeg: pts[mi].deg, pointErrDeg: pts[mi].deg - scanDeg,
       hpbwDeg: hpbw, hpbwResolved: resolved,
-      sllDb: isFinite(sll) ? sll - main : NaN,
-      gratingDb: isFinite(gl) ? gl - main : NaN,
-      gratingAtDeg: glDeg,
-      gratingAngles: gAng,
-      floorDb: res.diffuseDb - main
+      sllDb: isFinite(sll) ? sll - main : NaN, sllAtDeg: sllDeg,
+      peakDb: peak, peakAtDeg: pts[pk].deg,
+      gratingDb: gl ? gl.relDb : NaN,
+      gratingAtDeg: gl ? gl.thetaDeg : NaN,
+      gratingPhiDeg: gl ? gl.phiDeg : NaN,
+      beamIsPeak: !gl || gl.relDb < 0
     };
   }
 
   /* ---------------------------------------------------------------------
-     Everything the Beam view needs for one direction.
+     Everything the Beam view needs, for both directions at once.
      ------------------------------------------------------------------- */
-  function evaluate(g, budget, loRes, bbRes, dir) {
+  function evaluate(g, budget, loRes, bbRes) {
     var fc = g.fLoHz, B = g.rfBwGHz * 1e9;
+    var c = ctxOf(g);
 
-    /* per-TILE phase error: the LO residual is common to a tile's elements */
+    /* ---- the error partition, on which the headline depends ----
+       per-TILE: the LO residual is common to a tile's elements.
+       per-DIE:  die-common LO drift left after per-element calibration.
+       per-ELEMENT: phase-shifter quantisation, the baseband network's own
+       residual, and residual IQ imbalance — the last of which an earlier
+       version omitted, leaving the per-element phase term at quantisation
+       alone (1.62 deg at 6 bits, where 2-4 deg is realistic). */
     var sigTile = loRes.interTileResidualDeg;
-    /* per-ELEMENT phase error: baseband weight quantisation and the
-       baseband network's own residual, which act per channel */
-    var sigElem = K.rss(bbRes.interTileResidualDeg || 0, K.quantResidualDeg(g.phaseBits));
-    var sigAmpDb = dir === 'tx' ? g.txGainErrDb : g.rxGainErrDb;
+    var sigDie = g.sigDieDeg || 0;
+    var sigElem = K.rss(bbRes.interTileResidualDeg || 0,
+                        K.quantResidualDeg(g.phaseBits), g.iqPhaseDeg || 0);
+    var errTx = { sigTileDeg: sigTile, sigDieDeg: sigDie, sigElemDeg: sigElem, sigAmpDb: g.txGainErrDb };
+    var errRx = { sigTileDeg: sigTile, sigDieDeg: sigDie, sigElemDeg: sigElem, sigAmpDb: g.rxGainErrDb };
+    var esTx = errorSet(c, errTx), esRx = errorSet(c, errRx);
 
-    var common = {
-      nElemX: g.nElemX, elemPerTileX: g.elemPerTileX, nTiles1D: g.tileCols,
-      elemDxM: g.elemDxM, tilePitchM: g.tileCm / 100, apertureM: g.effApertureM,
-      fCenterHz: fc, scanDeg: g.beamScanDeg,
-      elemPowExp: g.elemPowExp, periodic: Math.round(g.latticePeriodic) === 1,
-      sigTilePhaseDeg: sigTile, sigElemPhaseDeg: sigElem, sigAmpDb: sigAmpDb,
-      nTiles: g.nTilesTotal, nElem: g.nElem,
-      ttdResidPs: budget.ttdResidPs
-    };
+    /* analytic grating-lobe table at the commanded angle, sorted by level */
+    var lobes = c.periodic
+      ? window.Lat.withLevels(
+          window.Lat.lobes(g.lat.b1, g.lat.b2, g.lamCm, c.u0, c.v0), c.elem, c.u0, c.v0)
+      : [];
 
-    /* zoomed window on the main beam, and a full hemisphere so the grating
-       lobes are actually visible — a 22 deg lobe falls far outside a
-       +/-6 beamwidth window, so the zoom alone would still hide it */
-    var lamC = K.C0 / fc;
-    var hpbwEst = 0.886 * lamC /
+    var hpbwEst = 0.886 * c.lamC /
       (g.effApertureM * Math.max(Math.cos(K.deg2rad(g.beamScanDeg)), 0.15)) * K.DEG;
     var win = Math.max(6 * hpbwEst, 4);
-
-    function at(fHz, dMin, dMax, npts) {
-      var o = {};
-      for (var k in common) o[k] = common[k];
-      o.fHz = fHz; o.degMin = dMin; o.degMax = dMax; o.points = npts;
-      return cut(o);
-    }
     var zLo = Math.max(-90, g.beamScanDeg - win), zHi = Math.min(90, g.beamScanDeg + win);
 
-    var centre = at(fc, zLo, zHi, 1601);
-    var lowEdge = at(fc - B / 2, zLo, zHi, 1601);
-    var highEdge = at(fc + B / 2, zLo, zHi, 1601);
-    var wide = at(fc, -90, 90, 3601);
+    /* peak reference: the error-free array at its intended direction */
+    var pk0 = c.periodic ? geomAt(c, fc, c.u0, c.v0) : geomAperiodic(c, fc, c.u0, c.v0);
+    var peakRef = pk0.ep * c.Ne * c.Ne;
 
-    var mC = metrics(centre, g.beamScanDeg, NaN);
-    var mW = metrics(wide, g.beamScanDeg, g.gratingDeltaSin);
+    var gZoom = geomCut(c, fc, 0, zLo, zHi, 1601);
+    var gLow = geomCut(c, fc - B / 2, 0, zLo, zHi, 1601);
+    var gHigh = geomCut(c, fc + B / 2, 0, zLo, zHi, 1601);
+    var gWide = geomCut(c, fc, 0, -90, 90, 2401);
+    var gWide90 = geomCut(c, fc, 90, -90, 90, 2401);
 
-    /* ---- absolute gain chain ----
-       For N elements of directivity D_el the array directivity scanned to
-       theta is N * D_el * cos^n(theta): the scan loss IS the element pattern,
-       so adding a projected-aperture cos(theta) term would double-count. */
-    var scanLossDb = -10 * Math.log10(Math.max(elemPow(Math.sin(K.deg2rad(g.beamScanDeg)), g.elemPowExp), 1e-9));
-    var realisedDbi = g.dArrayDbi - scanLossDb - centre.ruzeLossDb;
+    var tx = {
+      centre: pattern(c, gZoom, esTx, peakRef),
+      lowEdge: pattern(c, gLow, esTx, peakRef),
+      highEdge: pattern(c, gHigh, esTx, peakRef),
+      wide: pattern(c, gWide, esTx, peakRef),
+      wide90: pattern(c, gWide90, esTx, peakRef)
+    };
+    var rx = { centre: pattern(c, gZoom, esRx, peakRef), wide: pattern(c, gWide, esRx, peakRef) };
 
-    /* band-edge loss compares the MAIN beam at each frequency, not the global
-       peak - on a coarse lattice the global peak may be a grating lobe */
-    var mLo = metrics(lowEdge, g.beamScanDeg, NaN), mHi = metrics(highEdge, g.beamScanDeg, NaN);
-    var peakEdge = Math.max(mLo.mainDb, mHi.mainDb);
-    var peakCentre = mC.mainDb;
+    /* one realisation, TX, on the zoom */
+    var realPts = realise(c, fc, 0, zLo, zHi, 801, errTx, 20260908).map(function (q) {
+      return { deg: q.deg, real: 10 * Math.log10(Math.max(q.p / peakRef, 1e-16)) };
+    });
+
+    var mC = metrics(tx.centre, g.beamScanDeg, null);
+    var mW = metrics(tx.wide, g.beamScanDeg, lobes);
+    var mW90 = metrics(tx.wide90, g.beamScanDeg, null);
+    var mLo = metrics(tx.lowEdge, g.beamScanDeg, null);
+    var mHi = metrics(tx.highEdge, g.beamScanDeg, null);
+
+    /* Peak ERROR sidelobe on the realisation: measured only where the
+       error-free pattern is well below the floor, otherwise the answer is
+       just the -13 dB taper sidelobe and says nothing about the errors. The
+       realisation grid is a 2:1 decimation of the zoom grid, so indices
+       line up exactly. */
+    var realPeakSllDb = -Infinity, realPeakAtDeg = NaN;
+    var gate = esTx.floorFarDb + 6;
+    for (var i = 0; i < realPts.length; i++) {
+      if (tx.centre[2 * i].ideal > gate) continue;
+      if (realPts[i].real > realPeakSllDb) { realPeakSllDb = realPts[i].real; realPeakAtDeg = realPts[i].deg; }
+    }
+
+    /* ---- absolute chain ----
+       D_array = min(N*D_el, filled aperture): N*D_el holds only until the
+       element saturates its cell. The scan loss IS the element pattern, so
+       adding a projected-aperture cos(theta) on top would double-count. */
+    var scanLossDb = -10 * Math.log10(Math.max(c.elem.powAt(c.u0, c.v0), 1e-9));
+    /* coherent gain derate. Amplitude spread does not reduce the coherent
+       field at all (E[1+d] = 1); it raises total radiated power, so it
+       belongs in the denominator, not in the exponent. */
+    var pkTx = esTx.e1 * pk0.af0 + esTx.cT * pk0.ss + esTx.cD * pk0.ds + esTx.cE;
+    var cohLossDb = -10 * Math.log10((pkTx / (c.Ne * c.Ne)) / (1 + esTx.vA));
+    var realisedDbi = g.dArrayDbi - scanLossDb - cohLossDb - g.antLossDb;
+
+    /* ---- the two numbers that justify the LO/baseband partition ---- */
+    var sMax = Math.sin(K.deg2rad(g.scanDegMax));
+    var tauTilePs = g.tileCm / 100 * sMax / K.C0 * 1e12;
+    var tauApPs = g.effApertureM * sMax / K.C0 * 1e12;
+    /* the taper the tile's elements actually see spans the element CENTRES,
+       which is one pitch short of the tile pitch — computed from the real
+       offsets rather than from the pitch, so a sheared lattice is right too */
+    var spanXm = 0;
+    for (i = 0; i < c.offs.length; i++) spanXm = Math.max(spanXm, c.offs[i][0]);
+    var taperDeg = 360 * (B / 2) * spanXm * sMax / K.C0;
+    var tapLoss = (function () {
+      var re = 0, im = 0;
+      for (var q = 0; q < c.offs.length; q++) {
+        var a = 2 * Math.PI * (B / 2) * c.offs[q][0] * sMax / K.C0;
+        re += Math.cos(a); im += Math.sin(a);
+      }
+      return -10 * Math.log10((re * re + im * im) / (c.offs.length * c.offs.length));
+    })();
+    var bwU = 0.886 * c.lamC / g.effApertureM;
+    var squintBw = Math.abs(sMax) * (B / 2) / fc / bwU;
+    var ttd = ttdSweep(g, c, fc + B / 2);
+
+    /* random-error pointing jitter in u, so it can be dismissed with a
+       number: sigma_u = sqrt(3)*sigma_phi / (pi * (D/lambda) * sqrt(N)),
+       summed over the two grouping levels */
+    var jitU = Math.sqrt(3 * esTx.vT / Math.max(c.Nt, 1) + 3 * esTx.vE / Math.max(c.Ne, 1)) /
+      (Math.PI * g.effApertureM / c.lamC);
 
     return {
-      dir: dir,
-      sigTileDeg: sigTile, sigElemDeg: sigElem, sigAmpDb: sigAmpDb,
+      c: c, lobes: lobes, es: esTx, esRx: esRx,
+      sigTileDeg: sigTile, sigDieDeg: sigDie, sigElemDeg: sigElem,
+      sigAmpTxDb: g.txGainErrDb, sigAmpRxDb: g.rxGainErrDb,
       hpbwEstDeg: hpbwEst, winDeg: win,
-      centre: centre, lowEdge: lowEdge, highEdge: highEdge, wide: wide,
-      m: mC, mWide: mW,
-      ruzeLossDb: centre.ruzeLossDb,
-      scanLossDb: scanLossDb,
-      dFilledDbi: g.dFilledDbi, dArrayDbi: g.dArrayDbi,
-      thinningLossDb: g.thinningLossDb, realisedDbi: realisedDbi,
-      edgeLossDb: peakCentre - peakEdge,
-      /* which error class owns the floor, now that each is divided by its
-         own group count */
-      tileShareOfFloor: (function () {
-        var a = centre.varTile / Math.max(g.nTilesTotal, 1);
-        var b = centre.varElem / Math.max(g.nElem, 1);
-        return (a + b) > 0 ? a / (a + b) : 0;
+      tx: tx, rx: rx, realPts: realPts,
+      m: mC, mWide: mW, mWide90: mW90, mLow: mLo, mHigh: mHi,
+      floorNearDb: esTx.floorNearDb, floorFarDb: esTx.floorFarDb,
+      floorNearRxDb: esRx.floorNearDb, floorFarRxDb: esRx.floorFarDb,
+      peakOverMeanDb: g.peakOverMeanDb, realPeakSllDb: realPeakSllDb,
+      scanLossDb: scanLossDb, cohLossDb: cohLossDb,
+      dFilledDbi: g.dFilledDbi, dArrayDbi: g.dArrayDbi, realisedDbi: realisedDbi,
+      thinningLossDb: g.thinningLossDb,
+      edgeLossDb: mC.mainDb - Math.max(mLo.mainDb, mHi.mainDb),
+      tauTilePs: tauTilePs, tauApPs: tauApPs, taperDeg: taperDeg,
+      spanXcm: spanXm * 100, tauSpanPs: spanXm * sMax / K.C0 * 1e12,
+      taperLossDb: tapLoss, squintBeamwidths: squintBw, jitterU: jitU, bwU: bwU,
+      ttd: ttd,
+      shareNear: (function () {
+        var a = esTx.cT * c.M * c.M, b = esTx.cD * c.Md * c.Md, d = esTx.cE, s = a + b + d;
+        return { tile: a / s, die: b / s, elem: d / s };
+      })(),
+      shareFar: (function () {
+        var a = esTx.cT * c.M, b = esTx.cD * c.Md, d = esTx.cE, s = a + b + d;
+        return { tile: a / s, die: b / s, elem: d / s };
       })()
     };
   }
 
-  window.Beam = { evaluate: evaluate, cut: cut, metrics: metrics, elemPow: elemPow };
+  window.Beam = {
+    evaluate: evaluate, ctxOf: ctxOf, geomAt: geomAt, geomCut: geomCut,
+    errorSet: errorSet, pattern: pattern, metrics: metrics, ttdSweep: ttdSweep,
+    realise: realise
+  };
 })();
