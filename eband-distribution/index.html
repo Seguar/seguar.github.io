@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-Band Distribution Comparison Tool</title>
+<meta name="description" content="Interactive hardware map and parameterized model comparing clock/reference and LO distribution and baseband split/combine architectures for a large tiled E-band (71-86 GHz) phased array.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;650&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="inner">
+    <h1>E-Band Distribution Comparison Tool</h1>
+    <span class="sub">LO / reference distribution &amp; baseband split-combine &mdash; 71&ndash;86&nbsp;GHz tiled array</span>
+    <nav>
+      <a href="#" class="navlink on" data-view="map">Hardware map</a>
+      <a href="#" class="navlink" data-view="compare">Compare</a>
+      <a href="#" class="navlink" data-view="phasenoise">Phase noise</a>
+      <a href="#" class="navlink" data-view="sweeps">Sweeps</a>
+      <a href="#" class="navlink" data-view="decision">Decision</a>
+      <a href="#" class="navlink" data-view="assumptions">Assumptions</a>
+      <a href="#" class="navlink" data-view="method">Method</a>
+      <button id="themeBtn" type="button" title="Toggle light / dark">&#9788;</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===================== architecture picker ===================== -->
+  <section class="panel" id="pickerPanel">
+    <h2>Architecture <span class="tag">pick a connection type and a reference clock</span>
+      <span class="grow" id="pickerNote"></span></h2>
+    <div class="body" id="pickerMount"></div>
+  </section>
+
+  <!-- ===================== spec budget banner ===================== -->
+  <section class="panel" id="budgetPanel">
+    <h2>Derived requirement <span class="tag">what the options are judged against</span>
+      <span class="grow" id="bindingNote"></span></h2>
+    <div class="budget" id="budgetGrid"></div>
+    <div class="body">
+      <p class="note" id="budgetNote"></p>
+    </div>
+  </section>
+
+  <div class="cols">
+
+    <!-- ===================== parameter column ===================== -->
+    <aside class="params">
+      <section class="panel">
+        <h2>Parameters <span class="grow" id="dirtyCount"></span></h2>
+        <div class="body flush" id="paramMount"></div>
+        <div class="rowbtns">
+          <button class="btn" id="resetBtn" type="button">Reset defaults</button>
+          <button class="btn" id="permaBtn" type="button">Copy permalink</button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ===================== results column ===================== -->
+    <main>
+
+      <!-- ---- HARDWARE MAP ---- -->
+      <div class="view" id="view-map">
+        <section class="panel">
+          <h2 id="mapTitle">Hardware map</h2>
+          <div class="toolbar" id="mapToolbar"></div>
+          <div class="chartbox" id="mapMount"></div>
+          <div id="mapLegend"></div>
+          <div class="body">
+            <p class="note" id="mapNote"></p>
+          </div>
+        </section>
+
+        <div class="chartgrid">
+          <section class="panel">
+            <h2>Selected tile <span class="tag">click the map</span></h2>
+            <div class="body flush" id="inspectorMount"></div>
+          </section>
+          <section class="panel">
+            <h2>Baseband network <span class="tag">inside one tile</span></h2>
+            <div class="chartbox" id="bbDiagramMount"></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <h2>What this build costs <span class="tag">live from the current selection</span></h2>
+          <div class="budget" id="mapStatsMount"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Hardware bill of materials <span class="tag">block counts from the drawn topology</span></h2>
+          <div class="tscroll" id="bomMount"></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="bom-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-dl="bom-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---- COMPARE ---- -->
+      <div class="view hidden" id="view-compare">
+        <section class="panel">
+          <h2>Recommendation <span class="tag">live, from current parameters</span></h2>
+          <div id="verdictMount"></div>
+        </section>
+
+        <section class="panel">
+          <h2>LO / reference distribution <span class="tag">family A</span>
+            <span class="grow">4 options &times; required metrics</span></h2>
+          <div class="tscroll"><table class="grid" id="loTable"></table></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="lo-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-copy="lo-csv" type="button">Copy as CSV</button>
+            <span class="sp"></span>
+            <button class="btn" data-dl="lo-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Baseband split / combine <span class="tag">family B</span>
+            <span class="grow">3 options &times; required metrics</span></h2>
+          <div class="tscroll"><table class="grid" id="bbTable"></table></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="bb-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-copy="bb-csv" type="button">Copy as CSV</button>
+            <span class="sp"></span>
+            <button class="btn" data-dl="bb-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Headline comparisons</h2>
+          <div class="body">
+            <div class="chartgrid" id="compareCharts"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---- PHASE NOISE ---- -->
+      <div class="view hidden" id="view-phasenoise">
+        <section class="panel">
+          <h2>Absolute L(f) at the E-band carrier <span class="tag">M1</span>
+            <span class="grow">what one tile's LO looks like</span></h2>
+          <div id="pnChartMount"></div>
+          <div class="body"><p class="note" id="pnNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>Inter-tile <em>differential</em> phase noise <span class="tag">M3</span>
+            <span class="grow">the curve that decides the architecture</span></h2>
+          <div id="pnDiffMount"></div>
+          <div class="body"><p class="note" id="pnDiffNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>Array-output L(f) <span class="tag">EVM</span>
+            <span class="grow">uncorrelated noise has averaged down by 10log10(N)</span></h2>
+          <div id="pnArrayMount"></div>
+          <div class="body"><p class="note" id="pnArrayNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>Integrated phase error &amp; jitter <span class="tag">M2</span></h2>
+          <div class="tscroll"><table class="grid" id="jitterTable"></table></div>
+        </section>
+      </div>
+
+      <!-- ---- SWEEPS ---- -->
+      <div class="view hidden" id="view-sweeps">
+        <section class="panel">
+          <h2>Design sweeps <span class="grow">each curve recomputes from the current parameter set</span></h2>
+          <div class="body">
+            <div class="chartgrid" id="sweepCharts"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---- DECISION ---- -->
+      <div class="view hidden" id="view-decision">
+        <section class="panel">
+          <h2>Decision &amp; rationale <span class="tag">deliverable</span></h2>
+          <div class="body"><div class="prose" id="decisionMount"></div></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="decision-md" type="button">Copy decision as Markdown</button>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Scoring <span class="tag">visible, editable judgement &mdash; not physics</span></h2>
+          <div class="tscroll"><table class="grid" id="scoreTable"></table></div>
+        </section>
+      </div>
+
+      <!-- ---- ASSUMPTIONS ---- -->
+      <div class="view hidden" id="view-assumptions">
+        <section class="panel">
+          <h2>Parameter provenance <span class="tag">confidence ledger</span>
+            <span class="grow" id="confSummary"></span></h2>
+          <div class="tscroll"><table class="grid" id="assumeTable"></table></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="assume-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-dl="assume-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Block library <span class="tag">power / area / additive noise</span></h2>
+          <div class="tscroll"><table class="grid" id="blockTable"></table></div>
+        </section>
+        <section class="panel">
+          <h2>Honesty ledger <span class="tag">read before quoting a number</span></h2>
+          <div class="body"><div class="prose" id="honestyMount"></div></div>
+        </section>
+      </div>
+
+      <!-- ---- METHOD ---- -->
+      <div class="view hidden" id="view-method">
+        <section class="panel">
+          <h2>Model &amp; equations</h2>
+          <div class="body"><div class="prose" id="methodMount"></div></div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+
+  <footer class="foot">
+    <span id="footNote"></span>
+  </footer>
+</div>
+
+<script src="js/charts.js"></script>
+<script src="js/export.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/kernels.js"></script>
+<script src="js/topology.js"></script>
+<script src="js/model.js"></script>
+<script src="js/budget.js"></script>
+<script src="js/decision.js"></script>
+<script src="js/diagram.js"></script>
+<script src="js/content.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
