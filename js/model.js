@@ -89,12 +89,14 @@
       conf: 'measured/datasheet', why: 'RFIC characterised with a 78 GHz LO; the band is 71–86 GHz. The proposal’s own modelling text uses 75 GHz.' },
     { key: 'rfBwGHz', label: 'RF bandwidth', units: 'GHz', value: 2, min: 0.1, max: 5, step: 0.1, group: 'Array & band',
       conf: 'measured/datasheet', why: '≈2 GHz class per the RFIC front-end table.' },
-    { key: 'apertureCm', label: 'Aperture side', units: 'cm', value: 30, min: 6, max: 60, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal.' },
-    { key: 'tileCm', label: 'Tile side', units: 'cm', value: 6, min: 1.5, max: 15, step: 0.5, group: 'Array & band',
-      conf: 'published-literature', why: 'Sub-tiling to 5–10 cm keeps residual intra-tile delay under ~200 ps. 6 cm gives a 5×5 grid over 30 cm.' },
+    { key: 'apertureCm', label: 'Aperture width', units: 'cm', value: 30, min: 6, max: 60, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal. This is D in the beamwidth 0.886·λ/D, and it is a hard system spec — the tile pitch is the design choice that has to fit inside it.' },
+    { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 4, min: 0.4, max: 15, step: 0.1, group: 'Array & band',
+      conf: 'published-literature', why: 'Centre-to-centre tile spacing; with abutting square tiles it equals the tile edge. "Pitch" rather than "side" or "size" because a spacing is what the grid is built from, and "size" for a 2-D module reads as an area. Sub-tiling to 5–10 cm keeps residual intra-tile delay under ~200 ps; 4 cm gives 116 ps with margin, at the cost of more tiles. Note 4 cm does not divide 30 cm — see the derived readout.' },
+    { key: 'nDies', label: 'RFIC dies in the array', units: '-', value: 100, min: 4, max: 4000, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: '≈100 existing 2.5 × 2.5 mm E-band dies. Tile pitch, taps per tile and this total are independent inputs that can disagree, so the tool checks them against each other rather than letting the mismatch pass silently.' },
     { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'One LO tap per RFIC die; 100 dies over 25 tiles is 4 dies per tile.' },
+      conf: 'measured/datasheet', why: 'One LO tap per RFIC die. tiles × taps should equal the die count: 25 × 4 = 100 exactly at a 6 cm pitch, but a 4 cm pitch gives 64 tiles and the arithmetic no longer closes.' },
     { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 32, min: 2, max: 64, step: 1, group: 'Array & band',
       conf: 'measured/datasheet', why: '4 dies × (4 RX + 4 TX) = 32 channels per tile, per rail.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
@@ -743,6 +745,60 @@
     };
   }
 
+  /* ===================================================================== *
+   * Consistency checks. Tile pitch, taps per tile and the die count are
+   * independent inputs, so they can disagree without anything failing —
+   * which is worse than an error. Surfaced rather than silently tolerated.
+   * =================================================================== */
+  function consistency(g) {
+    var out = [];
+
+    if (!g.aperturePitchExact) {
+      /* pitches that divide the aperture exactly, for the suggestion */
+      var exact = [];
+      for (var c = 2; c <= 80; c++) {
+        var p = g.apertureCm / c;
+        if (p >= 0.4 && p <= 15 && Math.abs(p * 10 - Math.round(p * 10)) < 1e-9) exact.push(p);
+      }
+      exact = exact.filter(function (p) { return Math.abs(p - g.tileCm) > 1e-9; })
+        .sort(function (a, b) { return Math.abs(a - g.tileCm) - Math.abs(b - g.tileCm); })
+        .slice(0, 4).map(function (p) { return p.toFixed(1); });
+      out.push({
+        severity: 'warn',
+        message: 'A ' + g.tileCm.toFixed(1) + ' cm tile pitch does not divide the ' + g.apertureCm +
+          ' cm aperture. ' + g.tileCols + '×' + g.tileCols + ' = ' + g.nTilesTotal +
+          ' whole tiles populate ' + g.effApertureCm.toFixed(1) + ' cm, ' +
+          (g.apertureDeltaCm > 0 ? Math.abs(g.apertureDeltaCm).toFixed(1) + ' cm OVER' : Math.abs(g.apertureDeltaCm).toFixed(1) + ' cm under') +
+          ' the spec. Beam metrics use the populated ' + g.effApertureCm.toFixed(1) +
+          ' cm, since that is the radiating extent.' +
+          (exact.length ? ' Pitches that divide exactly: ' + exact.join(', ') + ' cm.' : '')
+      });
+    }
+
+    var taps = g.nTilesTotal * Math.round(g.tapsPerTile);
+    if (Math.abs(taps - g.nDies) > 0.5) {
+      var fit = g.nDies / g.nTilesTotal;
+      out.push({
+        severity: taps > g.nDies ? 'warn' : 'fail',
+        message: g.nTilesTotal + ' tiles × ' + Math.round(g.tapsPerTile) + ' LO taps = ' + taps +
+          ' taps, against ' + g.nDies + ' RFIC dies in the array — ' +
+          (taps > g.nDies ? (taps / g.nDies).toFixed(2) + '× too many' : 'not enough to feed them all') +
+          '. Exact fit needs ' + fit.toFixed(2) + ' dies per tile' +
+          (Math.abs(fit - Math.round(fit)) < 1e-9 ? '' : ', which is not a whole number at this pitch') +
+          '. Distribution power scales with the tap and tile count, so this inflates M6.'
+      });
+    }
+
+    if (g.tileCm > 10) out.push({
+      severity: 'warn',
+      message: 'A ' + g.tileCm.toFixed(1) + ' cm tile exceeds the 5–10 cm sub-tiling guidance: intra-tile residual delay is ' +
+        K.apertureDelayPs(g.tileCm / 100, g.scanDegMax).toFixed(0) + ' ps at ' + g.scanDegMax +
+        '° against the ~200 ps target, so phase-only steering inside the tile will not hold across the band.'
+    });
+
+    return out;
+  }
+
   function evaluate(state) {
     var g = resolve(state);
     var lo = {}, bb = {};
@@ -756,13 +812,14 @@
       var st = sel.grid.tiles[i];
       if (st) { t.m = st.m; t.pathCm = st.pathCm; t.level = st.level; t.hop = st.hop; t.segments = st.segments; t.repeaters = st.repeaters; t.blocks = st.blocks; }
     });
-    return { g: g, lo: lo, bb: bb, selected: selected, blocks: BLOCKS, refSources: REF_SOURCES };
+    return { g: g, lo: lo, bb: bb, selected: selected, blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g) };
   }
 
   window.Model = {
     PARAMS: PARAMS, BLOCKS: BLOCKS, REF_SOURCES: REF_SOURCES,
     LO_IDS: LO_IDS, BB_IDS: BB_IDS, LO_META: LO_META, BB_META: BB_META,
     MEDIA_KEYS: MEDIA_KEYS,
-    resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb
+    resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,
+    consistency: consistency
   };
 })();

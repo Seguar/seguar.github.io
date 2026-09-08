@@ -285,9 +285,25 @@
       M.PARAMS.filter(function (p) { return p.key === 'bbOption'; })[0].choices,
       res.bb[res.g.bbOptionId].note);
 
-    document.getElementById('pickerNote').textContent =
-      budget.nTiles + ' tiles · ' + n(state.tapsPerTile * budget.nTiles, 0) + ' LO taps · ' +
-      n(state.chPerTile * budget.nTiles, 0) + ' BB channels per rail';
+    var g2 = res.g;
+    document.getElementById('pickerNote').innerHTML =
+      g2.tileCols + '×' + g2.tileCols + ' = ' + g2.nTilesTotal + ' tiles at ' + n(g2.tileCm, 1) + ' cm pitch · ' +
+      'populated aperture <strong>' + n(g2.effApertureCm, 1) + ' cm</strong>' +
+      (g2.aperturePitchExact ? '' : ' (requested ' + n(g2.apertureCm, 0) + ')') + ' · ' +
+      n(g2.loTapsTotal, 0) + ' LO taps · ' + n(state.chPerTile * g2.nTilesTotal, 0) + ' BB channels per rail';
+
+    /* consistency banner — a mismatch that changes the answer should not be
+       discoverable only by doing the arithmetic yourself */
+    var wm = document.getElementById('warnMount');
+    wm.textContent = '';
+    (res.warnings || []).forEach(function (w) {
+      var d = document.createElement('div');
+      d.className = 'callout ' + (w.severity === 'fail' ? 'failc' : 'warnc');
+      d.style.margin = '0 0 8px';
+      d.innerHTML = '<strong>' + (w.severity === 'fail' ? 'Inconsistent: ' : 'Check: ') + '</strong>' + w.message;
+      wm.appendChild(d);
+    });
+    wm.classList.toggle('hidden', !(res.warnings || []).length);
   }
 
   /* =====================================================================
