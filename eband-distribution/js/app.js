@@ -601,139 +601,328 @@
   function renderBeam(res, budget) {
     var g = res.g;
     var lo = res.lo[g.loOptionId], bb = res.bb[g.bbOptionId];
-    var tx = window.Beam.evaluate(g, budget, lo, bb, 'tx');
-    var rx = window.Beam.evaluate(g, budget, lo, bb, 'rx');
+    var b = window.Beam.evaluate(g, budget, lo, bb);
+    var periodic = Math.round(g.latticePeriodic) === 1;
+    var lobes = b.lobes, worst = lobes.length ? lobes[0] : null;
+
+    /* small local table builder — the option-comparison table in ui.js does
+       not fit a plain list of rows */
+    function plainTable(mount, headers, rows, wide) {
+      mount.textContent = '';
+      var t = document.createElement('table');
+      t.className = 'grid';
+      var thead = document.createElement('thead'), htr = document.createElement('tr');
+      headers.forEach(function (h) { htr.appendChild(UI.elt('th', null, h)); });
+      thead.appendChild(htr); t.appendChild(thead);
+      var tb = document.createElement('tbody');
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        if (r.mark) tr.className = 'sect';
+        r.cells.forEach(function (cv, i) {
+          var td = UI.elt('td', i === 0 ? 'mn' : 'v', cv === null || cv === undefined ? '—' : String(cv));
+          if (i === 0 && r.sub) td.appendChild(UI.elt('small', null, r.sub));
+          if (wide && i === headers.length - 1) td.style.cssText = 'text-align:left;white-space:normal;min-width:220px';
+          tr.appendChild(td);
+        });
+        tb.appendChild(tr);
+      });
+      t.appendChild(tb);
+      mount.appendChild(t);
+    }
 
     document.getElementById('beamHdr').textContent =
       M.LO_META[Math.round(state.loOption)].short + ' + ' + M.BB_META[Math.round(state.bbOption)].short +
-      ' · steered to ' + n(g.beamScanDeg, 0) + '° · ' + g.tileCols + '×' + g.tileCols + ' tiles';
+      ' · steered to ' + n(g.beamScanDeg, 0) + '° · ' + g.tileCols + '×' + g.tileCols + ' tiles · ' +
+      g.elem.label;
 
-    var periodic = Math.round(g.latticePeriodic) === 1;
     UI.renderBudget(document.getElementById('beamStats'), null, null, {
       cells: [
-        { k: 'Realised gain', n: n(tx.realisedDbi, 1), unit: 'dBi',
-          d: 'filled aperture would give ' + n(tx.dFilledDbi, 1) + ' dBi; ' + g.nElem +
-             ' elements give ' + n(tx.dArrayDbi, 1) + ' dBi, then −' + n(tx.scanLossDb, 1) +
-             ' dB scan and −' + n(tx.ruzeLossDb, 2) + ' dB error loss' },
-        { k: 'Thinning loss', n: n(tx.thinningLossDb, 1), unit: 'dB', binding: tx.thinningLossDb > 6,
-          d: 'aperture efficiency ' + n(g.apertureEffPct, 2) + '% — ' + g.nElem + ' elements where a filled λ/2 lattice needs ' +
-             n(g.nElemFilled, 0) + '. Larger than every error effect in this tool.' },
-        { k: 'Element lattice', n: n(g.elemDxLam, 2), unit: 'λ',
-          d: g.elemPerTileX + '×' + g.elemPerTileY + ' elements per tile → ' + n(g.elemDxCm, 2) +
-             ' × ' + n(g.elemDyCm, 2) + ' cm pitch, ' + n(g.sparsityFactor, 1) + '× coarser than λ/2' },
+        { k: 'Directivity', n: n(g.dArrayDbi, 2), unit: 'dBi',
+          d: 'min(N·D_el, 4πA/λ²) = min(' + n(g.dArrayRawDbi, 2) + ', ' + n(g.dFilledDbi, 2) +
+             ') dBi at broadside, from ' + g.nElem + ' elements of ' + n(g.dElDbi, 1) + ' dBi' },
+        { k: 'Realised gain', n: n(b.realisedDbi, 2), unit: 'dBi',
+          d: 'directivity −' + n(b.scanLossDb, 2) + ' dB scan −' + n(b.cohLossDb, 3) +
+             ' dB error −' + n(g.antLossDb, 1) + ' dB antenna-side chain (efficiency, package feed, ' +
+             'flip-chip, mismatch, T/R, on-chip, radome). Directivity is not gain; on RX this sits in ' +
+             'front of the LNA and goes into G/T.' },
+        { k: 'Element / cell fill', n: n(g.thinningLossDb, 2), unit: 'dB', binding: g.thinningLossDb > 6,
+          d: '= 10log10(4π·A_cell/(λ²·D_el)) = A_eff ' + n(g.aEffElMm2, 2) + ' mm² in a ' +
+             n(g.aCellMm2, 0) + ' mm² cell = ' + n(g.cellFillPct, 2) + '%. NOT a thinning loss: it is a ' +
+             'statement about the element, and it closes as D_el rises toward the ' + n(g.dCellDbi, 1) +
+             ' dBi cell ceiling (' + n(g.dElHeadroomDb, 1) + ' dB of headroom). Identically 10log10(' +
+             (g.lobeCount + 1) + ' lattice lobes).' },
         periodic
-          ? { k: 'Grating lobe', n: n(tx.mWide.gratingDb, 1), unit: 'dB', binding: tx.mWide.gratingDb > -13,
-              d: 'at ' + n(tx.mWide.gratingAtDeg, 1) + '°, relative to the intended beam. A periodic lattice ' +
-                 'replicates the main beam exactly, so only the element pattern suppresses it — worth ' +
-                 n(Math.abs(g.gratingSuppDb), 2) + ' dB here.' +
-                 (tx.mWide.beamIsPeak ? '' : ' THE INTENDED BEAM IS NOT THE STRONGEST LOBE: the peak sits at ' +
-                   n(tx.mWide.peakAtDeg, 1) + '°, ' + n(tx.mWide.peakExcessDb, 2) + ' dB above it.') }
-          : { k: 'Thinned sidelobe floor', n: n(g.thinnedFloorDb, 1), unit: 'dB',
-              d: 'aperiodic lattice: no discrete grating lobes, but the power lands in a roughly uniform floor near 1/N' },
-        { k: 'Beamwidth', n: n(tx.m.hpbwDeg, 3), unit: '°',
-          d: (tx.m.hpbwResolved ? '' : 'NOT RESOLVED in the window — ') +
-             'at ' + n(g.beamScanDeg, 0) + '° steer, from the populated ' + n(g.effApertureCm, 1) + ' cm aperture' },
-        { k: 'Coherence floor', n: n(tx.m.floorDb, 1), unit: 'dB',
-          d: 'deepest achievable null. Per-tile phase owns ' + n(100 * tx.tileShareOfFloor, 0) +
-             '% of it (N=' + g.nTilesTotal + '), per-element amplitude the rest (N=' + g.nElem + ').' },
-        { k: 'Band-edge loss', n: n(tx.edgeLossDb, 2), unit: 'dB',
-          d: 'peak drop at ±' + n(g.rfBwGHz / 2, 1) + ' GHz, from the phase-steered elements walking off the delay-steered tile grid' }
+          ? { k: 'Worst grating lobe', n: n(b.mWide.gratingDb, 2), unit: 'dB',
+              binding: b.mWide.gratingDb > -13,
+              d: 'at θ = ' + n(b.mWide.gratingAtDeg, 2) + '°, φ = ' + n(b.mWide.gratingPhiDeg, 0) +
+                 '° — over the whole 2-D lobe set, not one axis. ' + lobes.length + ' lobes in visible ' +
+                 'space at this scan angle, ' + g.lobeCount + ' at broadside (closed form π·A_cell/λ² = ' +
+                 n(g.lobeCountClosed, 1) + '); the count changes as lobes cross the horizon, which is ' +
+                 'what makes true scan loss non-monotonic. Suppressed only by the element pattern.' +
+                 (b.mWide.beamIsPeak ? '' : ' THE INTENDED BEAM IS NOT THE STRONGEST LOBE.') }
+          : { k: 'Aperiodic sidelobe floor', n: n(g.thinnedFloorDb, 1), unit: 'dB mean',
+              d: 'no discrete lobes, but expected PEAK is ' + n(g.thinnedPeakDb, 1) + ' dB — higher by ' +
+                 '10log10(ln(2L/λ)) = ' + n(g.peakOverMeanDb, 2) + ' dB. The peak is the number that has ' +
+                 'to be met, not the mean.' },
+        { k: 'Beamwidth', n: n(b.m.hpbwDeg, 3), unit: '°',
+          d: (b.m.hpbwResolved ? '' : 'NOT RESOLVED in the window — ') + 'at ' + n(g.beamScanDeg, 0) +
+             '° steer. N·d = ' + n(g.ndXCm, 1) + ' cm sets it; the element-centre extent is ' +
+             n(g.extentXCm, 1) + ' × ' + n(g.extentYCm, 1) + ' cm. Far field 2D²/λ = ' +
+             n(g.farFieldM, 1) + ' m.' },
+        { k: 'Error floor, near beam', n: n(b.floorNearDb, 1), unit: 'dB',
+          d: 'at the main beam and at the intra-tile comb angles, where the tile factor peaks. ' +
+             'Per-tile phase ' + n(100 * b.shareNear.tile, 0) + '%, per-die ' +
+             n(100 * b.shareNear.die, 0) + '%, per-element phase+amplitude ' +
+             n(100 * b.shareNear.elem, 0) + '%.' },
+        { k: 'Error floor, between lobes', n: n(b.floorFarDb, 1), unit: 'dB',
+          d: 'where the tile factor falls to its angle average — ' +
+             n(b.floorNearDb - b.floorFarDb, 1) + ' dB lower, and now per-element ' +
+             n(100 * b.shareFar.elem, 0) + '% against per-tile ' + n(100 * b.shareFar.tile, 0) +
+             '%. Which class dominates depends on the angle. Expected PEAK error sidelobe is ' +
+             n(b.peakOverMeanDb, 1) + ' dB above the mean; the realisation below measures ' +
+             n(b.realPeakSllDb, 1) + ' dB.' },
+        b.ttd
+          ? { k: 'TTD quantisation lobe', n: n(b.ttd.worstDb, 1), unit: 'dB',
+              binding: b.ttd.worstDb > -25,
+              d: 'deterministic, worst over the commanded-angle grid (at ' + n(b.ttd.worstScanDeg, 1) +
+                 '°) at ±' + n(g.rfBwGHz / 2, 1) + ' GHz with a ' + n(b.ttd.stepPs, 0) +
+                 ' ps step. At this angle: ' + n(b.ttd.atScanDb, 1) + ' dB. The angle-averaged random ' +
+                 'proxy gives ' + n(b.ttd.proxyDb, 1) + ' dB and is not conservative; at broadside the ' +
+                 'true value is exactly zero where the proxy is not.' }
+          : { k: 'TTD quantisation', n: '0', unit: 'dB', d: 'no TTD step set' },
+        { k: 'Band-edge loss', n: n(b.edgeLossDb, 3), unit: 'dB',
+          d: 'main-beam drop at ±' + n(g.rfBwGHz / 2, 1) + ' GHz, from the phase-steered elements ' +
+             'walking off the delay-steered tile grid' }
       ]
     });
 
     document.getElementById('beamNote').innerHTML =
-      '<strong>The array is sparse, and that dominates everything else here.</strong> ' + g.nElem +
-      ' elements over a ' + n(g.effApertureCm, 1) + ' cm aperture is a <span class="kv">' + n(g.elemDxLam, 2) +
-      'λ</span> lattice — ' + n(g.sparsityFactor, 1) + '× coarser than λ/2. So the array keeps the ' +
-      '<em>beamwidth</em> of the full aperture (<span class="kv">' + n(tx.m.hpbwDeg, 3) + '°</span>) but only the ' +
-      '<em>gain</em> of its element count: <span class="kv">' + n(tx.dArrayDbi, 1) + ' dBi</span> against ' +
-      '<span class="kv">' + n(tx.dFilledDbi, 1) + ' dBi</span> filled, a <span class="kv">' +
-      n(tx.thinningLossDb, 1) + ' dB</span> thinning loss at ' + n(g.apertureEffPct, 2) +
-      '% aperture efficiency. The difference does not vanish — it goes into sidelobes. ' +
+      '<strong>The element, not the layout, is the binding decision.</strong> ' + g.nElem +
+      ' elements over a ' + n(g.effApertureCm, 1) + ' cm aperture is a <span class="kv">' +
+      n(g.elemDxLam, 2) + 'λ</span> lattice, so the array keeps the <em>beamwidth</em> of the full ' +
+      'aperture (<span class="kv">' + n(b.m.hpbwDeg, 3) + '°</span>) but only the <em>directivity</em> ' +
+      'of its element count: <span class="kv">' + n(g.dArrayDbi, 2) + ' dBi</span> against ' +
+      '<span class="kv">' + n(g.dFilledDbi, 2) + ' dBi</span> filled. That ' + n(g.thinningLossDb, 2) +
+      ' dB gap is <em>not</em> a thinning loss to be accepted — it is exactly ' +
+      '10log10(4π·A_cell/(λ²·D_el)), the ratio of the element’s effective area (' +
+      n(g.aEffElMm2, 2) + ' mm²) to its cell (' + n(g.aCellMm2, 0) + ' mm²), i.e. ' +
+      n(g.cellFillPct, 2) + '% — and it is recoverable up to the ' + n(g.dCellDbi, 1) +
+      ' dBi cell ceiling. It is also, identically, 10log10 of the ' + (g.lobeCount + 1) +
+      ' co-equal lattice beams the sparse grid creates: only ' + n(100 / (g.lobeCount + 1), 2) +
+      '% of radiated power lands in the intended one.' +
+      '<br><br><strong>Errors.</strong> The architecture contributes <span class="kv">' +
+      n(b.sigTileDeg) + '°</span> per tile (LO residual, common to a tile’s ' + g.elemPerTile +
+      ' elements), <span class="kv">' + n(b.sigDieDeg) + '°</span> per die and <span class="kv">' +
+      n(b.sigElemDeg) + '°</span> per element (phase-shifter quantisation ⊕ baseband residual ⊕ ' +
+      n(g.iqPhaseDeg, 1) + '° residual IQ imbalance), plus <span class="kv">' + n(b.sigAmpTxDb, 2) +
+      ' dB</span> TX amplitude spread. Each class scatters with <em>its own</em> group count ' +
+      '<em>and its own angular shape</em>: the tile term carries the tile’s pattern, so the floor is ' +
+      '<span class="kv">' + n(b.floorNearDb, 1) + ' dB</span> near the beam and at the comb angles but ' +
+      '<span class="kv">' + n(b.floorFarDb, 1) + ' dB</span> between them. Near the beam the phase ' +
+      'terms lead; far out, amplitude does. Random-error pointing jitter is σ_u = ' +
+      b.jitterU.toExponential(1) + ' against a beamwidth of ' + b.bwU.toExponential(1) +
+      ' in u — negligible, and worth saying with a number rather than omitting.' +
       (periodic
-        ? 'On a <strong>periodic</strong> lattice that means a grating lobe at <span class="kv">±' +
-          n(g.gratingDegBroadside, 1) + '°</span> from the beam, and because a periodic array replicates its main ' +
-          'beam exactly, the element pattern suppresses it by only <span class="kv">' +
-          n(Math.abs(g.gratingSuppDb), 2) + ' dB</span>. Switch the lattice to aperiodic to see the alternative.'
-        : 'On an <strong>aperiodic</strong> lattice the discrete lobes break up into a roughly uniform floor near ' +
-          '1/N = <span class="kv">' + n(g.thinnedFloorDb, 1) + ' dB</span>.') +
-      '<br><br>On top of that geometry, the selected architecture contributes a per-tile phase error of ' +
-      '<span class="kv">' + n(tx.sigTileDeg) + '°</span> (LO residual, common to a tile\'s ' + g.elemPerTile +
-      ' elements) and a per-element error of <span class="kv">' + n(tx.sigElemDeg) + '°</span> phase plus ' +
-      '<span class="kv">' + n(tx.sigAmpDb, 2) + ' dB</span> amplitude. Each is divided by <em>its own</em> number of ' +
-      'independent groups, so the coherence floor is <span class="kv">' + n(tx.m.floorDb, 1) +
-      ' dB</span>, of which the per-tile phase term owns <span class="kv">' + n(100 * tx.tileShareOfFloor, 0) +
-      '%</span>. TX and RX differ only through the amplitude spread, since the LO residual is common to both.';
+        ? '<br><br><strong>But none of that is the decisive number here.</strong> The whole ' +
+          n(-b.floorFarDb, 0) + ' dB floor sits ' + n(Math.abs(b.floorNearDb - b.mWide.gratingDb), 0) +
+          ' dB below a grating lobe that is only <span class="kv">' + n(-b.mWide.gratingDb, 2) +
+          ' dB</span> below the main beam. On a periodic lattice the error floor is not the binding ' +
+          'metric at all — it becomes binding only after the lattice is made aperiodic, and that ' +
+          'ordering matters for how the decision is argued.'
+        : '<br><br>With the lattice aperiodic the discrete lobes are gone and the floor <em>is</em> the ' +
+          'binding metric: mean <span class="kv">' + n(g.thinnedFloorDb, 1) + ' dB</span>, expected peak ' +
+          '<span class="kv">' + n(g.thinnedPeakDb, 1) + ' dB</span>.');
 
-    /* ---- full hemisphere: where the sparse lattice shows ---- */
+    /* ---- grating-lobe map ---- */
+    var uv = document.getElementById('beamUvMount');
+    uv.textContent = '';
+    if (periodic && lobes.length) {
+      var ubox = document.createElement('div');
+      ubox.className = 'chartbox';
+      ubox.appendChild(C.uvChart({
+        lobes: lobes, u0: b.c.u0, v0: b.c.v0, height: 340,
+        floorDb: Math.min(-6, Math.floor(lobes[lobes.length - 1].relDb))
+      }));
+      uv.appendChild(ubox);
+      var rowsL = lobes.slice(0, 12).map(function (L) {
+        return {
+          cells: ['(' + L.m + ',' + L.n + ')', n(L.thetaDeg, 2), n(L.phiDeg, 0), n(L.relDb, 2)],
+          sub: Math.abs(L.phiDeg) < 1 || Math.abs(Math.abs(L.phiDeg) - 180) < 1
+            ? 'in the scan-plane cut'
+            : Math.abs(Math.abs(L.phiDeg) - 90) < 1 ? 'in the φ=90° cut' : 'in NEITHER cut'
+        };
+      });
+      plainTable(document.getElementById('beamLobeTableMount'),
+        ['(m,n)', 'θ (°)', 'φ (°)', 'level (dB)'], rowsL);
+      document.getElementById('beamLobeHdr').textContent =
+        lobes.length + ' lobes in visible space (' + g.lobeCount + ' at broadside) · worst ' +
+        n(worst.relDb, 2) + ' dB at ' + n(worst.thetaDeg, 2) + '°';
+      var offPlane = lobes.filter(function (L) {
+        var a = Math.abs(L.phiDeg);
+        return !(a < 1 || Math.abs(a - 180) < 1 || Math.abs(a - 90) < 1);
+      }).length;
+      document.getElementById('beamLobeNote').innerHTML =
+        'Lobe positions are the <strong>reciprocal lattice of the element lattice</strong>, scaled by λ: ' +
+        '(u,v) = (u₀,v₀) + λ(m·b₁ + n·b₂). There are <span class="kv">' + lobes.length +
+        '</span> of them inside the horizon at this scan angle and <span class="kv">' + g.lobeCount +
+        '</span> at broadside, matching the closed form π·A_cell/λ² = ' +
+        n(g.lobeCountClosed, 1) + ', and <span class="kv">' + offPlane + '</span> of them lie in ' +
+        '<em>neither</em> principal plane — so a pair of cuts is not an honest presentation of this ' +
+        'array. The count is fixed by element <em>density</em> alone: changing the lattice shape moves ' +
+        'the lobes but removes none of them. ' +
+        (g.elem.key === 'nulled'
+          ? 'With the cell-filling nulled element the lobes sit in the element’s sinc nulls — at ' +
+            'broadside exactly, and progressively less well as the beam scans away from it, which is ' +
+            'why this option buys grating-lobe suppression at the price of scan range.'
+          : 'For a uniform periodic array a grating lobe is a <em>full-amplitude</em> replica of the ' +
+            'main beam (|AF| = N at every lobe, by the Dirichlet kernel), so only the element pattern ' +
+            'suppresses it. Here that is worth ' + n(-worst.relDb, 2) + ' dB at the worst lobe. ' +
+            'Reaching 13 dB of suppression would need an element of about ' +
+            n(g.dElDbi - 10 * worst.relDb, 0) + ' dBi, above the ' + n(g.dCellDbi, 1) +
+            ' dBi a cell this size can support — impossible with any single-lobe element, possible ' +
+            'only with a nulled one.') +
+        (b.mWide.beamIsPeak ? ''
+          : ' <strong>At this scan angle the intended beam is not the strongest lobe in the pattern:</strong> ' +
+            'the lobe at ' + n(worst.thetaDeg, 2) + '° is ' + n(worst.relDb, 2) +
+            ' dB relative to it. The array is angularly ambiguous ' + (g.lobeCount + 1) + ' ways.');
+    } else {
+      uv.innerHTML = '<p class="note" style="padding:10px 12px">Aperiodic lattice — there is no ' +
+        'reciprocal lattice and no discrete lobe set. The scattered power lands in a floor instead: ' +
+        'mean ' + n(g.thinnedFloorDb, 1) + ' dB, expected peak ' + n(g.thinnedPeakDb, 1) + ' dB.</p>';
+      plainTable(document.getElementById('beamLobeTableMount'),
+        ['Aperiodic layout', 'value'], [
+          { cells: ['Mean sidelobe floor, 1/N', n(g.thinnedFloorDb, 2) + ' dB'] },
+          { cells: ['Expected peak, +10log10(ln 2L/λ)', n(g.thinnedPeakDb, 2) + ' dB'] },
+          { cells: ['Position randomisation needed', n(g.thinNeedRmsMm, 2) + ' mm RMS'] },
+          { cells: ['Available by dithering within a cell', n(g.thinAvailRmsMm, 2) + ' mm RMS'] },
+          { cells: ['Quasi-grating residue if only that', n(g.thinResidueDb, 1) + ' dB'] },
+          { cells: ['Directivity cost of aperiodicity', '0 dB — N·D_el is unchanged'] }
+        ]);
+      document.getElementById('beamLobeHdr').textContent = 'aperiodic — no lobe lattice';
+      document.getElementById('beamLobeNote').innerHTML =
+        'Aperiodicity costs no gain: N·D_el does not change, the ' + (g.lobeCount + 1) +
+        ' lattice lobes are simply redistributed into a floor. But it is not free. Breaking the ' +
+        'periodicity properly needs <span class="kv">' + n(g.thinNeedRmsMm, 2) +
+        ' mm</span> RMS position randomisation (enough for the lobe residue exp(−σ²) to fall to 1/N), ' +
+        'and dithering inside one cell supplies at most <span class="kv">' + n(g.thinAvailRmsMm, 2) +
+        ' mm</span> — so a layout built by perturbing the periodic one keeps a quasi-grating residue ' +
+        'near <span class="kv">' + n(g.thinResidueDb, 1) + ' dB</span> at the old lobe angles, well ' +
+        'above the ' + n(g.thinnedFloorDb, 1) + ' dB floor. Doing it properly means positions that do ' +
+        '<em>not</em> repeat tile to tile, i.e. <strong>tiles that are no longer identical</strong> — ' +
+        'which kills the pattern-multiplication framework and the one-tile-design-×-49 economy, and ' +
+        'makes per-element position and phase calibration mandatory rather than optional. That lands ' +
+        'squarely on the distribution network this tool is about.';
+    }
+
+    /* ---- in-tile lattice comparison ---- */
+    var latRows = g.latList.map(function (L) {
+      var isCur = L === g.lat;
+      return {
+        cells: [L.label, n(L.lobeDeg, 2), n(L.minSepCm, 2), n(L.minSinLobe, 4)],
+        sub: isCur ? 'SELECTED' : (L === g.latBest ? 'best available' : ''),
+        mark: false
+      };
+    }).reverse();
+    plainTable(document.getElementById('beamLatTableMount'),
+      ['In-tile lattice (index ' + g.elemPerTile + ')', 'worst lobe (°)', 'min separation (cm)', 'Δu'],
+      latRows);
+    document.getElementById('beamLatHdr').textContent =
+      g.lat.label + ' · worst lobe ' + n(g.lat.lobeDeg, 2) + '° · best available ' +
+      n(g.latBest.lobeDeg, 2) + '°';
+    document.getElementById('beamLatNote').innerHTML =
+      'Every sublattice of index ' + g.elemPerTile + ' that <em>contains</em> the tile lattice keeps all ' +
+      'tiles identical, and by duality those are exactly the index-' + g.elemPerTile + ' sublattices of ' +
+      'the tile reciprocal lattice — a finite set, enumerated in Hermite normal form. The tool used to ' +
+      'hard-code <span class="kv">round(√' + g.elemPerTile + ')</span>, which lands on <span class="kv">' +
+      n(g.latWorst.lobeDeg, 2) + '°</span>: the <em>worst</em> of them. The best is <span class="kv">' +
+      g.latBest.label + '</span> at <span class="kv">' + n(g.latBest.lobeDeg, 2) +
+      '°</span>, which also raises minimum element separation to <span class="kv">' +
+      n(g.latBest.minSepCm, 2) + ' cm</span> (less coupling) at zero cost in channels, dies or tile ' +
+      'pitch. It does not rescue a periodic layout — suppression at ' + n(g.latBest.lobeDeg, 2) +
+      '° is still only a fraction of a dB — and it does not reduce the lobe count. It is simply ' +
+      'strictly better, and it is the right starting point for a perturbed-aperiodic design. Note that ' +
+      'the improvement is invisible in the scan-plane cut: the sheared lattice projects onto the same ' +
+      n(g.elemPerTileX, 0) + ' columns, so the gain lives off the principal planes.';
+
+    /* ---- full hemisphere, both principal planes ---- */
     var wm = document.getElementById('beamWideMount');
     wm.textContent = '';
     var wbox = document.createElement('div');
     wbox.className = 'chartbox';
     wbox.appendChild(C.sweepChart({
       series: [
-        { name: 'ideal, no errors', color: 'var(--ink-3)', dashed: true,
-          points: tx.wide.points.map(function (p) { return { x: p.deg, y: p.ideal }; }) },
-        { name: 'TX', color: 'var(--s2)',
-          points: tx.wide.points.map(function (p) { return { x: p.deg, y: p.real }; }) }
+        { name: 'ideal, no random errors', color: 'var(--ink-3)', dashed: true,
+          points: b.tx.wide.map(function (p) { return { x: p.deg, y: p.ideal }; }) },
+        { name: 'scan plane (φ=0)', color: 'var(--s2)',
+          points: b.tx.wide.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: 'φ=90° plane', color: 'var(--s1)',
+          points: b.tx.wide90.map(function (p) { return { x: p.deg, y: p.real }; }) }
       ],
-      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to peak', height: 320,
-      xMin: -90, xMax: 90, yMin: -50, yMax: 3,
-      hLine: tx.m.floorDb, hLabel: 'coherence floor'
+      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to intended beam', height: 320,
+      xMin: -90, xMax: 90, yMin: -55, yMax: 4,
+      hLine: b.floorFarDb, hLabel: 'floor between lobes'
     }));
     wm.appendChild(wbox);
-    document.getElementById('beamWideHdr').textContent =
-      periodic ? 'periodic lattice · grating lobes at ±' + n(g.gratingDegBroadside, 1) + '° from the beam'
-               : 'aperiodic lattice · no discrete grating lobes';
+    wm.appendChild(C.legend([
+      { name: 'ideal, no random errors', color: 'var(--ink-3)', dashed: true },
+      { name: 'scan plane φ=0', color: 'var(--s2)' },
+      { name: 'φ=90° plane', color: 'var(--s1)' }
+    ]));
+    document.getElementById('beamWideHdr').textContent = periodic
+      ? g.lobeCount + ' grating lobes · worst ' + n(worst.relDb, 2) + ' dB at ' + n(worst.thetaDeg, 2) + '°'
+      : 'aperiodic · no discrete grating lobes';
     document.getElementById('beamWideNote').innerHTML =
-      'The full hemisphere, which is the only place the sparse lattice is visible — the zoomed panel below spans ' +
-      '±' + n(tx.winDeg, 1) + '°, so a lobe at ' + n(g.gratingDegBroadside, 1) + '° falls outside it entirely. ' +
+      'Two cuts, because one axis is not the whole lattice — and even two are not: ' +
       (periodic
-        ? 'Here the <span class="kv">' + n(g.elemDxLam, 2) + 'λ</span> element pitch puts a grating lobe at ' +
-          '<span class="kv">' + n(tx.mWide.gratingAtDeg, 1) + '°</span> at <span class="kv">' +
-          n(tx.mWide.gratingDb, 1) + ' dB</span>. A periodic array replicates its main beam exactly, so nothing ' +
-          'but the element pattern suppresses it, and at this angle that is worth only ' +
-          n(Math.abs(g.gratingSuppDb), 2) + ' dB. As the beam scans, the lobes move with it: at ' +
-          n(g.beamScanDeg, 0) + '° they sit near ' +
-          n(Math.asin(Math.max(-1, Math.min(1, Math.sin(K.deg2rad(g.beamScanDeg)) - g.gratingDeltaSin))) * K.DEG, 1) +
-          '° and ' +
-          (Math.abs(Math.sin(K.deg2rad(g.beamScanDeg)) + g.gratingDeltaSin) <= 1
-            ? n(Math.asin(Math.sin(K.deg2rad(g.beamScanDeg)) + g.gratingDeltaSin) * K.DEG, 1) + '°'
-            : 'beyond the horizon') + '.'
-        : 'With the lattice made aperiodic the discrete lobes break up into a floor near 1/N = ' +
-          '<span class="kv">' + n(g.thinnedFloorDb, 1) + ' dB</span>. That is the standard thinned-array trade: ' +
-          'the same total scattered power, spread out instead of concentrated.');
+        ? 'the worst lobe here sits at φ = ' + n(worst.phiDeg, 0) + '°, and ' +
+          lobes.filter(function (L) {
+            var a = Math.abs(L.phiDeg);
+            return !(a < 1 || Math.abs(a - 180) < 1 || Math.abs(a - 90) < 1);
+          }).length + ' of the ' + g.lobeCount + ' lobes appear in neither trace. Use the (u,v) map above. '
+        : 'the aperiodic floor is not isotropic either. ') +
+      'The zoomed panel below spans ±' + n(b.winDeg, 1) + '°, so everything on this plot except the ' +
+      'main beam falls outside it. The dashed trace is the same array with the random errors removed ' +
+      'but the <em>deterministic</em> TTD quantisation still in place, so the gap between dashed and ' +
+      'solid is what the random part of the distribution architecture costs.';
 
-    /* ---- principal-plane cut ---- */
+    /* ---- zoomed main beam: mean pattern against one realisation ---- */
     var mount = document.getElementById('beamCutMount');
     mount.textContent = '';
     var box = document.createElement('div');
     box.className = 'chartbox';
-    var win = tx.winDeg;
+    var win = b.winDeg;
     box.appendChild(C.sweepChart({
       series: [
-        { name: 'ideal, no errors', color: 'var(--ink-3)', dashed: true,
-          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.ideal }; }) },
-        { name: 'TX', color: 'var(--s2)',
-          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
-        { name: 'RX', color: 'var(--s4)',
-          points: rx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) }
+        { name: 'ideal, no random errors', color: 'var(--ink-3)', dashed: true,
+          points: b.tx.centre.map(function (p) { return { x: p.deg, y: p.ideal }; }) },
+        { name: 'TX mean pattern', color: 'var(--s2)',
+          points: b.tx.centre.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: 'RX mean pattern', color: 'var(--s4)',
+          points: b.rx.centre.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: 'TX, one realisation', color: 'var(--s5)',
+          points: b.realPts.map(function (p) { return { x: p.deg, y: p.real }; }) }
       ],
-      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to peak', height: 320,
+      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to intended beam', height: 340,
       xMin: g.beamScanDeg - win, xMax: g.beamScanDeg + win,
-      yMin: -60, yMax: 3, hLine: tx.m.floorDb, hLabel: 'coherence floor'
+      yMin: -60, yMax: 4, hLine: b.floorNearDb, hLabel: 'mean floor near beam'
     }));
     mount.appendChild(box);
     mount.appendChild(C.legend([
-      { name: 'ideal, no errors', color: 'var(--ink-3)' },
-      { name: 'TX (' + n(tx.sigAmpDb, 2) + ' dB amp spread)', color: 'var(--s2)' },
-      { name: 'RX (' + n(rx.sigAmpDb, 2) + ' dB amp spread)', color: 'var(--s4)' }
+      { name: 'ideal, no random errors', color: 'var(--ink-3)', dashed: true },
+      { name: 'TX mean (' + n(b.sigAmpTxDb, 2) + ' dB amp spread)', color: 'var(--s2)' },
+      { name: 'RX mean (' + n(b.sigAmpRxDb, 2) + ' dB amp spread)', color: 'var(--s4)' },
+      { name: 'TX realisation, seed 20260908', color: 'var(--s5)' }
     ]));
     document.getElementById('beamCutNote').innerHTML =
-      'Cut through the principal plane at band centre. The dashed trace is the same array with no errors, so the ' +
-      'gap between it and the solid traces is what the distribution architecture costs. Sidelobes near the main ' +
-      'beam still follow the ideal envelope; far out, the pattern flattens onto the diffuse floor, which is where ' +
-      'the architecture — not the taper — is in control.';
+      'The smooth traces are the <strong>mean</strong> pattern — the exact expectation over the error ' +
+      'distribution, which is what an error variance can give you. No array ever radiates it. The ' +
+      'jagged trace is <strong>one realisation</strong>, the same array with one draw of the errors ' +
+      'summed element by element, and it is the honest picture: nulls fill in at specific angles, and ' +
+      'the peak error sidelobe runs above the mean floor by about 10log10(ln(2L/λ)) = <span class="kv">' +
+      n(b.peakOverMeanDb, 1) + ' dB</span> — here measured at <span class="kv">' +
+      n(b.realPeakSllDb, 1) + ' dB</span> against a mean floor of ' + n(b.floorNearDb, 1) + ' dB. ' +
+      'If null depth is the metric that decides the architecture, the mean pattern flatters it. TX and ' +
+      'RX differ only through amplitude spread, since the LO residual is common to both directions.';
 
     /* ---- band edges: the squint story ---- */
     var m2 = document.getElementById('beamSquintMount');
@@ -744,14 +933,14 @@
     box2.appendChild(C.sweepChart({
       series: [
         { name: n(fLo, 1) + ' GHz', color: 'var(--s1)',
-          points: tx.lowEdge.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
+          points: b.tx.lowEdge.map(function (p) { return { x: p.deg, y: p.real }; }) },
         { name: n(g.fLoGHz, 1) + ' GHz', color: 'var(--s2)',
-          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
+          points: b.tx.centre.map(function (p) { return { x: p.deg, y: p.real }; }) },
         { name: n(fHi, 1) + ' GHz', color: 'var(--s4)',
-          points: tx.highEdge.points.map(function (p) { return { x: p.deg, y: p.real }; }) }
+          points: b.tx.highEdge.map(function (p) { return { x: p.deg, y: p.real }; }) }
       ],
-      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to band-centre peak', height: 300,
-      xMin: g.beamScanDeg - win, xMax: g.beamScanDeg + win, yMin: -45, yMax: 3
+      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to band-centre beam', height: 300,
+      xMin: g.beamScanDeg - win, xMax: g.beamScanDeg + win, yMin: -50, yMax: 4
     }));
     m2.appendChild(box2);
     m2.appendChild(C.legend([
@@ -760,14 +949,25 @@
       { name: n(fHi, 1) + ' GHz', color: 'var(--s4)' }
     ]));
     document.getElementById('beamSquintNote').innerHTML =
-      'Inside a tile the elements are <strong>phase</strong> steered, so the subarray beam is only correct at band ' +
-      'centre and walks to <span class="kv">' + n(Math.asin(Math.min(1, Math.sin(K.deg2rad(g.beamScanDeg)) * g.fLoGHz / fLo)) * K.DEG - g.beamScanDeg, 2) +
-      '°</span> at the lower edge. Between tiles the architecture applies coarse <strong>true time delay</strong>, ' +
-      'which is achromatic, so the tile grid keeps pointing at ' + n(g.beamScanDeg, 0) + '°. The two therefore slide ' +
-      'apart across the band, and the peak drops <span class="kv">' + n(tx.edgeLossDb, 2) + ' dB</span> at the edges. ' +
-      'That mismatch is exactly what sub-tiling bounds: a smaller tile has a broader subarray pattern, so it ' +
-      'tolerates more walk before the peak falls off. A ' + n(g.tileCm, 2) + ' cm tile gives ' +
-      n(budget.tauSubTilePs, 0) + ' ps of intra-tile residual delay at ' + n(g.scanDegMax, 0) + '°.';
+      '<strong>Delay between tiles, phase within a tile — and here is the margin.</strong> At ' +
+      n(g.scanDegMax, 0) + '° scan the differential delay across one ' + n(g.tileCm, 1) +
+      ' cm tile pitch is <span class="kv">' + n(b.tauTilePs, 1) + ' ps</span>, and across its ' +
+      n(b.spanXcm, 0) + ' cm of element centres <span class="kv">' + n(b.tauSpanPs, 1) +
+      ' ps</span>, which at ±' + n(g.rfBwGHz / 2, 1) + ' GHz is a <span class="kv">' + n(b.taperDeg, 1) +
+      '°</span> peak-to-peak phase taper across the tile and costs <span class="kv">' +
+      n(b.taperLossDb, 3) + ' dB</span>. The same aperture with <em>no</em> inter-tile TTD carries ' +
+      '<span class="kv">' + n(b.tauApPs, 0) + ' ps</span> and squints by <span class="kv">' +
+      n(b.squintBeamwidths, 2) + '</span> beamwidths at the band edge. So the split is right by a ' +
+      'margin of ' + n(b.taperLossDb, 2) + ' dB against ' + n(b.squintBeamwidths, 2) +
+      ' beamwidths — but note that <em>both</em> numbers scale as sinθ₀: the TTD hardware is bought by ' +
+      'the <strong>scan range</strong>, not by the bandwidth alone, and at ±10° the no-TTD squint is ' +
+      'only ' + n(b.squintBeamwidths * Math.sin(K.deg2rad(10)) / Math.max(Math.sin(K.deg2rad(g.scanDegMax)), 1e-6), 2) +
+      ' beamwidths and the requirement largely evaporates. That makes the TTD step a first-class ' +
+      'architectural parameter, not a detail: ' +
+      (b.ttd ? 'at ' + n(b.ttd.stepPs, 0) + ' ps the worst-case quantisation lobe is ' +
+        n(b.ttd.worstDb, 1) + ' dB, at the ' + n(b.ttd.worstScanDeg, 1) + '° commanded angle.' : '');
+
+    UI.renderProse(document.getElementById('beamCaveats'), window.Content.beamCaveats(g, b));
   }
 
   /* =====================================================================

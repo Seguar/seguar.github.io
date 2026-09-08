@@ -106,12 +106,28 @@
     { key: 'latticePeriodic', label: 'Element lattice', units: '', value: 1, group: 'Array & band',
       choices: [{ value: 1, label: 'Periodic — grating lobes' }, { value: 0, label: 'Aperiodic / thinned' }],
       conf: 'engineering-guess', why: 'A periodic lattice coarser than λ/2 has discrete grating lobes; deliberately breaking the periodicity trades them for a raised, roughly uniform sidelobe floor near 1/N. Which one applies is a layout decision that has not been made yet, and the two look completely different on the pattern.' },
+    { key: 'inTileLattice', label: 'In-tile lattice', units: '', value: 0, group: 'Array & band',
+      choices: [{ value: 0, label: 'Rectangular (as drawn)' }, { value: 1, label: 'Best sublattice' }, { value: 2, label: 'Single row' }],
+      conf: 'engineering-guess', why: '"8 elements per tile" does not force 4×2. Every sublattice of index 8 that contains the tile lattice keeps all tiles identical, and their worst grating lobe runs from 5.5° (8×1) through 11.08° (4×2 — the worst of the sensible options) to 15.77° for the sheared lattice a1=(1,−1), a2=(0,2) cm, which also raises minimum element separation from 1.00 to 1.41 cm. Same channels, same dies, same tile. The lobe count does not change: that is fixed by density alone.' },
+    { key: 'elemModelSel', label: 'Element pattern model', units: '', value: 0, group: 'Array & band',
+      choices: [{ value: 0, label: 'Directivity-matched cos^n' }, { value: 1, label: 'HPBW-matched patch' }, { value: 2, label: 'Cell-filling nulled' }],
+      conf: 'engineering-guess', why: 'One cos^n curve cannot be both a 6 dBi directivity-matched element (n = 0.99, 120° HPBW, only 3 dB of scan loss at 60°) and a real package patch (65–80° HPBW, n ≈ 3.5, 10 dB at 60°). Using the broad one for grating-lobe suppression AND for scan loss is pessimistic about the lobe and optimistic about the scan with the same curve, which is not a defensible pair. The third option is a cell-filling radiator whose nulls land exactly on the grating lobes.' },
+    { key: 'elemHpbwDeg', label: 'Element HPBW', units: 'deg', value: 70, min: 30, max: 170, step: 5, group: 'Array & band',
+      conf: 'published-literature', why: 'Measured E-band package patches run 65–80° (E-plane typically narrower than H-plane). Only used by the HPBW-matched element model, where the directivity stays at the parameter value because a real patch has back radiation and E/H asymmetry, so D < 2(n+1).' },
+    { key: 'antLossDb', label: 'Antenna-side loss chain', units: 'dB', value: 4, min: 0, max: 12, step: 0.5, group: 'Array & band',
+      conf: 'engineering-guess', why: 'Directivity is not gain. Element radiation efficiency 0.4–0.7, package feed routing 0.8–7 (0.15–0.35 dB/mm over 5–20 mm, and unequal by 1–3 dB between near and far elements of a tile), flip-chip transition 0.3–0.8, mismatch at |S11| = −10…−12 dB 0.3–0.5, T/R switch 0–2.5, on-chip pad/balun/ESD 0.5–1.5, radome 0.3–1. 4 dB is a mid estimate; on RX it sits in front of the LNA and goes straight into G/T.' },
     { key: 'beamScanDeg', label: 'Beam steer angle', units: 'deg', value: 30, min: -75, max: 75, step: 1, group: 'Array & band',
       conf: 'scaled-estimate', why: 'Direction the Beam view steers to. Separate from the max scan angle, which sizes the TTD range and the worst-case squint.' },
     { key: 'txGainErrDb', label: 'TX amplitude spread', units: 'dB', value: 0.5, min: 0, max: 3, step: 0.05, group: 'Link & budget',
       conf: 'engineering-guess', why: 'PA-to-PA gain variation, RMS. This and its RX counterpart are the only things that make the TX and RX patterns differ in this model — the LO residual is common to both directions.' },
     { key: 'rxGainErrDb', label: 'RX amplitude spread', units: 'dB', value: 0.3, min: 0, max: 3, step: 0.05, group: 'Link & budget',
       conf: 'engineering-guess', why: 'LNA and baseband VGA gain variation, RMS. Lower than TX because no device is running near compression.' },
+    { key: 'iqPhaseDeg', label: 'Residual IQ phase error', units: 'deg', value: 3, min: 0, max: 15, step: 0.5, group: 'Link & budget',
+      conf: 'engineering-guess', why: 'Baseband IQ vector-modulator gain/quadrature imbalance left after calibration, per channel, RMS. An earlier version set the per-element phase error to the phase-shifter quantisation alone, which is 1.62° at 6 bits — real per-element phase error is 2–4° on top of that. It is also what produces the image beam.' },
+    { key: 'imageRejDb', label: 'Image rejection', units: 'dBc', value: 30, min: 10, max: 50, step: 1, group: 'Link & budget',
+      conf: 'published-literature', why: 'Baseband-steered arrays put the residual conjugate-phase component into a MIRROR beam at −θ₀, at the image-rejection level. −25 to −35 dBc after calibration is typical and routinely measured. A phase-only error model can never produce this spur, which is why it is carried as its own number.' },
+    { key: 'sigDieDeg', label: 'Per-die LO residual', units: 'deg', value: 1, min: 0, max: 20, step: 0.25, group: 'Link & budget',
+      conf: 'engineering-guess', why: 'The error hierarchy has three levels, not two: a tile holds 2 dies and a die feeds 4 channels, so there is a die-common term between the tile-common LO residual and the per-element terms. Per-element baseband calibration absorbs the static part, so what is left is die-common drift between calibrations. Scatter from this level averages by the die count (98) and carries the shape of the 4-channel factor.' },
 
     /* --- reference clock --- */
     { key: 'refSel', label: 'Reference clock', units: '', value: 2, group: 'Reference clock',
@@ -297,23 +313,59 @@
     g.elemPerTile = g.diesPerTile * g.chPerDiePerDir;
     g.nElem = g.nTilesTotal * g.elemPerTile;
 
-    /* Arrangement inside a tile. 8 elements factor as 4 x 2, so the tile is
-       4 elements wide and 2 deep; since tiles abut, the FULL lattice is then
-       uniform at tilePitch/4 along the cut axis. That consistency matters:
-       at band centre the intra-tile phase steer and the inter-tile delay
-       steer coincide, so AF(4, 1 cm) x AF(7, 4 cm) collapses exactly to
-       AF(28, 1 cm) — the full-aperture beamwidth is preserved, not
-       regressed, while the grating lobes now appear. */
-    var ex = Math.round(Math.sqrt(g.elemPerTile));
-    while (ex > 1 && g.elemPerTile % ex !== 0) ex--;
-    var ey = g.elemPerTile / ex;
-    g.elemPerTileX = Math.max(ex, ey);
-    g.elemPerTileY = Math.min(ex, ey);
-    g.elemDxCm = g.tileCm / g.elemPerTileX;
-    g.elemDyCm = g.tileCm / g.elemPerTileY;
+    /* Arrangement inside a tile — CHOSEN, not assumed. An earlier version
+       forced a rectangular factorisation (round(sqrt(8)) -> 4 x 2). That is
+       not a constraint: every sublattice of index 8 that CONTAINS the tile
+       lattice keeps all tiles identical, and 4 x 2 turns out to be the worst
+       of them (worst grating lobe 11.08 deg, against 15.77 deg for the
+       sheared lattice a1 = (1,-1), a2 = (0,2) cm, at zero cost). See
+       lattice.js.
+
+       Whatever the choice, tiles abut, so the FULL array is one lattice with
+       the tile grid as a sublattice. That consistency is what lets the ideal
+       pattern factorise as intra-tile x tile-grid: at band centre the
+       intra-tile phase steer and the inter-tile delay steer coincide and
+       AF(4, 1 cm) x AF(7, 4 cm) collapses exactly to AF(28, 1 cm), so the
+       full-aperture beamwidth is preserved while the grating lobes appear. */
+    g.lamCm = g.lambdaM * 100;
+    g.latList = window.Lat.candidates(g.elemPerTile, g.tileCm, g.lamCm);
+    g.latKey = ['rect', 'best', 'row'][Math.round(g.inTileLattice)] || 'rect';
+    g.lat = window.Lat.pick(g.latList, g.latKey, g.elemPerTile);
+    g.latBest = g.latList[g.latList.length - 1];
+    g.latWorst = g.latList[0];
+    g.latOffsetsCm = g.lat.offsets;
+
+    /* What a principal-plane cut actually sees: the lattice PROJECTED onto
+       the cut axis. For the sheared lattice the 8 offsets project onto 4
+       distinct x columns of 2, so the x-cut is indistinguishable from 4 x 2
+       — the improvement lives off the principal planes, which is exactly why
+       two cuts are not an honest presentation of this array. */
+    function project(offs, idx, period) {
+      var seen = {}, xs = [];
+      offs.forEach(function (p) {
+        var v = p[idx] - period * Math.floor(p[idx] / period + 1e-9);
+        var k = Math.round(v * 1e6);
+        if (!seen[k]) { seen[k] = 1; xs.push(v); }
+      });
+      xs.sort(function (a, b) { return a - b; });
+      return xs;
+    }
+    g.colsXCm = project(g.latOffsetsCm, 0, g.tileCm);
+    g.colsYCm = project(g.latOffsetsCm, 1, g.tileCm);
+    g.elemPerTileX = g.colsXCm.length;
+    g.elemPerTileY = g.colsYCm.length;
+    g.elemDxCm = g.tileCm / Math.max(g.elemPerTileX, 1);
+    g.elemDyCm = g.tileCm / Math.max(g.elemPerTileY, 1);
     g.elemDxM = g.elemDxCm / 100;
     g.nElemX = g.tileCols * g.elemPerTileX;
     g.elemDxLam = g.elemDxM / g.lambdaM;
+    /* N*d is the right length for the beamwidth formula, but it is not the
+       physical extent of the radiators: the outermost element centres are
+       one pitch closer together than that. Both get reported. */
+    g.ndXCm = g.effApertureCm;
+    g.extentXCm = Math.max(g.effApertureCm - g.elemDxCm, 0);
+    g.extentYCm = Math.max(g.effApertureCm - g.elemDyCm, 0);
+    g.minSepCm = g.lat ? g.lat.minSepCm : g.elemDxCm;
 
     var areaM2 = g.effApertureM * g.effApertureM;
     /* uniform-lattice pitch that spreads nElem over the populated aperture */
@@ -324,30 +376,86 @@
     g.sparsityFactor = g.elemSpacingM / (g.lambdaM / 2);
     g.nElemFilled = areaM2 / Math.pow(g.lambdaM / 2, 2);
 
-    /* directivity chain, all in dBi */
-    g.dFilledDbi = 10 * Math.log10(4 * Math.PI * areaM2 / (g.lambdaM * g.lambdaM));
-    g.dArrayDbi = 10 * Math.log10(Math.max(g.nElem, 1)) + g.elemDirDbi;
-    g.thinningLossDb = g.dFilledDbi - g.dArrayDbi;
-    g.apertureEffPct = 100 * Math.pow(10, -g.thinningLossDb / 10);
+    /* ---- the element, which is where the missing 16 dB actually lives ---- */
+    g.elem = window.Lat.element({
+      key: ['dir', 'hpbw', 'nulled'][Math.round(g.elemModelSel)] || 'dir',
+      lamCm: g.lamCm, a1: g.lat.a1, a2: g.lat.a2,
+      elemDirDbi: g.elemDirDbi, hpbwDeg: g.elemHpbwDeg
+    });
+    g.elemPowExp = g.elem.n;
+    g.aCellCm2 = g.elem.aCellCm2;
+    g.dCellDbi = g.elem.dCellDbi;
+    g.dElDbi = g.elem.dElDbi;
 
-    /* Grating lobes on the cut axis: first order at delta(sin) = lambda/dx.
-       Any spacing above lambda/2 puts one inside visible space, and for a
-       UNIFORM PERIODIC lattice a grating lobe is a full-amplitude replica of
-       the main beam — suppressed only by the element pattern. That
-       suppression is weak at these angles, which is why a periodic layout at
-       this element count is not viable. */
+    /* Directivity chain, all in dBi. The cap matters: N x D_el is only valid
+       until the element saturates its own cell, beyond which the array can
+       do no better than the filled aperture. */
+    g.dFilledDbi = 10 * Math.log10(4 * Math.PI * areaM2 / (g.lambdaM * g.lambdaM));
+    g.dArrayRawDbi = 10 * Math.log10(Math.max(g.nElem, 1)) + g.dElDbi;
+    g.dArrayDbi = Math.min(g.dArrayRawDbi, g.dFilledDbi);
+    /* NOT a "thinning" loss. It is 10log10(4*pi*A_cell/(lambda^2 * D_el)) —
+       the ratio of the element's effective area to the area of the cell it
+       sits in — and it is recoverable by making the element bigger, up to
+       the cell ceiling D_cell. It is also, identically, 10log10 of the
+       number of lattice lobes the sparse grid creates: the "loss" is the
+       power split among co-equal beams. */
+    g.thinningLossDb = g.dFilledDbi - g.dArrayRawDbi;
+    g.apertureEffPct = 100 * Math.pow(10, -g.thinningLossDb / 10);
+    var lamMm = g.lambdaM * 1000;
+    g.aEffElMm2 = Math.pow(10, g.dElDbi / 10) * lamMm * lamMm / (4 * Math.PI);
+    g.aCellMm2 = g.aCellCm2 * 100;
+    g.cellFillPct = 100 * g.aEffElMm2 / Math.max(g.aCellMm2, 1e-9);
+    g.dElHeadroomDb = g.dCellDbi - g.dElDbi;
+    /* directivity is not gain */
+    g.realisedGainDbi = g.dArrayDbi - g.antLossDb;
+    /* far-field distance of the populated aperture */
+    g.farFieldM = 2 * g.effApertureM * g.effApertureM / g.lambdaM;
+
+    /* ---- grating lobes: the whole 2-D set, not one axis ----
+       For a UNIFORM PERIODIC lattice a grating lobe is a full-amplitude
+       replica of the main beam — suppressed only by the element pattern. The
+       lobe positions are the reciprocal lattice scaled by lambda, so there
+       are pi*A_cell/lambda^2 of them in visible space at broadside, and the
+       binding one is whichever has the most element gain, not whichever lies
+       on the axis the cut happens to use. */
+    g.lobesBroadside = window.Lat.withLevels(
+      window.Lat.lobes(g.lat.b1, g.lat.b2, g.lamCm, 0, 0), g.elem, 0, 0);
+    g.lobeCount = g.lobesBroadside.length;
+    g.lobeCountClosed = Math.PI * g.aCellCm2 / (g.lamCm * g.lamCm);
+    g.gratingVisible = g.lobeCount > 0;
+    g.gratingDegBroadside = g.lobeCount ? g.lobesBroadside[0].thetaDeg : NaN;
+    g.gratingSuppDb = g.lobeCount ? g.lobesBroadside[0].relDb : NaN;
+    /* kept for the one-axis readout, now clearly labelled as such */
     g.gratingDeltaSin = g.lambdaM / g.elemDxM;
-    g.gratingVisible = g.gratingDeltaSin < 2;
-    g.gratingDegBroadside = g.gratingDeltaSin <= 1
-      ? Math.asin(g.gratingDeltaSin) * K.DEG : NaN;
-    /* element-pattern suppression at the first grating lobe, in dB */
-    g.elemPowExp = Math.max(0, Math.pow(10, g.elemDirDbi / 10) / 2 - 1);
-    g.gratingSuppDb = isFinite(g.gratingDegBroadside)
-      ? 10 * Math.log10(Math.pow(Math.cos(K.deg2rad(g.gratingDegBroadside)), g.elemPowExp))
-      : NaN;
-    /* an aperiodic lattice trades the discrete lobes for a raised, roughly
-       uniform sidelobe floor near 1/N */
+    /* filled-lattice reference counts, so the sparsity is unmissable */
+    g.filledPerTile = Math.pow(g.tileCm / (g.lamCm / 2), 2);
+    /* An aperiodic lattice trades the discrete lobes for a raised sidelobe
+       floor near 1/N. The MEAN is 1/N; the expected PEAK over a cut of
+       aperture L is higher by 10log10(ln(2L/lambda)), which is the number
+       that actually has to be met. */
     g.thinnedFloorDb = -10 * Math.log10(Math.max(g.nElem, 1));
+    g.peakOverMeanDb = 10 * Math.log10(Math.max(Math.log(2 * g.effApertureM / g.lambdaM), 1.01));
+    g.thinnedPeakDb = g.thinnedFloorDb + g.peakOverMeanDb;
+    /* How much position randomisation it takes to actually break the
+       periodicity, and how much is available inside one cell. A random
+       position offset delta perturbs the phase at a lobe offset dU by
+       2*pi*delta*dU/lambda, so the coherent lobe residue is exp(-sigma^2)
+       and reaching the 1/N floor needs sigma^2 = ln(N):
+
+           delta_needed = lambda*sqrt(ln N) / (2*pi*dU)
+
+       Dithering within the cell can supply at most cell/sqrt(12) RMS. When
+       that is less than delta_needed — and at this lattice it is, by a
+       factor of a few — a perturbed-periodic layout keeps a QUASI-GRATING
+       residue at the old lobe angles, well above the 1/N floor. Breaking it
+       properly needs a non-repeating layout over the whole aperture, which
+       means tiles that are no longer identical. */
+    var dUbind = g.lobeCount ? g.lobesBroadside[0].dU : 0;
+    g.thinNeedRmsMm = dUbind > 0
+      ? lamMm * Math.sqrt(Math.log(Math.max(g.nElem, 2))) / (2 * Math.PI * dUbind) : NaN;
+    g.thinAvailRmsMm = 10 * Math.min(g.elemDxCm, g.elemDyCm) / Math.sqrt(12);
+    var sigDith = 2 * Math.PI * g.thinAvailRmsMm * dUbind / lamMm;
+    g.thinResidueDb = dUbind > 0 ? -10 * Math.log10(Math.exp(sigDith * sigDith)) : NaN;
     return g;
   }
 
