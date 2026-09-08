@@ -12,13 +12,14 @@
   M.PARAMS.forEach(function (p) { DEFAULTS[p.key] = p.value; });
   var state = {};
   var view = {
-    name: 'map', selected: 0, tileMetric: 'phaseDeg',
-    showBlocks: true, showLo: true, showBb: true
+    name: 'map', selected: 0, tileMetric: 'skewPs',
+    showBlocks: true, showLo: true, showBb: true, showDies: true
   };
 
   var TILE_METRICS = [
-    { key: 'phaseDeg', label: 'phase error at LO (°)' },
     { key: 'skewPs', label: 'skew vs array mean (ps)' },
+    { key: 'wraps', label: 'static offset (wraps to resolve)' },
+    { key: 'driftDeg', label: 'thermal drift (°, uncalibrated)' },
     { key: 'lossDb', label: 'path loss (dB)' },
     { key: 'powerMw', label: 'distribution power (mW)' }
   ];
@@ -320,15 +321,18 @@
     lbl2.textContent = 'layers';
     tb.appendChild(lbl2);
     [
-      { k: 'showLo', on: 'LO / reference', off: 'LO hidden' },
-      { k: 'showBb', on: 'baseband', off: 'baseband hidden' },
-      { k: 'showBlocks', on: 'blocks', off: 'blocks hidden' }
+      { k: 'showLo', label: 'LO / reference' },
+      { k: 'showBb', label: 'baseband' },
+      { k: 'showDies', label: 'dies + taps' },
+      { k: 'showBlocks', label: 'blocks' }
     ].forEach(function (L) {
       var b = document.createElement('button');
       b.type = 'button';
       var on = view[L.k] !== false;
       b.className = 'btn' + (on ? ' pri' : '');
-      b.textContent = on ? L.on : L.off;
+      b.textContent = L.label;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.title = (on ? 'hide' : 'show') + ' the ' + L.label + ' layer';
       b.addEventListener('click', function () { view[L.k] = !on; render(); });
       tb.appendChild(b);
     });
@@ -336,7 +340,9 @@
     var tm = TILE_METRICS.filter(function (m) { return m.key === view.tileMetric; })[0];
     window.Diagram.renderMap(document.getElementById('mapMount'), built, {
       tileMetric: view.tileMetric, tileMetricLabel: tm ? tm.label : view.tileMetric,
-      selected: view.selected, showBlocks: view.showBlocks, sourceLabel: res.g.refName
+      selected: view.selected, sourceLabel: res.g.refName,
+      showBlocks: view.showBlocks, showLo: view.showLo,
+      showBb: view.showBb, showDies: view.showDies
     }, function (i) { view.selected = i; render(); });
 
     window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
@@ -371,7 +377,17 @@
         { k: 'Distribution power', n: n(sel.powerTotalMw / 1000, 2), unit: 'W', d: n(sel.powerFracOfArray, 1) + '% of the ' + n(state.arrayPowerW, 0) + ' W array budget' },
         { k: 'Repeater amps', n: n(sel.repeaters, 0), unit: '', d: sel.splitCount + ' splitters, ' + n(sel.totalRoutedCm, 0) + ' cm routed' },
         { k: 'RMS skew', n: n(sel.skewRmsPs), unit: 'ps', d: n(sel.skewDeg78) + '° at the LO · spec is ' + n(budget.skewSpecPs) + ' ps' },
-        { k: 'Baseband power', n: n(bsel.powerPerTileMw, 0), unit: 'mW/tile', d: bsel.short || M.BB_META[Math.round(state.bbOption)].name }
+        {
+          k: 'Array-output EVM', n: n(sel.evmPct), unit: '%',
+          binding: sel.evmPct > budget.evmLimitPct,
+          d: 'from ' + n(sel.phiArrayDeg) + '° absolute · supports ' + sel.maxQam +
+             '. This is what the reference clock changes — the differential is common-mode and does not move.'
+        },
+        {
+          k: 'Baseband', n: n(bsel.interGeoRawPs, 0), unit: 'ps',
+          d: bsel.interKind + ' · ' + n(bsel.ttdRangeConsumedPct, 0) + '% of TTD range, ' +
+             n(bsel.interRoutedCm, 0) + ' cm routed, ' + n(bsel.powerPerTileMw, 0) + ' mW/tile'
+        }
       ]
     });
   }

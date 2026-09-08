@@ -523,12 +523,19 @@
         ' lock ambiguity is ' + (360 / lo.tileMultiplier).toFixed(0) + '° and is invisible at the distribution frequency)' : '');
 
     /* ---------------- per-tile map values ---------------- */
+    /* Per-tile map values. Deliberately NOT "phase error in degrees" from the
+       geometric path deviation: that is a static, calibratable offset of many
+       full wraps, and colouring tiles by it would repeat exactly the mistake
+       the aggregate metrics were corrected for. Instead: the offset expressed
+       as the number of wraps calibration must resolve, and separately the
+       thermal drift, which is the part that actually survives. */
     grid.tiles.forEach(function (t) {
       var dev = (t.pathCm - lo.pathMeanCm) * psPerCm;
       t.m = {
         lossDb: t.pathCm * alpha + (lo.kind === 'tree' ? t.level * (3.01 + (id === 'hf-foldback' ? 0.8 : 0.3)) : t.hop * 1.2),
         skewPs: dev,
-        phaseDeg: Math.abs(dev) * degPs,
+        wraps: Math.abs(dev) * degPs / 360,
+        driftDeg: t.pathCm * psPerCm * g.tcPpmPerK * 1e-6 * g.dTTileK * degPs,
         powerMw: powerPerTileMw + (t.repeaters * (BLOCKS[id === 'hf-foldback' ? 'loAmp78' : 'loAmpMid'].powerMw))
       };
     });

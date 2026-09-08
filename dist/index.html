@@ -261,6 +261,10 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--pass
 /* ---------- charts ---------- */
 .chartbox { padding: 8px 6px 0; }
 svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+/* The aperture map is nearly square plus board margins top and bottom, so at
+   full container width it grows taller than the viewport. Cap it so the whole
+   floorplan is visible at once â€” preserveAspectRatio letterboxes it. */
+svg.chart.map { max-height: 76vh; width: auto; max-width: 100%; margin: 0 auto; }
 svg.chart text { font: 10.5px var(--sans); fill: var(--ink-3); }
 svg.chart text.axlabel { font-size: 11px; fill: var(--ink-2); }
 svg.chart .gl { stroke: var(--grid); stroke-width: 1; }
@@ -1993,18 +1997,82 @@ footer.foot a { color: var(--ink-2); }
           cx: (c + 0.5) * tileCm, cy: (r + 0.5) * tileCm,
           /* Two networks share the aperture, so they get separate anchor
              points inside each tile: the LO/reference feed lands at the
-             centre, the baseband port sits offset toward the lower right.
-             Real boards separate them by layer; the map separates them in
-             plan so both can be read at once. */
-          bbX: (c + 0.5) * tileCm + tileCm * 0.26,
-          bbY: (r + 0.5) * tileCm + tileCm * 0.26,
+             centre, the baseband port sits offset toward the lower right,
+             clear of the die cluster. Real boards separate them by layer;
+             the map separates them in plan so both can be read at once. */
+          bbX: (c + 0.5) * tileCm + tileCm * 0.36,
+          bbY: (r + 0.5) * tileCm + tileCm * 0.36,
           pathCm: 0, segments: 0, level: 0, hop: 0, repeaters: 0,
           bbPathCm: 0, bbLevel: 0, bbHop: 0,
           blocks: []
         });
       }
     }
-    return { rows: rows, cols: cols, tileCm: tileCm, tiles: tiles, nTiles: tiles.length };
+    var grid = { rows: rows, cols: cols, tileCm: tileCm, tiles: tiles, nTiles: tiles.length };
+    tiles.forEach(function (t) { layDies(t, g, tileCm); });
+    return grid;
+  }
+
+  /* ------------------------------------------------------ dies and LO taps
+     Each tile carries `tapsPerTile` E-band RFIC dies (2.5 x 2.5 mm each, the
+     existing taped-out part) laid out on a square grid, and an intra-tile LO
+     fan-out from the tile's LO node to every die. Drawn to scale: a 2.5 mm
+     die on a 60 mm tile really is that small, and seeing that is the point â€”
+     it is why the LO last mile is a packaging problem.
+
+     The fan-out is a two-level H: one trunk from the tile centre to each die
+     row, then a branch along the row to each die. That is the 9 cm / 3 cm-per-
+     leaf sub-tile tree the LO budget assumes.                              */
+  function layDies(t, g, tileCm) {
+    var n = Math.max(1, Math.round(g.tapsPerTile || 4));
+    var cols = Math.ceil(Math.sqrt(n));
+    var rows = Math.ceil(n / cols);
+    var dieCm = 0.25;                                  /* 2.5 mm */
+    var pitch = tileCm * 0.48 / Math.max(cols, 1) * 1.0;
+    var pitchX = tileCm * 0.48 / Math.max(cols - 1, 1);
+    var pitchY = tileCm * 0.48 / Math.max(rows - 1, 1);
+    if (cols === 1) pitchX = 0;
+    if (rows === 1) pitchY = 0;
+    /* centred on the tile: a 2 x 2 cluster on a 6 cm tile is a ~3 cm die
+       pitch, which is what the sub-tile LO tree assumes. The baseband port
+       sits further out at 0.36 of the tile, clear of the cluster. */
+    var ox = t.cx;
+    var oy = t.cy;
+
+    t.dies = [];
+    for (var i = 0; i < n; i++) {
+      var r = Math.floor(i / cols), c = i % cols;
+      t.dies.push({
+        i: i,
+        x: ox + (c - (cols - 1) / 2) * pitchX,
+        y: oy + (r - (rows - 1) / 2) * pitchY,
+        w: dieCm
+      });
+    }
+
+    /* group by row y, then trunk + branch */
+    t.tapLinks = [];
+    var byRow = {};
+    t.dies.forEach(function (d) {
+      var k = d.y.toFixed(4);
+      if (!byRow[k]) byRow[k] = [];
+      byRow[k].push(d);
+    });
+    Object.keys(byRow).forEach(function (k) {
+      var y = parseFloat(k);
+      var row = byRow[k];
+      t.tapLinks.push({ x1: t.cx, y1: t.cy, x2: t.cx, y2: y, kind: 'trunk' });
+      var xs = row.map(function (d) { return d.x; });
+      var lo = Math.min.apply(null, xs), hi = Math.max.apply(null, xs);
+      if (hi > lo) t.tapLinks.push({ x1: lo, y1: y, x2: hi, y2: y, kind: 'branch' });
+      row.forEach(function (d) {
+        t.tapLinks.push({ x1: d.x, y1: y, x2: d.x, y2: d.y, kind: 'leaf', die: d.i });
+      });
+    });
+    /* routed length of the intra-tile fan-out, per tile */
+    t.tapRoutedCm = t.tapLinks.reduce(function (a, L) {
+      return a + Math.abs(L.x2 - L.x1) + Math.abs(L.y2 - L.y1);
+    }, 0);
   }
 
   /* --------------------------------------------------- recursive corporate
@@ -3116,12 +3184,19 @@ footer.foot a { color: var(--ink-2); }
         ' lock ambiguity is ' + (360 / lo.tileMultiplier).toFixed(0) + 'Â° and is invisible at the distribution frequency)' : '');
 
     /* ---------------- per-tile map values ---------------- */
+    /* Per-tile map values. Deliberately NOT "phase error in degrees" from the
+       geometric path deviation: that is a static, calibratable offset of many
+       full wraps, and colouring tiles by it would repeat exactly the mistake
+       the aggregate metrics were corrected for. Instead: the offset expressed
+       as the number of wraps calibration must resolve, and separately the
+       thermal drift, which is the part that actually survives. */
     grid.tiles.forEach(function (t) {
       var dev = (t.pathCm - lo.pathMeanCm) * psPerCm;
       t.m = {
         lossDb: t.pathCm * alpha + (lo.kind === 'tree' ? t.level * (3.01 + (id === 'hf-foldback' ? 0.8 : 0.3)) : t.hop * 1.2),
         skewPs: dev,
-        phaseDeg: Math.abs(dev) * degPs,
+        wraps: Math.abs(dev) * degPs / 360,
+        driftDeg: t.pathCm * psPerCm * g.tcPpmPerK * 1e-6 * g.dTTileK * degPs,
         powerMw: powerPerTileMw + (t.repeaters * (BLOCKS[id === 'hf-foldback' ? 'loAmp78' : 'loAmpMid'].powerMw))
       };
     });
@@ -3868,7 +3943,7 @@ footer.foot a { color: var(--ink-2); }
       ' tiles of ' + grid.tileCm.toFixed(1) + ' cm'));
 
     /* ---- tiles, coloured by the chosen metric ---- */
-    var metric = view.tileMetric || 'phaseDeg';
+    var metric = view.tileMetric || 'skewPs';
     var vals = grid.tiles.map(function (t) { return t.m ? t.m[metric] : NaN; }).filter(isFinite);
     var vmin = vals.length ? Math.min.apply(null, vals) : 0;
     var vmax = vals.length ? Math.max.apply(null, vals) : 1;
@@ -3891,24 +3966,44 @@ footer.foot a { color: var(--ink-2); }
         'routed path ' + t.pathCm.toFixed(1) + ' cm\n' +
         (t.hop ? 'chain hop ' + t.hop + '\n' : 'tree level ' + t.level + '\n') +
         (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
-                'phase ' + t.m.phaseDeg.toFixed(1) + 'Â°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
+                'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + 'Â°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
       r.addEventListener('click', function () { onSelect(t.i); });
       tileG.appendChild(r);
 
-      /* the four RFIC dies inside each tile, to scale (2.5 mm on a 60 mm tile) */
-      var dieCm = 0.25, nd = 2;
-      for (var dr = 0; dr < nd; dr++) for (var dc = 0; dc < nd; dc++) {
-        tileG.appendChild(el('rect', {
-          x: X(t.x + t.w * (0.22 + dc * 0.42)), y: Y(t.y + t.h * (0.22 + dr * 0.42)),
-          width: dieCm * scale, height: dieCm * scale,
-          fill: 'var(--ink-3)', 'fill-opacity': 0.75
-        }));
-      }
       if (t.hop) tileG.appendChild(el('text', {
         x: X(t.x + t.w) - 4, y: Y(t.y) + 11, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--ink-3)'
       }, t.hop));
     });
     svg.appendChild(tileG);
+
+    /* ---- RFIC dies and the intra-tile LO tap fan-out, drawn to scale ---- */
+    if (view.showDies !== false) {
+      var dieG = el('g');
+      var eb = BAND_STYLE.eband.stroke;          /* the taps are always E-band */
+      grid.tiles.forEach(function (t) {
+        (t.tapLinks || []).forEach(function (L) {
+          dieG.appendChild(el('line', {
+            x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
+            stroke: eb, 'stroke-width': 1.1, 'stroke-opacity': 0.75, 'stroke-linecap': 'round'
+          }));
+        });
+        (t.dies || []).forEach(function (d) {
+          var w = Math.max(4.2, d.w * scale);    /* floor so it stays visible */
+          var rect = el('rect', {
+            x: X(d.x) - w / 2, y: Y(d.y) - w / 2, width: w, height: w, rx: 0.8,
+            fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb, 'stroke-width': 0.9
+          });
+          rect.appendChild(el('title', null,
+            'tile ' + t.i + ' Â· RFIC die ' + d.i + '\n' +
+            '2.5 Ã— 2.5 mm SiGe, 4 RX + 4 TX with IQ baseband\n' +
+            'one 78 GHz LO tap, fed by the intra-tile fan-out'));
+          dieG.appendChild(rect);
+          /* the LO tap port itself */
+          dieG.appendChild(el('circle', { cx: X(d.x), cy: Y(d.y - d.w / 2), r: 1.5, fill: eb }));
+        });
+      });
+      svg.appendChild(dieG);
+    }
 
     /* ---- BASEBAND tier first, so the LO tier draws over it ---- */
     var bbi = built.bbInter;
@@ -4016,6 +4111,16 @@ footer.foot a { color: var(--ink-2); }
     bl.innerHTML = '<span class="sw dash" style="border-top-color:' + BB_STYLE.stroke + '"></span>' + BB_STYLE.name;
     wrap.appendChild(bl);
 
+    var t0 = built.grid.tiles[0];
+    if (t0 && t0.dies) {
+      var dl = document.createElement('span');
+      dl.className = 'li';
+      dl.innerHTML = '<span style="display:inline-block;width:9px;height:9px;background:var(--ink);opacity:.62;' +
+        'border:0.9px solid ' + BAND_STYLE.eband.stroke + '"></span>' +
+        t0.dies.length + ' RFIC dies per tile, 2.5 mm, to scale â€” each with one 78 GHz LO tap';
+      wrap.appendChild(dl);
+    }
+
     var seen = {};
     var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'term',
                  'backend', 'sum', 'res', 'cell', 'drv'];
@@ -4060,7 +4165,8 @@ footer.foot a { color: var(--ink-2); }
       rows.push(['â€” electrical â€”', '']);
       rows.push(['Path loss at ' + (lo.distFreqHz / 1e9).toFixed(2) + ' GHz', t.m.lossDb.toFixed(2) + ' dB']);
       rows.push(['Skew vs array mean', t.m.skewPs.toFixed(2) + ' ps']);
-      rows.push(['Phase error at ' + g.fLoGHz + ' GHz', t.m.phaseDeg.toFixed(2) + 'Â°']);
+      rows.push(['Static offset to resolve', t.m.wraps.toFixed(2) + ' wraps at ' + g.fLoGHz + ' GHz']);
+      rows.push(['Thermal drift, uncalibrated', t.m.driftDeg.toFixed(2) + 'Â°']);
       rows.push(['Distribution power for this tile', t.m.powerMw.toFixed(0) + ' mW']);
     }
     var bbi = built.bbInter;
@@ -4071,6 +4177,13 @@ footer.foot a { color: var(--ink-2); }
       rows.push([bbi.kind === 'bus' ? 'Bus tap position' : 'Tree level',
         bbi.kind === 'bus' ? t.bbHop + ' of ' + bbi.depth : t.bbLevel + ' of ' + bbi.depth]);
       rows.push(['Deviation from mean path', (t.bbPathCm - bbi.pathMeanCm).toFixed(1) + ' cm']);
+    }
+    if (t.dies && t.dies.length) {
+      rows.push(['â€” RFIC dies in this tile â€”', '']);
+      rows.push(['E-band dies', t.dies.length + ' Ã— 2.5 Ã— 2.5 mm SiGe']);
+      rows.push(['Channels', (t.dies.length * 8) + ' (4 RX + 4 TX per die, IQ baseband)']);
+      rows.push(['78 GHz LO taps', String(t.dies.length)]);
+      rows.push(['Intra-tile LO fan-out', t.tapRoutedCm.toFixed(1) + ' cm routed at ' + g.fLoGHz + ' GHz']);
     }
     rows.push(['â€” blocks in this tile â€”', '']);
     (t.blocks || []).forEach(function (b) { rows.push([b.label, b.type]); });
@@ -4415,13 +4528,14 @@ footer.foot a { color: var(--ink-2); }
   M.PARAMS.forEach(function (p) { DEFAULTS[p.key] = p.value; });
   var state = {};
   var view = {
-    name: 'map', selected: 0, tileMetric: 'phaseDeg',
-    showBlocks: true, showLo: true, showBb: true
+    name: 'map', selected: 0, tileMetric: 'skewPs',
+    showBlocks: true, showLo: true, showBb: true, showDies: true
   };
 
   var TILE_METRICS = [
-    { key: 'phaseDeg', label: 'phase error at LO (Â°)' },
     { key: 'skewPs', label: 'skew vs array mean (ps)' },
+    { key: 'wraps', label: 'static offset (wraps to resolve)' },
+    { key: 'driftDeg', label: 'thermal drift (Â°, uncalibrated)' },
     { key: 'lossDb', label: 'path loss (dB)' },
     { key: 'powerMw', label: 'distribution power (mW)' }
   ];
@@ -4723,15 +4837,18 @@ footer.foot a { color: var(--ink-2); }
     lbl2.textContent = 'layers';
     tb.appendChild(lbl2);
     [
-      { k: 'showLo', on: 'LO / reference', off: 'LO hidden' },
-      { k: 'showBb', on: 'baseband', off: 'baseband hidden' },
-      { k: 'showBlocks', on: 'blocks', off: 'blocks hidden' }
+      { k: 'showLo', label: 'LO / reference' },
+      { k: 'showBb', label: 'baseband' },
+      { k: 'showDies', label: 'dies + taps' },
+      { k: 'showBlocks', label: 'blocks' }
     ].forEach(function (L) {
       var b = document.createElement('button');
       b.type = 'button';
       var on = view[L.k] !== false;
       b.className = 'btn' + (on ? ' pri' : '');
-      b.textContent = on ? L.on : L.off;
+      b.textContent = L.label;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.title = (on ? 'hide' : 'show') + ' the ' + L.label + ' layer';
       b.addEventListener('click', function () { view[L.k] = !on; render(); });
       tb.appendChild(b);
     });
@@ -4739,7 +4856,9 @@ footer.foot a { color: var(--ink-2); }
     var tm = TILE_METRICS.filter(function (m) { return m.key === view.tileMetric; })[0];
     window.Diagram.renderMap(document.getElementById('mapMount'), built, {
       tileMetric: view.tileMetric, tileMetricLabel: tm ? tm.label : view.tileMetric,
-      selected: view.selected, showBlocks: view.showBlocks, sourceLabel: res.g.refName
+      selected: view.selected, sourceLabel: res.g.refName,
+      showBlocks: view.showBlocks, showLo: view.showLo,
+      showBb: view.showBb, showDies: view.showDies
     }, function (i) { view.selected = i; render(); });
 
     window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
@@ -4774,7 +4893,17 @@ footer.foot a { color: var(--ink-2); }
         { k: 'Distribution power', n: n(sel.powerTotalMw / 1000, 2), unit: 'W', d: n(sel.powerFracOfArray, 1) + '% of the ' + n(state.arrayPowerW, 0) + ' W array budget' },
         { k: 'Repeater amps', n: n(sel.repeaters, 0), unit: '', d: sel.splitCount + ' splitters, ' + n(sel.totalRoutedCm, 0) + ' cm routed' },
         { k: 'RMS skew', n: n(sel.skewRmsPs), unit: 'ps', d: n(sel.skewDeg78) + 'Â° at the LO Â· spec is ' + n(budget.skewSpecPs) + ' ps' },
-        { k: 'Baseband power', n: n(bsel.powerPerTileMw, 0), unit: 'mW/tile', d: bsel.short || M.BB_META[Math.round(state.bbOption)].name }
+        {
+          k: 'Array-output EVM', n: n(sel.evmPct), unit: '%',
+          binding: sel.evmPct > budget.evmLimitPct,
+          d: 'from ' + n(sel.phiArrayDeg) + 'Â° absolute Â· supports ' + sel.maxQam +
+             '. This is what the reference clock changes â€” the differential is common-mode and does not move.'
+        },
+        {
+          k: 'Baseband', n: n(bsel.interGeoRawPs, 0), unit: 'ps',
+          d: bsel.interKind + ' Â· ' + n(bsel.ttdRangeConsumedPct, 0) + '% of TTD range, ' +
+             n(bsel.interRoutedCm, 0) + ' cm routed, ' + n(bsel.powerPerTileMw, 0) + ' mW/tile'
+        }
       ]
     });
   }

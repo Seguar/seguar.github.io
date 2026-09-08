@@ -149,7 +149,7 @@
       ' tiles of ' + grid.tileCm.toFixed(1) + ' cm'));
 
     /* ---- tiles, coloured by the chosen metric ---- */
-    var metric = view.tileMetric || 'phaseDeg';
+    var metric = view.tileMetric || 'skewPs';
     var vals = grid.tiles.map(function (t) { return t.m ? t.m[metric] : NaN; }).filter(isFinite);
     var vmin = vals.length ? Math.min.apply(null, vals) : 0;
     var vmax = vals.length ? Math.max.apply(null, vals) : 1;
@@ -172,24 +172,44 @@
         'routed path ' + t.pathCm.toFixed(1) + ' cm\n' +
         (t.hop ? 'chain hop ' + t.hop + '\n' : 'tree level ' + t.level + '\n') +
         (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
-                'phase ' + t.m.phaseDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
+                'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
       r.addEventListener('click', function () { onSelect(t.i); });
       tileG.appendChild(r);
 
-      /* the four RFIC dies inside each tile, to scale (2.5 mm on a 60 mm tile) */
-      var dieCm = 0.25, nd = 2;
-      for (var dr = 0; dr < nd; dr++) for (var dc = 0; dc < nd; dc++) {
-        tileG.appendChild(el('rect', {
-          x: X(t.x + t.w * (0.22 + dc * 0.42)), y: Y(t.y + t.h * (0.22 + dr * 0.42)),
-          width: dieCm * scale, height: dieCm * scale,
-          fill: 'var(--ink-3)', 'fill-opacity': 0.75
-        }));
-      }
       if (t.hop) tileG.appendChild(el('text', {
         x: X(t.x + t.w) - 4, y: Y(t.y) + 11, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--ink-3)'
       }, t.hop));
     });
     svg.appendChild(tileG);
+
+    /* ---- RFIC dies and the intra-tile LO tap fan-out, drawn to scale ---- */
+    if (view.showDies !== false) {
+      var dieG = el('g');
+      var eb = BAND_STYLE.eband.stroke;          /* the taps are always E-band */
+      grid.tiles.forEach(function (t) {
+        (t.tapLinks || []).forEach(function (L) {
+          dieG.appendChild(el('line', {
+            x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
+            stroke: eb, 'stroke-width': 1.1, 'stroke-opacity': 0.75, 'stroke-linecap': 'round'
+          }));
+        });
+        (t.dies || []).forEach(function (d) {
+          var w = Math.max(4.2, d.w * scale);    /* floor so it stays visible */
+          var rect = el('rect', {
+            x: X(d.x) - w / 2, y: Y(d.y) - w / 2, width: w, height: w, rx: 0.8,
+            fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb, 'stroke-width': 0.9
+          });
+          rect.appendChild(el('title', null,
+            'tile ' + t.i + ' · RFIC die ' + d.i + '\n' +
+            '2.5 × 2.5 mm SiGe, 4 RX + 4 TX with IQ baseband\n' +
+            'one 78 GHz LO tap, fed by the intra-tile fan-out'));
+          dieG.appendChild(rect);
+          /* the LO tap port itself */
+          dieG.appendChild(el('circle', { cx: X(d.x), cy: Y(d.y - d.w / 2), r: 1.5, fill: eb }));
+        });
+      });
+      svg.appendChild(dieG);
+    }
 
     /* ---- BASEBAND tier first, so the LO tier draws over it ---- */
     var bbi = built.bbInter;
@@ -297,6 +317,16 @@
     bl.innerHTML = '<span class="sw dash" style="border-top-color:' + BB_STYLE.stroke + '"></span>' + BB_STYLE.name;
     wrap.appendChild(bl);
 
+    var t0 = built.grid.tiles[0];
+    if (t0 && t0.dies) {
+      var dl = document.createElement('span');
+      dl.className = 'li';
+      dl.innerHTML = '<span style="display:inline-block;width:9px;height:9px;background:var(--ink);opacity:.62;' +
+        'border:0.9px solid ' + BAND_STYLE.eband.stroke + '"></span>' +
+        t0.dies.length + ' RFIC dies per tile, 2.5 mm, to scale — each with one 78 GHz LO tap';
+      wrap.appendChild(dl);
+    }
+
     var seen = {};
     var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'term',
                  'backend', 'sum', 'res', 'cell', 'drv'];
@@ -341,7 +371,8 @@
       rows.push(['— electrical —', '']);
       rows.push(['Path loss at ' + (lo.distFreqHz / 1e9).toFixed(2) + ' GHz', t.m.lossDb.toFixed(2) + ' dB']);
       rows.push(['Skew vs array mean', t.m.skewPs.toFixed(2) + ' ps']);
-      rows.push(['Phase error at ' + g.fLoGHz + ' GHz', t.m.phaseDeg.toFixed(2) + '°']);
+      rows.push(['Static offset to resolve', t.m.wraps.toFixed(2) + ' wraps at ' + g.fLoGHz + ' GHz']);
+      rows.push(['Thermal drift, uncalibrated', t.m.driftDeg.toFixed(2) + '°']);
       rows.push(['Distribution power for this tile', t.m.powerMw.toFixed(0) + ' mW']);
     }
     var bbi = built.bbInter;
@@ -352,6 +383,13 @@
       rows.push([bbi.kind === 'bus' ? 'Bus tap position' : 'Tree level',
         bbi.kind === 'bus' ? t.bbHop + ' of ' + bbi.depth : t.bbLevel + ' of ' + bbi.depth]);
       rows.push(['Deviation from mean path', (t.bbPathCm - bbi.pathMeanCm).toFixed(1) + ' cm']);
+    }
+    if (t.dies && t.dies.length) {
+      rows.push(['— RFIC dies in this tile —', '']);
+      rows.push(['E-band dies', t.dies.length + ' × 2.5 × 2.5 mm SiGe']);
+      rows.push(['Channels', (t.dies.length * 8) + ' (4 RX + 4 TX per die, IQ baseband)']);
+      rows.push(['78 GHz LO taps', String(t.dies.length)]);
+      rows.push(['Intra-tile LO fan-out', t.tapRoutedCm.toFixed(1) + ' cm routed at ' + g.fLoGHz + ' GHz']);
     }
     rows.push(['— blocks in this tile —', '']);
     (t.blocks || []).forEach(function (b) { rows.push([b.label, b.type]); });

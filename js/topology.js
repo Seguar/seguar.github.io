@@ -44,18 +44,82 @@
           cx: (c + 0.5) * tileCm, cy: (r + 0.5) * tileCm,
           /* Two networks share the aperture, so they get separate anchor
              points inside each tile: the LO/reference feed lands at the
-             centre, the baseband port sits offset toward the lower right.
-             Real boards separate them by layer; the map separates them in
-             plan so both can be read at once. */
-          bbX: (c + 0.5) * tileCm + tileCm * 0.26,
-          bbY: (r + 0.5) * tileCm + tileCm * 0.26,
+             centre, the baseband port sits offset toward the lower right,
+             clear of the die cluster. Real boards separate them by layer;
+             the map separates them in plan so both can be read at once. */
+          bbX: (c + 0.5) * tileCm + tileCm * 0.36,
+          bbY: (r + 0.5) * tileCm + tileCm * 0.36,
           pathCm: 0, segments: 0, level: 0, hop: 0, repeaters: 0,
           bbPathCm: 0, bbLevel: 0, bbHop: 0,
           blocks: []
         });
       }
     }
-    return { rows: rows, cols: cols, tileCm: tileCm, tiles: tiles, nTiles: tiles.length };
+    var grid = { rows: rows, cols: cols, tileCm: tileCm, tiles: tiles, nTiles: tiles.length };
+    tiles.forEach(function (t) { layDies(t, g, tileCm); });
+    return grid;
+  }
+
+  /* ------------------------------------------------------ dies and LO taps
+     Each tile carries `tapsPerTile` E-band RFIC dies (2.5 x 2.5 mm each, the
+     existing taped-out part) laid out on a square grid, and an intra-tile LO
+     fan-out from the tile's LO node to every die. Drawn to scale: a 2.5 mm
+     die on a 60 mm tile really is that small, and seeing that is the point —
+     it is why the LO last mile is a packaging problem.
+
+     The fan-out is a two-level H: one trunk from the tile centre to each die
+     row, then a branch along the row to each die. That is the 9 cm / 3 cm-per-
+     leaf sub-tile tree the LO budget assumes.                              */
+  function layDies(t, g, tileCm) {
+    var n = Math.max(1, Math.round(g.tapsPerTile || 4));
+    var cols = Math.ceil(Math.sqrt(n));
+    var rows = Math.ceil(n / cols);
+    var dieCm = 0.25;                                  /* 2.5 mm */
+    var pitch = tileCm * 0.48 / Math.max(cols, 1) * 1.0;
+    var pitchX = tileCm * 0.48 / Math.max(cols - 1, 1);
+    var pitchY = tileCm * 0.48 / Math.max(rows - 1, 1);
+    if (cols === 1) pitchX = 0;
+    if (rows === 1) pitchY = 0;
+    /* centred on the tile: a 2 x 2 cluster on a 6 cm tile is a ~3 cm die
+       pitch, which is what the sub-tile LO tree assumes. The baseband port
+       sits further out at 0.36 of the tile, clear of the cluster. */
+    var ox = t.cx;
+    var oy = t.cy;
+
+    t.dies = [];
+    for (var i = 0; i < n; i++) {
+      var r = Math.floor(i / cols), c = i % cols;
+      t.dies.push({
+        i: i,
+        x: ox + (c - (cols - 1) / 2) * pitchX,
+        y: oy + (r - (rows - 1) / 2) * pitchY,
+        w: dieCm
+      });
+    }
+
+    /* group by row y, then trunk + branch */
+    t.tapLinks = [];
+    var byRow = {};
+    t.dies.forEach(function (d) {
+      var k = d.y.toFixed(4);
+      if (!byRow[k]) byRow[k] = [];
+      byRow[k].push(d);
+    });
+    Object.keys(byRow).forEach(function (k) {
+      var y = parseFloat(k);
+      var row = byRow[k];
+      t.tapLinks.push({ x1: t.cx, y1: t.cy, x2: t.cx, y2: y, kind: 'trunk' });
+      var xs = row.map(function (d) { return d.x; });
+      var lo = Math.min.apply(null, xs), hi = Math.max.apply(null, xs);
+      if (hi > lo) t.tapLinks.push({ x1: lo, y1: y, x2: hi, y2: y, kind: 'branch' });
+      row.forEach(function (d) {
+        t.tapLinks.push({ x1: d.x, y1: y, x2: d.x, y2: d.y, kind: 'leaf', die: d.i });
+      });
+    });
+    /* routed length of the intra-tile fan-out, per tile */
+    t.tapRoutedCm = t.tapLinks.reduce(function (a, L) {
+      return a + Math.abs(L.x2 - L.x1) + Math.abs(L.y2 - L.y1);
+    }, 0);
   }
 
   /* --------------------------------------------------- recursive corporate
