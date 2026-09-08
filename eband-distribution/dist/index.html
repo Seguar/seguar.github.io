@@ -287,7 +287,13 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
 /* The aperture map is nearly square plus board margins top and bottom, so at
    full container width it grows taller than the viewport. Cap it so the whole
    floorplan is visible at once — preserveAspectRatio letterboxes it. */
-svg.chart.map { max-height: 76vh; width: auto; max-width: 100%; margin: 0 auto; }
+svg.chart.map {
+  display: block; width: 100%; height: auto; max-height: 76vh;
+  /* min-height wins over max-height in CSS, so the map cannot collapse in an
+     embedding context where vh resolves to zero during layout */
+  min-height: 320px;
+  margin: 0 auto; touch-action: none;   /* the map handles its own gestures */
+}
 svg.chart text { font: 10.5px var(--sans); fill: var(--ink-3); }
 svg.chart text.axlabel { font-size: 11px; fill: var(--ink-2); }
 svg.chart .gl { stroke: var(--grid); stroke-width: 1; }
@@ -4430,6 +4436,7 @@ footer.foot a { color: var(--ink-2); }
              Math.max(y1, y2) >= visCm.y0 && Math.min(y1, y2) <= visCm.y1;
     }
 
+    var dragMoved = false;   /* set by the pan handler; suppresses the click */
     var shown = grid.tiles.filter(tileVisible);
     var lod = lodFor(shown.length);
     /* explicit layer switches always win over the LOD default */
@@ -4440,6 +4447,9 @@ footer.foot a { color: var(--ink-2); }
       class: 'chart map', viewBox: vx.toFixed(1) + ' ' + vy.toFixed(1) + ' ' + vw.toFixed(1) + ' ' + vh.toFixed(1),
       preserveAspectRatio: 'xMidYMid meet'
     });
+    /* Height follows the drawing's own aspect rather than a fixed vh, so the
+       element matches the artwork and there is no dead clickable margin. */
+    svg.style.aspectRatio = W.toFixed(2) + ' / ' + H.toFixed(2);
     /* strokes and glyphs stay a constant size on screen no matter the crop */
     function nss(e) { e.setAttribute('vector-effect', 'non-scaling-stroke'); return e; }
     function place(g2, x, y) {
@@ -4503,7 +4513,7 @@ footer.foot a { color: var(--ink-2); }
           (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
                   'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
       }
-      r.addEventListener('click', function () { onSelect(t.i); });
+      r.addEventListener('click', function () { if (!dragMoved) onSelect(t.i); });
       tileG.appendChild(r);
 
       if (t.hop && lod.tier === 'full') tileG.appendChild(el('text', {
@@ -4614,39 +4624,115 @@ footer.foot a { color: var(--ink-2); }
 
     mount.appendChild(svg);
 
-    /* ---- drag to pan ----
-       The viewBox is updated in place during the drag: re-rendering on every
-       pointermove would destroy the element holding the pointer capture, so
-       the drag would die after one frame. State is committed once on release,
-       and only then does the caller re-render — which re-runs culling and the
-       LOD decision for the region now on screen. */
-    if (Z > 1) {
-      svg.style.cursor = 'grab';
-      var drag = null;
-      svg.addEventListener('pointerdown', function (e) {
-        drag = { x: e.clientX, y: e.clientY, nx: vx, ny: vy };
-        svg.style.cursor = 'grabbing';
-        try { svg.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
-      });
-      svg.addEventListener('pointermove', function (e) {
-        if (!drag) return;
-        var box = svg.getBoundingClientRect();
-        if (!box.width) return;
-        var unitsPerPx = vw / box.width;
-        drag.nx = Math.max(0, Math.min(W - vw, vx - (e.clientX - drag.x) * unitsPerPx));
-        drag.ny = Math.max(0, Math.min(H - vh, vy - (e.clientY - drag.y) * unitsPerPx));
-        svg.setAttribute('viewBox', drag.nx.toFixed(1) + ' ' + drag.ny.toFixed(1) + ' ' + vw.toFixed(1) + ' ' + vh.toFixed(1));
-      });
-      function endDrag() {
-        if (drag && view.onPanEnd) {
-          view.onPanEnd((drag.nx + vw / 2 - PAD) / scale, (drag.ny + vh / 2 - PAD) / scale - TOP_CM);
-        }
-        drag = null;
-        svg.style.cursor = 'grab';
-      }
-      svg.addEventListener('pointerup', endDrag);
-      svg.addEventListener('pointercancel', endDrag);
+    /* ====================================================================
+       INTERACTION — wheel to zoom at the cursor, drag to pan, double-click
+       to zoom in, all of it standard map behaviour.
+
+       The viewBox is mutated in place during a gesture and the expensive
+       re-render (which re-runs culling and the LOD decision) is deferred
+       until the gesture settles. Two reasons: re-rendering on every
+       pointermove would destroy the element holding the pointer capture and
+       the drag would die after one frame, and at several thousand tiles a
+       per-frame rebuild would not keep up.
+       ================================================================== */
+    var cur = { z: Z, vx: vx, vy: vy, vw: vw, vh: vh };
+    var settle = 0;
+
+    function applyCrop() {
+      svg.setAttribute('viewBox',
+        cur.vx.toFixed(1) + ' ' + cur.vy.toFixed(1) + ' ' + cur.vw.toFixed(1) + ' ' + cur.vh.toFixed(1));
     }
+    /* crop rect -> the state the caller keeps */
+    function commit() {
+      if (!view.onViewChange) return;
+      view.onViewChange(
+        cur.z,
+        (cur.vx + cur.vw / 2 - PAD) / scale - marg,
+        (cur.vy + cur.vh / 2 - PAD) / scale - marg - TOP_CM
+      );
+    }
+    function scheduleCommit() {
+      if (settle) clearTimeout(settle);
+      settle = setTimeout(function () { settle = 0; commit(); }, 200);
+    }
+    function clampCrop() {
+      cur.vw = W / cur.z;
+      cur.vh = H / cur.z;
+      cur.vx = Math.max(0, Math.min(W - cur.vw, cur.vx));
+      cur.vy = Math.max(0, Math.min(H - cur.vh, cur.vy));
+    }
+
+    /* zoom by `k` about a point given as a fraction of the element box */
+    function zoomAt(k, fx, fy) {
+      var z2 = Math.max(1, Math.min(64, cur.z * k));
+      if (z2 === cur.z) return;
+      var px = cur.vx + fx * cur.vw;          /* viewBox point under cursor */
+      var py = cur.vy + fy * cur.vh;
+      cur.z = z2;
+      cur.vw = W / z2;
+      cur.vh = H / z2;
+      cur.vx = px - fx * cur.vw;              /* keep that point put */
+      cur.vy = py - fy * cur.vh;
+      clampCrop();
+      applyCrop();
+      scheduleCommit();
+    }
+    function fracOf(e) {
+      var b = svg.getBoundingClientRect();
+      if (!b.width || !b.height) return { fx: 0.5, fy: 0.5 };
+      return {
+        fx: Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)),
+        fy: Math.max(0, Math.min(1, (e.clientY - b.top) / b.height))
+      };
+    }
+
+    svg.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var f = fracOf(e);
+      /* one notch is a factor of ~1.2; trackpads send many small deltas */
+      var k = Math.pow(1.0016, -e.deltaY);
+      zoomAt(Math.max(0.5, Math.min(2, k)), f.fx, f.fy);
+    }, { passive: false });
+
+    svg.addEventListener('dblclick', function (e) {
+      e.preventDefault();
+      var f = fracOf(e);
+      zoomAt(e.shiftKey ? 0.5 : 2, f.fx, f.fy);
+    });
+
+    /* drag to pan. dragMoved suppresses the tile click that would otherwise
+       fire on release, so panning does not also change the selection. */
+    var drag = null;
+    svg.style.cursor = cur.z > 1 ? 'grab' : 'default';
+    svg.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, vx: cur.vx, vy: cur.vy, moved: false };
+      try { svg.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+    });
+    svg.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var b = svg.getBoundingClientRect();
+      if (!b.width) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+      drag.moved = true;
+      dragMoved = true;
+      svg.style.cursor = 'grabbing';
+      var unitsPerPx = cur.vw / b.width;
+      cur.vx = drag.vx - dx * unitsPerPx;
+      cur.vy = drag.vy - dy * unitsPerPx;
+      clampCrop();
+      applyCrop();
+    });
+    function endDrag() {
+      if (drag && drag.moved) scheduleCommit();
+      drag = null;
+      svg.style.cursor = cur.z > 1 ? 'grab' : 'default';
+      /* let the click that follows this pointerup through, then re-arm */
+      setTimeout(function () { dragMoved = false; }, 0);
+    }
+    svg.addEventListener('pointerup', endDrag);
+    svg.addEventListener('pointercancel', endDrag);
 
     /* ---- colour-scale legend + what the LOD dropped ---- */
     var sc = document.createElement('div');
@@ -5461,6 +5547,7 @@ footer.foot a { color: var(--ink-2); }
     var zlbl = document.createElement('span');
     zlbl.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
     zlbl.textContent = 'zoom';
+    zlbl.title = 'scroll to zoom at the cursor, drag to pan, double-click to zoom in';
     tb.appendChild(zlbl);
     function zoomBtn(txt, fn, title) {
       var b = document.createElement('button');
@@ -5500,13 +5587,16 @@ footer.foot a { color: var(--ink-2); }
       showBb: view.showBb, showDies: view.showDies,
       zoom: view.zoom, panXCm: view.panXCm, panYCm: view.panYCm,
       apertureSpecCm: res.g.apertureCm,
-      onPanEnd: function (x, y) { view.panXCm = x; view.panYCm = y; render(); }
+      onViewChange: function (z, x, y) { view.zoom = z; view.panXCm = x; view.panYCm = y; render(); }
     }, function (i) { view.selected = i; render(); });
     void mapInfo;
 
     window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
     var bsel0 = res.bb[res.g.bbOptionId];
     document.getElementById('mapNote').innerHTML =
+      '<strong>Scroll to zoom at the cursor, drag to pan, double-click to zoom in</strong> ' +
+      '(shift double-click to zoom out). Detail follows how many tiles are actually on screen, so zooming in ' +
+      'restores the dies and taps even on a several-thousand-tile array. ' +
       '<strong>Two networks, one aperture.</strong> The <span style="color:var(--s2)">LO / reference</span> tier ' +
       'enters from the source below and lands at each tile centre; line weight and colour encode the frequency ' +
       'each segment carries, so what is actually on the board is visible at a glance. The ' +
