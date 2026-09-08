@@ -264,13 +264,16 @@
      commanded-angle grid at band edge, its level at the current angle, and
      the angle-averaged variance proxy that understates both.
      ------------------------------------------------------------------- */
-  function ttdSweep(g, c, fEdge) {
+  function ttdSweep(g, c, fEdge, coarse) {
     var stepS = c.stepS, p = c.p, N = c.Nt1;
     if (!(stepS > 0) || N < 2) return null;
     var w = 2 * Math.PI * (fEdge - c.fc);
-    var best = { db: -Infinity, scanDeg: NaN }, atCur = -Infinity;
-    var maxScan = Math.max(Math.abs(g.scanDegMax || 60), Math.abs(g.beamScanDeg));
-    for (var sd = 0; sd <= maxScan + 1e-9; sd += 0.25) {
+    var nU = coarse ? 180 : 360;
+
+    /* Peak scattered power from the quantisation sequence at one commanded
+       angle, relative to the coherent peak. The mean of the sequence is a
+       harmless global phase, so it is removed first. */
+    function scatterAt(sd) {
       var u0 = Math.sin(K.deg2rad(sd)), dpsi = [], mean = 0, t;
       for (t = 0; t < N; t++) {
         var tau = p * t * u0 / K.C0;
@@ -278,11 +281,9 @@
         mean += dpsi[t];
       }
       mean /= N;
-      /* the common part is a harmless global phase; scattered power is what
-         is left after removing it */
       var peak = 0;
-      for (var iu = 0; iu <= 360; iu++) {
-        var du = -2 + 4 * iu / 360;
+      for (var iu = 0; iu <= nU; iu++) {
+        var du = -2 + 4 * iu / nU;
         var re = 0, im = 0;
         for (t = 0; t < N; t++) {
           var a = 2 * Math.PI * p * t * du / c.lamC;
@@ -291,10 +292,19 @@
         }
         peak = Math.max(peak, (re * re + im * im) / (N * N));
       }
-      var db = 10 * Math.log10(Math.max(peak, 1e-18));
-      if (db > best.db) best = { db: db, scanDeg: sd };
-      if (Math.abs(sd - Math.abs(g.beamScanDeg)) < 0.13) atCur = db;
+      return 10 * Math.log10(Math.max(peak, 1e-18));
     }
+
+    var best = { db: -Infinity, scanDeg: NaN };
+    var maxScan = Math.max(Math.abs(g.scanDegMax || 60), Math.abs(g.beamScanDeg));
+    var dSd = coarse ? 1 : 0.25;
+    for (var sd = 0; sd <= maxScan + 1e-9; sd += dSd) {
+      var db = scatterAt(sd);
+      if (db > best.db) best = { db: db, scanDeg: sd };
+    }
+    /* the current angle is evaluated explicitly rather than read off the
+       sweep grid, so it stays right whatever the grid step is */
+    var atCur = scatterAt(Math.abs(g.beamScanDeg));
     var rms = w * stepS / Math.sqrt(12);
     return {
       worstDb: best.db, worstScanDeg: best.scanDeg, atScanDb: atCur,
@@ -322,7 +332,20 @@
     while (lo > 0 && pts[lo].real > main - 3) lo--;
     while (hi < pts.length - 1 && pts[hi].real > main - 3) hi++;
     var resolved = pts[lo].real <= main - 3 && pts[hi].real <= main - 3;
-    var hpbw = resolved ? pts[hi].deg - pts[lo].deg : NaN;
+    /* Interpolate the -3 dB crossings instead of taking the nearest sample.
+       On a 0.7 deg beam the sample pitch is a large fraction of the
+       beamwidth, so nearest-sample HPBW moves with the grid density — the
+       same array measured on an 801-point and a 1601-point cut disagreed by
+       1.5%, which would read as a bug when a light-mode comparison row sits
+       next to the full-resolution beam view. */
+    function cross(iOut, iIn) {
+      var a = pts[iOut], b = pts[iIn];
+      var d = b.real - a.real;
+      if (!isFinite(d) || Math.abs(d) < 1e-12) return b.deg;
+      var t = (main - 3 - a.real) / d;
+      return a.deg + Math.max(0, Math.min(1, t)) * (b.deg - a.deg);
+    }
+    var hpbw = resolved ? cross(hi, hi - 1) - cross(lo, lo + 1) : NaN;
 
     var peak = -Infinity, pk = 0;
     for (k = 0; k < pts.length; k++) if (pts[k].real > peak) { peak = pts[k].real; pk = k; }
@@ -355,9 +378,26 @@
   /* ---------------------------------------------------------------------
      Everything the Beam view needs, for both directions at once.
      ------------------------------------------------------------------- */
-  function evaluate(g, budget, loRes, bbRes) {
+  function evaluate(g, budget, loRes, bbRes, opts) {
     var fc = g.fLoHz, B = g.rfBwGHz * 1e9;
     var c = ctxOf(g);
+    /* LIGHT MODE exists for the Systems view, which evaluates the whole
+       model for several saved parameter sets at once. It drops what only a
+       plot needs — the second principal-plane cut and the Monte-Carlo
+       realisation (801 points x 392 elements) — and coarsens two sampling
+       grids: the zoom cuts (801 instead of 1601 points) and the TTD
+       commanded-angle sweep (1 deg instead of 0.25 deg steps, 180 instead
+       of 360 u-samples). 40 ms -> 5 ms per system.
+
+       It is a COARSER evaluation, not an exact one, and the difference was
+       measured rather than assumed: across scan angle 0-60 deg, tile pitch
+       2-6 cm, TTD step 20-200 ps and both lattice modes, every scalar a
+       comparison row shows agrees with the full evaluation to within
+       0.031 dB, and all but the TTD sweep to within 0.004 dB. HPBW is
+       grid-independent because the -3 dB crossings are interpolated (see
+       metrics()). What light mode omits entirely is left undefined rather
+       than set to a plausible-looking number. */
+    var light = !!(opts && opts.light);
 
     /* ---- the error partition, on which the headline depends ----
        per-TILE: the LO residual is common to a tile's elements.
@@ -389,29 +429,31 @@
     var pk0 = c.periodic ? geomAt(c, fc, c.u0, c.v0) : geomAperiodic(c, fc, c.u0, c.v0);
     var peakRef = pk0.ep * c.Ne * c.Ne;
 
-    var gZoom = geomCut(c, fc, 0, zLo, zHi, 1601);
-    var gLow = geomCut(c, fc - B / 2, 0, zLo, zHi, 1601);
-    var gHigh = geomCut(c, fc + B / 2, 0, zLo, zHi, 1601);
-    var gWide = geomCut(c, fc, 0, -90, 90, 2401);
-    var gWide90 = geomCut(c, fc, 90, -90, 90, 2401);
+    var nZoom = light ? 801 : 1601;
+    var gZoom = geomCut(c, fc, 0, zLo, zHi, nZoom);
+    var gLow = geomCut(c, fc - B / 2, 0, zLo, zHi, nZoom);
+    var gHigh = geomCut(c, fc + B / 2, 0, zLo, zHi, nZoom);
+    var gWide = geomCut(c, fc, 0, -90, 90, light ? 1201 : 2401);
+    var gWide90 = light ? null : geomCut(c, fc, 90, -90, 90, 2401);
 
     var tx = {
       centre: pattern(c, gZoom, esTx, peakRef),
       lowEdge: pattern(c, gLow, esTx, peakRef),
       highEdge: pattern(c, gHigh, esTx, peakRef),
       wide: pattern(c, gWide, esTx, peakRef),
-      wide90: pattern(c, gWide90, esTx, peakRef)
+      wide90: gWide90 ? pattern(c, gWide90, esTx, peakRef) : undefined
     };
     var rx = { centre: pattern(c, gZoom, esRx, peakRef), wide: pattern(c, gWide, esRx, peakRef) };
 
     /* one realisation, TX, on the zoom */
-    var realPts = realise(c, fc, 0, zLo, zHi, 801, errTx, 20260908).map(function (q) {
-      return { deg: q.deg, real: 10 * Math.log10(Math.max(q.p / peakRef, 1e-16)) };
-    });
+    var realPts = light ? undefined
+      : realise(c, fc, 0, zLo, zHi, 801, errTx, 20260908).map(function (q) {
+          return { deg: q.deg, real: 10 * Math.log10(Math.max(q.p / peakRef, 1e-16)) };
+        });
 
     var mC = metrics(tx.centre, g.beamScanDeg, null);
     var mW = metrics(tx.wide, g.beamScanDeg, lobes);
-    var mW90 = metrics(tx.wide90, g.beamScanDeg, null);
+    var mW90 = tx.wide90 ? metrics(tx.wide90, g.beamScanDeg, null) : undefined;
     var mLo = metrics(tx.lowEdge, g.beamScanDeg, null);
     var mHi = metrics(tx.highEdge, g.beamScanDeg, null);
 
@@ -420,11 +462,15 @@
        just the -13 dB taper sidelobe and says nothing about the errors. The
        realisation grid is a 2:1 decimation of the zoom grid, so indices
        line up exactly. */
-    var realPeakSllDb = -Infinity, realPeakAtDeg = NaN;
-    var gate = esTx.floorFarDb + 6;
-    for (var i = 0; i < realPts.length; i++) {
-      if (tx.centre[2 * i].ideal > gate) continue;
-      if (realPts[i].real > realPeakSllDb) { realPeakSllDb = realPts[i].real; realPeakAtDeg = realPts[i].deg; }
+    var realPeakSllDb, realPeakAtDeg;
+    if (realPts) {
+      realPeakSllDb = -Infinity; realPeakAtDeg = NaN;
+      var gate = esTx.floorFarDb + 6;
+      var dec = (tx.centre.length - 1) / (realPts.length - 1);
+      for (var i = 0; i < realPts.length; i++) {
+        if (tx.centre[Math.round(i * dec)].ideal > gate) continue;
+        if (realPts[i].real > realPeakSllDb) { realPeakSllDb = realPts[i].real; realPeakAtDeg = realPts[i].deg; }
+      }
     }
 
     /* ---- absolute chain ----
@@ -459,7 +505,7 @@
     })();
     var bwU = 0.886 * c.lamC / g.effApertureM;
     var squintBw = Math.abs(sMax) * (B / 2) / fc / bwU;
-    var ttd = ttdSweep(g, c, fc + B / 2);
+    var ttd = ttdSweep(g, c, fc + B / 2, light);
 
     /* random-error pointing jitter in u, so it can be dismissed with a
        number: sigma_u = sqrt(3)*sigma_phi / (pi * (D/lambda) * sqrt(N)),

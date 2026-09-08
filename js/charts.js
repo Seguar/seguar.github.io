@@ -195,9 +195,29 @@
 
     var vmax = Math.max.apply(null, bars.map(function (b) { return b.value; }));
     var vmin = Math.min.apply(null, bars.map(function (b) { return b.value; }));
-    if (cfg.hLine !== undefined && isFinite(cfg.hLine)) vmax = Math.max(vmax, cfg.hLine * 1.1);
-    var lo = Math.min(0, vmin), hi = vmax > 0 ? vmax * 1.02 : 1;
+    /* The reference line has to be inside the range or it is silently not
+       drawn — which happened exactly when it mattered most, on decibel
+       charts where every value and the spec are negative and a spec
+       stricter than every bar fell below the axis. Widen the range for it
+       in BOTH directions, not just upward. */
+    if (cfg.hLine !== undefined && isFinite(cfg.hLine)) {
+      vmax = Math.max(vmax, cfg.hLine);
+      vmin = Math.min(vmin, cfg.hLine);
+    }
+    var lo, hi;
+    if (cfg.zeroBase === false) {
+      /* dB and dBi bars are differences from an arbitrary reference, so a
+         forced zero baseline compresses a decisive 0.5 dB spread into one
+         pixel. Frame the data instead. */
+      var span = (vmax - vmin) || Math.max(Math.abs(vmax), 1) * 0.1;
+      lo = vmin - span * 0.12;
+      hi = vmax + span * 0.12;
+    } else {
+      lo = Math.min(0, vmin);
+      hi = vmax > 0 ? vmax * 1.02 : (vmax === 0 ? 1 : vmax * 0.98);
+    }
     if (cfg.logX) { lo = Math.max(1e-3, vmin / 2); hi = vmax * 1.6; }
+    if (hi === lo) hi = lo + 1;
 
     function X(v) {
       if (cfg.logX) {
@@ -223,7 +243,11 @@
 
     bars.forEach(function (b, i) {
       var y = m.t + i * rowH + 4, h = rowH - 11;
-      var x0 = X(cfg.logX ? lo : Math.min(0, b.value)), x1 = X(b.value);
+      /* bars grow from zero when zero is in range, and from the axis when
+         it is not — otherwise an all-negative dB chart draws every bar from
+         a point outside the plot */
+      var origin = cfg.logX || cfg.zeroBase === false ? lo : Math.min(0, b.value);
+      var x0 = X(origin), x1 = X(b.value);
       svg.appendChild(el('rect', { class: 'bar', x: Math.min(x0, x1), y: y, width: Math.max(1, Math.abs(x1 - x0)), height: h, rx: 2, fill: b.color }));
       svg.appendChild(el('text', { x: m.l - 8, y: y + h / 2 + 3.5, 'text-anchor': 'end', fill: 'var(--ink-2)' }, b.name));
       svg.appendChild(el('text', { class: 'blab', x: Math.max(x0, x1) + 5, y: y + h / 2 + 3.5 }, b.label !== undefined ? b.label : b.value.toPrecision(3)));

@@ -144,24 +144,25 @@
   /* --------------------------- comparison table --------------------------- */
   /* rows: [{section:'...'} | {name, sub, field, units, dec, better, spec,
    *         fmt(value,res)->string}]                                        */
-  function renderTable(tableEl, options, results, rows, recommendedId) {
+  function renderTable(tableEl, options, results, rows, recommendedId, cfg) {
     tableEl.textContent = '';
+    cfg = cfg || {};
 
     var thead = document.createElement('thead');
     var htr = document.createElement('tr');
-    htr.appendChild(elt('th', null, 'Metric'));
+    htr.appendChild(elt('th', null, cfg.firstHeader || 'Metric'));
     options.forEach(function (o) {
       var th = elt('th', o.id === recommendedId ? 'rec' : null);
       th.appendChild(document.createTextNode(o.name));
-      if (o.id === recommendedId) {
+      if (o.badge || o.id === recommendedId) {
         th.appendChild(document.createElement('br'));
-        var b = elt('span', 'badge acc', 'selected');
-        th.appendChild(b);
+        th.appendChild(elt('span', 'badge ' + (o.badgeClass || 'acc'),
+          o.badge || cfg.recLabel || 'selected'));
       }
       th.title = o.topology || '';
       htr.appendChild(th);
     });
-    htr.appendChild(elt('th', null, 'Requirement'));
+    htr.appendChild(elt('th', null, cfg.lastHeader || 'Requirement'));
     thead.appendChild(htr);
     tableEl.appendChild(thead);
 
@@ -189,16 +190,38 @@
       });
       var finite = vals.filter(isFinite);
       var best = NaN;
-      if (r.better === 'low' && finite.length) best = Math.min.apply(null, finite);
-      if (r.better === 'high' && finite.length) best = Math.max.apply(null, finite);
+      /* r.rank === false says "this quantity is ordered but the winner is
+         not meaningful" — a raw uncalibrated figure, a per-cm loss measured
+         at a different frequency in each column, or any row whose own
+         threshold is not the same for every column. Marking a winner there
+         is worse than marking none. */
+      var rankable = r.rank !== false;
+      if (rankable && r.specField !== undefined) {
+        var sp = options.map(function (o) {
+          var rr = results[o.id];
+          return rr && isFinite(rr[r.specField]) ? rr[r.specField] : NaN;
+        }).filter(isFinite);
+        if (sp.length > 1 && Math.abs(Math.max.apply(null, sp) - Math.min.apply(null, sp)) > 1e-9) {
+          rankable = false;
+        }
+      }
+      if (rankable && r.better === 'low' && finite.length) best = Math.min.apply(null, finite);
+      if (rankable && r.better === 'high' && finite.length) best = Math.max.apply(null, finite);
 
       options.forEach(function (o, i) {
         var res = results[o.id] || {};
         var v = vals[i];
         var cls = 'v';
-        if (r.spec !== undefined && r.spec !== null && isFinite(v)) {
-          var ok = r.better === 'high' ? v >= r.spec : v <= r.spec;
-          var marg = r.better === 'high' ? v / r.spec : r.spec / v;
+        /* r.specField lets each COLUMN carry its own threshold, read from
+           that column's own result. The Systems view needs this: a saved
+           system's derived requirement moves with its own parameters, so a
+           single row-wide spec would judge every system against whichever
+           one happened to supply the number. */
+        var rspec = r.specField !== undefined && isFinite(res[r.specField])
+          ? res[r.specField] : r.spec;
+        if (rspec !== undefined && rspec !== null && isFinite(rspec) && isFinite(v)) {
+          var ok = r.better === 'high' ? v >= rspec : v <= rspec;
+          var marg = r.better === 'high' ? v / rspec : rspec / v;
           cls += ok ? (marg > 1.5 ? ' pass' : ' warn') : ' fail';
         }
         var td = elt('td', cls + (o.id === recommendedId ? ' rec' : '') +
@@ -210,11 +233,29 @@
       });
 
       var specTd = elt('td', 'v');
-      specTd.appendChild(document.createTextNode(
-        r.specLabel !== undefined ? r.specLabel
-          : (r.spec !== undefined && r.spec !== null
-            ? (r.better === 'high' ? '≥ ' : '≤ ') + num(r.spec, r.dec)
-            : '—')));
+      var specTxt;
+      if (r.specLabel !== undefined) specTxt = r.specLabel;
+      else if (r.specField !== undefined) {
+        /* a per-column threshold has no single value to print — show the
+           range, so a reader can see at a glance whether the systems are
+           even being held to the same standard */
+        var sv = options.map(function (o) {
+          var rr = results[o.id];
+          return rr && isFinite(rr[r.specField]) ? rr[r.specField] : NaN;
+        }).filter(isFinite);
+        if (!sv.length) specTxt = '—';
+        else {
+          var slo = Math.min.apply(null, sv), shi = Math.max.apply(null, sv);
+          var pre = r.better === 'high' ? '≥ ' : '≤ ';
+          specTxt = Math.abs(shi - slo) < 1e-9
+            ? pre + num(slo, r.dec)
+            : pre + num(slo, r.dec) + '…' + num(shi, r.dec) + ' *';
+        }
+      } else if (r.spec !== undefined && r.spec !== null) {
+        specTxt = (r.better === 'high' ? '≥ ' : '≤ ') + num(r.spec, r.dec);
+      } else specTxt = '—';
+      specTd.appendChild(document.createTextNode(specTxt));
+      if (r.specField !== undefined) specTd.title = 'Each column is judged against its own derived requirement';
       tr.appendChild(specTd);
       tbody.appendChild(tr);
     });
@@ -222,12 +263,26 @@
   }
 
   /* table -> array-of-arrays, for CSV / Markdown export */
+  /* Cell text for an export. A cell can carry a status badge and a
+     sub-label as well as its value, and reading textContent straight off it
+     runs them together — "A4 mid+x4 4cmloaded in main window", "Tile pitch
+     (cm)tileCm". Badges are display state and are dropped; sub-labels carry
+     information (a parameter key, a caveat) and are kept, separated. */
+  function cellExportText(c) {
+    var clone = c.cloneNode(true);
+    clone.querySelectorAll('.badge, .conf').forEach(function (b) { b.remove(); });
+    clone.querySelectorAll('small').forEach(function (s) {
+      s.textContent = ' — ' + s.textContent;
+    });
+    return clone.textContent.replace(/\s+/g, ' ').replace(/—/g, '-').trim();
+  }
+
   function tableToRows(tableEl) {
     var out = [];
     tableEl.querySelectorAll('tr').forEach(function (tr) {
       var cells = [];
       tr.querySelectorAll('th,td').forEach(function (c) {
-        cells.push(c.textContent.replace(/\s+/g, ' ').replace(/—/g, '-').trim());
+        cells.push(cellExportText(c));
       });
       if (tr.classList.contains('sect')) {
         // pad a section row so the CSV stays rectangular

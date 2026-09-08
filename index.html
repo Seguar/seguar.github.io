@@ -40,6 +40,7 @@
       <a href="#" class="navlink" data-view="sweeps">Sweeps</a>
       <a href="#" class="navlink" data-view="decision">Decision</a>
       <a href="#" class="navlink" data-view="assumptions">Assumptions</a>
+      <a href="#" class="navlink" data-view="systems">Systems<span id="navSysCount"></span></a>
       <a href="#" class="navlink" data-view="method">Method</a>
       <button id="themeBtn" type="button" title="Toggle light / dark">&#9788;</button>
     </nav>
@@ -76,6 +77,12 @@
         <div class="rowbtns">
           <button class="btn" id="resetBtn" type="button">Reset defaults</button>
           <button class="btn" id="permaBtn" type="button">Copy permalink</button>
+        </div>
+        <div class="rowbtns" id="saveRow">
+          <input type="text" id="saveName" maxlength="48" placeholder="Name this system&hellip;"
+                 aria-label="Name for the saved system"
+                 style="flex:1 1 120px;min-width:0;font:12px var(--mono);padding:4px 6px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--bg-panel);color:var(--ink)">
+          <button class="btn pri" id="saveSysBtn" type="button" title="Snapshot the whole parameter set for side-by-side comparison">Save system</button>
         </div>
       </section>
     </aside>
@@ -280,6 +287,57 @@
         </section>
       </div>
 
+      <!-- ---- SYSTEMS ---- -->
+      <div class="view hidden" id="view-systems">
+        <section class="panel">
+          <h2>Saved systems <span class="tag">snapshots of the whole parameter set</span>
+            <span class="grow" id="sysHdr"></span></h2>
+          <div class="toolbar" id="sysToolbar"></div>
+          <div class="tscroll" id="sysRosterMount"></div>
+          <div class="body"><p class="note" id="sysNote"></p></div>
+        </section>
+
+        <section class="panel" id="sysReqPanel">
+          <h2>Requirement per system <span class="tag">read this before the table below</span>
+            <span class="grow" id="sysReqHdr"></span></h2>
+          <div class="tscroll" id="sysReqMount"></div>
+          <div class="body"><p class="note" id="sysReqNote"></p></div>
+        </section>
+
+        <section class="panel">
+          <h2>Results <span class="tag">one column per system</span>
+            <span class="grow" id="sysResultsHdr"></span></h2>
+          <div class="toolbar" id="sysResultsToolbar"></div>
+          <div class="body hidden" id="sysKindWrap" style="padding-bottom:0">
+            <p class="note hidden" id="sysKindNote"></p>
+          </div>
+          <div class="tscroll" id="sysMetricMount"></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="sys-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-copy="sys-csv" type="button">Copy as CSV</button>
+            <span class="sp"></span>
+            <button class="btn" data-dl="sys-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>What differs in the inputs <span class="tag">a comparison you cannot read without this</span>
+            <span class="grow" id="sysParamHdr"></span></h2>
+          <div class="tscroll" id="sysParamMount"></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="sysparam-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-dl="sysparam-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Head to head <span class="tag">the metrics that decide it</span></h2>
+          <div class="body">
+            <div class="chartgrid" id="sysChartsMount"></div>
+          </div>
+        </section>
+      </div>
+
       <!-- ---- METHOD ---- -->
       <div class="view hidden" id="view-method">
         <section class="panel">
@@ -303,6 +361,7 @@
 <script src="js/lattice.js"></script>
 <script src="js/topology.js"></script>
 <script src="js/model.js"></script>
+<script src="js/systems.js"></script>
 <script src="js/budget.js"></script>
 <script src="js/beam.js"></script>
 <script src="js/decision.js"></script>

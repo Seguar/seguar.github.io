@@ -234,6 +234,28 @@
     'baseband-steered array puts at −θ₀ is carried as a parameter and reported, not radiated in the plot, because ' +
     'a phase-only error model cannot produce it.',
 
+    '### Comparing saved systems',
+    'The Systems view compares whole parameter sets, and the trap it is built around is worth stating on its own: ' +
+    '**the requirement is derived, not fixed.** `budget.sigSpecDeg` is the minimum of three criteria, two of which ' +
+    'move with the array — the 30 dB sidelobe criterion loosens as √N, and the null-depth floor `10log10(σ²/N)` ' +
+    'improves with N on top of that. So a system with a coarser tile pitch is held to a laxer phase-error spec ' +
+    '*and* gets less null depth for meeting it. Two consequences are built into the view rather than left to the ' +
+    'reader: pass/fail colouring is per column against that column\'s own requirement, and the best-in-row marker ' +
+    'is suppressed on any row whose threshold is not the same for every column. The row to read when the specs ' +
+    'differ is **margin to requirement**, not the residual.',
+    '- Saved systems store the **whole** parameter set, not the difference from the defaults. A sparse record ' +
+    'would silently re-cost itself whenever a default moved, which is the opposite of what "the build I costed" ' +
+    'means. Parameters added to the tool after a save are filled from today\'s defaults and reported as filled.',
+    '- Each system is evaluated through the same function the main window uses, in a reduced-cost mode that drops ' +
+    'the plot-only parts of the pattern calculation and coarsens two sampling grids. Measured agreement with the ' +
+    'full evaluation is within 0.031 dB on every scalar shown, across scan angle, tile pitch, TTD step and both ' +
+    'lattice modes — below the precision anything is displayed to, but not exact.',
+    '- Consistency warnings travel with each system. A configuration demanding more LO taps than there are dies ' +
+    'reports inflated power, area and BOM, so its column is badged rather than left looking cheap.',
+    '- A comparison set shared by URL carries each system as a diff against the defaults, so it is pinned to the ' +
+    'defaults of whoever opens it, and it is shown as "from a link" until imported rather than being written over ' +
+    'what the recipient had saved.',
+
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
     'carrier phase noise; a number there would be fabricated.',

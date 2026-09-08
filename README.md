@@ -123,6 +123,26 @@ enforced explicitly and are visible in the Method tab:
   with the scoring weights shown as the editable judgement they are.
 - **Assumptions** — every parameter and every block with its provenance and
   confidence label, plus the honesty ledger.
+- **Systems** — several *whole parameter sets* side by side. Name a
+  configuration in the main window, press **Save system**, change things,
+  save again; this view puts one column per saved system across the LO,
+  baseband, power, skew and beam metrics, shows which *inputs* differ, and
+  can be reduced to differences only or to deltas from a chosen baseline.
+
+  Three things it deliberately does that a naive comparison table does not.
+  The derived requirement is a *function of the parameters* — the inter-tile
+  budget follows from the array geometry and the EVM allocation — so it gets
+  its own panel above the results, pass/fail is judged per column against
+  that column's own requirement, a **margin to requirement** row carries the
+  quantity that is comparable when the thresholds are not, and the
+  best-in-row marker is suppressed on any row whose threshold moves between
+  columns. A saved system stores its **whole** state rather than a diff from
+  the defaults, so it keeps the numbers it was costed with; parameters added
+  to the tool after a system was saved are filled from today's defaults and
+  flagged as filled. And each system's consistency warnings travel with it,
+  so a configuration demanding more LO taps than there are dies is marked
+  *inconsistent* in its own column instead of quietly reporting inflated
+  power and area.
 - **Method** — the equations, and the three rules the model enforces.
 
 ## Repository layout
@@ -134,8 +154,11 @@ js/kernels.js         shared physics kernels (line loss, PLL PN, integration,
                       correlation/calibration kernels, Ruze, squint, EVM)
 js/topology.js        the physical construction of each network — ONE generator
                       feeding both the map and the numbers
+js/lattice.js         the 2-D element lattice, its grating-lobe set, and the
+                      element-pattern models
 js/model.js           global parameters, block library, reference-clock menu,
                       and the seven option evaluations
+js/systems.js         saved systems: storage, serialisation, evaluation cache
 js/budget.js          derivation of the requirement the options are judged on
 js/decision.js        the written recommendation, with live numbers
 js/diagram.js         the interactive hardware map, inspector and BOM

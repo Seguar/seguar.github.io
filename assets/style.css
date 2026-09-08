@@ -209,6 +209,17 @@ table.grid th, table.grid td { padding: 6px 10px; text-align: right; border-bott
 table.grid th { font-weight: 600; font-size: 11.5px; color: var(--ink-2); background: var(--bg-sunken); }
 table.grid thead th { position: sticky; top: 0; z-index: 2; }
 table.grid th:first-child, table.grid td:first-child { text-align: left; white-space: normal; min-width: 200px; }
+/* Systems comparison: with up to twelve columns the table scrolls sideways
+   and the metric name is the first thing to leave the screen, which makes
+   the numbers unreadable. Pin it. The explicit background matters — a
+   transparent sticky cell lets the scrolled columns show through it. */
+table.grid.sticky1 th:first-child, table.grid.sticky1 td:first-child {
+  position: sticky; left: 0; z-index: 1; background: var(--bg-panel);
+  box-shadow: 1px 0 0 var(--rule);
+}
+table.grid.sticky1 thead th:first-child { z-index: 3; background: var(--bg-sunken); }
+table.grid.sticky1 tr.sect td:first-child { background: var(--bg-sunken); }
+table.grid.sticky1 tbody tr:hover td:first-child { background: var(--bg-hover); }
 table.grid td.v { font: 12px var(--mono); font-variant-numeric: tabular-nums; }
 table.grid tbody tr:hover { background: var(--bg-hover); }
 table.grid tr.sect td {
