@@ -23,7 +23,7 @@
     /* Beam metrics use the POPULATED aperture (whole tiles), not the
        requested figure — see Model.resolve(). */
     var apM = g.effApertureM || g.apertureM;
-    var nT = g.nTilesTotal || Math.pow(Math.max(1, Math.round(g.apertureCm / g.tileCm)), 2);
+    var nT = g.nTilesTotal || Math.pow(Math.max(1, Math.floor(g.apertureCm / g.tileCm + 1e-9)), 2);
     var hpbw = K.hpbwDeg(apM, g.lambdaM, 0);
     var hpbwScan = K.hpbwDeg(apM, g.lambdaM, g.scanDegMax);
 

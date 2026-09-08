@@ -125,28 +125,119 @@
   /* ====================================================================== *
    * The aperture map
    * ==================================================================== */
+  /* ---------------------------------------------------------------- LOD
+     The map has to stay usable from 25 tiles to several thousand. Detail is
+     chosen from the number of tiles ACTUALLY VISIBLE, not the array total,
+     so zooming into a 5000-tile array restores full per-die detail for the
+     region on screen. Everything outside the view is culled, which is what
+     keeps the element count bounded rather than growing with the array.
+
+     Whatever a tier drops is named in the returned `lod.note` and shown
+     under the map — a simplification the reader cannot see is worse than a
+     slow render.                                                          */
+  function lodFor(visibleTiles) {
+    if (visibleTiles <= 120) {
+      return { tier: 'full', dies: true, taps: true, blocks: true, links: 99, tips: true, note: '' };
+    }
+    if (visibleTiles <= 500) {
+      return {
+        tier: 'no-dies', dies: false, taps: false, blocks: true, links: 99, tips: true,
+        note: 'dies and their LO taps hidden above 120 visible tiles — zoom in to see them'
+      };
+    }
+    if (visibleTiles <= 1500) {
+      return {
+        tier: 'network', dies: false, taps: false, blocks: false, links: 99, tips: false,
+        note: 'dies, taps and block symbols hidden, and tooltips off, above 500 visible tiles — zoom in for detail'
+      };
+    }
+    return {
+      tier: 'coarse', dies: false, taps: false, blocks: false, links: 6, tips: false,
+      note: 'above 1500 visible tiles only the tile heat map and the top 6 tree levels are drawn — zoom in for the rest'
+    };
+  }
+
   function renderMap(mount, built, view, onSelect) {
     mount.textContent = '';
     var grid = built.grid, lo = built.lo;
-    var apCm = grid.cols * grid.tileCm;
-    var scale = 640 / apCm;
-    var W = PAD * 2 + apCm * scale;
+    var apCm = grid.cols * grid.tileCm;                 /* POPULATED extent */
+    var apSpec = view.apertureSpecCm || apCm;           /* the panel spec    */
+    var marg = Math.max(0, (apSpec - apCm) / 2);        /* inactive per side */
+    /* The drawing frame is the SPEC aperture, so the picture does not rescale
+       as the pitch changes, and the under-filled margin is visible rather
+       than implied. Tile coordinates stay in populated-aperture space and are
+       shifted in by the margin. */
+    var scale = 640 / apSpec;
+    var W = PAD * 2 + apSpec * scale;
     /* room above the aperture for the RFSoC backend, and below it for the
        LO source — the two networks enter from opposite edges */
-    var H = PAD * 2 + (TOP_CM + apCm + SRC_CM) * scale;
-    function X(cm) { return PAD + cm * scale; }
-    function Y(cm) { return PAD + (cm + TOP_CM) * scale; }
+    var H = PAD * 2 + (TOP_CM + apSpec + SRC_CM) * scale;
+    function X(cm) { return PAD + (cm + marg) * scale; }
+    function Y(cm) { return PAD + (cm + marg + TOP_CM) * scale; }
 
-    var svg = el('svg', { class: 'chart map', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet' });
+    /* ---- zoom / pan: crop the viewBox, leave the coordinate map alone ---- */
+    var Z = Math.max(1, view.zoom || 1);
+    var cxCm = view.panXCm === undefined ? apCm / 2 : view.panXCm;
+    var cyCm = view.panYCm === undefined ? apCm / 2 : view.panYCm;
+    var vw = W / Z, vh = H / Z;
+    var vx = X(cxCm) - vw / 2, vy = Y(cyCm) - vh / 2;
+    /* keep the crop inside the drawing so panning cannot wander off it */
+    vx = Math.max(0, Math.min(W - vw, vx));
+    vy = Math.max(0, Math.min(H - vh, vy));
 
-    /* ---- aperture outline + rulers ---- */
-    svg.appendChild(el('rect', {
+    /* visible rectangle back in cm, for culling and the LOD decision */
+    var visCm = {
+      x0: (vx - PAD) / scale, x1: (vx + vw - PAD) / scale,
+      y0: (vy - PAD) / scale - TOP_CM, y1: (vy + vh - PAD) / scale - TOP_CM
+    };
+    function tileVisible(t) {
+      return t.x + t.w >= visCm.x0 && t.x <= visCm.x1 && t.y + t.h >= visCm.y0 && t.y <= visCm.y1;
+    }
+    function segVisible(x1, y1, x2, y2) {
+      return Math.max(x1, x2) >= visCm.x0 && Math.min(x1, x2) <= visCm.x1 &&
+             Math.max(y1, y2) >= visCm.y0 && Math.min(y1, y2) <= visCm.y1;
+    }
+
+    var shown = grid.tiles.filter(tileVisible);
+    var lod = lodFor(shown.length);
+    /* explicit layer switches always win over the LOD default */
+    var wantDies = view.showDies !== false && lod.dies;
+    var wantBlocks = view.showBlocks !== false && lod.blocks;
+
+    var svg = el('svg', {
+      class: 'chart map', viewBox: vx.toFixed(1) + ' ' + vy.toFixed(1) + ' ' + vw.toFixed(1) + ' ' + vh.toFixed(1),
+      preserveAspectRatio: 'xMidYMid meet'
+    });
+    /* strokes and glyphs stay a constant size on screen no matter the crop */
+    function nss(e) { e.setAttribute('vector-effect', 'non-scaling-stroke'); return e; }
+    function place(g2, x, y) {
+      g2.setAttribute('transform', 'translate(' + X(x).toFixed(1) + ',' + Y(y).toFixed(1) + ') scale(' + (1 / Z).toFixed(4) + ')');
+      return g2;
+    }
+    var fs = function (px) { return (px / Z).toFixed(2); };
+
+    /* ---- panel spec (dashed) and populated area (solid) ---- */
+    if (marg > 1e-6) {
+      svg.appendChild(nss(el('rect', {
+        x: X(-marg), y: Y(-marg), width: apSpec * scale, height: apSpec * scale,
+        fill: 'none', stroke: 'var(--ink-3)', 'stroke-width': 1.2,
+        'stroke-dasharray': '6 4', rx: 3
+      })));
+    }
+    svg.appendChild(nss(el('rect', {
       x: X(0), y: Y(0), width: apCm * scale, height: apCm * scale,
       fill: 'var(--bg-sunken)', stroke: 'var(--rule-strong)', 'stroke-width': 1.4, rx: 3
-    }));
-    svg.appendChild(el('text', { x: X(apCm / 2), y: Y(0) - 12, 'text-anchor': 'middle', fill: 'var(--ink-3)' },
-      apCm.toFixed(0) + ' cm aperture · ' + grid.rows + '×' + grid.cols + ' = ' + grid.nTiles +
-      ' tiles of ' + grid.tileCm.toFixed(1) + ' cm'));
+    })));
+    svg.appendChild(el('text', {
+      x: X(apCm / 2), y: Y(-marg) - 12 / Z, 'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-size': fs(10.5)
+    }, (marg > 1e-6
+        ? apSpec.toFixed(1) + ' cm panel · ' + grid.rows + '×' + grid.cols + ' = ' + grid.nTiles +
+          ' tiles at ' + grid.tileCm.toFixed(2) + ' cm pitch · ' + apCm.toFixed(1) + ' cm populated (' +
+          (100 * apCm / apSpec).toFixed(1) + '% of side, ' + (20 * Math.log10(apCm / apSpec)).toFixed(2) +
+          ' dB peak directivity) · ' + marg.toFixed(2) + ' cm inactive margin per side'
+        : apSpec.toFixed(1) + ' cm aperture · ' + grid.rows + '×' + grid.cols + ' = ' + grid.nTiles +
+          ' tiles at ' + grid.tileCm.toFixed(2) + ' cm pitch · fills the aperture exactly') +
+       (Z > 1 ? '  ·  ' + Z + '× zoom' : '')));
 
     /* ---- tiles, coloured by the chosen metric ---- */
     var metric = view.tileMetric || 'skewPs';
@@ -154,58 +245,66 @@
     var vmin = vals.length ? Math.min.apply(null, vals) : 0;
     var vmax = vals.length ? Math.max.apply(null, vals) : 1;
     var span = vmax - vmin;
+    /* gaps between tiles are a fixed screen size, so they do not swallow the
+       tile at high counts */
+    var gap = Math.min(1.5, 0.06 * grid.tileCm * scale);
 
     var tileG = el('g');
-    grid.tiles.forEach(function (t) {
+    shown.forEach(function (t) {
       var v = t.m ? t.m[metric] : NaN;
       var norm = span > 1e-12 ? (v - vmin) / span : 0.15;
+      var sel = view.selected === t.i;
       var r = el('rect', {
-        x: X(t.x) + 1.5, y: Y(t.y) + 1.5,
-        width: t.w * scale - 3, height: t.h * scale - 3, rx: 3,
+        x: X(t.x) + gap, y: Y(t.y) + gap,
+        width: Math.max(0.5, t.w * scale - 2 * gap), height: Math.max(0.5, t.h * scale - 2 * gap),
+        rx: Math.min(3, t.w * scale * 0.08),
         fill: rampColor(norm), 'fill-opacity': 0.38,
-        stroke: view.selected === t.i ? 'var(--ink)' : 'var(--rule-strong)',
-        'stroke-width': view.selected === t.i ? 2.2 : 0.8,
+        stroke: sel ? 'var(--ink)' : 'var(--rule-strong)',
+        'stroke-width': sel ? 2.2 : 0.8, 'vector-effect': 'non-scaling-stroke',
         style: 'cursor:pointer'
       });
-      r.appendChild(el('title', null,
-        'tile ' + t.i + ' (r' + t.r + ',c' + t.c + ')\n' +
-        'routed path ' + t.pathCm.toFixed(1) + ' cm\n' +
-        (t.hop ? 'chain hop ' + t.hop + '\n' : 'tree level ' + t.level + '\n') +
-        (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
-                'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
+      if (lod.tips) {
+        r.appendChild(el('title', null,
+          'tile ' + t.i + ' (r' + t.r + ',c' + t.c + ')\n' +
+          'routed path ' + t.pathCm.toFixed(1) + ' cm\n' +
+          (t.hop ? 'chain hop ' + t.hop + '\n' : 'tree level ' + t.level + '\n') +
+          (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
+                  'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
+      }
       r.addEventListener('click', function () { onSelect(t.i); });
       tileG.appendChild(r);
 
-      if (t.hop) tileG.appendChild(el('text', {
-        x: X(t.x + t.w) - 4, y: Y(t.y) + 11, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--ink-3)'
+      if (t.hop && lod.tier === 'full') tileG.appendChild(el('text', {
+        x: X(t.x + t.w) - 4 / Z, y: Y(t.y) + 11 / Z, 'text-anchor': 'end',
+        'font-size': fs(9), fill: 'var(--ink-3)'
       }, t.hop));
     });
     svg.appendChild(tileG);
 
     /* ---- RFIC dies and the intra-tile LO tap fan-out, drawn to scale ---- */
-    if (view.showDies !== false) {
+    if (wantDies) {
       var dieG = el('g');
       var eb = BAND_STYLE.eband.stroke;          /* the taps are always E-band */
-      grid.tiles.forEach(function (t) {
-        (t.tapLinks || []).forEach(function (L) {
-          dieG.appendChild(el('line', {
+      shown.forEach(function (t) {
+        if (lod.taps) (t.tapLinks || []).forEach(function (L) {
+          dieG.appendChild(nss(el('line', {
             x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
             stroke: eb, 'stroke-width': 1.1, 'stroke-opacity': 0.75, 'stroke-linecap': 'round'
-          }));
+          })));
         });
         (t.dies || []).forEach(function (d) {
-          var w = Math.max(4.2, d.w * scale);    /* floor so it stays visible */
+          var w = Math.max(3, d.w * scale);
           var rect = el('rect', {
             x: X(d.x) - w / 2, y: Y(d.y) - w / 2, width: w, height: w, rx: 0.8,
-            fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb, 'stroke-width': 0.9
+            fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb,
+            'stroke-width': 0.9, 'vector-effect': 'non-scaling-stroke'
           });
-          rect.appendChild(el('title', null,
+          if (lod.tips) rect.appendChild(el('title', null,
             'tile ' + t.i + ' · RFIC die ' + d.i + '\n' +
             '2.5 × 2.5 mm SiGe, 4 RX + 4 TX with IQ baseband\n' +
             'one 78 GHz LO tap, fed by the intra-tile fan-out'));
           dieG.appendChild(rect);
-          /* the LO tap port itself */
-          dieG.appendChild(el('circle', { cx: X(d.x), cy: Y(d.y - d.w / 2), r: 1.5, fill: eb }));
+          dieG.appendChild(el('circle', { cx: X(d.x), cy: Y(d.y - d.w / 2), r: 1.5 / Z, fill: eb }));
         });
       });
       svg.appendChild(dieG);
@@ -216,28 +315,31 @@
     if (view.showBb !== false && bbi) {
       var bbLinkG = el('g');
       bbi.links.forEach(function (L) {
-        bbLinkG.appendChild(el('line', {
+        if (!segVisible(L.x1, L.y1, L.x2, L.y2)) return;
+        if ((L.level || 0) > lod.links) return;
+        bbLinkG.appendChild(nss(el('line', {
           x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
           stroke: BB_STYLE.stroke, 'stroke-width': L.kind === 'bbroot' ? BB_STYLE.w + 1 : BB_STYLE.w,
-          'stroke-dasharray': BB_STYLE.dash, 'stroke-linecap': 'round',
-          'stroke-opacity': 0.9
-        }));
+          'stroke-dasharray': BB_STYLE.dash, 'stroke-linecap': 'round', 'stroke-opacity': 0.9
+        })));
       });
       svg.appendChild(bbLinkG);
 
-      var bbNodeG = el('g');
-      bbi.nodes.forEach(function (n) {
-        if (!view.showBlocks && n.type !== 'backend') return;
-        var gl = glyph(n.type, n.label, n.freqHz);
-        gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
-        gl.appendChild(el('title', null, 'baseband · ' + (n.label || n.type)));
-        bbNodeG.appendChild(gl);
-      });
-      svg.appendChild(bbNodeG);
+      if (wantBlocks) {
+        var bbNodeG = el('g');
+        bbi.nodes.forEach(function (n2) {
+          if (n2.type !== 'backend' && !segVisible(n2.x, n2.y, n2.x, n2.y)) return;
+          var gl = glyph(n2.type, n2.label, n2.freqHz);
+          place(gl, n2.x, n2.y);
+          if (lod.tips) gl.appendChild(el('title', null, 'baseband · ' + (n2.label || n2.type)));
+          bbNodeG.appendChild(gl);
+        });
+        svg.appendChild(bbNodeG);
+      }
 
       svg.appendChild(el('text', {
-        x: X(bbi.root.x), y: Y(bbi.root.y) - 17, 'text-anchor': 'middle',
-        fill: 'var(--s3)', 'font-size': 10.5
+        x: X(bbi.root.x), y: Y(bbi.root.y) - 17 / Z, 'text-anchor': 'middle',
+        fill: 'var(--s3)', 'font-size': fs(10.5)
       }, 'baseband backend · ' + bbi.kind + ' · ' + bbi.totalRoutedCm.toFixed(0) + ' cm routed'));
     }
 
@@ -245,29 +347,34 @@
     if (view.showLo !== false) {
       var linkG = el('g');
       lo.net.links.forEach(function (L) {
+        if (!segVisible(L.x1, L.y1, L.x2, L.y2)) return;
+        if ((L.level || 0) > lod.links) return;
         var st = BAND_STYLE[bandOf(L.freqHz)];
-        linkG.appendChild(el('line', {
+        linkG.appendChild(nss(el('line', {
           x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
           stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
           'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
-        }));
+        })));
       });
       svg.appendChild(linkG);
 
-      var nodeG = el('g');
-      lo.net.nodes.forEach(function (n) {
-        if (!view.showBlocks && n.type !== 'source') return;
-        var gl = glyph(n.type, n.label, n.freqHz);
-        gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
-        gl.appendChild(el('title', null, (n.label || n.type) +
-          (isFinite(n.freqHz) ? ' @ ' + (n.freqHz >= 1e9 ? (n.freqHz / 1e9).toFixed(1) + ' GHz' : (n.freqHz / 1e6).toFixed(0) + ' MHz') : '')));
-        nodeG.appendChild(gl);
-      });
-      svg.appendChild(nodeG);
+      if (wantBlocks) {
+        var nodeG = el('g');
+        lo.net.nodes.forEach(function (n2) {
+          if (n2.type !== 'source' && !segVisible(n2.x, n2.y, n2.x, n2.y)) return;
+          var gl = glyph(n2.type, n2.label, n2.freqHz);
+          place(gl, n2.x, n2.y);
+          if (lod.tips) gl.appendChild(el('title', null, (n2.label || n2.type) +
+            (isFinite(n2.freqHz) ? ' @ ' + (n2.freqHz >= 1e9 ? (n2.freqHz / 1e9).toFixed(1) + ' GHz' : (n2.freqHz / 1e6).toFixed(0) + ' MHz') : '')));
+          nodeG.appendChild(gl);
+        });
+        svg.appendChild(nodeG);
+      }
 
       var src = lo.net.source;
       svg.appendChild(el('text', {
-        x: X(src.x), y: Y(src.y) + 25, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 10.5
+        x: X(src.x), y: Y(src.y) + 25 / Z, 'text-anchor': 'middle',
+        fill: 'var(--ink-2)', 'font-size': fs(10.5)
       }, (view.sourceLabel || 'source') + ' · ' +
          (lo.distFreqHz >= 1e9 ? (lo.distFreqHz / 1e9).toFixed(2) + ' GHz' : (lo.distFreqHz / 1e6).toFixed(0) + ' MHz') +
          ' on the board'));
@@ -275,7 +382,41 @@
 
     mount.appendChild(svg);
 
-    /* ---- colour-scale legend ---- */
+    /* ---- drag to pan ----
+       The viewBox is updated in place during the drag: re-rendering on every
+       pointermove would destroy the element holding the pointer capture, so
+       the drag would die after one frame. State is committed once on release,
+       and only then does the caller re-render — which re-runs culling and the
+       LOD decision for the region now on screen. */
+    if (Z > 1) {
+      svg.style.cursor = 'grab';
+      var drag = null;
+      svg.addEventListener('pointerdown', function (e) {
+        drag = { x: e.clientX, y: e.clientY, nx: vx, ny: vy };
+        svg.style.cursor = 'grabbing';
+        try { svg.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+      });
+      svg.addEventListener('pointermove', function (e) {
+        if (!drag) return;
+        var box = svg.getBoundingClientRect();
+        if (!box.width) return;
+        var unitsPerPx = vw / box.width;
+        drag.nx = Math.max(0, Math.min(W - vw, vx - (e.clientX - drag.x) * unitsPerPx));
+        drag.ny = Math.max(0, Math.min(H - vh, vy - (e.clientY - drag.y) * unitsPerPx));
+        svg.setAttribute('viewBox', drag.nx.toFixed(1) + ' ' + drag.ny.toFixed(1) + ' ' + vw.toFixed(1) + ' ' + vh.toFixed(1));
+      });
+      function endDrag() {
+        if (drag && view.onPanEnd) {
+          view.onPanEnd((drag.nx + vw / 2 - PAD) / scale, (drag.ny + vh / 2 - PAD) / scale - TOP_CM);
+        }
+        drag = null;
+        svg.style.cursor = 'grab';
+      }
+      svg.addEventListener('pointerup', endDrag);
+      svg.addEventListener('pointercancel', endDrag);
+    }
+
+    /* ---- colour-scale legend + what the LOD dropped ---- */
     var sc = document.createElement('div');
     sc.className = 'legend';
     var lab = document.createElement('span');
@@ -289,14 +430,16 @@
       '<span style="display:inline-block;width:88px;height:9px;border-radius:2px;background:linear-gradient(90deg,' + RAMP.join(',') + ');opacity:.75"></span>' +
       '<span style="font:10px var(--mono)">' + UI.num(vmax) + '</span>';
     sc.appendChild(bar);
+    var cnt = document.createElement('span');
+    cnt.className = 'li';
+    cnt.innerHTML = '<span style="font-size:11px;color:var(--ink-3)">' + shown.length + ' of ' +
+      grid.nTiles + ' tiles in view' + (lod.note ? ' — ' + lod.note : '') + '</span>';
+    sc.appendChild(cnt);
     mount.appendChild(sc);
 
-    return svg;
+    return { svg: svg, lod: lod, visible: shown.length, zoom: Z };
   }
 
-  /* ====================================================================== *
-   * Symbol / frequency legend
-   * ==================================================================== */
   function renderLegend(mount, built) {
     mount.textContent = '';
     var wrap = document.createElement('div');

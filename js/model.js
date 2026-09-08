@@ -91,16 +91,22 @@
       conf: 'measured/datasheet', why: '≈2 GHz class per the RFIC front-end table.' },
     { key: 'apertureCm', label: 'Aperture width', units: 'cm', value: 30, min: 6, max: 60, step: 1, group: 'Array & band',
       conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal. This is D in the beamwidth 0.886·λ/D, and it is a hard system spec — the tile pitch is the design choice that has to fit inside it.' },
-    { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 4, min: 0.4, max: 15, step: 0.1, group: 'Array & band',
+    { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 4, min: 0.25, max: 15, step: 0.25, group: 'Array & band',
       conf: 'published-literature', why: 'Centre-to-centre tile spacing; with abutting square tiles it equals the tile edge. "Pitch" rather than "side" or "size" because a spacing is what the grid is built from, and "size" for a 2-D module reads as an area. Sub-tiling to 5–10 cm keeps residual intra-tile delay under ~200 ps; 4 cm gives 116 ps with margin, at the cost of more tiles. Note 4 cm does not divide 30 cm — see the derived readout.' },
     { key: 'nDies', label: 'RFIC dies in the array', units: '-', value: 100, min: 4, max: 4000, step: 1, group: 'Array & band',
       conf: 'measured/datasheet', why: '≈100 existing 2.5 × 2.5 mm E-band dies. Tile pitch, taps per tile and this total are independent inputs that can disagree, so the tool checks them against each other rather than letting the mismatch pass silently.' },
-    { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'One LO tap per RFIC die. tiles × taps should equal the die count: 25 × 4 = 100 exactly at a 6 cm pitch, but a 4 cm pitch gives 64 tiles and the arithmetic no longer closes.' },
-    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 32, min: 2, max: 64, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: '4 dies × (4 RX + 4 TX) = 32 channels per tile, per rail.' },
+    { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 2, min: 1, max: 32, step: 1, group: 'Array & band',
+      conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At a 4 cm pitch 7×7 = 49 tiles fit, and the 100-die inventory allows floor(100/49) = 2 dies per tile: 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB of array gain. Two dies lay out as a 1×2 pair on one matched 1:2 split. At a 6 cm pitch it was 25 × 4 = 100 exactly.' },
+    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 16, min: 2, max: 64, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 2 dies per tile that is 16, and 49 × 16 = 784 per rail.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
+    { key: 'beamScanDeg', label: 'Beam steer angle', units: 'deg', value: 30, min: -75, max: 75, step: 1, group: 'Array & band',
+      conf: 'scaled-estimate', why: 'Direction the Beam view steers to. Separate from the max scan angle, which sizes the TTD range and the worst-case squint.' },
+    { key: 'txGainErrDb', label: 'TX amplitude spread', units: 'dB', value: 0.5, min: 0, max: 3, step: 0.05, group: 'Link & budget',
+      conf: 'engineering-guess', why: 'PA-to-PA gain variation, RMS. This and its RX counterpart are the only things that make the TX and RX patterns differ in this model — the LO residual is common to both directions.' },
+    { key: 'rxGainErrDb', label: 'RX amplitude spread', units: 'dB', value: 0.3, min: 0, max: 3, step: 0.05, group: 'Link & budget',
+      conf: 'engineering-guess', why: 'LNA and baseband VGA gain variation, RMS. Lower than TX because no device is running near compression.' },
 
     /* --- reference clock --- */
     { key: 'refSel', label: 'Reference clock', units: '', value: 2, group: 'Reference clock',
@@ -241,13 +247,29 @@
        extent; the requested figure is only a target. Both are carried so the
        UI can report the difference instead of printing a number that has
        quietly stopped being true. */
-    g.tileCols = Math.max(1, Math.round(g.apertureCm / g.tileCm));
+    /* FLOOR, never round. The aperture is a hard mechanical spec — a panel.
+       Rounding can overflow it (round(30/4) = 8 would draw a 32 cm array
+       inside a 30 cm panel, which cannot be built); flooring can only
+       under-fill, and an under-filled panel is buildable. The epsilon keeps
+       exact divisors exact against binary floating point, so 30/6 gives 5
+       and not 4. */
+    g.tileCols = Math.max(1, Math.floor(g.apertureCm / g.tileCm + 1e-9));
+    g.nTilesTotal = g.tileCols * g.tileCols;
     g.effApertureCm = g.tileCols * g.tileCm;
     g.effApertureM = g.effApertureCm / 100;
-    g.apertureDeltaCm = g.effApertureCm - g.apertureCm;
-    g.aperturePitchExact = Math.abs(g.apertureDeltaCm) < 1e-9;
-    g.nTilesTotal = g.tileCols * g.tileCols;
+    g.apertureMarginCm = (g.apertureCm - g.effApertureCm) / 2;   /* per side, >= 0 */
+    g.apertureFillSide = g.effApertureCm / g.apertureCm;
+    g.aperturePitchExact = Math.abs(g.apertureCm - g.effApertureCm) < 5e-3;
+    /* peak directivity relative to filling the panel: a side-length ratio on
+       an amplitude-like extent in each of two dimensions, so 20log10 of the
+       side ratio, identical to 10log10 of the area ratio */
+    g.apertureDirDeltaDb = 20 * Math.log10(g.apertureFillSide);
+    /* pitches that fill exactly, keeping this tile count or adding one row */
+    g.snapCoarseCm = g.apertureCm / g.tileCols;
+    g.snapFineCm = g.apertureCm / (g.tileCols + 1);
     g.loTapsTotal = g.nTilesTotal * Math.round(g.tapsPerTile);
+    g.diesPlaced = Math.min(g.loTapsTotal, Math.round(g.nDies));
+    g.diePopGainDb = 10 * Math.log10(Math.max(g.diesPlaced, 1) / Math.max(Math.round(g.nDies), 1));
     return g;
   }
 
@@ -617,7 +639,7 @@
     gg.bbOptionId = id;
     var bb = window.Topo.buildBb(id, gg);
     var nCh = bb.nCh, levels = bb.levels;
-    var side = Math.max(1, Math.round(g.apertureCm / g.tileCm));
+    var side = g.tileCols || Math.max(1, Math.floor(g.apertureCm / g.tileCm + 1e-9));
     var nT = side * side;
     /* The INTER-TILE tier — the network the hardware map draws from tiles to
        the RFSoC. Built from the same generator, so the path lengths below are
@@ -754,38 +776,38 @@
     var out = [];
 
     if (!g.aperturePitchExact) {
-      /* pitches that divide the aperture exactly, for the suggestion */
-      var exact = [];
-      for (var c = 2; c <= 80; c++) {
-        var p = g.apertureCm / c;
-        if (p >= 0.4 && p <= 15 && Math.abs(p * 10 - Math.round(p * 10)) < 1e-9) exact.push(p);
-      }
-      exact = exact.filter(function (p) { return Math.abs(p - g.tileCm) > 1e-9; })
-        .sort(function (a, b) { return Math.abs(a - g.tileCm) - Math.abs(b - g.tileCm); })
-        .slice(0, 4).map(function (p) { return p.toFixed(1); });
       out.push({
         severity: 'warn',
-        message: 'A ' + g.tileCm.toFixed(1) + ' cm tile pitch does not divide the ' + g.apertureCm +
-          ' cm aperture. ' + g.tileCols + '×' + g.tileCols + ' = ' + g.nTilesTotal +
-          ' whole tiles populate ' + g.effApertureCm.toFixed(1) + ' cm, ' +
-          (g.apertureDeltaCm > 0 ? Math.abs(g.apertureDeltaCm).toFixed(1) + ' cm OVER' : Math.abs(g.apertureDeltaCm).toFixed(1) + ' cm under') +
-          ' the spec. Beam metrics use the populated ' + g.effApertureCm.toFixed(1) +
-          ' cm, since that is the radiating extent.' +
-          (exact.length ? ' Pitches that divide exactly: ' + exact.join(', ') + ' cm.' : '')
+        message: 'A ' + g.tileCm.toFixed(2) + ' cm tile pitch does not divide the ' + g.apertureCm.toFixed(1) +
+          ' cm panel. ' + g.tileCols + '×' + g.tileCols + ' = ' + g.nTilesTotal + ' whole tiles fit, populating ' +
+          g.effApertureCm.toFixed(1) + ' cm — ' + g.apertureMarginCm.toFixed(2) + ' cm of inactive margin per side, ' +
+          (100 * g.apertureFillSide).toFixed(1) + '% of the side and ' + g.apertureDirDeltaDb.toFixed(2) +
+          ' dB of peak directivity. The grid is floored rather than rounded, because a rounded grid would ' +
+          'overflow a hard mechanical spec and an under-filled panel is at least buildable. Beam metrics use the ' +
+          'populated ' + g.effApertureCm.toFixed(1) + ' cm, since that is what radiates. For an exact fill use ' +
+          g.snapCoarseCm.toFixed(2) + ' cm (same ' + g.nTilesTotal + ' tiles) or ' + g.snapFineCm.toFixed(2) +
+          ' cm (' + Math.pow(g.tileCols + 1, 2) + ' tiles).'
       });
     }
 
     var taps = g.nTilesTotal * Math.round(g.tapsPerTile);
-    if (Math.abs(taps - g.nDies) > 0.5) {
-      var fit = g.nDies / g.nTilesTotal;
+    if (taps > g.nDies + 0.5) {
       out.push({
-        severity: taps > g.nDies ? 'warn' : 'fail',
+        severity: 'fail',
         message: g.nTilesTotal + ' tiles × ' + Math.round(g.tapsPerTile) + ' LO taps = ' + taps +
-          ' taps, against ' + g.nDies + ' RFIC dies in the array — ' +
-          (taps > g.nDies ? (taps / g.nDies).toFixed(2) + '× too many' : 'not enough to feed them all') +
-          '. Exact fit needs ' + fit.toFixed(2) + ' dies per tile' +
-          (Math.abs(fit - Math.round(fit)) < 1e-9 ? '' : ', which is not a whole number at this pitch') +
-          '. Distribution power scales with the tap and tile count, so this inflates M6.'
+          ' taps, but only ' + g.nDies + ' RFIC dies exist — ' + (taps / g.nDies).toFixed(2) +
+          '× over the inventory. The die count is a hard limit, not a design variable. At this tile count the ' +
+          'inventory allows ' + Math.floor(g.nDies / g.nTilesTotal) + ' dies per tile. Distribution power and ' +
+          'the BOM scale with the tap count, so leaving this inflates M6.'
+      });
+    } else if (taps < g.nDies - 0.5) {
+      out.push({
+        severity: 'warn',
+        message: g.nTilesTotal + ' tiles × ' + Math.round(g.tapsPerTile) + ' LO taps places ' + taps + ' of the ' +
+          g.nDies + ' available dies, leaving ' + (g.nDies - taps) + ' spare and costing ' +
+          g.diePopGainDb.toFixed(2) + ' dB of array gain against a fully populated aperture. ' +
+          (g.nDies % g.nTilesTotal === 0 ? '' : 'An exact fit is not possible at this tile count: ' +
+            g.nDies + ' / ' + g.nTilesTotal + ' = ' + (g.nDies / g.nTilesTotal).toFixed(2) + ' dies per tile.')
       });
     }
 

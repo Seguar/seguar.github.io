@@ -36,6 +36,7 @@
       <a href="#" class="navlink on" data-view="map">Hardware map</a>
       <a href="#" class="navlink" data-view="compare">Compare</a>
       <a href="#" class="navlink" data-view="phasenoise">Phase noise</a>
+      <a href="#" class="navlink" data-view="beam">TX / RX beam</a>
       <a href="#" class="navlink" data-view="sweeps">Sweeps</a>
       <a href="#" class="navlink" data-view="decision">Decision</a>
       <a href="#" class="navlink" data-view="assumptions">Assumptions</a>
@@ -185,6 +186,29 @@
         </section>
       </div>
 
+      <!-- ---- BEAM ---- -->
+      <div class="view hidden" id="view-beam">
+        <section class="panel">
+          <h2>Beam pattern <span class="tag">from the selected architecture</span>
+            <span class="grow" id="beamHdr"></span></h2>
+          <div class="budget" id="beamStats"></div>
+          <div class="body">
+            <p class="note" id="beamNote"></p>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Principal-plane cut <span class="tag">TX vs RX</span></h2>
+          <div id="beamCutMount"></div>
+          <div class="body"><p class="note" id="beamCutNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>Across the signal band <span class="tag">squint</span>
+            <span class="grow">phase-steered subarray against a delay-steered tile grid</span></h2>
+          <div id="beamSquintMount"></div>
+          <div class="body"><p class="note" id="beamSquintNote"></p></div>
+        </section>
+      </div>
+
       <!-- ---- SWEEPS ---- -->
       <div class="view hidden" id="view-sweeps">
         <section class="panel">
@@ -254,6 +278,7 @@
 <script src="js/topology.js"></script>
 <script src="js/model.js"></script>
 <script src="js/budget.js"></script>
+<script src="js/beam.js"></script>
 <script src="js/decision.js"></script>
 <script src="js/diagram.js"></script>
 <script src="js/content.js"></script>

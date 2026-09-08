@@ -35,7 +35,7 @@
     var tileCm = g.tileCm;
     /* Model.resolve() already worked this out; trust it so the map and the
        metrics cannot disagree about how many tiles there are. */
-    var cols = g.tileCols || Math.max(1, Math.round(g.apertureCm / tileCm));
+    var cols = g.tileCols || Math.max(1, Math.floor(g.apertureCm / tileCm + 1e-9));
     var rows = cols;
     var tiles = [];
     for (var r = 0; r < rows; r++) {

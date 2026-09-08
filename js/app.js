@@ -357,13 +357,55 @@
       tb.appendChild(b);
     });
 
+    /* zoom / pan — what makes the map usable at thousands of tiles */
+    var zsp = document.createElement('span');
+    zsp.className = 'sp';
+    tb.appendChild(zsp);
+    var zlbl = document.createElement('span');
+    zlbl.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
+    zlbl.textContent = 'zoom';
+    tb.appendChild(zlbl);
+    function zoomBtn(txt, fn, title) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn';
+      b.textContent = txt;
+      b.title = title;
+      b.addEventListener('click', fn);
+      tb.appendChild(b);
+      return b;
+    }
+    var ZMAX = 64;
+    zoomBtn('−', function () {
+      view.zoom = Math.max(1, (view.zoom || 1) / 2);
+      if (view.zoom === 1) { view.panXCm = undefined; view.panYCm = undefined; }
+      render();
+    }, 'zoom out').disabled = (view.zoom || 1) <= 1;
+    var zi = document.createElement('span');
+    zi.style.cssText = 'font:12px var(--mono);color:var(--ink-2);min-width:34px;text-align:center';
+    zi.textContent = (view.zoom || 1) + '×';
+    tb.appendChild(zi);
+    zoomBtn('+', function () {
+      view.zoom = Math.min(ZMAX, (view.zoom || 1) * 2);
+      render();
+    }, 'zoom in — then drag the map to pan').disabled = (view.zoom || 1) >= ZMAX;
+    if ((view.zoom || 1) > 1) {
+      zoomBtn('fit', function () {
+        view.zoom = 1; view.panXCm = undefined; view.panYCm = undefined; render();
+      }, 'zoom to fit the whole aperture');
+    }
+
     var tm = TILE_METRICS.filter(function (m) { return m.key === view.tileMetric; })[0];
-    window.Diagram.renderMap(document.getElementById('mapMount'), built, {
+    var mapInfo = window.Diagram.renderMap(document.getElementById('mapMount'), built, {
       tileMetric: view.tileMetric, tileMetricLabel: tm ? tm.label : view.tileMetric,
       selected: view.selected, sourceLabel: res.g.refName,
       showBlocks: view.showBlocks, showLo: view.showLo,
-      showBb: view.showBb, showDies: view.showDies
+      showBb: view.showBb, showDies: view.showDies,
+      zoom: view.zoom, panXCm: view.panXCm, panYCm: view.panYCm,
+      apertureSpecCm: res.g.apertureCm,
+      onPanEnd: function (x, y) { view.panXCm = x; view.panYCm = y; render(); }
     }, function (i) { view.selected = i; render(); });
+    void mapInfo;
 
     window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
     var bsel0 = res.bb[res.g.bbOptionId];
@@ -547,6 +589,120 @@
     ];
     UI.renderTable(document.getElementById('jitterTable'),
       M.LO_META.map(function (m) { return { id: m.id, name: m.name }; }), res.lo, rows, null);
+  }
+
+  /* =====================================================================
+     TX / RX beam
+     ================================================================== */
+  function renderBeam(res, budget) {
+    var g = res.g;
+    var lo = res.lo[g.loOptionId], bb = res.bb[g.bbOptionId];
+    var tx = window.Beam.evaluate(g, budget, lo, bb, 'tx');
+    var rx = window.Beam.evaluate(g, budget, lo, bb, 'rx');
+
+    document.getElementById('beamHdr').textContent =
+      M.LO_META[Math.round(state.loOption)].short + ' + ' + M.BB_META[Math.round(state.bbOption)].short +
+      ' · steered to ' + n(g.beamScanDeg, 0) + '° · ' + g.tileCols + '×' + g.tileCols + ' tiles';
+
+    UI.renderBudget(document.getElementById('beamStats'), null, null, {
+      cells: [
+        { k: 'Beamwidth', n: n(tx.m.hpbwDeg, 2), unit: '°',
+          d: 'at ' + n(g.beamScanDeg, 0) + '° steer, from the populated ' + n(g.effApertureCm, 1) + ' cm aperture' },
+        { k: 'Pointing error', n: n(tx.m.pointErrDeg, 3), unit: '°',
+          binding: Math.abs(tx.m.pointErrDeg) > budget.pointBudgetDeg,
+          d: 'budget is ' + n(budget.pointBudgetDeg, 3) + '° (a tenth of the beamwidth)' },
+        { k: 'First sidelobe', n: n(tx.m.sllDb, 1), unit: 'dB', d: 'TX; RX ' + n(rx.m.sllDb, 1) + ' dB' },
+        { k: 'Coherence floor', n: n(tx.m.floorDb, 1), unit: 'dB',
+          d: 'diffuse scattered level = the deepest null achievable. TX; RX ' + n(rx.m.floorDb, 1) + ' dB.' },
+        { k: 'Band-edge loss', n: n(tx.edgeLossDb, 2), unit: 'dB',
+          d: 'peak drop at ±' + n(g.rfBwGHz / 2, 1) + ' GHz from centre, from the subarray walking off the tile grid' },
+        { k: 'TX phase / amp error', n: n(tx.sigPhiDeg, 2), unit: '° RMS',
+          d: 'plus ' + n(tx.sigAmpDb, 2) + ' dB amplitude spread' },
+        { k: 'RX phase / amp error', n: n(rx.sigPhiDeg, 2), unit: '° RMS',
+          d: 'plus ' + n(rx.sigAmpDb, 2) + ' dB amplitude spread' }
+      ]
+    });
+
+    document.getElementById('beamNote').innerHTML =
+      'The pattern is built from the architecture actually selected: the per-tile residual phase error ' +
+      '(<span class="kv">' + n(lo.interTileResidualDeg) + '°</span> from the LO plus <span class="kv">' +
+      n(bb.interTileResidualDeg) + '°</span> from the baseband network) sets how much power leaves the coherent ' +
+      'pattern, and it reappears as a diffuse floor at <span class="kv">' + n(tx.m.floorDb, 1) +
+      ' dB</span>. That floor is what caps null depth — deepening a null below it is not possible however good the ' +
+      'weights are. TX and RX differ only through the amplitude spread here, since the LO residual is common to both.' +
+      (tx.phaseVarShare < 0.5
+        ? ' <strong>Worth noting:</strong> phase error contributes only <span class="kv">' +
+          n(100 * tx.phaseVarShare, 0) + '%</span> of the TX error variance — the <span class="kv">' +
+          n(tx.sigAmpDb, 2) + ' dB</span> amplitude spread dominates it. If the coherence floor is the binding ' +
+          'metric, PA gain matching buys more than further LO phase improvement does, which is not the intuition ' +
+          'the LO comparison builds.'
+        : ' Phase error contributes <span class="kv">' + n(100 * tx.phaseVarShare, 0) +
+          '%</span> of the TX error variance, so the LO is genuinely in control of the floor here.');
+
+    /* ---- principal-plane cut ---- */
+    var mount = document.getElementById('beamCutMount');
+    mount.textContent = '';
+    var box = document.createElement('div');
+    box.className = 'chartbox';
+    var win = Math.max(6 * tx.hpbwEstDeg, 4);
+    box.appendChild(C.sweepChart({
+      series: [
+        { name: 'ideal, no errors', color: 'var(--ink-3)', dashed: true,
+          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.ideal }; }) },
+        { name: 'TX', color: 'var(--s2)',
+          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: 'RX', color: 'var(--s4)',
+          points: rx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) }
+      ],
+      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to peak', height: 320,
+      xMin: g.beamScanDeg - win, xMax: g.beamScanDeg + win,
+      yMin: -60, yMax: 3, hLine: tx.m.floorDb, hLabel: 'coherence floor'
+    }));
+    mount.appendChild(box);
+    mount.appendChild(C.legend([
+      { name: 'ideal, no errors', color: 'var(--ink-3)' },
+      { name: 'TX (' + n(tx.sigAmpDb, 2) + ' dB amp spread)', color: 'var(--s2)' },
+      { name: 'RX (' + n(rx.sigAmpDb, 2) + ' dB amp spread)', color: 'var(--s4)' }
+    ]));
+    document.getElementById('beamCutNote').innerHTML =
+      'Cut through the principal plane at band centre. The dashed trace is the same array with no errors, so the ' +
+      'gap between it and the solid traces is what the distribution architecture costs. Sidelobes near the main ' +
+      'beam still follow the ideal envelope; far out, the pattern flattens onto the diffuse floor, which is where ' +
+      'the architecture — not the taper — is in control.';
+
+    /* ---- band edges: the squint story ---- */
+    var m2 = document.getElementById('beamSquintMount');
+    m2.textContent = '';
+    var box2 = document.createElement('div');
+    box2.className = 'chartbox';
+    var fLo = g.fLoGHz - g.rfBwGHz / 2, fHi = g.fLoGHz + g.rfBwGHz / 2;
+    box2.appendChild(C.sweepChart({
+      series: [
+        { name: n(fLo, 1) + ' GHz', color: 'var(--s1)',
+          points: tx.lowEdge.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: n(g.fLoGHz, 1) + ' GHz', color: 'var(--s2)',
+          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: n(fHi, 1) + ' GHz', color: 'var(--s4)',
+          points: tx.highEdge.points.map(function (p) { return { x: p.deg, y: p.real }; }) }
+      ],
+      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to band-centre peak', height: 300,
+      xMin: g.beamScanDeg - win, xMax: g.beamScanDeg + win, yMin: -45, yMax: 3
+    }));
+    m2.appendChild(box2);
+    m2.appendChild(C.legend([
+      { name: n(fLo, 1) + ' GHz', color: 'var(--s1)' },
+      { name: n(g.fLoGHz, 1) + ' GHz (centre)', color: 'var(--s2)' },
+      { name: n(fHi, 1) + ' GHz', color: 'var(--s4)' }
+    ]));
+    document.getElementById('beamSquintNote').innerHTML =
+      'Inside a tile the elements are <strong>phase</strong> steered, so the subarray beam is only correct at band ' +
+      'centre and walks to <span class="kv">' + n(Math.asin(Math.min(1, Math.sin(K.deg2rad(g.beamScanDeg)) * g.fLoGHz / fLo)) * K.DEG - g.beamScanDeg, 2) +
+      '°</span> at the lower edge. Between tiles the architecture applies coarse <strong>true time delay</strong>, ' +
+      'which is achromatic, so the tile grid keeps pointing at ' + n(g.beamScanDeg, 0) + '°. The two therefore slide ' +
+      'apart across the band, and the peak drops <span class="kv">' + n(tx.edgeLossDb, 2) + ' dB</span> at the edges. ' +
+      'That mismatch is exactly what sub-tiling bounds: a smaller tile has a broader subarray pattern, so it ' +
+      'tolerates more walk before the peak falls off. A ' + n(g.tileCm, 2) + ' cm tile gives ' +
+      n(budget.tauSubTilePs, 0) + ' ps of intra-tile residual delay at ' + n(g.scanDegMax, 0) + '°.';
   }
 
   /* =====================================================================
@@ -829,6 +985,7 @@
     if (view.name === 'map') renderMapView(res, budget);
     if (view.name === 'compare') renderCompare(res, budget, dec);
     if (view.name === 'phasenoise') renderPn(res, budget);
+    if (view.name === 'beam') renderBeam(res, budget);
     if (view.name === 'sweeps') renderSweeps(res, budget);
     if (view.name === 'decision') renderDecision(res, budget, dec);
     if (view.name === 'assumptions') renderAssumptions(res);
