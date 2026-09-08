@@ -10,11 +10,15 @@
   --bg-hover:      #f4f3f0;
   --ink:           #16181d;
   --ink-2:         #4a4f59;
-  --ink-3:         #7b818d;
+  /* Tertiary text carries chart axis labels and field hints at 10.5px, so it
+     has to clear 4.5:1 on all three light surfaces, not just on white:
+     5.36 on #fff, 5.00 on the page ground, 4.66 on sunken panels. */
+  --ink-3:         #656b76;
   --rule:          #dedcd6;
   --rule-strong:   #c4c1b8;
   --accent:        #1c5f8b;
   --accent-soft:   #e3eef6;
+  --on-accent:     #ffffff;
   --pass:          #1c6b3f;
   --pass-soft:     #e2f0e7;
   --warn:          #8a5a00;
@@ -47,6 +51,7 @@
     --rule-strong: #414753;
     --accent:      #6fb4e0;
     --accent-soft: #1b3040;
+    --on-accent:   #0d1116;
     --pass:        #63c58c;
     --pass-soft:   #17301f;
     --warn:        #e0b155;
@@ -74,6 +79,7 @@
   --rule-strong: #414753;
   --accent:      #6fb4e0;
   --accent-soft: #1b3040;
+  --on-accent:   #0d1116;
   --pass:        #63c58c;
   --pass-soft:   #17301f;
   --warn:        #e0b155;
@@ -192,8 +198,7 @@ button.btn {
   border: 1px solid var(--rule-strong); background: var(--bg-panel); color: var(--ink); cursor: pointer;
 }
 button.btn:hover { background: var(--bg-hover); }
-button.btn.pri { background: var(--accent); color: #fff; border-color: var(--accent); }
-:root[data-theme="dark"] button.btn.pri { color: #0d1116; }
+button.btn.pri { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 button.btn.pri:hover { filter: brightness(1.08); }
 button.btn:disabled { opacity: .5; cursor: default; }
 
@@ -245,6 +250,9 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--pass
 .budget .cell .d { font-size: 11px; color: var(--ink-3); margin-top: 2px; line-height: 1.35; }
 .budget .cell.bind { background: var(--fail-soft); }
 .budget .cell.bind .k { color: var(--fail); font-weight: 700; }
+/* The binding cell sits on a tinted ground, where tertiary text falls just
+   under 4.5:1 — and this is the cell that most needs reading anyway. */
+.budget .cell.bind .d, .budget .cell.bind .n small { color: var(--ink-2); }
 
 /* ---------- charts ---------- */
 .chartbox { padding: 8px 6px 0; }

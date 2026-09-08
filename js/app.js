@@ -131,7 +131,11 @@
     rows.push({ name: 'Sidelobe / null-depth floor', sub: '10log10(σ²/N) — the decisive metric', field: 'sllDb', units: 'dB', better: 'low', dec: 1 });
     rows.push({ name: 'Array gain loss', sub: 'Ruze — negligible at these levels', field: 'gainLossDb', units: 'dB', better: 'low', dec: 3 });
     rows.push({ name: 'Pointing error', field: 'pointingErrDeg', units: '°', better: 'low', dec: 3, spec: budget.pointBudgetDeg });
-    rows.push({ name: 'Array-output EVM', field: 'evmPct', units: '%', better: 'low' });
+    rows.push({
+      name: 'Array-output EVM', sub: 'impairment level relative to the constellation; more negative is better',
+      field: 'evmDb', units: 'dB', better: 'low', spec: budget.evmLimitDb,
+      fmt: function (v, r) { return isFinite(v) ? n(v, 1) + ' (' + n(r.evmPct, 2) + '%)' : '—'; }
+    });
     rows.push({ name: 'Highest supportable QAM', field: 'maxQam', fmt: function (v, r) { return str(r.maxQam); } });
     rows.push({ section: 'Hardware' });
     rows.push({ name: 'Frequency on the board', field: 'distFreqGHz', units: 'GHz', dec: 2 });
@@ -378,9 +382,9 @@
         { k: 'Repeater amps', n: n(sel.repeaters, 0), unit: '', d: sel.splitCount + ' splitters, ' + n(sel.totalRoutedCm, 0) + ' cm routed' },
         { k: 'RMS skew', n: n(sel.skewRmsPs), unit: 'ps', d: n(sel.skewDeg78) + '° at the LO · spec is ' + n(budget.skewSpecPs) + ' ps' },
         {
-          k: 'Array-output EVM', n: n(sel.evmPct), unit: '%',
-          binding: sel.evmPct > budget.evmLimitPct,
-          d: 'from ' + n(sel.phiArrayDeg) + '° absolute · supports ' + sel.maxQam +
+          k: 'Array-output EVM', n: n(sel.evmDb, 1), unit: 'dB',
+          binding: sel.evmDb > budget.evmLimitDb,
+          d: n(sel.evmPct, 2) + '% · budget ' + n(budget.evmLimitDb, 1) + ' dB · supports ' + sel.maxQam +
              '. This is what the reference clock changes — the differential is common-mode and does not move.'
         },
         {
@@ -510,7 +514,7 @@
       'Phase noise at the <strong>coherent array output</strong>, where uncorrelated per-tile noise has averaged ' +
       'down by 10log10(' + budget.nTiles + ') = <span class="kv">' + n(10 * Math.log10(budget.nTiles), 1) +
       ' dB</span> while correlated noise has not. This is why per-tile PLLs can give <em>better</em> link EVM ' +
-      '(<span class="kv">' + n(a1.evmPct) + '%</span> against <span class="kv">' + n(a4.evmPct) + '%</span>) while ' +
+      '(<span class="kv">' + n(a1.evmDb, 1) + ' dB</span> against <span class="kv">' + n(a4.evmDb, 1) + ' dB</span>, a ' + n(Math.abs(a1.evmDb - a4.evmDb), 1) + ' dB difference in impairment level) while ' +
       'giving <em>worse</em> beam coherence. The two budgets genuinely point in opposite directions.');
 
     /* jitter table */
@@ -521,7 +525,8 @@
       { name: 'Inter-tile differential φ, raw', field: 'pnDiffRawDeg', units: '°', better: 'low' },
       { name: 'Inter-tile differential φ, calibrated', field: 'pnDiffCalDeg', units: '°', better: 'low', spec: budget.sigSpecDeg },
       { name: 'Calibration corner f_cal', field: 'fCalHz', units: 'Hz', dec: 3 },
-      { name: 'Array-output EVM', field: 'evmPct', units: '%', better: 'low' },
+      { name: 'Array-output EVM', field: 'evmDb', units: 'dB', better: 'low', spec: budget.evmLimitDb,
+        fmt: function (v, r) { return isFinite(v) ? n(v, 1) + ' (' + n(r.evmPct, 2) + '%)' : '—'; } },
       { name: 'Highest supportable QAM', field: 'maxQam', fmt: function (v, r) { return str(r.maxQam); } }
     ];
     UI.renderTable(document.getElementById('jitterTable'),
@@ -603,12 +608,12 @@
           name: 'residual inter-tile φ (°)', color: 'var(--s1)', markers: true,
           points: bws.map(function (b) { return { x: b, y: sweepEval('local-pll', { pllLoopBwMHz: b }).interTileResidualDeg }; })
         }, {
-          name: 'array-output EVM (%)', color: 'var(--s4)', markers: true,
-          points: bws.map(function (b) { return { x: b, y: sweepEval('local-pll', { pllLoopBwMHz: b }).evmPct }; })
+          name: 'array-output EVM (dB)', color: 'var(--s4)', markers: true,
+          points: bws.map(function (b) { return { x: b, y: sweepEval('local-pll', { pllLoopBwMHz: b }).evmDb }; })
         }],
         xLabel: 'PLL loop bandwidth (MHz)', yLabel: 'value', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'φ spec'
-      }), [{ name: 'residual φ (°)', color: 'var(--s1)' }, { name: 'EVM (%)', color: 'var(--s4)' }]);
+      }), [{ name: 'residual φ (° RMS)', color: 'var(--s1)' }, { name: 'EVM (dB)', color: 'var(--s4)' }]);
 
     /* 3 — BIST update rate: the genuine optimum */
     var rates = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100];
@@ -897,19 +902,31 @@
   document.getElementById('permaBtn').addEventListener('click', function () {
     X.copy(X.permalink(overrides()), 'Permalink');
   });
+  /* light -> dark -> follow system -> light. Light is the shipped default;
+     the inline script in the document head applies it before first paint. */
+  var THEME_CYCLE = { 'light': 'dark', 'dark': '', '': 'light' };
+  var THEME_LABEL = { 'light': 'Light theme — click for dark', 'dark': 'Dark theme — click to follow system', '': 'Following system — click for light' };
+  function labelTheme() {
+    var cur = document.documentElement.getAttribute('data-theme') || '';
+    var b = document.getElementById('themeBtn');
+    b.title = THEME_LABEL[cur] || THEME_LABEL['light'];
+    b.setAttribute('aria-label', b.title);
+    b.textContent = cur === 'dark' ? '☽' : cur === 'light' ? '☀' : '◑';
+  }
   document.getElementById('themeBtn').addEventListener('click', function () {
-    var cur = document.documentElement.getAttribute('data-theme');
-    var next = cur === 'dark' ? 'light' : cur === 'light' ? '' : 'dark';
+    var cur = document.documentElement.getAttribute('data-theme') || '';
+    var next = THEME_CYCLE[cur] !== undefined ? THEME_CYCLE[cur] : 'light';
     document.documentElement.setAttribute('data-theme', next);
     try { localStorage.setItem('ebdt-theme', next); } catch (e) { /* private mode */ }
+    labelTheme();
     render();
   });
 
-  /* ------------------------------- boot --------------------------------- */
-  try {
-    var th = localStorage.getItem('ebdt-theme');
-    if (th) document.documentElement.setAttribute('data-theme', th);
-  } catch (e) { /* ignore */ }
+  /* ------------------------------- boot ---------------------------------
+     The theme itself is applied by the inline script in the document head,
+     before first paint. Here we only sync the button's icon and tooltip to
+     whatever it settled on. */
+  labelTheme();
 
   loadState();
   setView(view.name);

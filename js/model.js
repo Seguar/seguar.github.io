@@ -231,6 +231,21 @@
     g.bbEdgeHz = g.bbEdgeGHz * 1e9;
     g.lambdaM = K.C0 / g.fLoHz;
     g.apertureM = g.apertureCm / 100;
+
+    /* A tile pitch need not divide the aperture. The grid is a whole number
+       of tiles, so the POPULATED aperture is cols*pitch, which can differ
+       from the requested figure — 4 cm over 30 cm is the obvious case. Beam
+       metrics must use the populated aperture, because that is the radiating
+       extent; the requested figure is only a target. Both are carried so the
+       UI can report the difference instead of printing a number that has
+       quietly stopped being true. */
+    g.tileCols = Math.max(1, Math.round(g.apertureCm / g.tileCm));
+    g.effApertureCm = g.tileCols * g.tileCm;
+    g.effApertureM = g.effApertureCm / 100;
+    g.apertureDeltaCm = g.effApertureCm - g.apertureCm;
+    g.aperturePitchExact = Math.abs(g.apertureDeltaCm) < 1e-9;
+    g.nTilesTotal = g.tileCols * g.tileCols;
+    g.loTapsTotal = g.nTilesTotal * Math.round(g.tapsPerTile);
     return g;
   }
 
@@ -508,10 +523,11 @@
     var gainLossDb = K.ruzeLossDb(sigRad);
     var sllDb = K.rmsSllDb(sigRad, nT);
     var pointingErrDeg = lo.kind === 'chain'
-      ? K.pointingFromWalkDeg(interTileResidualDeg / Math.sqrt(Math.max(lo.maxHop, 1)), lo.maxHop, g.apertureM, g.lambdaM, g.scanDegMax)
-      : K.pointingFromRandomDeg(interTileResidualDeg, nT, g.apertureM, g.lambdaM, g.scanDegMax);
+      ? K.pointingFromWalkDeg(interTileResidualDeg / Math.sqrt(Math.max(lo.maxHop, 1)), lo.maxHop, (g.effApertureM || g.apertureM), g.lambdaM, g.scanDegMax)
+      : K.pointingFromRandomDeg(interTileResidualDeg, nT, (g.effApertureM || g.apertureM), g.lambdaM, g.scanDegMax);
     var evmPct = K.evmPctFromPhi(phiArrRad);
-    var maxQamStr = K.maxQam(evmPct, g.evmShare);
+    var evmDbVal = K.evmDbFromPhi(phiArrRad);
+    var maxQamStr = K.maxQamFromDb(evmDbVal, g.evmShare);
 
     /* ---------------- calibration burden (physical counts) ---------------- */
     var nMeasLo = lo.kind === 'chain' ? (nT - lo.chains) : (nT - 1);
@@ -578,7 +594,7 @@
       calBurdenScore: calBurdenScore, calBurdenDetail: calBurdenDetail,
       driftDegPerK: driftDegPerK, driftTotalDeg: driftTotalDeg,
       gainLossDb: gainLossDb, sllDb: sllDb, pointingErrDeg: pointingErrDeg,
-      evmPct: evmPct, maxQam: maxQamStr,
+      evmPct: evmPct, evmDb: evmDbVal, maxQam: maxQamStr,
       feasibility: feasibility, riskLevel: riskLevel,
       distFreqGHz: lo.distFreqHz / 1e9, tileMultiplier: lo.tileMultiplier,
       pathMeanCm: lo.pathMeanCm, pathMaxCm: lo.pathMaxCm, totalRoutedCm: lo.totalRoutedCm,
@@ -618,7 +634,7 @@
        comparison: the H-tree's advantage is not that it alone is correctable,
        it is that it needs far less TTD range and leaves less to correct. */
     var interGeoRawPs = inter.pathRmsSpreadCm * psPerCmBb;
-    var ttdRangePs = K.apertureDelayPs(g.apertureM, g.scanDegMax);
+    var ttdRangePs = K.apertureDelayPs((g.effApertureM || g.apertureM), g.scanDegMax);
     var ttdQuantPs = K.quantResidualPs(g.ttdStepPs);
     var interUncompPs = Math.max(0, interGeoRawPs - ttdRangePs);
     var interGeoPs = K.rss(ttdQuantPs, interUncompPs);

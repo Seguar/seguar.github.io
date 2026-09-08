@@ -1,8 +1,23 @@
 <!doctype html>
-<html lang="en" data-theme="">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* Light is the default regardless of the OS setting; an explicit choice is
+   remembered. This runs before first paint so a dark-OS viewer never sees a
+   flash of the dark palette, and it is done in JS rather than only on the
+   <html> tag because the artifact build strips that tag - the host supplies
+   its own. Stored "" means follow the system. */
+(function () {
+  try {
+    var t = localStorage.getItem('ebdt-theme');
+    document.documentElement.setAttribute('data-theme', t === null ? 'light' : t);
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+</script>
 <title>E-Band Distribution Comparison Tool</title>
 <meta name="description" content="Interactive hardware map and parameterized model comparing clock/reference and LO distribution and baseband split/combine architectures for a large tiled E-band (71-86 GHz) phased array.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
