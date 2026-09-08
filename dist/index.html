@@ -528,7 +528,13 @@ footer.foot a { color: var(--ink-2); }
           </div>
         </section>
         <section class="panel">
-          <h2>Principal-plane cut <span class="tag">TX vs RX</span></h2>
+          <h2>Full hemisphere <span class="tag">where the sparse lattice shows</span>
+            <span class="grow" id="beamWideHdr"></span></h2>
+          <div id="beamWideMount"></div>
+          <div class="body"><p class="note" id="beamWideNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>Main beam, zoomed <span class="tag">TX vs RX</span></h2>
           <div id="beamCutMount"></div>
           <div class="body"><p class="note" id="beamCutNote"></p></div>
         </section>
@@ -2885,6 +2891,11 @@ footer.foot a { color: var(--ink-2); }
       conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 2 dies per tile that is 16, and 49 × 16 = 784 per rail.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
+    { key: 'elemDirDbi', label: 'Element directivity', units: 'dBi', value: 6, min: 0, max: 12, step: 0.5, group: 'Array & band',
+      conf: 'published-literature', why: 'A single E-band package radiator. 6 dBi is patch-like (roughly cos^2 in power, so a ±60° usable cone); a broader element scans further but gives less realised gain. This sets the realised array gain, since a sparse array gets N × element directivity rather than the filled-aperture 4πA/λ².' },
+    { key: 'latticePeriodic', label: 'Element lattice', units: '', value: 1, group: 'Array & band',
+      choices: [{ value: 1, label: 'Periodic — grating lobes' }, { value: 0, label: 'Aperiodic / thinned' }],
+      conf: 'engineering-guess', why: 'A periodic lattice coarser than λ/2 has discrete grating lobes; deliberately breaking the periodicity trades them for a raised, roughly uniform sidelobe floor near 1/N. Which one applies is a layout decision that has not been made yet, and the two look completely different on the pattern.' },
     { key: 'beamScanDeg', label: 'Beam steer angle', units: 'deg', value: 30, min: -75, max: 75, step: 1, group: 'Array & band',
       conf: 'scaled-estimate', why: 'Direction the Beam view steers to. Separate from the max scan angle, which sizes the TTD range and the worst-case squint.' },
     { key: 'txGainErrDb', label: 'TX amplitude spread', units: 'dB', value: 0.5, min: 0, max: 3, step: 0.05, group: 'Link & budget',
@@ -3054,6 +3065,79 @@ footer.foot a { color: var(--ink-2); }
     g.loTapsTotal = g.nTilesTotal * Math.round(g.tapsPerTile);
     g.diesPlaced = Math.min(g.loTapsTotal, Math.round(g.nDies));
     g.diePopGainDb = 10 * Math.log10(Math.max(g.diesPlaced, 1) / Math.max(Math.round(g.nDies), 1));
+
+    /* ---------------------------------------------------------------- *
+     * THE ELEMENT LATTICE — the geometry that actually radiates.
+     *
+     * This is the layer the beam model was missing. One LO tap feeds one
+     * die, and a die carries 4 RX + 4 TX channels, so the radiating count
+     * follows from the tap count and is NOT a free choice. Antennas sit on
+     * the package rather than on the 2.5 mm die (4 elements at lambda/2
+     * span 5.8 mm, more than the die is wide), so the lattice pitch is set
+     * by how the elements are distributed over the tile, not by the die.
+     *
+     * The consequence is the headline fact about this architecture: with a
+     * few hundred elements over a 28 cm aperture the lattice is several
+     * wavelengths coarse, so the array keeps the BEAMWIDTH of the full
+     * aperture but only the GAIN of its element count, and the difference
+     * goes into grating lobes.
+     * ---------------------------------------------------------------- */
+    g.diesPerTile = Math.max(1, Math.round(g.tapsPerTile));
+    g.chPerDiePerDir = 4;                       /* 4 RX + 4 TX per die */
+    g.elemPerTile = g.diesPerTile * g.chPerDiePerDir;
+    g.nElem = g.nTilesTotal * g.elemPerTile;
+
+    /* Arrangement inside a tile. 8 elements factor as 4 x 2, so the tile is
+       4 elements wide and 2 deep; since tiles abut, the FULL lattice is then
+       uniform at tilePitch/4 along the cut axis. That consistency matters:
+       at band centre the intra-tile phase steer and the inter-tile delay
+       steer coincide, so AF(4, 1 cm) x AF(7, 4 cm) collapses exactly to
+       AF(28, 1 cm) — the full-aperture beamwidth is preserved, not
+       regressed, while the grating lobes now appear. */
+    var ex = Math.round(Math.sqrt(g.elemPerTile));
+    while (ex > 1 && g.elemPerTile % ex !== 0) ex--;
+    var ey = g.elemPerTile / ex;
+    g.elemPerTileX = Math.max(ex, ey);
+    g.elemPerTileY = Math.min(ex, ey);
+    g.elemDxCm = g.tileCm / g.elemPerTileX;
+    g.elemDyCm = g.tileCm / g.elemPerTileY;
+    g.elemDxM = g.elemDxCm / 100;
+    g.nElemX = g.tileCols * g.elemPerTileX;
+    g.elemDxLam = g.elemDxM / g.lambdaM;
+
+    var areaM2 = g.effApertureM * g.effApertureM;
+    /* uniform-lattice pitch that spreads nElem over the populated aperture */
+    g.elemSpacingM = g.nElem > 0 ? Math.sqrt(areaM2 / g.nElem) : g.lambdaM / 2;
+    g.elemSpacingCm = g.elemSpacingM * 100;
+    g.elemSpacingLam = g.elemSpacingM / g.lambdaM;
+    /* how far from a critically sampled lambda/2 lattice */
+    g.sparsityFactor = g.elemSpacingM / (g.lambdaM / 2);
+    g.nElemFilled = areaM2 / Math.pow(g.lambdaM / 2, 2);
+
+    /* directivity chain, all in dBi */
+    g.dFilledDbi = 10 * Math.log10(4 * Math.PI * areaM2 / (g.lambdaM * g.lambdaM));
+    g.dArrayDbi = 10 * Math.log10(Math.max(g.nElem, 1)) + g.elemDirDbi;
+    g.thinningLossDb = g.dFilledDbi - g.dArrayDbi;
+    g.apertureEffPct = 100 * Math.pow(10, -g.thinningLossDb / 10);
+
+    /* Grating lobes on the cut axis: first order at delta(sin) = lambda/dx.
+       Any spacing above lambda/2 puts one inside visible space, and for a
+       UNIFORM PERIODIC lattice a grating lobe is a full-amplitude replica of
+       the main beam — suppressed only by the element pattern. That
+       suppression is weak at these angles, which is why a periodic layout at
+       this element count is not viable. */
+    g.gratingDeltaSin = g.lambdaM / g.elemDxM;
+    g.gratingVisible = g.gratingDeltaSin < 2;
+    g.gratingDegBroadside = g.gratingDeltaSin <= 1
+      ? Math.asin(g.gratingDeltaSin) * K.DEG : NaN;
+    /* element-pattern suppression at the first grating lobe, in dB */
+    g.elemPowExp = Math.max(0, Math.pow(10, g.elemDirDbi / 10) / 2 - 1);
+    g.gratingSuppDb = isFinite(g.gratingDegBroadside)
+      ? 10 * Math.log10(Math.pow(Math.cos(K.deg2rad(g.gratingDegBroadside)), g.elemPowExp))
+      : NaN;
+    /* an aperiodic lattice trades the discrete lobes for a raised, roughly
+       uniform sidelobe floor near 1/N */
+    g.thinnedFloorDb = -10 * Math.log10(Math.max(g.nElem, 1));
     return g;
   }
 
@@ -3755,25 +3839,40 @@ footer.foot a { color: var(--ink-2); }
 /* ============================================================================
    beam.js — what the beam actually looks like with the chosen architecture.
 
-   The array is TILED, and that is the whole point of the pattern model:
+   THE GEOMETRY IS IN THE EQUATIONS. An earlier version modelled each tile as
+   a uniformly illuminated CONTINUOUS aperture the size of the tile pitch.
+   That is the pattern of a *filled* subarray, and this array is nothing like
+   filled: a 4 cm tile carries 8 radiators where a filled tile at lambda/2
+   would need about 441. Because the assumed subarray width equalled the tile
+   pitch exactly, its sinc nulls landed precisely on the tile-grid grating
+   lobes and cancelled them — the correct result for contiguous filled
+   subarrays, and completely wrong here. The model was assuming away the
+   grating lobes the real array has.
 
-     * Inside a tile, elements are baseband PHASE shifted. A phase-steered
-       subarray's pattern does steer, but only correctly at the frequency the
-       phases were set for — off centre frequency the subarray beam walks.
-     * BETWEEN tiles the architecture applies coarse TRUE TIME DELAY, which is
-       frequency-independent, so the tile-level array factor stays put.
+   The corrected pattern is three factors, built from the real lattice:
 
-   So across the signal band the subarray pattern slides off the array-factor
-   peak. That mismatch — not the band-centre pattern — is what sub-tiling and
-   the coarse TTD exist to control, and it is what this view shows.
+       element pattern  x  intra-tile array factor  x  tile-grid array factor
 
-   Random per-tile errors are handled by the standard mean-power result: the
-   coherent pattern is attenuated by exp(-sigma^2) and the lost power
-   reappears as a diffuse floor at (1-exp(-sigma^2))/N_indep. That floor, not
-   the peak gain loss, is what limits null depth.
+   with the intra-tile factor steered CHROMATICALLY (elements are baseband
+   phase shifted, correct only at band centre) and the tile-grid factor
+   steered ACHROMATICALLY (tiles carry coarse true time delay). Pattern
+   multiplication is legitimate because every tile is identical.
 
-   Phase and amplitude errors combine as sigma^2 = sigma_phi^2 + sigma_a^2
-   with sigma_a the RMS relative amplitude error (linear, not dB).
+   Consistency: at band centre both steer alike and AF(4, 1 cm) x AF(7, 4 cm)
+   collapses exactly to AF(28, 1 cm), so the full-aperture beamwidth
+   0.886*lambda/(D cos theta) and the -13.26 dB uniform first sidelobe are
+   preserved — the previously validated results are not regressed.
+
+   ABSOLUTE GAIN is reported, not only a peak-normalised shape. A sparse array
+   keeps the BEAMWIDTH of its aperture but only the GAIN of its element count,
+   and the difference goes into sidelobes. Here that gap is ~16 dB, larger
+   than every error effect in the tool, and a peak-normalised plot hides it.
+
+   ERRORS use per-class group counts. The LO residual is common to the
+   elements of a tile (N = tiles) while amplitude spread and phase-shifter
+   quantisation are per element (N = elements). Dividing both by the tile
+   count — as an earlier version did — overstates the amplitude contribution
+   by 10log10(elements/tiles) and inverts which error class dominates.
 
    Exposes window.Beam.
    ========================================================================= */
@@ -3782,185 +3881,263 @@ footer.foot a { color: var(--ink-2); }
 
   var K = window.K;
 
-  function dbToAmpSigma(dbRms) { return Math.log(10) / 20 * dbRms; }
+  function ampSigma(dbRms) { return Math.log(10) / 20 * dbRms; }
 
-  /* Uniformly illuminated aperture of width L (m) at wavelength lam, steered
-     to steerSin. Returns the voltage pattern, normalised to 1 at its peak. */
-  function aperturePattern(L, lam, sinT, steerSin) {
-    var x = Math.PI * L / lam * (sinT - steerSin);
-    if (Math.abs(x) < 1e-9) return 1;
-    return Math.sin(x) / x;
+  /* Element power pattern cos^n(theta) over the forward hemisphere. For a
+     cos^n power pattern the directivity is 2(n+1), so n follows from the
+     element directivity: 6 dBi -> n = 10^0.6/2 - 1 = 0.99. Returned as
+     POWER, since that is how it enters every term. */
+  function elemPow(sinT, n) {
+    var c2 = 1 - sinT * sinT;
+    if (c2 <= 0) return 0;
+    return Math.pow(Math.sqrt(c2), n);
   }
 
-  /* N equally spaced tiles at pitch d, steered to steerSin. Dirichlet kernel,
-     normalised to 1 at its peak. */
-  function arrayFactor(N, d, lam, sinT, steerSin) {
+  /* Voltage array factor of N equally spaced elements at pitch d, steered to
+     steerSin. Dirichlet kernel, normalised to 1 at its peak. This is where
+     grating lobes come from: it returns to full amplitude whenever
+     (d/lambda)(sinT - steerSin) is an integer. */
+  function afV(N, d, lam, sinT, steerSin) {
+    if (N <= 1) return 1;
     var psi = Math.PI * d / lam * (sinT - steerSin);
-    if (Math.abs(Math.sin(psi)) < 1e-12) return 1;
-    var v = Math.sin(N * psi) / (N * Math.sin(psi));
-    return v;
+    var s = Math.sin(psi);
+    if (Math.abs(s) < 1e-12) return 1;
+    return Math.sin(N * psi) / (N * s);
+  }
+
+  /* Continuous uniformly illuminated aperture of width L — used only for the
+     aperiodic/thinned lattice, where the periodic structure is deliberately
+     broken and only the main lobe of the full aperture survives coherently. */
+  function apertureV(L, lam, sinT, steerSin) {
+    var x = Math.PI * L / lam * (sinT - steerSin);
+    return Math.abs(x) < 1e-9 ? 1 : Math.sin(x) / x;
   }
 
   /* ---------------------------------------------------------------------
-     One pattern cut in the principal plane.
-     opts: { nTiles1D, tilePitchM, tileApertureM, fHz, fCenterHz, scanDeg,
-             sigPhiDeg, sigAmpDb, nIndep, ttdResidPs, points }
-     Returns [{deg, ideal, real, floor}] in dB relative to the error-free
-     peak of the same array at band centre.
+     One principal-plane cut.
+     o: { nElemX, elemPerTileX, nTiles1D, elemDxM, tilePitchM, apertureM,
+          fHz, fCenterHz, scanDeg, elemPowExp, periodic,
+          sigTilePhaseDeg, sigElemPhaseDeg, sigAmpDb,
+          nTiles, nElem, ttdResidPs, degMin, degMax, points }
+     Returns dB relative to the error-free peak, plus the absolute chain.
      ------------------------------------------------------------------- */
   function cut(o) {
     var lam = K.C0 / o.fHz;
-    var lamC = K.C0 / o.fCenterHz;
     var s0 = Math.sin(K.deg2rad(o.scanDeg));
+    /* elements inside a tile are phase-steered at band centre, so their beam
+       walks as fc/f; the tile grid is delay-steered and stays put */
+    var sIntra = s0 * (o.fCenterHz / o.fHz);
 
-    /* Inter-tile steering is by true time delay, so it is achromatic: the
-       array factor points at s0 at every frequency. Intra-tile steering is by
-       phase set at band centre, so the subarray beam sits at (fc/f)*s0. */
-    var sTile = s0 * (o.fCenterHz / o.fHz);
-    /* Residual TTD quantisation. At band centre the per-tile baseband phase
-       shifter absorbs it completely — the architecture has both a coarse
-       delay and a phase shifter, and calibration zeroes the phase there. What
-       survives is only the FREQUENCY-DEPENDENT part, 2*pi*(f-fc)*tau_q, which
-       is zero at centre and grows toward the band edges. Using 2*pi*f*tau_q
-       instead would be 10.6 rad at 78 GHz and would saturate the pattern into
-       its diffuse floor at every frequency. */
-    var ttdPhiRad = 2 * Math.PI * (o.fHz - o.fCenterHz) * (o.ttdResidPs || 0) * 1e-12;
+    /* TTD quantisation survives only as its frequency-dependent part: at band
+       centre the per-tile phase shifter absorbs the fixed offset. */
+    var ttdPhi = 2 * Math.PI * (o.fHz - o.fCenterHz) * (o.ttdResidPs || 0) * 1e-12;
 
-    var sigPhi = K.deg2rad(o.sigPhiDeg);
-    var sigAmp = dbToAmpSigma(o.sigAmpDb || 0);
-    var sig2 = sigPhi * sigPhi + sigAmp * sigAmp + ttdPhiRad * ttdPhiRad / 3;
-    var coh = Math.exp(-sig2);
-    var diffuse = (1 - coh) / Math.max(o.nIndep, 1);
+    var sigT = K.deg2rad(o.sigTilePhaseDeg || 0);
+    var sigE = K.deg2rad(o.sigElemPhaseDeg || 0);
+    var sigA = ampSigma(o.sigAmpDb || 0);
+    /* the TTD residual is a per-tile error, like the LO residual */
+    var varTile = sigT * sigT + ttdPhi * ttdPhi / 3;
+    var varElem = sigE * sigE + sigA * sigA;
+    var coh = Math.exp(-(varTile + varElem));
+    /* scattered power reappears spread over the pattern, and each class is
+       divided by ITS OWN number of independent groups */
+    var diffuse = varTile / Math.max(o.nTiles, 1) + varElem / Math.max(o.nElem, 1);
 
-    /* Sampled over a window rather than the full hemisphere: the beam is
-       under a degree wide here, so a uniform sweep of [-90,90] would
-       quantise the -3 dB width to the sample step and read ~12% wide. */
     var d0 = o.degMin === undefined ? -90 : o.degMin;
     var d1 = o.degMax === undefined ? 90 : o.degMax;
+    var n = o.points || 1601;
     var pts = [];
-    var n = o.points || 1201;
     for (var i = 0; i < n; i++) {
       var deg = d0 + (d1 - d0) * i / (n - 1);
       var sinT = Math.sin(K.deg2rad(deg));
-      var el = aperturePattern(o.tileApertureM, lam, sinT, sTile);
-      var af = arrayFactor(o.nTiles1D, o.tilePitchM, lam, sinT, s0);
-      var pIdeal = el * el * af * af;                   /* power, peak 1 */
-      var pReal = el * el * (coh * af * af + diffuse);
+      var ep = elemPow(sinT, o.elemPowExp);
+      var afTot;
+      if (o.periodic) {
+        afTot = afV(o.elemPerTileX, o.elemDxM, lam, sinT, sIntra) *
+                afV(o.nTiles1D, o.tilePitchM, lam, sinT, s0);
+      } else {
+        /* aperiodic: the lattice is deliberately non-periodic, so the discrete
+           grating lobes break up. Only the full-aperture main lobe survives
+           coherently; the rest lands in a roughly uniform floor near 1/N. */
+        afTot = apertureV(o.apertureM, lam, sinT, s0);
+      }
+      var pCoh = ep * afTot * afTot;
+      var thinFloor = o.periodic ? 0 : ep / Math.max(o.nElem, 1);
       pts.push({
         deg: deg,
-        ideal: 10 * Math.log10(Math.max(pIdeal, 1e-12)),
-        real: 10 * Math.log10(Math.max(pReal, 1e-12)),
-        floor: 10 * Math.log10(Math.max(diffuse, 1e-12))
+        ideal: 10 * Math.log10(Math.max(pCoh + thinFloor, 1e-14)),
+        real: 10 * Math.log10(Math.max(pCoh * coh + ep * diffuse + thinFloor, 1e-14))
       });
     }
-    return { points: pts, coh: coh, diffuseDb: 10 * Math.log10(Math.max(diffuse, 1e-12)), sig2: sig2 };
+    return {
+      points: pts, coh: coh, diffuse: diffuse,
+      diffuseDb: 10 * Math.log10(Math.max(diffuse, 1e-14)),
+      varTile: varTile, varElem: varElem,
+      ruzeLossDb: -10 * Math.log10(coh)
+    };
   }
 
-  /* peak, beamwidth, first sidelobe — read off a computed cut */
-  function metrics(res, scanDeg) {
+  /* Angles where grating lobes actually land when the beam is steered:
+     sin(theta_g) = sin(theta_0) + m*lambda/dx, for every m that stays in
+     visible space. NOT scanDeg +/- the broadside angle — that small-angle
+     shortcut put them tens of degrees wrong at 30 deg of scan. */
+  function gratingAngles(scanDeg, deltaSin) {
+    var out = [];
+    if (!(deltaSin > 0) || !isFinite(deltaSin)) return out;
+    var s0 = Math.sin(K.deg2rad(scanDeg));
+    for (var m = -12; m <= 12; m++) {
+      if (m === 0) continue;
+      var s = s0 + m * deltaSin;
+      if (Math.abs(s) <= 1) out.push(Math.asin(s) * K.DEG);
+    }
+    return out;
+  }
+
+  /* Metrics read off a cut.
+     The main beam is measured at the INTENDED direction, not at the global
+     maximum: on a coarse periodic lattice a grating lobe can outrank the
+     intended beam, and a naive peak-finder then reports the pattern as
+     pointing tens of degrees away with a huge "pointing error". Both are
+     reported, plus a flag for whether the intended beam is actually the
+     strongest thing in the hemisphere. */
+  function metrics(res, scanDeg, deltaSin) {
     var pts = res.points;
-    var peak = -Infinity, peakI = 0;
-    for (var i = 0; i < pts.length; i++) if (pts[i].real > peak) { peak = pts[i].real; peakI = i; }
 
-    /* −3 dB width around the peak */
-    var lo = peakI, hi = peakI;
-    while (lo > 0 && pts[lo].real > peak - 3) lo--;
-    while (hi < pts.length - 1 && pts[hi].real > peak - 3) hi++;
-    var hpbw = pts[hi].deg - pts[lo].deg;
+    /* global maximum */
+    var peak = -Infinity, pi = 0;
+    for (var i = 0; i < pts.length; i++) if (pts[i].real > peak) { peak = pts[i].real; pi = i; }
 
-    /* first sidelobe: highest local maximum outside the main lobe */
-    var sll = -Infinity;
+    /* the local maximum nearest the intended direction = the main beam */
+    var mi = 0, bestD = Infinity;
+    for (var k = 0; k < pts.length; k++) {
+      var d = Math.abs(pts[k].deg - scanDeg);
+      if (d < bestD) { bestD = d; mi = k; }
+    }
+    while (mi > 0 && pts[mi - 1].real > pts[mi].real) mi--;
+    while (mi < pts.length - 1 && pts[mi + 1].real > pts[mi].real) mi++;
+    var main = pts[mi].real;
+
+    var lo = mi, hi = mi;
+    while (lo > 0 && pts[lo].real > main - 3) lo--;
+    while (hi < pts.length - 1 && pts[hi].real > main - 3) hi++;
+    var resolved = pts[lo].real <= main - 3 && pts[hi].real <= main - 3;
+    var hpbw = resolved ? pts[hi].deg - pts[lo].deg : NaN;
+
+    /* classify every lobe outside the main beam: is it near a predicted
+       grating angle, or is it an ordinary taper sidelobe? */
+    var gAng = gratingAngles(scanDeg, deltaSin);
+    var tolerance = Math.max(1.5, (hpbw || 1) * 1.5);
+    var sll = -Infinity, gl = -Infinity, glDeg = NaN;
     for (var j = 1; j < pts.length - 1; j++) {
       if (j >= lo - 1 && j <= hi + 1) continue;
-      if (pts[j].real >= pts[j - 1].real && pts[j].real >= pts[j + 1].real) {
-        if (pts[j].real > sll) sll = pts[j].real;
+      if (!(pts[j].real >= pts[j - 1].real && pts[j].real >= pts[j + 1].real)) continue;
+      var isGrating = false;
+      for (var q = 0; q < gAng.length; q++) {
+        if (Math.abs(pts[j].deg - gAng[q]) < tolerance) { isGrating = true; break; }
       }
+      if (isGrating) {
+        if (pts[j].real > gl) { gl = pts[j].real; glDeg = pts[j].deg; }
+      } else if (pts[j].real > sll) sll = pts[j].real;
     }
+
     return {
-      peakDb: peak,
-      pointDeg: pts[peakI].deg,
-      pointErrDeg: pts[peakI].deg - scanDeg,
-      hpbwDeg: hpbw,
-      sllDb: sll - peak,
-      floorDb: res.diffuseDb - peak
+      mainDb: main, mainAtDeg: pts[mi].deg,
+      pointErrDeg: pts[mi].deg - scanDeg,
+      peakDb: peak, peakAtDeg: pts[pi].deg,
+      /* is the intended beam the strongest lobe in the hemisphere? */
+      beamIsPeak: Math.abs(pts[pi].deg - pts[mi].deg) < Math.max(1, (hpbw || 1)),
+      peakExcessDb: peak - main,
+      hpbwDeg: hpbw, hpbwResolved: resolved,
+      sllDb: isFinite(sll) ? sll - main : NaN,
+      gratingDb: isFinite(gl) ? gl - main : NaN,
+      gratingAtDeg: glDeg,
+      gratingAngles: gAng,
+      floorDb: res.diffuseDb - main
     };
   }
 
   /* ---------------------------------------------------------------------
-     Everything the Beam view needs, for one direction (TX or RX).
+     Everything the Beam view needs for one direction.
      ------------------------------------------------------------------- */
   function evaluate(g, budget, loRes, bbRes, dir) {
-    var nT1 = g.tileCols;
-    var fc = g.fLoHz;
-    var B = g.rfBwGHz * 1e9;
+    var fc = g.fLoHz, B = g.rfBwGHz * 1e9;
 
-    /* Phase error: the LO residual is common to both directions, the baseband
-       network's residual adds, and each direction carries its own amplitude
-       spread — PA-to-PA on transmit, LNA/VGA on receive. */
-    var sigPhi = K.rss(loRes.interTileResidualDeg, bbRes.interTileResidualDeg || 0);
+    /* per-TILE phase error: the LO residual is common to a tile's elements */
+    var sigTile = loRes.interTileResidualDeg;
+    /* per-ELEMENT phase error: baseband weight quantisation and the
+       baseband network's own residual, which act per channel */
+    var sigElem = K.rss(bbRes.interTileResidualDeg || 0, K.quantResidualDeg(g.phaseBits));
     var sigAmpDb = dir === 'tx' ? g.txGainErrDb : g.rxGainErrDb;
 
     var common = {
-      nTiles1D: nT1,
-      tilePitchM: g.tileCm / 100,
-      tileApertureM: g.tileCm / 100,
-      fCenterHz: fc,
-      scanDeg: g.beamScanDeg,
-      sigPhiDeg: sigPhi,
-      sigAmpDb: sigAmpDb,
-      nIndep: g.nTilesTotal,
+      nElemX: g.nElemX, elemPerTileX: g.elemPerTileX, nTiles1D: g.tileCols,
+      elemDxM: g.elemDxM, tilePitchM: g.tileCm / 100, apertureM: g.effApertureM,
+      fCenterHz: fc, scanDeg: g.beamScanDeg,
+      elemPowExp: g.elemPowExp, periodic: Math.round(g.latticePeriodic) === 1,
+      sigTilePhaseDeg: sigTile, sigElemPhaseDeg: sigElem, sigAmpDb: sigAmpDb,
+      nTiles: g.nTilesTotal, nElem: g.nElem,
       ttdResidPs: budget.ttdResidPs
     };
 
-    /* Window the sample on the steered beam. The full-aperture beam is well
-       under a degree here, so sampling [-90,90] uniformly would read the
-       -3 dB width a good 10% wide from step quantisation alone. */
+    /* zoomed window on the main beam, and a full hemisphere so the grating
+       lobes are actually visible — a 22 deg lobe falls far outside a
+       +/-6 beamwidth window, so the zoom alone would still hide it */
     var lamC = K.C0 / fc;
-    var hpbwEst = 0.886 * lamC / (g.effApertureM * Math.max(Math.cos(K.deg2rad(g.beamScanDeg)), 0.15)) * K.DEG;
+    var hpbwEst = 0.886 * lamC /
+      (g.effApertureM * Math.max(Math.cos(K.deg2rad(g.beamScanDeg)), 0.15)) * K.DEG;
     var win = Math.max(6 * hpbwEst, 4);
-    common.degMin = Math.max(-90, g.beamScanDeg - win);
-    common.degMax = Math.min(90, g.beamScanDeg + win);
-    common.points = 1601;
 
-    function at(fHz) {
+    function at(fHz, dMin, dMax, npts) {
       var o = {};
       for (var k in common) o[k] = common[k];
-      o.fHz = fHz;
+      o.fHz = fHz; o.degMin = dMin; o.degMax = dMax; o.points = npts;
       return cut(o);
     }
+    var zLo = Math.max(-90, g.beamScanDeg - win), zHi = Math.min(90, g.beamScanDeg + win);
 
-    var centre = at(fc);
-    var lowEdge = at(fc - B / 2);
-    var highEdge = at(fc + B / 2);
+    var centre = at(fc, zLo, zHi, 1601);
+    var lowEdge = at(fc - B / 2, zLo, zHi, 1601);
+    var highEdge = at(fc + B / 2, zLo, zHi, 1601);
+    var wide = at(fc, -90, 90, 3601);
+
+    var mC = metrics(centre, g.beamScanDeg, NaN);
+    var mW = metrics(wide, g.beamScanDeg, g.gratingDeltaSin);
+
+    /* ---- absolute gain chain ----
+       For N elements of directivity D_el the array directivity scanned to
+       theta is N * D_el * cos^n(theta): the scan loss IS the element pattern,
+       so adding a projected-aperture cos(theta) term would double-count. */
+    var scanLossDb = -10 * Math.log10(Math.max(elemPow(Math.sin(K.deg2rad(g.beamScanDeg)), g.elemPowExp), 1e-9));
+    var realisedDbi = g.dArrayDbi - scanLossDb - centre.ruzeLossDb;
+
+    /* band-edge loss compares the MAIN beam at each frequency, not the global
+       peak - on a coarse lattice the global peak may be a grating lobe */
+    var mLo = metrics(lowEdge, g.beamScanDeg, NaN), mHi = metrics(highEdge, g.beamScanDeg, NaN);
+    var peakEdge = Math.max(mLo.mainDb, mHi.mainDb);
+    var peakCentre = mC.mainDb;
 
     return {
       dir: dir,
-      sigPhiDeg: sigPhi,
-      sigAmpDb: sigAmpDb,
-      centre: centre, lowEdge: lowEdge, highEdge: highEdge,
-      hpbwEstDeg: hpbwEst,
-      m: metrics(centre, g.beamScanDeg),
-      mLow: metrics(lowEdge, g.beamScanDeg),
-      mHigh: metrics(highEdge, g.beamScanDeg),
-      /* which error class actually sets the coherence floor — at these
-         residual phase errors the amplitude spread usually wins, which is
-         not the intuition the LO discussion builds */
-      phaseVarShare: (function () {
-        var sp = K.deg2rad(sigPhi), sa = Math.log(10) / 20 * sigAmpDb;
-        var tot = sp * sp + sa * sa;
-        return tot > 0 ? sp * sp / tot : 0;
-      })(),
-      /* band-edge peak loss relative to band centre — the squint penalty the
-         sub-tiling and coarse TTD exist to bound */
-      edgeLossDb: centre.points.reduce(function (a, p) { return Math.max(a, p.real); }, -Infinity) -
-                  Math.max(
-                    lowEdge.points.reduce(function (a, p) { return Math.max(a, p.real); }, -Infinity),
-                    highEdge.points.reduce(function (a, p) { return Math.max(a, p.real); }, -Infinity)
-                  )
+      sigTileDeg: sigTile, sigElemDeg: sigElem, sigAmpDb: sigAmpDb,
+      hpbwEstDeg: hpbwEst, winDeg: win,
+      centre: centre, lowEdge: lowEdge, highEdge: highEdge, wide: wide,
+      m: mC, mWide: mW,
+      ruzeLossDb: centre.ruzeLossDb,
+      scanLossDb: scanLossDb,
+      dFilledDbi: g.dFilledDbi, dArrayDbi: g.dArrayDbi,
+      thinningLossDb: g.thinningLossDb, realisedDbi: realisedDbi,
+      edgeLossDb: peakCentre - peakEdge,
+      /* which error class owns the floor, now that each is divided by its
+         own group count */
+      tileShareOfFloor: (function () {
+        var a = centre.varTile / Math.max(g.nTilesTotal, 1);
+        var b = centre.varElem / Math.max(g.nElem, 1);
+        return (a + b) > 0 ? a / (a + b) : 0;
+      })()
     };
   }
 
-  window.Beam = { evaluate: evaluate, cut: cut, metrics: metrics };
+  window.Beam = { evaluate: evaluate, cut: cut, metrics: metrics, elemPow: elemPow };
 })();
 
 /* ===== js/decision.js ===== */
@@ -5164,6 +5341,32 @@ footer.foot a { color: var(--ink-2); }
     '- The thermal drift rate is assumed to play out over ten minutes to convert a total excursion into a rate. ' +
     'That divisor is a guess and it moves the drift residual directly.',
 
+    '### The beam model, and what it still does not capture',
+    'The pattern is built from the real element lattice — element count and spacing derived from dies per tile ' +
+    'and channels per die — rather than from a fictitious filled subarray. An earlier version modelled each tile ' +
+    'as a uniformly illuminated continuous aperture the width of the tile pitch, which made its sinc nulls fall ' +
+    'exactly on the tile-grid grating lobes and cancel them. That is right for contiguous *filled* subarrays and ' +
+    'wrong here, and it hid the dominant effect in the whole view.',
+    '- **The element positions are assumed, not designed.** Eight elements per tile are spread as a uniform 4×2 ' +
+    'grid, giving a 2.6λ lattice along the cut. A real layout might cluster the four elements of a die instead, ' +
+    'which is worse — clusters on the 4 cm tile pitch put grating lobes every 5.5°. The layout has not been done, ' +
+    'so treat the lattice as a parameter, not a result.',
+    '- **The aperiodic mode is a model, not a design.** It replaces the periodic structure with the full-aperture ' +
+    'main lobe plus a uniform 1/N floor. A real thinned array has a specific, non-uniform sidelobe structure that ' +
+    'depends on the actual positions, and achieving the ideal floor takes deliberate optimisation.',
+    '- **No mutual coupling, no edge truncation, no feed or mismatch loss.** At these spacings coupling is weaker ' +
+    'than in a λ/2 array, but the element pattern in an array is not the isolated element pattern, and the realised ' +
+    'gain will be below the figure shown.',
+    '- **The element pattern is an idealised cos^n.** A real E-band package radiator has ripple, finite ground-plane ' +
+    'effects and a pattern that varies across the band. The cos^n exponent is derived from the element directivity ' +
+    'parameter, so it is only as good as that number.',
+    '- **One principal-plane cut, not the full sphere.** The y-axis lattice is coarser (2 cm against 1 cm at the ' +
+    'default), so the orthogonal cut has grating lobes at a smaller angle than the plot shows. Directivity is ' +
+    'computed from the element count, not by integrating the modelled pattern, so the two are not tied together.',
+    '- **TTD quantisation is folded into a random variance** as τ²/3. Quantisation error is deterministic given ' +
+    'the commanded delay, not random, so this is an approximation that is only reasonable across many beam ' +
+    'positions.',
+
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
     'carrier phase noise; a number there would be fabricated.',
@@ -5791,47 +5994,108 @@ footer.foot a { color: var(--ink-2); }
       M.LO_META[Math.round(state.loOption)].short + ' + ' + M.BB_META[Math.round(state.bbOption)].short +
       ' · steered to ' + n(g.beamScanDeg, 0) + '° · ' + g.tileCols + '×' + g.tileCols + ' tiles';
 
+    var periodic = Math.round(g.latticePeriodic) === 1;
     UI.renderBudget(document.getElementById('beamStats'), null, null, {
       cells: [
-        { k: 'Beamwidth', n: n(tx.m.hpbwDeg, 2), unit: '°',
-          d: 'at ' + n(g.beamScanDeg, 0) + '° steer, from the populated ' + n(g.effApertureCm, 1) + ' cm aperture' },
-        { k: 'Pointing error', n: n(tx.m.pointErrDeg, 3), unit: '°',
-          binding: Math.abs(tx.m.pointErrDeg) > budget.pointBudgetDeg,
-          d: 'budget is ' + n(budget.pointBudgetDeg, 3) + '° (a tenth of the beamwidth)' },
-        { k: 'First sidelobe', n: n(tx.m.sllDb, 1), unit: 'dB', d: 'TX; RX ' + n(rx.m.sllDb, 1) + ' dB' },
+        { k: 'Realised gain', n: n(tx.realisedDbi, 1), unit: 'dBi',
+          d: 'filled aperture would give ' + n(tx.dFilledDbi, 1) + ' dBi; ' + g.nElem +
+             ' elements give ' + n(tx.dArrayDbi, 1) + ' dBi, then −' + n(tx.scanLossDb, 1) +
+             ' dB scan and −' + n(tx.ruzeLossDb, 2) + ' dB error loss' },
+        { k: 'Thinning loss', n: n(tx.thinningLossDb, 1), unit: 'dB', binding: tx.thinningLossDb > 6,
+          d: 'aperture efficiency ' + n(g.apertureEffPct, 2) + '% — ' + g.nElem + ' elements where a filled λ/2 lattice needs ' +
+             n(g.nElemFilled, 0) + '. Larger than every error effect in this tool.' },
+        { k: 'Element lattice', n: n(g.elemDxLam, 2), unit: 'λ',
+          d: g.elemPerTileX + '×' + g.elemPerTileY + ' elements per tile → ' + n(g.elemDxCm, 2) +
+             ' × ' + n(g.elemDyCm, 2) + ' cm pitch, ' + n(g.sparsityFactor, 1) + '× coarser than λ/2' },
+        periodic
+          ? { k: 'Grating lobe', n: n(tx.mWide.gratingDb, 1), unit: 'dB', binding: tx.mWide.gratingDb > -13,
+              d: 'at ' + n(tx.mWide.gratingAtDeg, 1) + '°, relative to the intended beam. A periodic lattice ' +
+                 'replicates the main beam exactly, so only the element pattern suppresses it — worth ' +
+                 n(Math.abs(g.gratingSuppDb), 2) + ' dB here.' +
+                 (tx.mWide.beamIsPeak ? '' : ' THE INTENDED BEAM IS NOT THE STRONGEST LOBE: the peak sits at ' +
+                   n(tx.mWide.peakAtDeg, 1) + '°, ' + n(tx.mWide.peakExcessDb, 2) + ' dB above it.') }
+          : { k: 'Thinned sidelobe floor', n: n(g.thinnedFloorDb, 1), unit: 'dB',
+              d: 'aperiodic lattice: no discrete grating lobes, but the power lands in a roughly uniform floor near 1/N' },
+        { k: 'Beamwidth', n: n(tx.m.hpbwDeg, 3), unit: '°',
+          d: (tx.m.hpbwResolved ? '' : 'NOT RESOLVED in the window — ') +
+             'at ' + n(g.beamScanDeg, 0) + '° steer, from the populated ' + n(g.effApertureCm, 1) + ' cm aperture' },
         { k: 'Coherence floor', n: n(tx.m.floorDb, 1), unit: 'dB',
-          d: 'diffuse scattered level = the deepest null achievable. TX; RX ' + n(rx.m.floorDb, 1) + ' dB.' },
+          d: 'deepest achievable null. Per-tile phase owns ' + n(100 * tx.tileShareOfFloor, 0) +
+             '% of it (N=' + g.nTilesTotal + '), per-element amplitude the rest (N=' + g.nElem + ').' },
         { k: 'Band-edge loss', n: n(tx.edgeLossDb, 2), unit: 'dB',
-          d: 'peak drop at ±' + n(g.rfBwGHz / 2, 1) + ' GHz from centre, from the subarray walking off the tile grid' },
-        { k: 'TX phase / amp error', n: n(tx.sigPhiDeg, 2), unit: '° RMS',
-          d: 'plus ' + n(tx.sigAmpDb, 2) + ' dB amplitude spread' },
-        { k: 'RX phase / amp error', n: n(rx.sigPhiDeg, 2), unit: '° RMS',
-          d: 'plus ' + n(rx.sigAmpDb, 2) + ' dB amplitude spread' }
+          d: 'peak drop at ±' + n(g.rfBwGHz / 2, 1) + ' GHz, from the phase-steered elements walking off the delay-steered tile grid' }
       ]
     });
 
     document.getElementById('beamNote').innerHTML =
-      'The pattern is built from the architecture actually selected: the per-tile residual phase error ' +
-      '(<span class="kv">' + n(lo.interTileResidualDeg) + '°</span> from the LO plus <span class="kv">' +
-      n(bb.interTileResidualDeg) + '°</span> from the baseband network) sets how much power leaves the coherent ' +
-      'pattern, and it reappears as a diffuse floor at <span class="kv">' + n(tx.m.floorDb, 1) +
-      ' dB</span>. That floor is what caps null depth — deepening a null below it is not possible however good the ' +
-      'weights are. TX and RX differ only through the amplitude spread here, since the LO residual is common to both.' +
-      (tx.phaseVarShare < 0.5
-        ? ' <strong>Worth noting:</strong> phase error contributes only <span class="kv">' +
-          n(100 * tx.phaseVarShare, 0) + '%</span> of the TX error variance — the <span class="kv">' +
-          n(tx.sigAmpDb, 2) + ' dB</span> amplitude spread dominates it. If the coherence floor is the binding ' +
-          'metric, PA gain matching buys more than further LO phase improvement does, which is not the intuition ' +
-          'the LO comparison builds.'
-        : ' Phase error contributes <span class="kv">' + n(100 * tx.phaseVarShare, 0) +
-          '%</span> of the TX error variance, so the LO is genuinely in control of the floor here.');
+      '<strong>The array is sparse, and that dominates everything else here.</strong> ' + g.nElem +
+      ' elements over a ' + n(g.effApertureCm, 1) + ' cm aperture is a <span class="kv">' + n(g.elemDxLam, 2) +
+      'λ</span> lattice — ' + n(g.sparsityFactor, 1) + '× coarser than λ/2. So the array keeps the ' +
+      '<em>beamwidth</em> of the full aperture (<span class="kv">' + n(tx.m.hpbwDeg, 3) + '°</span>) but only the ' +
+      '<em>gain</em> of its element count: <span class="kv">' + n(tx.dArrayDbi, 1) + ' dBi</span> against ' +
+      '<span class="kv">' + n(tx.dFilledDbi, 1) + ' dBi</span> filled, a <span class="kv">' +
+      n(tx.thinningLossDb, 1) + ' dB</span> thinning loss at ' + n(g.apertureEffPct, 2) +
+      '% aperture efficiency. The difference does not vanish — it goes into sidelobes. ' +
+      (periodic
+        ? 'On a <strong>periodic</strong> lattice that means a grating lobe at <span class="kv">±' +
+          n(g.gratingDegBroadside, 1) + '°</span> from the beam, and because a periodic array replicates its main ' +
+          'beam exactly, the element pattern suppresses it by only <span class="kv">' +
+          n(Math.abs(g.gratingSuppDb), 2) + ' dB</span>. Switch the lattice to aperiodic to see the alternative.'
+        : 'On an <strong>aperiodic</strong> lattice the discrete lobes break up into a roughly uniform floor near ' +
+          '1/N = <span class="kv">' + n(g.thinnedFloorDb, 1) + ' dB</span>.') +
+      '<br><br>On top of that geometry, the selected architecture contributes a per-tile phase error of ' +
+      '<span class="kv">' + n(tx.sigTileDeg) + '°</span> (LO residual, common to a tile\'s ' + g.elemPerTile +
+      ' elements) and a per-element error of <span class="kv">' + n(tx.sigElemDeg) + '°</span> phase plus ' +
+      '<span class="kv">' + n(tx.sigAmpDb, 2) + ' dB</span> amplitude. Each is divided by <em>its own</em> number of ' +
+      'independent groups, so the coherence floor is <span class="kv">' + n(tx.m.floorDb, 1) +
+      ' dB</span>, of which the per-tile phase term owns <span class="kv">' + n(100 * tx.tileShareOfFloor, 0) +
+      '%</span>. TX and RX differ only through the amplitude spread, since the LO residual is common to both.';
+
+    /* ---- full hemisphere: where the sparse lattice shows ---- */
+    var wm = document.getElementById('beamWideMount');
+    wm.textContent = '';
+    var wbox = document.createElement('div');
+    wbox.className = 'chartbox';
+    wbox.appendChild(C.sweepChart({
+      series: [
+        { name: 'ideal, no errors', color: 'var(--ink-3)', dashed: true,
+          points: tx.wide.points.map(function (p) { return { x: p.deg, y: p.ideal }; }) },
+        { name: 'TX', color: 'var(--s2)',
+          points: tx.wide.points.map(function (p) { return { x: p.deg, y: p.real }; }) }
+      ],
+      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to peak', height: 320,
+      xMin: -90, xMax: 90, yMin: -50, yMax: 3,
+      hLine: tx.m.floorDb, hLabel: 'coherence floor'
+    }));
+    wm.appendChild(wbox);
+    document.getElementById('beamWideHdr').textContent =
+      periodic ? 'periodic lattice · grating lobes at ±' + n(g.gratingDegBroadside, 1) + '° from the beam'
+               : 'aperiodic lattice · no discrete grating lobes';
+    document.getElementById('beamWideNote').innerHTML =
+      'The full hemisphere, which is the only place the sparse lattice is visible — the zoomed panel below spans ' +
+      '±' + n(tx.winDeg, 1) + '°, so a lobe at ' + n(g.gratingDegBroadside, 1) + '° falls outside it entirely. ' +
+      (periodic
+        ? 'Here the <span class="kv">' + n(g.elemDxLam, 2) + 'λ</span> element pitch puts a grating lobe at ' +
+          '<span class="kv">' + n(tx.mWide.gratingAtDeg, 1) + '°</span> at <span class="kv">' +
+          n(tx.mWide.gratingDb, 1) + ' dB</span>. A periodic array replicates its main beam exactly, so nothing ' +
+          'but the element pattern suppresses it, and at this angle that is worth only ' +
+          n(Math.abs(g.gratingSuppDb), 2) + ' dB. As the beam scans, the lobes move with it: at ' +
+          n(g.beamScanDeg, 0) + '° they sit near ' +
+          n(Math.asin(Math.max(-1, Math.min(1, Math.sin(K.deg2rad(g.beamScanDeg)) - g.gratingDeltaSin))) * K.DEG, 1) +
+          '° and ' +
+          (Math.abs(Math.sin(K.deg2rad(g.beamScanDeg)) + g.gratingDeltaSin) <= 1
+            ? n(Math.asin(Math.sin(K.deg2rad(g.beamScanDeg)) + g.gratingDeltaSin) * K.DEG, 1) + '°'
+            : 'beyond the horizon') + '.'
+        : 'With the lattice made aperiodic the discrete lobes break up into a floor near 1/N = ' +
+          '<span class="kv">' + n(g.thinnedFloorDb, 1) + ' dB</span>. That is the standard thinned-array trade: ' +
+          'the same total scattered power, spread out instead of concentrated.');
 
     /* ---- principal-plane cut ---- */
     var mount = document.getElementById('beamCutMount');
     mount.textContent = '';
     var box = document.createElement('div');
     box.className = 'chartbox';
-    var win = Math.max(6 * tx.hpbwEstDeg, 4);
+    var win = tx.winDeg;
     box.appendChild(C.sweepChart({
       series: [
         { name: 'ideal, no errors', color: 'var(--ink-3)', dashed: true,

@@ -159,6 +159,32 @@
     '- The thermal drift rate is assumed to play out over ten minutes to convert a total excursion into a rate. ' +
     'That divisor is a guess and it moves the drift residual directly.',
 
+    '### The beam model, and what it still does not capture',
+    'The pattern is built from the real element lattice — element count and spacing derived from dies per tile ' +
+    'and channels per die — rather than from a fictitious filled subarray. An earlier version modelled each tile ' +
+    'as a uniformly illuminated continuous aperture the width of the tile pitch, which made its sinc nulls fall ' +
+    'exactly on the tile-grid grating lobes and cancel them. That is right for contiguous *filled* subarrays and ' +
+    'wrong here, and it hid the dominant effect in the whole view.',
+    '- **The element positions are assumed, not designed.** Eight elements per tile are spread as a uniform 4×2 ' +
+    'grid, giving a 2.6λ lattice along the cut. A real layout might cluster the four elements of a die instead, ' +
+    'which is worse — clusters on the 4 cm tile pitch put grating lobes every 5.5°. The layout has not been done, ' +
+    'so treat the lattice as a parameter, not a result.',
+    '- **The aperiodic mode is a model, not a design.** It replaces the periodic structure with the full-aperture ' +
+    'main lobe plus a uniform 1/N floor. A real thinned array has a specific, non-uniform sidelobe structure that ' +
+    'depends on the actual positions, and achieving the ideal floor takes deliberate optimisation.',
+    '- **No mutual coupling, no edge truncation, no feed or mismatch loss.** At these spacings coupling is weaker ' +
+    'than in a λ/2 array, but the element pattern in an array is not the isolated element pattern, and the realised ' +
+    'gain will be below the figure shown.',
+    '- **The element pattern is an idealised cos^n.** A real E-band package radiator has ripple, finite ground-plane ' +
+    'effects and a pattern that varies across the band. The cos^n exponent is derived from the element directivity ' +
+    'parameter, so it is only as good as that number.',
+    '- **One principal-plane cut, not the full sphere.** The y-axis lattice is coarser (2 cm against 1 cm at the ' +
+    'default), so the orthogonal cut has grating lobes at a smaller angle than the plot shows. Directivity is ' +
+    'computed from the element count, not by integrating the modelled pattern, so the two are not tied together.',
+    '- **TTD quantisation is folded into a random variance** as τ²/3. Quantisation error is deterministic given ' +
+    'the commanded delay, not random, so this is an approximation that is only reasonable across many beam ' +
+    'positions.',
+
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
     'carrier phase noise; a number there would be fabricated.',
