@@ -140,30 +140,55 @@ practical argument for A4 beyond the numbers.
 
 ## 5. Baseband
 
-| Metric | B1 Passive resistive | B2 Daisy chain | **B3 H-tree active** |
+The three options give genuinely **different inter-tile wiring**, and that
+choice — not the cell type — dominates the numbers. A resistive combiner gains
+nothing from hierarchy, so its natural layout is a flat **star**: every tile
+routed straight to one summing node. Active cells must be staged 2:1, so theirs
+is a hierarchical **H-tree**. The daisy chain is a **serpentine bus**. The
+hardware map draws whichever one is selected.
+
+| Metric | B1 Passive · star | B2 Daisy · bus | **B3 Active · H-tree** |
 |:---|---:|---:|---:|
-| RMS skew across ports (ps) | **2.7** | 17.0 | 6.7 |
-| Phase error at 1 GHz rail edge (°) | **0.97** | 6.11 | 2.41 |
-| Band-averaged squint loss (dB) | **0.000** | 0.016 | 0.003 |
-| Beam steer from the ramp (°) | 0.000 | **5.51** | 0.000 |
-| Net insertion loss (dB) | 15.1 | 12.8 | **0.0** |
+| Inter-tile topology | flat star | serpentine bus | H-tree, 5 levels |
+| Routed wire, inter-tile (cm) | 626 | **191** | 261 |
+| Mean → longest path (cm) | 25 → 43 | 117 → 189 | **49 → 52** |
+| Geometric skew, raw (ps) | 600 | 2738 | **101** |
+| Beyond the 867 ps TTD range (ps) | 0 | **1872** | 0 |
+| Share of TTD range consumed (%) | 69 | — | **12** |
+| Geometric skew after coarse TTD (ps) | **21.7** | 1872 | **21.7** |
+| Band-averaged squint loss (dB) | **0.027** | 11.2 | 0.029 |
+| Net insertion loss (dB) | 15.9 | 16.9 | **1.7** |
 | Noise-figure penalty (dB) | 1.20 | 0.75 | **0.26** |
-| −3 dB bandwidth (GHz) | **4.0** | **0.15** | 3.5 |
+| −3 dB bandwidth (GHz) | **4.0** | 0.15 | 3.5 |
 | Power per tile, both rails (mW) | 554 | **178** | 477 |
 | Delay drift (°/K) | **0.002** | 0.030 | 0.050 |
 
-B2 is eliminated: its capacitive loading grows with channel count and the
-bandwidth collapses to 0.15 GHz against a 1 GHz rail, and its 48 ps delay ramp
-becomes a 5.5° beam steer that phase calibration cannot remove.
+**B2 is eliminated twice over.** Its capacitive loading grows with channel
+count and the bandwidth collapses to 0.15 GHz against a 1 GHz rail; and its
+2738 ps inter-tile ramp is 1872 ps **beyond the coarse TTD's entire range**,
+leaving 11.2 dB of band-averaged squint loss. It routes the least wire of the
+three and that is its only virtue.
 
-**B1 versus B3 is genuinely close**, and the argument usually made for B3 is
-close to vacuous here: with 30 dB of RFIC gain ahead of it, even the passive
-network costs only 1.20 dB of noise figure. What actually separates them is
-drive power and stability, and they split the difference — B3 wins on loss
-(0 dB vs 15.1 dB), noise (0.26 dB vs 1.20 dB) and power (477 mW vs 554 mW,
-because the passive network needs a strong TX-direction driver fighting the
-whole tree), while B1 wins decisively on PVT stability (0.002 °/K vs 0.050 °/K)
-and carries no linearity penalty against B3's 7.0 dB cascaded IIP3 cost.
+**B1 versus B3 turns on the TTD budget, not on noise.** Baseband skew is a
+*group-delay* error, so unlike an LO phase offset no phase calibration touches
+it — but the architecture already carries a per-tile coarse TTD element, and
+absorbing inter-tile delay is exactly its job. Both the star and the H-tree fall
+inside its 867 ps range and land on the same 21.7 ps quantisation floor, so
+squint loss does **not** separate them.
+
+What separates them is what fraction of that range each spends on its own
+geometry rather than on steering the beam: **69 % for the star against 12 % for
+the H-tree**. The 867 ps exists because a 30 cm aperture at 60° needs it for
+steering; handing two-thirds of it to the combiner's own arm mismatch is the
+real cost of a star. Add 15.9 dB of insertion loss against 1.7 dB, 2.4× the
+routed wire, and 554 mW against 477 mW — because the passive network needs a
+strong TX-direction driver fighting the whole tree — and B3 wins on the network.
+
+B1's genuine advantage is stability: 0.002 °/K against 0.050 °/K, and no
+linearity penalty against B3's 7.0 dB cascaded IIP3 cost. The noise-figure
+argument usually made for active combining is close to vacuous here — with
+30 dB of RFIC gain ahead of it even the passive network costs only 1.20 dB — so
+do not lead with it.
 
 **Take B3, and keep B1 as a live fallback.** If measured PVT drift or linearity
 on the first tile silicon is worse than modelled, B1 costs only drive power to

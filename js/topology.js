@@ -42,7 +42,15 @@
           i: r * cols + c, r: r, c: c,
           x: c * tileCm, y: r * tileCm, w: tileCm, h: tileCm,
           cx: (c + 0.5) * tileCm, cy: (r + 0.5) * tileCm,
+          /* Two networks share the aperture, so they get separate anchor
+             points inside each tile: the LO/reference feed lands at the
+             centre, the baseband port sits offset toward the lower right.
+             Real boards separate them by layer; the map separates them in
+             plan so both can be read at once. */
+          bbX: (c + 0.5) * tileCm + tileCm * 0.26,
+          bbY: (r + 0.5) * tileCm + tileCm * 0.26,
           pathCm: 0, segments: 0, level: 0, hop: 0, repeaters: 0,
+          bbPathCm: 0, bbLevel: 0, bbHop: 0,
           blocks: []
         });
       }
@@ -471,6 +479,132 @@
   }
 
   /* ======================================================================
+     BASEBAND INTER-TILE NETWORK — tiles to the RFSoC backend.
+
+     This is the second tier of the two-stage architecture and it is drawn on
+     the same aperture as the LO network. The three options give genuinely
+     different inter-tile wiring, for a physical reason:
+
+       B1 passive resistive -> a FLAT STAR. An N-way resistive combiner is N
+          arms meeting at one summing node; hierarchy buys it nothing, so the
+          natural layout is every tile routed directly to one node. Long,
+          unequal arms and one large driver.
+       B2 daisy chain -> a SERPENTINE BUS, tapped and passed at every tile.
+       B3 H-tree active -> a HIERARCHICAL H-TREE. Active cells must be staged
+          2:1, so the layout is recursive with a cell at every junction.
+
+     The backend sits above the aperture, opposite the LO source below it.
+     ================================================================== */
+  function bbNet(grid, g) {
+    var id = g.bbOptionId || 'h-tree-active';
+    var apCm = grid.cols * grid.tileCm;
+    var root = { x: apCm / 2, y: -2.6 };
+    var links = [], nodes = [];
+    var fBb = (g.bbEdgeGHz || 1) * 1e9;
+
+    nodes.push({ type: 'backend', x: root.x, y: root.y, label: 'RFSoC', freqHz: fBb });
+
+    function emit(x1, y1, x2, y2, kind, level) {
+      manhattan(x1, y1, x2, y2).forEach(function (s) {
+        links.push({ x1: s[0], y1: s[1], x2: s[2], y2: s[3], kind: kind, level: level, net: 'bb' });
+      });
+      return Math.abs(x2 - x1) + Math.abs(y2 - y1);
+    }
+
+    if (id === 'passive-50') {
+      /* flat star: one summing node just inside the aperture edge */
+      var sum = { x: apCm / 2, y: -0.9 };
+      nodes.push({ type: 'sum', x: sum.x, y: sum.y, label: 'Σ', freqHz: fBb });
+      emit(sum.x, sum.y, root.x, root.y, 'bbroot', 0);
+      grid.tiles.forEach(function (t) {
+        var len = emit(t.bbX, t.bbY, sum.x, sum.y, 'bbarm', 1);
+        t.bbPathCm = len;
+        t.bbLevel = 1;
+        nodes.push({ type: 'res', x: t.bbX, y: t.bbY, label: 'R', freqHz: fBb, tile: t.i });
+      });
+      nodes.push({ type: 'drv', x: sum.x + 1.6, y: sum.y, label: 'drv', freqHz: fBb });
+      return finish('star', 1);
+    }
+
+    if (id === 'bb-daisy') {
+      /* serpentine bus, tapped at every tile */
+      var order = [];
+      for (var r = 0; r < grid.rows; r++) {
+        var row = grid.tiles.filter(function (t) { return t.r === r; });
+        row.sort(function (a, b) { return r % 2 === 0 ? a.c - b.c : b.c - a.c; });
+        order = order.concat(row);
+      }
+      var px = order[0].bbX, py = order[0].bbY, acc = 0;
+      nodes.push({ type: 'term', x: px - grid.tileCm * 0.34, y: py, label: '50Ω', freqHz: fBb });
+      emit(px - grid.tileCm * 0.34, py, px, py, 'bbhop', 0);
+      order.forEach(function (t, k) {
+        if (k > 0) acc += emit(px, py, t.bbX, t.bbY, 'bbhop', k);
+        t.bbPathCm = acc;
+        t.bbHop = k + 1;
+        t.bbLevel = k + 1;
+        nodes.push({ type: 'tap', x: t.bbX, y: t.bbY, label: 'tap', freqHz: fBb, tile: t.i });
+        px = t.bbX; py = t.bbY;
+      });
+      /* the far end of the bus runs up to the backend. Signals travel FROM
+         each tap TOWARD that end, so tile k's path is the remaining bus
+         length after it, not the length before it. */
+      var tail = emit(px, py, root.x, root.y, 'bbroot', 0);
+      var busTotal = acc;
+      grid.tiles.forEach(function (t) { t.bbPathCm = (busTotal - t.bbPathCm) + tail; });
+      nodes.push({ type: 'drv', x: root.x - 1.8, y: root.y, label: 'drv', freqHz: fBb });
+      return finish('bus', order.length);
+    }
+
+    /* B3: hierarchical H-tree with an active cell at every junction */
+    var maxLev = 0;
+    function recurse(group, fromX, fromY, acc, level) {
+      maxLev = Math.max(maxLev, level);
+      if (group.length === 1) {
+        var t = group[0];
+        t.bbPathCm = acc + emit(fromX, fromY, t.bbX, t.bbY, 'bbarm', level);
+        t.bbLevel = level;
+        nodes.push({ type: 'cell', x: t.bbX, y: t.bbY, label: 'act', freqHz: fBb, tile: t.i });
+        return;
+      }
+      var xs = group.map(function (t) { return t.bbX; });
+      var ys = group.map(function (t) { return t.bbY; });
+      var byX = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) >=
+                (Math.max.apply(null, ys) - Math.min.apply(null, ys));
+      var sorted = group.slice().sort(function (a, b) { return byX ? a.bbX - b.bbX : a.bbY - b.bbY; });
+      var half = Math.floor(sorted.length / 2);
+      var gx = xs.reduce(function (a, b) { return a + b; }, 0) / xs.length;
+      var gy = ys.reduce(function (a, b) { return a + b; }, 0) / ys.length;
+      var fed = acc + emit(fromX, fromY, gx, gy, level === 0 ? 'bbroot' : 'bbarm', level);
+      nodes.push({ type: 'cell', x: gx, y: gy, label: '2:1', freqHz: fBb, level: level });
+      recurse(sorted.slice(0, half), gx, gy, fed, level + 1);
+      recurse(sorted.slice(half), gx, gy, fed, level + 1);
+    }
+    recurse(grid.tiles.slice(), root.x, root.y, 0, 0);
+    return finish('htree', maxLev);
+
+    function finish(kind, depth) {
+      var lens = grid.tiles.map(function (t) { return t.bbPathCm; });
+      var mean = lens.reduce(function (a, b) { return a + b; }, 0) / lens.length;
+      var spread = Math.sqrt(lens.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / lens.length);
+      var total = links.reduce(function (a, L) {
+        return a + Math.abs(L.x2 - L.x1) + Math.abs(L.y2 - L.y1);
+      }, 0);
+      return {
+        id: id, kind: kind, depth: depth, links: links, nodes: nodes, root: root,
+        pathMeanCm: mean, pathMaxCm: Math.max.apply(null, lens),
+        pathMinCm: Math.min.apply(null, lens), pathRmsSpreadCm: spread,
+        totalRoutedCm: total,
+        cellCount: nodes.filter(function (n) { return n.type === 'cell'; }).length,
+        note: kind === 'star'
+          ? grid.nTiles + ' arms meeting at one summing node. Hierarchy buys a resistive combiner nothing, so the natural layout is a flat star — at the cost of long unequal arms and one large driver.'
+          : kind === 'bus'
+            ? 'One bus tapped and passed at all ' + grid.nTiles + ' tiles. Shortest total wire of the three, but the delay accumulates monotonically along it.'
+            : depth + ' levels of 2:1 active cells. Nominally equal path lengths, so the inter-tile skew comes from cell mismatch rather than geometry.'
+      };
+    }
+  }
+
+  /* ======================================================================
      Public entry point.
      ================================================================== */
   function build(g) {
@@ -493,8 +627,16 @@
     lo.maxRepeatersInPath = lo.net.maxAmpsInPath || 0;
     lo.splitCount = lo.net.nodes.filter(function (n) { return n.type === 'split'; }).length;
 
-    return { lo: lo, bb: buildBb(g.bbOptionId || g.bbOption, g), grid: grid };
+    return {
+      lo: lo,
+      bb: buildBb(g.bbOptionId || g.bbOption, g),   /* intra-tile, 32 channels */
+      bbInter: bbNet(grid, g),                      /* inter-tile, tiles → RFSoC */
+      grid: grid
+    };
   }
 
-  window.Topo = { build: build, buildBb: buildBb, makeGrid: makeGrid, manhattan: manhattan };
+  window.Topo = {
+    build: build, buildBb: buildBb, bbNet: bbNet,
+    makeGrid: makeGrid, manhattan: manhattan
+  };
 })();

@@ -11,7 +11,10 @@
   var DEFAULTS = {};
   M.PARAMS.forEach(function (p) { DEFAULTS[p.key] = p.value; });
   var state = {};
-  var view = { name: 'map', selected: 0, tileMetric: 'phaseDeg', showBlocks: true };
+  var view = {
+    name: 'map', selected: 0, tileMetric: 'phaseDeg',
+    showBlocks: true, showLo: true, showBb: true
+  };
 
   var TILE_METRICS = [
     { key: 'phaseDeg', label: 'phase error at LO (°)' },
@@ -148,8 +151,33 @@
       { section: 'M1 / M2 · phase noise & jitter' },
       { name: 'L(f) at the carrier', sub: 'the network sits after the mixer', field: 'pnNA', fmt: function () { return 'n/a'; } },
       { name: 'Contribution to E-band jitter', field: 'jitterFs', fmt: function () { return 'n/a'; } },
-      { section: 'M3 / M4 · gain-phase error & skew' },
+      { section: 'Inter-tile tier — the network drawn on the hardware map' },
+      {
+        name: 'Inter-tile topology', field: 'interKind',
+        fmt: function (v, r) { return r.interKind + (r.interKind === 'htree' ? ' · ' + r.interDepth + ' levels' : ''); }
+      },
+      { name: 'Mean routed path to backend', field: 'interPathMeanCm', units: 'cm', better: 'low', dec: 1 },
+      { name: 'Longest path to backend', field: 'interPathMaxCm', units: 'cm', better: 'low', dec: 1 },
+      { name: 'Total routed length', field: 'interRoutedCm', units: 'cm', better: 'low', dec: 0 },
+      {
+        name: 'Geometric skew, raw', sub: 'from unequal arm lengths — this is the coarse TTD range the option demands',
+        field: 'interGeoRawPs', units: 'ps', better: 'low', dec: 0,
+        fmt: function (v, r) {
+          return n(v, 0) + ' ps' + (r.interUncompPs > 0.5 ? ' — ' + n(r.interUncompPs, 0) + ' beyond TTD range' : ' (within TTD range)');
+        }
+      },
+      {
+        name: 'Geometric skew after coarse TTD', sub: 'a group-delay error: phase calibration cannot touch it, only TTD can',
+        field: 'interGeoSkewPs', units: 'ps', better: 'low'
+      },
+      {
+        name: 'Share of TTD range consumed', sub: 'range stolen from beam steering, which is what the ' + n(state.ttdStepPs, 0) + ' ps element is for',
+        field: 'ttdRangeConsumedPct', units: '%', better: 'low', dec: 0
+      },
+      { name: 'Inter-tile line loss', field: 'interLossDb', units: 'dB', better: 'low', dec: 2 },
+      { section: 'M3 / M4 · gain-phase error & skew (both tiers)' },
       { name: 'RMS skew across ports', field: 'skewRmsPs', units: 'ps', better: 'low' },
+      { name: '· intra-tile part', field: 'skewIntraPs', units: 'ps', better: 'low' },
       { name: 'Peak skew', field: 'skewPeakPs', units: 'ps', better: 'low' },
       { name: 'Systematic ramp', field: 'skewSystematicPs', units: 'ps', better: 'low' },
       { name: 'Phase error at rail edge', sub: 'at ' + n(state.bbEdgeGHz) + ' GHz — NOT at ' + n(state.fLoGHz, 0) + ' GHz', field: 'skewEdgeDeg', units: '°', better: 'low' },
@@ -287,12 +315,23 @@
     var sp = document.createElement('span');
     sp.className = 'sp';
     tb.appendChild(sp);
-    var bb = document.createElement('button');
-    bb.type = 'button';
-    bb.className = 'btn' + (view.showBlocks ? ' pri' : '');
-    bb.textContent = view.showBlocks ? 'blocks shown' : 'blocks hidden';
-    bb.addEventListener('click', function () { view.showBlocks = !view.showBlocks; render(); });
-    tb.appendChild(bb);
+    var lbl2 = document.createElement('span');
+    lbl2.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
+    lbl2.textContent = 'layers';
+    tb.appendChild(lbl2);
+    [
+      { k: 'showLo', on: 'LO / reference', off: 'LO hidden' },
+      { k: 'showBb', on: 'baseband', off: 'baseband hidden' },
+      { k: 'showBlocks', on: 'blocks', off: 'blocks hidden' }
+    ].forEach(function (L) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      var on = view[L.k] !== false;
+      b.className = 'btn' + (on ? ' pri' : '');
+      b.textContent = on ? L.on : L.off;
+      b.addEventListener('click', function () { view[L.k] = !on; render(); });
+      tb.appendChild(b);
+    });
 
     var tm = TILE_METRICS.filter(function (m) { return m.key === view.tileMetric; })[0];
     window.Diagram.renderMap(document.getElementById('mapMount'), built, {
@@ -301,11 +340,20 @@
     }, function (i) { view.selected = i; render(); });
 
     window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
+    var bsel0 = res.bb[res.g.bbOptionId];
     document.getElementById('mapNote').innerHTML =
-      'Line weight and colour encode the frequency each segment carries, so what is actually on the board is ' +
-      'visible at a glance. Routed path lengths drawn here are the same lengths the loss and skew figures use. ' +
-      'Longest tile path <span class="kv">' + n(sel.pathMaxCm, 1) + ' cm</span>, mean <span class="kv">' +
-      n(sel.pathMeanCm, 1) + ' cm</span>, total routed <span class="kv">' + n(sel.totalRoutedCm, 0) + ' cm</span>.';
+      '<strong>Two networks, one aperture.</strong> The <span style="color:var(--s2)">LO / reference</span> tier ' +
+      'enters from the source below and lands at each tile centre; line weight and colour encode the frequency ' +
+      'each segment carries, so what is actually on the board is visible at a glance. The ' +
+      '<span style="color:var(--s3)">baseband</span> tier (dashed) runs from the offset port on each tile up to ' +
+      'the RFSoC backend above, and its wiring changes with the option: a flat <em>star</em> for the resistive ' +
+      'network, a <em>serpentine bus</em> for the daisy chain, a hierarchical <em>H-tree</em> for the active one. ' +
+      'Both are drawn from the same generator that produces the numbers. ' +
+      'LO: longest tile path <span class="kv">' + n(sel.pathMaxCm, 1) + ' cm</span>, total routed ' +
+      '<span class="kv">' + n(sel.totalRoutedCm, 0) + ' cm</span>. Baseband: longest ' +
+      '<span class="kv">' + n(bsel0.interPathMaxCm, 1) + ' cm</span>, total routed ' +
+      '<span class="kv">' + n(bsel0.interRoutedCm, 0) + ' cm</span>, geometric skew ' +
+      '<span class="kv">' + n(bsel0.interGeoSkewPs) + ' ps</span>.';
 
     window.Diagram.renderInspector(document.getElementById('inspectorMount'), built, view.selected, res.g);
     window.Diagram.renderBbDiagram(document.getElementById('bbDiagramMount'), built);

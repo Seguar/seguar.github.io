@@ -15,7 +15,8 @@
 
   var SVGNS = 'http://www.w3.org/2000/svg';
   var PAD = 38;
-  var SRC_CM = 3.6;                 /* board space below the aperture */
+  var SRC_CM = 3.6;                 /* board space below for the LO source   */
+  var TOP_CM = 3.4;                 /* board space above for the RFSoC backend */
 
   function el(n, a, t) {
     var e = document.createElementNS(SVGNS, n);
@@ -36,6 +37,10 @@
     mid:   { stroke: 'var(--s4)', w: 2.2, name: 'mid frequency (2–50 GHz)' },
     eband: { stroke: 'var(--s2)', w: 3.4, name: 'E-band (> 50 GHz)' }
   };
+  /* The baseband tier gets its own visual language so the two networks can be
+     read at once: one hue, dashed, and anchored to the lower right of each
+     tile rather than its centre. */
+  var BB_STYLE = { stroke: 'var(--s3)', w: 1.9, dash: '4 2.5', name: 'baseband, tiles → RFSoC' };
 
   /* -------------------------- sequential colour ramp -------------------- */
   var RAMP = ['#1c5f8b', '#7fb3cc', '#e8d9a0', '#d98a4a', '#9b2226'];
@@ -89,10 +94,21 @@
         g.appendChild(el('line', { x1: -4, y1: 9, x2: 4, y2: 9, stroke: 'var(--ink-3)', 'stroke-width': 1.2 }));
         break;
       case 'cell':
-        g.appendChild(el('path', { d: 'M-4.5 -5 L5.5 0 L-4.5 5 Z', fill: 'var(--accent-soft)', stroke: 'var(--accent)', 'stroke-width': 1.3 }));
+        g.appendChild(el('path', { d: 'M-4.5 -5 L5.5 0 L-4.5 5 Z', fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.4 }));
         break;
       case 'res':
-        g.appendChild(el('rect', { x: -5.5, y: -3.5, width: 11, height: 7, fill: 'var(--bg-panel)', stroke: 'var(--ink-2)', 'stroke-width': 1.2 }));
+        g.appendChild(el('rect', { x: -5.5, y: -3.5, width: 11, height: 7, fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.3 }));
+        break;
+      case 'backend':
+        g.appendChild(el('rect', { x: -30, y: -11, width: 60, height: 22, rx: 4, fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.8 }));
+        g.appendChild(el('text', { y: 3.8, 'text-anchor': 'middle', fill: 'var(--s3)', 'font-size': 10 }, label || 'RFSoC'));
+        break;
+      case 'sum':
+        g.appendChild(el('circle', { r: 7, fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.6 }));
+        g.appendChild(el('text', { y: 3.6, 'text-anchor': 'middle', fill: 'var(--s3)', 'font-size': 10 }, 'Σ'));
+        break;
+      case 'drv':
+        g.appendChild(el('path', { d: 'M-5 -5 L5.5 0 L-5 5 Z', fill: 'var(--s3)', 'fill-opacity': 0.25, stroke: 'var(--s3)', 'stroke-width': 1.4 }));
         break;
       case 'ch':
         g.appendChild(el('circle', { r: 2.6, fill: 'var(--ink-3)' }));
@@ -115,9 +131,11 @@
     var apCm = grid.cols * grid.tileCm;
     var scale = 640 / apCm;
     var W = PAD * 2 + apCm * scale;
-    var H = PAD * 2 + (apCm + SRC_CM) * scale;
+    /* room above the aperture for the RFSoC backend, and below it for the
+       LO source — the two networks enter from opposite edges */
+    var H = PAD * 2 + (TOP_CM + apCm + SRC_CM) * scale;
     function X(cm) { return PAD + cm * scale; }
-    function Y(cm) { return PAD + cm * scale; }
+    function Y(cm) { return PAD + (cm + TOP_CM) * scale; }
 
     var svg = el('svg', { class: 'chart map', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet' });
 
@@ -173,37 +191,67 @@
     });
     svg.appendChild(tileG);
 
-    /* ---- network links, weighted and coloured by frequency ---- */
-    var linkG = el('g');
-    lo.net.links.forEach(function (L) {
-      var st = BAND_STYLE[bandOf(L.freqHz)];
-      linkG.appendChild(el('line', {
-        x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
-        stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
-        'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
-      }));
-    });
-    svg.appendChild(linkG);
+    /* ---- BASEBAND tier first, so the LO tier draws over it ---- */
+    var bbi = built.bbInter;
+    if (view.showBb !== false && bbi) {
+      var bbLinkG = el('g');
+      bbi.links.forEach(function (L) {
+        bbLinkG.appendChild(el('line', {
+          x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
+          stroke: BB_STYLE.stroke, 'stroke-width': L.kind === 'bbroot' ? BB_STYLE.w + 1 : BB_STYLE.w,
+          'stroke-dasharray': BB_STYLE.dash, 'stroke-linecap': 'round',
+          'stroke-opacity': 0.9
+        }));
+      });
+      svg.appendChild(bbLinkG);
 
-    /* ---- block symbols ---- */
-    var nodeG = el('g');
-    lo.net.nodes.forEach(function (n) {
-      if (!view.showBlocks && n.type !== 'source') return;
-      var gl = glyph(n.type, n.label, n.freqHz);
-      gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
-      gl.appendChild(el('title', null, (n.label || n.type) +
-        (isFinite(n.freqHz) ? ' @ ' + (n.freqHz >= 1e9 ? (n.freqHz / 1e9).toFixed(1) + ' GHz' : (n.freqHz / 1e6).toFixed(0) + ' MHz') : '')));
-      nodeG.appendChild(gl);
-    });
-    svg.appendChild(nodeG);
+      var bbNodeG = el('g');
+      bbi.nodes.forEach(function (n) {
+        if (!view.showBlocks && n.type !== 'backend') return;
+        var gl = glyph(n.type, n.label, n.freqHz);
+        gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
+        gl.appendChild(el('title', null, 'baseband · ' + (n.label || n.type)));
+        bbNodeG.appendChild(gl);
+      });
+      svg.appendChild(bbNodeG);
 
-    /* source label */
-    var src = lo.net.source;
-    svg.appendChild(el('text', {
-      x: X(src.x), y: Y(src.y) + 25, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 10.5
-    }, (view.sourceLabel || 'source') + ' · ' +
-       (lo.distFreqHz >= 1e9 ? (lo.distFreqHz / 1e9).toFixed(2) + ' GHz' : (lo.distFreqHz / 1e6).toFixed(0) + ' MHz') +
-       ' on the board'));
+      svg.appendChild(el('text', {
+        x: X(bbi.root.x), y: Y(bbi.root.y) - 17, 'text-anchor': 'middle',
+        fill: 'var(--s3)', 'font-size': 10.5
+      }, 'baseband backend · ' + bbi.kind + ' · ' + bbi.totalRoutedCm.toFixed(0) + ' cm routed'));
+    }
+
+    /* ---- LO / reference tier, weighted and coloured by frequency ---- */
+    if (view.showLo !== false) {
+      var linkG = el('g');
+      lo.net.links.forEach(function (L) {
+        var st = BAND_STYLE[bandOf(L.freqHz)];
+        linkG.appendChild(el('line', {
+          x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
+          stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
+          'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
+        }));
+      });
+      svg.appendChild(linkG);
+
+      var nodeG = el('g');
+      lo.net.nodes.forEach(function (n) {
+        if (!view.showBlocks && n.type !== 'source') return;
+        var gl = glyph(n.type, n.label, n.freqHz);
+        gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
+        gl.appendChild(el('title', null, (n.label || n.type) +
+          (isFinite(n.freqHz) ? ' @ ' + (n.freqHz >= 1e9 ? (n.freqHz / 1e9).toFixed(1) + ' GHz' : (n.freqHz / 1e6).toFixed(0) + ' MHz') : '')));
+        nodeG.appendChild(gl);
+      });
+      svg.appendChild(nodeG);
+
+      var src = lo.net.source;
+      svg.appendChild(el('text', {
+        x: X(src.x), y: Y(src.y) + 25, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 10.5
+      }, (view.sourceLabel || 'source') + ' · ' +
+         (lo.distFreqHz >= 1e9 ? (lo.distFreqHz / 1e9).toFixed(2) + ' GHz' : (lo.distFreqHz / 1e6).toFixed(0) + ' MHz') +
+         ' on the board'));
+    }
 
     mount.appendChild(svg);
 
@@ -244,13 +292,22 @@
       wrap.appendChild(li);
     });
 
+    var bl = document.createElement('span');
+    bl.className = 'li';
+    bl.innerHTML = '<span class="sw dash" style="border-top-color:' + BB_STYLE.stroke + '"></span>' + BB_STYLE.name;
+    wrap.appendChild(bl);
+
     var seen = {};
-    var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'term'];
+    var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'term',
+                 'backend', 'sum', 'res', 'cell', 'drv'];
     var names = {
-      source: 'source', split: 'splitter', amp: 'repeater amp', buftap: 'buffer + tap',
-      tap: 'tap', pll: 'per-tile PLL', mult: 'per-tile multiplier', term: 'termination'
+      source: 'LO source', split: 'splitter', amp: 'repeater amp', buftap: 'buffer + tap',
+      tap: 'tap', pll: 'per-tile PLL', mult: 'per-tile multiplier', term: 'termination',
+      backend: 'RFSoC backend', sum: 'resistive summing node', res: 'resistive arm',
+      cell: 'active combine cell', drv: 'baseband driver'
     };
     built.lo.net.nodes.forEach(function (n) { seen[n.type] = true; });
+    if (built.bbInter) built.bbInter.nodes.forEach(function (n) { seen[n.type] = true; });
     order.forEach(function (ty) {
       if (!seen[ty]) return;
       var li = document.createElement('span');
@@ -286,6 +343,15 @@
       rows.push(['Skew vs array mean', t.m.skewPs.toFixed(2) + ' ps']);
       rows.push(['Phase error at ' + g.fLoGHz + ' GHz', t.m.phaseDeg.toFixed(2) + '°']);
       rows.push(['Distribution power for this tile', t.m.powerMw.toFixed(0) + ' mW']);
+    }
+    var bbi = built.bbInter;
+    if (bbi) {
+      rows.push(['— baseband tier —', '']);
+      rows.push(['Network', bbi.kind + (bbi.kind === 'htree' ? ' (' + bbi.depth + ' levels)' : '')]);
+      rows.push(['Routed path to backend', t.bbPathCm.toFixed(1) + ' cm']);
+      rows.push([bbi.kind === 'bus' ? 'Bus tap position' : 'Tree level',
+        bbi.kind === 'bus' ? t.bbHop + ' of ' + bbi.depth : t.bbLevel + ' of ' + bbi.depth]);
+      rows.push(['Deviation from mean path', (t.bbPathCm - bbi.pathMeanCm).toFixed(1) + ' cm']);
     }
     rows.push(['— blocks in this tile —', '']);
     (t.blocks || []).forEach(function (b) { rows.push([b.label, b.type]); });

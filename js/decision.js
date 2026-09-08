@@ -191,12 +191,32 @@
       'BIST would have to measure group delay over the full baseband span just to know which wrap each tile is in.');
 
     t.push('#### Baseband');
-    t.push('**' + bpick.name + '** wins on `' + n(bpick.r.squintLossDb, 3) + ' dB` of band-averaged squint loss, `' +
-      n(bpick.r.powerPerTileMw, 0) + ' mW` per tile across both rails, and `' + n(bpick.r.nfPenaltyDb, 2) + ' dB` of ' +
-      'noise-figure penalty. The noise-figure argument that usually decides this comparison is nearly vacuous here: ' +
-      'with ' + n(g.rficGainDb, 0) + ' dB of RFIC gain ahead of the combiner, even the passive network costs only `' +
-      n(res.bb['passive-50'].nfPenaltyDb, 2) + ' dB`. What actually separates the options is delay symmetry and ' +
-      'drive power, not noise.');
+    var b1 = res.bb['passive-50'], b2 = res.bb['bb-daisy'], b3 = res.bb['h-tree-active'];
+    t.push('The three options give genuinely different inter-tile wiring, and the hardware map draws each of them: ' +
+      'a flat **star** for the resistive network (a resistive combiner gains nothing from hierarchy, so every tile ' +
+      'routes straight to one summing node), a **serpentine bus** for the daisy chain, and a hierarchical ' +
+      '**H-tree** with a 2:1 active cell at every junction. That choice of wiring, not the cell type, is what ' +
+      'dominates the numbers.');
+    t.push('- **Star**: `' + n(b1.interRoutedCm, 0) + ' cm` of routed wire, arms from `' + n(b1.interPathMeanCm, 0) +
+      '` to `' + n(b1.interPathMaxCm, 0) + ' cm`, giving `' + n(b1.interGeoRawPs, 0) + ' ps` of geometric skew.');
+    t.push('- **Bus**: only `' + n(b2.interRoutedCm, 0) + ' cm` of wire but the average signal travels `' +
+      n(b2.interPathMeanCm, 0) + ' cm` along it, giving `' + n(b2.interGeoRawPs, 0) + ' ps`.');
+    t.push('- **H-tree**: `' + n(b3.interRoutedCm, 0) + ' cm` of wire with paths from `' + n(b3.interPathMeanCm, 0) +
+      '` to `' + n(b3.interPathMaxCm, 0) + ' cm` — nominally equal, so only `' + n(b3.interGeoRawPs, 0) + ' ps`.');
+    t.push('Baseband skew is a **group-delay** error, so unlike an LO phase offset no phase calibration touches it. ' +
+      'But the architecture already carries a per-tile coarse true-time-delay element, and absorbing inter-tile ' +
+      'delay is exactly its job — so the honest comparison is against its `' + n(b3.ttdRangeAvailPs, 0) +
+      ' ps` range. The bus loses outright: `' + n(b2.interUncompPs, 0) + ' ps` of its ramp is **beyond that range**, ' +
+      'leaving `' + n(b2.squintLossDb, 1) + ' dB` of band-averaged squint loss. Star and H-tree both fall inside it ' +
+      'and land on the same TTD-quantisation floor of `' + n(b3.interGeoSkewPs) + ' ps`.');
+    t.push('So the real discriminator is **what fraction of the TTD range each one spends on its own geometry** ' +
+      'rather than on steering the beam: `' + n(b1.ttdRangeConsumedPct, 0) + '%` for the star against `' +
+      n(b3.ttdRangeConsumedPct, 0) + '%` for the H-tree. Add `' + n(b1.interLossDb, 1) + ' dB` of inter-tile line ' +
+      'loss for the star against `' + n(b3.interLossDb, 1) + ' dB`, and `' + n(b1.interRoutedCm / Math.max(b3.interRoutedCm, 1), 1) +
+      '×` the routed wire, and the H-tree wins on the network, not on the cells.');
+    t.push('The noise-figure argument usually made for active combining is nearly vacuous here: with ' +
+      n(g.rficGainDb, 0) + ' dB of RFIC gain ahead of it, even the passive network costs only `' +
+      n(b1.nfPenaltyDb, 2) + ' dB`. Do not lead with it.');
     t.push('Two constraints deserve to be stated explicitly because they are easy to get wrong. A baseband delay is a ' +
       '**group-delay** error at the ' + n(g.bbEdgeGHz) + ' GHz rail edge, not a phase error at ' + g.fLoGHz +
       ' GHz: `' + n(bpick.r.skewRmsPs) + ' ps` of skew is `' + n(bpick.r.skewEdgeDeg) + '°` at the band edge, not `' +

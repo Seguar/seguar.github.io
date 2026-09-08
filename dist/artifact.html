@@ -1986,7 +1986,15 @@ footer.foot a { color: var(--ink-2); }
           i: r * cols + c, r: r, c: c,
           x: c * tileCm, y: r * tileCm, w: tileCm, h: tileCm,
           cx: (c + 0.5) * tileCm, cy: (r + 0.5) * tileCm,
+          /* Two networks share the aperture, so they get separate anchor
+             points inside each tile: the LO/reference feed lands at the
+             centre, the baseband port sits offset toward the lower right.
+             Real boards separate them by layer; the map separates them in
+             plan so both can be read at once. */
+          bbX: (c + 0.5) * tileCm + tileCm * 0.26,
+          bbY: (r + 0.5) * tileCm + tileCm * 0.26,
           pathCm: 0, segments: 0, level: 0, hop: 0, repeaters: 0,
+          bbPathCm: 0, bbLevel: 0, bbHop: 0,
           blocks: []
         });
       }
@@ -2415,6 +2423,132 @@ footer.foot a { color: var(--ink-2); }
   }
 
   /* ======================================================================
+     BASEBAND INTER-TILE NETWORK â€” tiles to the RFSoC backend.
+
+     This is the second tier of the two-stage architecture and it is drawn on
+     the same aperture as the LO network. The three options give genuinely
+     different inter-tile wiring, for a physical reason:
+
+       B1 passive resistive -> a FLAT STAR. An N-way resistive combiner is N
+          arms meeting at one summing node; hierarchy buys it nothing, so the
+          natural layout is every tile routed directly to one node. Long,
+          unequal arms and one large driver.
+       B2 daisy chain -> a SERPENTINE BUS, tapped and passed at every tile.
+       B3 H-tree active -> a HIERARCHICAL H-TREE. Active cells must be staged
+          2:1, so the layout is recursive with a cell at every junction.
+
+     The backend sits above the aperture, opposite the LO source below it.
+     ================================================================== */
+  function bbNet(grid, g) {
+    var id = g.bbOptionId || 'h-tree-active';
+    var apCm = grid.cols * grid.tileCm;
+    var root = { x: apCm / 2, y: -2.6 };
+    var links = [], nodes = [];
+    var fBb = (g.bbEdgeGHz || 1) * 1e9;
+
+    nodes.push({ type: 'backend', x: root.x, y: root.y, label: 'RFSoC', freqHz: fBb });
+
+    function emit(x1, y1, x2, y2, kind, level) {
+      manhattan(x1, y1, x2, y2).forEach(function (s) {
+        links.push({ x1: s[0], y1: s[1], x2: s[2], y2: s[3], kind: kind, level: level, net: 'bb' });
+      });
+      return Math.abs(x2 - x1) + Math.abs(y2 - y1);
+    }
+
+    if (id === 'passive-50') {
+      /* flat star: one summing node just inside the aperture edge */
+      var sum = { x: apCm / 2, y: -0.9 };
+      nodes.push({ type: 'sum', x: sum.x, y: sum.y, label: 'Î£', freqHz: fBb });
+      emit(sum.x, sum.y, root.x, root.y, 'bbroot', 0);
+      grid.tiles.forEach(function (t) {
+        var len = emit(t.bbX, t.bbY, sum.x, sum.y, 'bbarm', 1);
+        t.bbPathCm = len;
+        t.bbLevel = 1;
+        nodes.push({ type: 'res', x: t.bbX, y: t.bbY, label: 'R', freqHz: fBb, tile: t.i });
+      });
+      nodes.push({ type: 'drv', x: sum.x + 1.6, y: sum.y, label: 'drv', freqHz: fBb });
+      return finish('star', 1);
+    }
+
+    if (id === 'bb-daisy') {
+      /* serpentine bus, tapped at every tile */
+      var order = [];
+      for (var r = 0; r < grid.rows; r++) {
+        var row = grid.tiles.filter(function (t) { return t.r === r; });
+        row.sort(function (a, b) { return r % 2 === 0 ? a.c - b.c : b.c - a.c; });
+        order = order.concat(row);
+      }
+      var px = order[0].bbX, py = order[0].bbY, acc = 0;
+      nodes.push({ type: 'term', x: px - grid.tileCm * 0.34, y: py, label: '50Î©', freqHz: fBb });
+      emit(px - grid.tileCm * 0.34, py, px, py, 'bbhop', 0);
+      order.forEach(function (t, k) {
+        if (k > 0) acc += emit(px, py, t.bbX, t.bbY, 'bbhop', k);
+        t.bbPathCm = acc;
+        t.bbHop = k + 1;
+        t.bbLevel = k + 1;
+        nodes.push({ type: 'tap', x: t.bbX, y: t.bbY, label: 'tap', freqHz: fBb, tile: t.i });
+        px = t.bbX; py = t.bbY;
+      });
+      /* the far end of the bus runs up to the backend. Signals travel FROM
+         each tap TOWARD that end, so tile k's path is the remaining bus
+         length after it, not the length before it. */
+      var tail = emit(px, py, root.x, root.y, 'bbroot', 0);
+      var busTotal = acc;
+      grid.tiles.forEach(function (t) { t.bbPathCm = (busTotal - t.bbPathCm) + tail; });
+      nodes.push({ type: 'drv', x: root.x - 1.8, y: root.y, label: 'drv', freqHz: fBb });
+      return finish('bus', order.length);
+    }
+
+    /* B3: hierarchical H-tree with an active cell at every junction */
+    var maxLev = 0;
+    function recurse(group, fromX, fromY, acc, level) {
+      maxLev = Math.max(maxLev, level);
+      if (group.length === 1) {
+        var t = group[0];
+        t.bbPathCm = acc + emit(fromX, fromY, t.bbX, t.bbY, 'bbarm', level);
+        t.bbLevel = level;
+        nodes.push({ type: 'cell', x: t.bbX, y: t.bbY, label: 'act', freqHz: fBb, tile: t.i });
+        return;
+      }
+      var xs = group.map(function (t) { return t.bbX; });
+      var ys = group.map(function (t) { return t.bbY; });
+      var byX = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) >=
+                (Math.max.apply(null, ys) - Math.min.apply(null, ys));
+      var sorted = group.slice().sort(function (a, b) { return byX ? a.bbX - b.bbX : a.bbY - b.bbY; });
+      var half = Math.floor(sorted.length / 2);
+      var gx = xs.reduce(function (a, b) { return a + b; }, 0) / xs.length;
+      var gy = ys.reduce(function (a, b) { return a + b; }, 0) / ys.length;
+      var fed = acc + emit(fromX, fromY, gx, gy, level === 0 ? 'bbroot' : 'bbarm', level);
+      nodes.push({ type: 'cell', x: gx, y: gy, label: '2:1', freqHz: fBb, level: level });
+      recurse(sorted.slice(0, half), gx, gy, fed, level + 1);
+      recurse(sorted.slice(half), gx, gy, fed, level + 1);
+    }
+    recurse(grid.tiles.slice(), root.x, root.y, 0, 0);
+    return finish('htree', maxLev);
+
+    function finish(kind, depth) {
+      var lens = grid.tiles.map(function (t) { return t.bbPathCm; });
+      var mean = lens.reduce(function (a, b) { return a + b; }, 0) / lens.length;
+      var spread = Math.sqrt(lens.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / lens.length);
+      var total = links.reduce(function (a, L) {
+        return a + Math.abs(L.x2 - L.x1) + Math.abs(L.y2 - L.y1);
+      }, 0);
+      return {
+        id: id, kind: kind, depth: depth, links: links, nodes: nodes, root: root,
+        pathMeanCm: mean, pathMaxCm: Math.max.apply(null, lens),
+        pathMinCm: Math.min.apply(null, lens), pathRmsSpreadCm: spread,
+        totalRoutedCm: total,
+        cellCount: nodes.filter(function (n) { return n.type === 'cell'; }).length,
+        note: kind === 'star'
+          ? grid.nTiles + ' arms meeting at one summing node. Hierarchy buys a resistive combiner nothing, so the natural layout is a flat star â€” at the cost of long unequal arms and one large driver.'
+          : kind === 'bus'
+            ? 'One bus tapped and passed at all ' + grid.nTiles + ' tiles. Shortest total wire of the three, but the delay accumulates monotonically along it.'
+            : depth + ' levels of 2:1 active cells. Nominally equal path lengths, so the inter-tile skew comes from cell mismatch rather than geometry.'
+      };
+    }
+  }
+
+  /* ======================================================================
      Public entry point.
      ================================================================== */
   function build(g) {
@@ -2437,10 +2571,18 @@ footer.foot a { color: var(--ink-2); }
     lo.maxRepeatersInPath = lo.net.maxAmpsInPath || 0;
     lo.splitCount = lo.net.nodes.filter(function (n) { return n.type === 'split'; }).length;
 
-    return { lo: lo, bb: buildBb(g.bbOptionId || g.bbOption, g), grid: grid };
+    return {
+      lo: lo,
+      bb: buildBb(g.bbOptionId || g.bbOption, g),   /* intra-tile, 32 channels */
+      bbInter: bbNet(grid, g),                      /* inter-tile, tiles â†’ RFSoC */
+      grid: grid
+    };
   }
 
-  window.Topo = { build: build, buildBb: buildBb, makeGrid: makeGrid, manhattan: manhattan };
+  window.Topo = {
+    build: build, buildBb: buildBb, bbNet: bbNet,
+    makeGrid: makeGrid, manhattan: manhattan
+  };
 })();
 
 /* ===== js/model.js ===== */
@@ -3035,9 +3177,33 @@ footer.foot a { color: var(--ink-2); }
     var gg = {};
     for (var k in g) gg[k] = g[k];
     gg.bbOption = id;
+    gg.bbOptionId = id;
     var bb = window.Topo.buildBb(id, gg);
     var nCh = bb.nCh, levels = bb.levels;
-    var nT = Math.max(1, Math.round(g.apertureCm / g.tileCm)) * Math.max(1, Math.round(g.apertureCm / g.tileCm));
+    var side = Math.max(1, Math.round(g.apertureCm / g.tileCm));
+    var nT = side * side;
+    /* The INTER-TILE tier â€” the network the hardware map draws from tiles to
+       the RFSoC. Built from the same generator, so the path lengths below are
+       the ones on the map. */
+    var grid2 = window.Topo.makeGrid(gg);
+    var inter = window.Topo.bbNet(grid2, gg);
+    var psPerCmBb = K.lineDelayPsCm('stripline');
+    /* Geometric skew of the inter-tile tier: for a star the arms are grossly
+       unequal, for an H-tree nominally equal, for a bus a monotonic ramp.
+
+       Crucially this is a GROUP-DELAY error, so unlike an LO phase offset a
+       phase calibration cannot remove it â€” but the architecture already has a
+       per-tile coarse true-time-delay element, and compensating inter-tile
+       delay is exactly what it is for. So the residual is the TTD's own
+       quantisation, plus whatever exceeds its range. That reframes the
+       comparison: the H-tree's advantage is not that it alone is correctable,
+       it is that it needs far less TTD range and leaves less to correct. */
+    var interGeoRawPs = inter.pathRmsSpreadCm * psPerCmBb;
+    var ttdRangePs = K.apertureDelayPs(g.apertureM, g.scanDegMax);
+    var ttdQuantPs = K.quantResidualPs(g.ttdStepPs);
+    var interUncompPs = Math.max(0, interGeoRawPs - ttdRangePs);
+    var interGeoPs = K.rss(ttdQuantPs, interUncompPs);
+    var interLossDb = inter.pathMeanCm * K.lineAlphaDbCm('stripline', g.bbEdgeHz);
 
     /* ---- loss / gain ---- */
     var lossTotalDb, nfPenaltyDb, requiredGainDb;
@@ -3058,6 +3224,9 @@ footer.foot a { color: var(--ink-2); }
       nfPenaltyDb = K.treeNoisePenaltyDb(nCh, levels, K.db2lin(-g.rficGainDb / 2));
       requiredGainDb = 0;
     }
+    /* the inter-tile run is real line loss on top of the network's own */
+    lossTotalDb += interLossDb;
+    requiredGainDb += interLossDb;
 
     /* ---- skew: a GROUP-DELAY error at the baseband edge, never a
             78 GHz phase error ---- */
@@ -3076,6 +3245,13 @@ footer.foot a { color: var(--ink-2); }
       skewSystematicPs = 0;
       skewRmsPs = g.bbCellSkewPs * 0.4 * Math.sqrt(levels);   /* passive: no active mismatch */
     }
+    /* Intra-tile and inter-tile skew add in quadrature for the random part;
+       the inter-tile geometric spread is deterministic, so it joins the
+       systematic ramp rather than the random total. */
+    var skewIntraPs = skewRmsPs;
+    skewRmsPs = K.rss(skewIntraPs, interGeoPs);
+    skewSystematicPs = K.rss(skewSystematicPs, interGeoPs);
+
     var skewPeakPs = skewRmsPs * K.peakFactor(nCh);
     var skewEdgeDeg = K.bbSkewDegAtEdge(skewRmsPs, g.bbEdgeHz);
     var rampSteerDeg = K.bbRampSteerDeg(skewSystematicPs, g.rfBwGHz * 1e9);
@@ -3099,7 +3275,17 @@ footer.foot a { color: var(--ink-2); }
     var bwGHz = id === 'bb-daisy' ? Math.max(0.15, 4 / nCh) : (id === 'h-tree-active' ? 3.5 : 4.0);
 
     return {
-      id: id, bb: bb, nCh: nCh, levels: levels, hops: hops,
+      id: id, bb: bb, inter: inter, nCh: nCh, levels: levels, hops: hops,
+      interKind: inter.kind, interDepth: inter.depth,
+      interPathMeanCm: inter.pathMeanCm, interPathMaxCm: inter.pathMaxCm,
+      interRoutedCm: inter.totalRoutedCm,
+      interGeoRawPs: interGeoRawPs, interGeoSkewPs: interGeoPs,
+      interUncompPs: interUncompPs, ttdRangeNeededPs: interGeoRawPs,
+      ttdRangeAvailPs: ttdRangePs,
+      /* The coarse TTD's range exists to steer the beam. Geometric skew the
+         same element has to absorb is range stolen from that job. */
+      ttdRangeConsumedPct: interGeoRawPs / ttdRangePs * 100,
+      interLossDb: interLossDb, skewIntraPs: skewIntraPs,
       pnCurve: null, pnDiffCurve: null, pnAtOffsets: null,
       phiRmsDeg: NaN, jitterFs: NaN,
       interTileRawDeg: skewEdgeDeg, interTileResidualDeg: K.rss(skewEdgeDeg * 0.25, K.quantResidualDeg(g.phaseBits)),
@@ -3447,12 +3633,32 @@ footer.foot a { color: var(--ink-2); }
       'BIST would have to measure group delay over the full baseband span just to know which wrap each tile is in.');
 
     t.push('#### Baseband');
-    t.push('**' + bpick.name + '** wins on `' + n(bpick.r.squintLossDb, 3) + ' dB` of band-averaged squint loss, `' +
-      n(bpick.r.powerPerTileMw, 0) + ' mW` per tile across both rails, and `' + n(bpick.r.nfPenaltyDb, 2) + ' dB` of ' +
-      'noise-figure penalty. The noise-figure argument that usually decides this comparison is nearly vacuous here: ' +
-      'with ' + n(g.rficGainDb, 0) + ' dB of RFIC gain ahead of the combiner, even the passive network costs only `' +
-      n(res.bb['passive-50'].nfPenaltyDb, 2) + ' dB`. What actually separates the options is delay symmetry and ' +
-      'drive power, not noise.');
+    var b1 = res.bb['passive-50'], b2 = res.bb['bb-daisy'], b3 = res.bb['h-tree-active'];
+    t.push('The three options give genuinely different inter-tile wiring, and the hardware map draws each of them: ' +
+      'a flat **star** for the resistive network (a resistive combiner gains nothing from hierarchy, so every tile ' +
+      'routes straight to one summing node), a **serpentine bus** for the daisy chain, and a hierarchical ' +
+      '**H-tree** with a 2:1 active cell at every junction. That choice of wiring, not the cell type, is what ' +
+      'dominates the numbers.');
+    t.push('- **Star**: `' + n(b1.interRoutedCm, 0) + ' cm` of routed wire, arms from `' + n(b1.interPathMeanCm, 0) +
+      '` to `' + n(b1.interPathMaxCm, 0) + ' cm`, giving `' + n(b1.interGeoRawPs, 0) + ' ps` of geometric skew.');
+    t.push('- **Bus**: only `' + n(b2.interRoutedCm, 0) + ' cm` of wire but the average signal travels `' +
+      n(b2.interPathMeanCm, 0) + ' cm` along it, giving `' + n(b2.interGeoRawPs, 0) + ' ps`.');
+    t.push('- **H-tree**: `' + n(b3.interRoutedCm, 0) + ' cm` of wire with paths from `' + n(b3.interPathMeanCm, 0) +
+      '` to `' + n(b3.interPathMaxCm, 0) + ' cm` â€” nominally equal, so only `' + n(b3.interGeoRawPs, 0) + ' ps`.');
+    t.push('Baseband skew is a **group-delay** error, so unlike an LO phase offset no phase calibration touches it. ' +
+      'But the architecture already carries a per-tile coarse true-time-delay element, and absorbing inter-tile ' +
+      'delay is exactly its job â€” so the honest comparison is against its `' + n(b3.ttdRangeAvailPs, 0) +
+      ' ps` range. The bus loses outright: `' + n(b2.interUncompPs, 0) + ' ps` of its ramp is **beyond that range**, ' +
+      'leaving `' + n(b2.squintLossDb, 1) + ' dB` of band-averaged squint loss. Star and H-tree both fall inside it ' +
+      'and land on the same TTD-quantisation floor of `' + n(b3.interGeoSkewPs) + ' ps`.');
+    t.push('So the real discriminator is **what fraction of the TTD range each one spends on its own geometry** ' +
+      'rather than on steering the beam: `' + n(b1.ttdRangeConsumedPct, 0) + '%` for the star against `' +
+      n(b3.ttdRangeConsumedPct, 0) + '%` for the H-tree. Add `' + n(b1.interLossDb, 1) + ' dB` of inter-tile line ' +
+      'loss for the star against `' + n(b3.interLossDb, 1) + ' dB`, and `' + n(b1.interRoutedCm / Math.max(b3.interRoutedCm, 1), 1) +
+      'Ã—` the routed wire, and the H-tree wins on the network, not on the cells.');
+    t.push('The noise-figure argument usually made for active combining is nearly vacuous here: with ' +
+      n(g.rficGainDb, 0) + ' dB of RFIC gain ahead of it, even the passive network costs only `' +
+      n(b1.nfPenaltyDb, 2) + ' dB`. Do not lead with it.');
     t.push('Two constraints deserve to be stated explicitly because they are easy to get wrong. A baseband delay is a ' +
       '**group-delay** error at the ' + n(g.bbEdgeGHz) + ' GHz rail edge, not a phase error at ' + g.fLoGHz +
       ' GHz: `' + n(bpick.r.skewRmsPs) + ' ps` of skew is `' + n(bpick.r.skewEdgeDeg) + 'Â°` at the band edge, not `' +
@@ -3523,7 +3729,8 @@ footer.foot a { color: var(--ink-2); }
 
   var SVGNS = 'http://www.w3.org/2000/svg';
   var PAD = 38;
-  var SRC_CM = 3.6;                 /* board space below the aperture */
+  var SRC_CM = 3.6;                 /* board space below for the LO source   */
+  var TOP_CM = 3.4;                 /* board space above for the RFSoC backend */
 
   function el(n, a, t) {
     var e = document.createElementNS(SVGNS, n);
@@ -3544,6 +3751,10 @@ footer.foot a { color: var(--ink-2); }
     mid:   { stroke: 'var(--s4)', w: 2.2, name: 'mid frequency (2â€“50 GHz)' },
     eband: { stroke: 'var(--s2)', w: 3.4, name: 'E-band (> 50 GHz)' }
   };
+  /* The baseband tier gets its own visual language so the two networks can be
+     read at once: one hue, dashed, and anchored to the lower right of each
+     tile rather than its centre. */
+  var BB_STYLE = { stroke: 'var(--s3)', w: 1.9, dash: '4 2.5', name: 'baseband, tiles â†’ RFSoC' };
 
   /* -------------------------- sequential colour ramp -------------------- */
   var RAMP = ['#1c5f8b', '#7fb3cc', '#e8d9a0', '#d98a4a', '#9b2226'];
@@ -3597,10 +3808,21 @@ footer.foot a { color: var(--ink-2); }
         g.appendChild(el('line', { x1: -4, y1: 9, x2: 4, y2: 9, stroke: 'var(--ink-3)', 'stroke-width': 1.2 }));
         break;
       case 'cell':
-        g.appendChild(el('path', { d: 'M-4.5 -5 L5.5 0 L-4.5 5 Z', fill: 'var(--accent-soft)', stroke: 'var(--accent)', 'stroke-width': 1.3 }));
+        g.appendChild(el('path', { d: 'M-4.5 -5 L5.5 0 L-4.5 5 Z', fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.4 }));
         break;
       case 'res':
-        g.appendChild(el('rect', { x: -5.5, y: -3.5, width: 11, height: 7, fill: 'var(--bg-panel)', stroke: 'var(--ink-2)', 'stroke-width': 1.2 }));
+        g.appendChild(el('rect', { x: -5.5, y: -3.5, width: 11, height: 7, fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.3 }));
+        break;
+      case 'backend':
+        g.appendChild(el('rect', { x: -30, y: -11, width: 60, height: 22, rx: 4, fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.8 }));
+        g.appendChild(el('text', { y: 3.8, 'text-anchor': 'middle', fill: 'var(--s3)', 'font-size': 10 }, label || 'RFSoC'));
+        break;
+      case 'sum':
+        g.appendChild(el('circle', { r: 7, fill: 'var(--bg-panel)', stroke: 'var(--s3)', 'stroke-width': 1.6 }));
+        g.appendChild(el('text', { y: 3.6, 'text-anchor': 'middle', fill: 'var(--s3)', 'font-size': 10 }, 'Î£'));
+        break;
+      case 'drv':
+        g.appendChild(el('path', { d: 'M-5 -5 L5.5 0 L-5 5 Z', fill: 'var(--s3)', 'fill-opacity': 0.25, stroke: 'var(--s3)', 'stroke-width': 1.4 }));
         break;
       case 'ch':
         g.appendChild(el('circle', { r: 2.6, fill: 'var(--ink-3)' }));
@@ -3623,9 +3845,11 @@ footer.foot a { color: var(--ink-2); }
     var apCm = grid.cols * grid.tileCm;
     var scale = 640 / apCm;
     var W = PAD * 2 + apCm * scale;
-    var H = PAD * 2 + (apCm + SRC_CM) * scale;
+    /* room above the aperture for the RFSoC backend, and below it for the
+       LO source â€” the two networks enter from opposite edges */
+    var H = PAD * 2 + (TOP_CM + apCm + SRC_CM) * scale;
     function X(cm) { return PAD + cm * scale; }
-    function Y(cm) { return PAD + cm * scale; }
+    function Y(cm) { return PAD + (cm + TOP_CM) * scale; }
 
     var svg = el('svg', { class: 'chart map', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet' });
 
@@ -3681,37 +3905,67 @@ footer.foot a { color: var(--ink-2); }
     });
     svg.appendChild(tileG);
 
-    /* ---- network links, weighted and coloured by frequency ---- */
-    var linkG = el('g');
-    lo.net.links.forEach(function (L) {
-      var st = BAND_STYLE[bandOf(L.freqHz)];
-      linkG.appendChild(el('line', {
-        x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
-        stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
-        'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
-      }));
-    });
-    svg.appendChild(linkG);
+    /* ---- BASEBAND tier first, so the LO tier draws over it ---- */
+    var bbi = built.bbInter;
+    if (view.showBb !== false && bbi) {
+      var bbLinkG = el('g');
+      bbi.links.forEach(function (L) {
+        bbLinkG.appendChild(el('line', {
+          x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
+          stroke: BB_STYLE.stroke, 'stroke-width': L.kind === 'bbroot' ? BB_STYLE.w + 1 : BB_STYLE.w,
+          'stroke-dasharray': BB_STYLE.dash, 'stroke-linecap': 'round',
+          'stroke-opacity': 0.9
+        }));
+      });
+      svg.appendChild(bbLinkG);
 
-    /* ---- block symbols ---- */
-    var nodeG = el('g');
-    lo.net.nodes.forEach(function (n) {
-      if (!view.showBlocks && n.type !== 'source') return;
-      var gl = glyph(n.type, n.label, n.freqHz);
-      gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
-      gl.appendChild(el('title', null, (n.label || n.type) +
-        (isFinite(n.freqHz) ? ' @ ' + (n.freqHz >= 1e9 ? (n.freqHz / 1e9).toFixed(1) + ' GHz' : (n.freqHz / 1e6).toFixed(0) + ' MHz') : '')));
-      nodeG.appendChild(gl);
-    });
-    svg.appendChild(nodeG);
+      var bbNodeG = el('g');
+      bbi.nodes.forEach(function (n) {
+        if (!view.showBlocks && n.type !== 'backend') return;
+        var gl = glyph(n.type, n.label, n.freqHz);
+        gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
+        gl.appendChild(el('title', null, 'baseband Â· ' + (n.label || n.type)));
+        bbNodeG.appendChild(gl);
+      });
+      svg.appendChild(bbNodeG);
 
-    /* source label */
-    var src = lo.net.source;
-    svg.appendChild(el('text', {
-      x: X(src.x), y: Y(src.y) + 25, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 10.5
-    }, (view.sourceLabel || 'source') + ' Â· ' +
-       (lo.distFreqHz >= 1e9 ? (lo.distFreqHz / 1e9).toFixed(2) + ' GHz' : (lo.distFreqHz / 1e6).toFixed(0) + ' MHz') +
-       ' on the board'));
+      svg.appendChild(el('text', {
+        x: X(bbi.root.x), y: Y(bbi.root.y) - 17, 'text-anchor': 'middle',
+        fill: 'var(--s3)', 'font-size': 10.5
+      }, 'baseband backend Â· ' + bbi.kind + ' Â· ' + bbi.totalRoutedCm.toFixed(0) + ' cm routed'));
+    }
+
+    /* ---- LO / reference tier, weighted and coloured by frequency ---- */
+    if (view.showLo !== false) {
+      var linkG = el('g');
+      lo.net.links.forEach(function (L) {
+        var st = BAND_STYLE[bandOf(L.freqHz)];
+        linkG.appendChild(el('line', {
+          x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
+          stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
+          'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
+        }));
+      });
+      svg.appendChild(linkG);
+
+      var nodeG = el('g');
+      lo.net.nodes.forEach(function (n) {
+        if (!view.showBlocks && n.type !== 'source') return;
+        var gl = glyph(n.type, n.label, n.freqHz);
+        gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
+        gl.appendChild(el('title', null, (n.label || n.type) +
+          (isFinite(n.freqHz) ? ' @ ' + (n.freqHz >= 1e9 ? (n.freqHz / 1e9).toFixed(1) + ' GHz' : (n.freqHz / 1e6).toFixed(0) + ' MHz') : '')));
+        nodeG.appendChild(gl);
+      });
+      svg.appendChild(nodeG);
+
+      var src = lo.net.source;
+      svg.appendChild(el('text', {
+        x: X(src.x), y: Y(src.y) + 25, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 10.5
+      }, (view.sourceLabel || 'source') + ' Â· ' +
+         (lo.distFreqHz >= 1e9 ? (lo.distFreqHz / 1e9).toFixed(2) + ' GHz' : (lo.distFreqHz / 1e6).toFixed(0) + ' MHz') +
+         ' on the board'));
+    }
 
     mount.appendChild(svg);
 
@@ -3752,13 +4006,22 @@ footer.foot a { color: var(--ink-2); }
       wrap.appendChild(li);
     });
 
+    var bl = document.createElement('span');
+    bl.className = 'li';
+    bl.innerHTML = '<span class="sw dash" style="border-top-color:' + BB_STYLE.stroke + '"></span>' + BB_STYLE.name;
+    wrap.appendChild(bl);
+
     var seen = {};
-    var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'term'];
+    var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'term',
+                 'backend', 'sum', 'res', 'cell', 'drv'];
     var names = {
-      source: 'source', split: 'splitter', amp: 'repeater amp', buftap: 'buffer + tap',
-      tap: 'tap', pll: 'per-tile PLL', mult: 'per-tile multiplier', term: 'termination'
+      source: 'LO source', split: 'splitter', amp: 'repeater amp', buftap: 'buffer + tap',
+      tap: 'tap', pll: 'per-tile PLL', mult: 'per-tile multiplier', term: 'termination',
+      backend: 'RFSoC backend', sum: 'resistive summing node', res: 'resistive arm',
+      cell: 'active combine cell', drv: 'baseband driver'
     };
     built.lo.net.nodes.forEach(function (n) { seen[n.type] = true; });
+    if (built.bbInter) built.bbInter.nodes.forEach(function (n) { seen[n.type] = true; });
     order.forEach(function (ty) {
       if (!seen[ty]) return;
       var li = document.createElement('span');
@@ -3794,6 +4057,15 @@ footer.foot a { color: var(--ink-2); }
       rows.push(['Skew vs array mean', t.m.skewPs.toFixed(2) + ' ps']);
       rows.push(['Phase error at ' + g.fLoGHz + ' GHz', t.m.phaseDeg.toFixed(2) + 'Â°']);
       rows.push(['Distribution power for this tile', t.m.powerMw.toFixed(0) + ' mW']);
+    }
+    var bbi = built.bbInter;
+    if (bbi) {
+      rows.push(['â€” baseband tier â€”', '']);
+      rows.push(['Network', bbi.kind + (bbi.kind === 'htree' ? ' (' + bbi.depth + ' levels)' : '')]);
+      rows.push(['Routed path to backend', t.bbPathCm.toFixed(1) + ' cm']);
+      rows.push([bbi.kind === 'bus' ? 'Bus tap position' : 'Tree level',
+        bbi.kind === 'bus' ? t.bbHop + ' of ' + bbi.depth : t.bbLevel + ' of ' + bbi.depth]);
+      rows.push(['Deviation from mean path', (t.bbPathCm - bbi.pathMeanCm).toFixed(1) + ' cm']);
     }
     rows.push(['â€” blocks in this tile â€”', '']);
     (t.blocks || []).forEach(function (b) { rows.push([b.label, b.type]); });
@@ -4137,7 +4409,10 @@ footer.foot a { color: var(--ink-2); }
   var DEFAULTS = {};
   M.PARAMS.forEach(function (p) { DEFAULTS[p.key] = p.value; });
   var state = {};
-  var view = { name: 'map', selected: 0, tileMetric: 'phaseDeg', showBlocks: true };
+  var view = {
+    name: 'map', selected: 0, tileMetric: 'phaseDeg',
+    showBlocks: true, showLo: true, showBb: true
+  };
 
   var TILE_METRICS = [
     { key: 'phaseDeg', label: 'phase error at LO (Â°)' },
@@ -4274,8 +4549,33 @@ footer.foot a { color: var(--ink-2); }
       { section: 'M1 / M2 Â· phase noise & jitter' },
       { name: 'L(f) at the carrier', sub: 'the network sits after the mixer', field: 'pnNA', fmt: function () { return 'n/a'; } },
       { name: 'Contribution to E-band jitter', field: 'jitterFs', fmt: function () { return 'n/a'; } },
-      { section: 'M3 / M4 Â· gain-phase error & skew' },
+      { section: 'Inter-tile tier â€” the network drawn on the hardware map' },
+      {
+        name: 'Inter-tile topology', field: 'interKind',
+        fmt: function (v, r) { return r.interKind + (r.interKind === 'htree' ? ' Â· ' + r.interDepth + ' levels' : ''); }
+      },
+      { name: 'Mean routed path to backend', field: 'interPathMeanCm', units: 'cm', better: 'low', dec: 1 },
+      { name: 'Longest path to backend', field: 'interPathMaxCm', units: 'cm', better: 'low', dec: 1 },
+      { name: 'Total routed length', field: 'interRoutedCm', units: 'cm', better: 'low', dec: 0 },
+      {
+        name: 'Geometric skew, raw', sub: 'from unequal arm lengths â€” this is the coarse TTD range the option demands',
+        field: 'interGeoRawPs', units: 'ps', better: 'low', dec: 0,
+        fmt: function (v, r) {
+          return n(v, 0) + ' ps' + (r.interUncompPs > 0.5 ? ' â€” ' + n(r.interUncompPs, 0) + ' beyond TTD range' : ' (within TTD range)');
+        }
+      },
+      {
+        name: 'Geometric skew after coarse TTD', sub: 'a group-delay error: phase calibration cannot touch it, only TTD can',
+        field: 'interGeoSkewPs', units: 'ps', better: 'low'
+      },
+      {
+        name: 'Share of TTD range consumed', sub: 'range stolen from beam steering, which is what the ' + n(state.ttdStepPs, 0) + ' ps element is for',
+        field: 'ttdRangeConsumedPct', units: '%', better: 'low', dec: 0
+      },
+      { name: 'Inter-tile line loss', field: 'interLossDb', units: 'dB', better: 'low', dec: 2 },
+      { section: 'M3 / M4 Â· gain-phase error & skew (both tiers)' },
       { name: 'RMS skew across ports', field: 'skewRmsPs', units: 'ps', better: 'low' },
+      { name: 'Â· intra-tile part', field: 'skewIntraPs', units: 'ps', better: 'low' },
       { name: 'Peak skew', field: 'skewPeakPs', units: 'ps', better: 'low' },
       { name: 'Systematic ramp', field: 'skewSystematicPs', units: 'ps', better: 'low' },
       { name: 'Phase error at rail edge', sub: 'at ' + n(state.bbEdgeGHz) + ' GHz â€” NOT at ' + n(state.fLoGHz, 0) + ' GHz', field: 'skewEdgeDeg', units: 'Â°', better: 'low' },
@@ -4413,12 +4713,23 @@ footer.foot a { color: var(--ink-2); }
     var sp = document.createElement('span');
     sp.className = 'sp';
     tb.appendChild(sp);
-    var bb = document.createElement('button');
-    bb.type = 'button';
-    bb.className = 'btn' + (view.showBlocks ? ' pri' : '');
-    bb.textContent = view.showBlocks ? 'blocks shown' : 'blocks hidden';
-    bb.addEventListener('click', function () { view.showBlocks = !view.showBlocks; render(); });
-    tb.appendChild(bb);
+    var lbl2 = document.createElement('span');
+    lbl2.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
+    lbl2.textContent = 'layers';
+    tb.appendChild(lbl2);
+    [
+      { k: 'showLo', on: 'LO / reference', off: 'LO hidden' },
+      { k: 'showBb', on: 'baseband', off: 'baseband hidden' },
+      { k: 'showBlocks', on: 'blocks', off: 'blocks hidden' }
+    ].forEach(function (L) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      var on = view[L.k] !== false;
+      b.className = 'btn' + (on ? ' pri' : '');
+      b.textContent = on ? L.on : L.off;
+      b.addEventListener('click', function () { view[L.k] = !on; render(); });
+      tb.appendChild(b);
+    });
 
     var tm = TILE_METRICS.filter(function (m) { return m.key === view.tileMetric; })[0];
     window.Diagram.renderMap(document.getElementById('mapMount'), built, {
@@ -4427,11 +4738,20 @@ footer.foot a { color: var(--ink-2); }
     }, function (i) { view.selected = i; render(); });
 
     window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
+    var bsel0 = res.bb[res.g.bbOptionId];
     document.getElementById('mapNote').innerHTML =
-      'Line weight and colour encode the frequency each segment carries, so what is actually on the board is ' +
-      'visible at a glance. Routed path lengths drawn here are the same lengths the loss and skew figures use. ' +
-      'Longest tile path <span class="kv">' + n(sel.pathMaxCm, 1) + ' cm</span>, mean <span class="kv">' +
-      n(sel.pathMeanCm, 1) + ' cm</span>, total routed <span class="kv">' + n(sel.totalRoutedCm, 0) + ' cm</span>.';
+      '<strong>Two networks, one aperture.</strong> The <span style="color:var(--s2)">LO / reference</span> tier ' +
+      'enters from the source below and lands at each tile centre; line weight and colour encode the frequency ' +
+      'each segment carries, so what is actually on the board is visible at a glance. The ' +
+      '<span style="color:var(--s3)">baseband</span> tier (dashed) runs from the offset port on each tile up to ' +
+      'the RFSoC backend above, and its wiring changes with the option: a flat <em>star</em> for the resistive ' +
+      'network, a <em>serpentine bus</em> for the daisy chain, a hierarchical <em>H-tree</em> for the active one. ' +
+      'Both are drawn from the same generator that produces the numbers. ' +
+      'LO: longest tile path <span class="kv">' + n(sel.pathMaxCm, 1) + ' cm</span>, total routed ' +
+      '<span class="kv">' + n(sel.totalRoutedCm, 0) + ' cm</span>. Baseband: longest ' +
+      '<span class="kv">' + n(bsel0.interPathMaxCm, 1) + ' cm</span>, total routed ' +
+      '<span class="kv">' + n(bsel0.interRoutedCm, 0) + ' cm</span>, geometric skew ' +
+      '<span class="kv">' + n(bsel0.interGeoSkewPs) + ' ps</span>.';
 
     window.Diagram.renderInspector(document.getElementById('inspectorMount'), built, view.selected, res.g);
     window.Diagram.renderBbDiagram(document.getElementById('bbDiagramMount'), built);

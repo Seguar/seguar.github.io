@@ -96,13 +96,23 @@ enforced explicitly and are visible in the Method tab:
 
 ## The views
 
-- **Hardware map** — the floorplan. Line weight and colour encode the frequency
-  each segment carries, so what is actually on the board is visible at a glance.
-  Colour the tiles by phase error, skew, path loss or power; click any tile to
-  inspect its own routed length, tree level or chain hop, repeaters in path,
-  loss, skew, phase error and power. Below it: the baseband network drawn inside
-  one tile, a live cost strip, and a hardware bill of materials with block
-  counts and per-block power taken from the drawn topology.
+- **Hardware map** — the floorplan, with **both** distribution tiers drawn on
+  the one aperture:
+  - the **LO / reference** tier enters from the source below and lands at each
+    tile centre. Line weight and colour encode the frequency each segment
+    carries, so what is actually on the board is visible at a glance — thin
+    blue for a 100 MHz reference, thick orange for E-band.
+  - the **baseband** tier (dashed, offset to the lower right of each tile) runs
+    up to the RFSoC backend above, and its inter-tile wiring changes with the
+    option: a flat **star** for the resistive network, a **serpentine bus** for
+    the daisy chain, a hierarchical **H-tree** for the active one.
+
+  Toggle either layer, colour the tiles by phase error, skew, path loss or
+  power, and click any tile to inspect both tiers for it — routed length, tree
+  level or chain hop, repeaters in path, loss, skew, phase error and power.
+  Below: the intra-tile baseband network drawn for one tile's 32 channels, a
+  live cost strip, and a hardware bill of materials with block counts and
+  per-block power taken from the drawn topology.
 - **Compare** — the full metric tables, M1–M6, for all seven options.
 - **Phase noise** — three L(f) overlays: absolute per tile, inter-tile
   differential (the curve that decides the architecture), and array-output

@@ -589,9 +589,33 @@
     var gg = {};
     for (var k in g) gg[k] = g[k];
     gg.bbOption = id;
+    gg.bbOptionId = id;
     var bb = window.Topo.buildBb(id, gg);
     var nCh = bb.nCh, levels = bb.levels;
-    var nT = Math.max(1, Math.round(g.apertureCm / g.tileCm)) * Math.max(1, Math.round(g.apertureCm / g.tileCm));
+    var side = Math.max(1, Math.round(g.apertureCm / g.tileCm));
+    var nT = side * side;
+    /* The INTER-TILE tier — the network the hardware map draws from tiles to
+       the RFSoC. Built from the same generator, so the path lengths below are
+       the ones on the map. */
+    var grid2 = window.Topo.makeGrid(gg);
+    var inter = window.Topo.bbNet(grid2, gg);
+    var psPerCmBb = K.lineDelayPsCm('stripline');
+    /* Geometric skew of the inter-tile tier: for a star the arms are grossly
+       unequal, for an H-tree nominally equal, for a bus a monotonic ramp.
+
+       Crucially this is a GROUP-DELAY error, so unlike an LO phase offset a
+       phase calibration cannot remove it — but the architecture already has a
+       per-tile coarse true-time-delay element, and compensating inter-tile
+       delay is exactly what it is for. So the residual is the TTD's own
+       quantisation, plus whatever exceeds its range. That reframes the
+       comparison: the H-tree's advantage is not that it alone is correctable,
+       it is that it needs far less TTD range and leaves less to correct. */
+    var interGeoRawPs = inter.pathRmsSpreadCm * psPerCmBb;
+    var ttdRangePs = K.apertureDelayPs(g.apertureM, g.scanDegMax);
+    var ttdQuantPs = K.quantResidualPs(g.ttdStepPs);
+    var interUncompPs = Math.max(0, interGeoRawPs - ttdRangePs);
+    var interGeoPs = K.rss(ttdQuantPs, interUncompPs);
+    var interLossDb = inter.pathMeanCm * K.lineAlphaDbCm('stripline', g.bbEdgeHz);
 
     /* ---- loss / gain ---- */
     var lossTotalDb, nfPenaltyDb, requiredGainDb;
@@ -612,6 +636,9 @@
       nfPenaltyDb = K.treeNoisePenaltyDb(nCh, levels, K.db2lin(-g.rficGainDb / 2));
       requiredGainDb = 0;
     }
+    /* the inter-tile run is real line loss on top of the network's own */
+    lossTotalDb += interLossDb;
+    requiredGainDb += interLossDb;
 
     /* ---- skew: a GROUP-DELAY error at the baseband edge, never a
             78 GHz phase error ---- */
@@ -630,6 +657,13 @@
       skewSystematicPs = 0;
       skewRmsPs = g.bbCellSkewPs * 0.4 * Math.sqrt(levels);   /* passive: no active mismatch */
     }
+    /* Intra-tile and inter-tile skew add in quadrature for the random part;
+       the inter-tile geometric spread is deterministic, so it joins the
+       systematic ramp rather than the random total. */
+    var skewIntraPs = skewRmsPs;
+    skewRmsPs = K.rss(skewIntraPs, interGeoPs);
+    skewSystematicPs = K.rss(skewSystematicPs, interGeoPs);
+
     var skewPeakPs = skewRmsPs * K.peakFactor(nCh);
     var skewEdgeDeg = K.bbSkewDegAtEdge(skewRmsPs, g.bbEdgeHz);
     var rampSteerDeg = K.bbRampSteerDeg(skewSystematicPs, g.rfBwGHz * 1e9);
@@ -653,7 +687,17 @@
     var bwGHz = id === 'bb-daisy' ? Math.max(0.15, 4 / nCh) : (id === 'h-tree-active' ? 3.5 : 4.0);
 
     return {
-      id: id, bb: bb, nCh: nCh, levels: levels, hops: hops,
+      id: id, bb: bb, inter: inter, nCh: nCh, levels: levels, hops: hops,
+      interKind: inter.kind, interDepth: inter.depth,
+      interPathMeanCm: inter.pathMeanCm, interPathMaxCm: inter.pathMaxCm,
+      interRoutedCm: inter.totalRoutedCm,
+      interGeoRawPs: interGeoRawPs, interGeoSkewPs: interGeoPs,
+      interUncompPs: interUncompPs, ttdRangeNeededPs: interGeoRawPs,
+      ttdRangeAvailPs: ttdRangePs,
+      /* The coarse TTD's range exists to steer the beam. Geometric skew the
+         same element has to absorb is range stolen from that job. */
+      ttdRangeConsumedPct: interGeoRawPs / ttdRangePs * 100,
+      interLossDb: interLossDb, skewIntraPs: skewIntraPs,
       pnCurve: null, pnDiffCurve: null, pnAtOffsets: null,
       phiRmsDeg: NaN, jitterFs: NaN,
       interTileRawDeg: skewEdgeDeg, interTileResidualDeg: K.rss(skewEdgeDeg * 0.25, K.quantResidualDeg(g.phaseBits)),
