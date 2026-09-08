@@ -1,8 +1,23 @@
 <!doctype html>
-<html lang="en" data-theme="">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* Light is the default regardless of the OS setting; an explicit choice is
+   remembered. This runs before first paint so a dark-OS viewer never sees a
+   flash of the dark palette, and it is done in JS rather than only on the
+   <html> tag because the artifact build strips that tag - the host supplies
+   its own. Stored "" means follow the system. */
+(function () {
+  try {
+    var t = localStorage.getItem('ebdt-theme');
+    document.documentElement.setAttribute('data-theme', t === null ? 'light' : t);
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+</script>
 <title>E-Band Distribution Comparison Tool</title>
 <meta name="description" content="Interactive hardware map and parameterized model comparing clock/reference and LO distribution and baseband split/combine architectures for a large tiled E-band (71-86 GHz) phased array.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
@@ -22,11 +37,15 @@
   --bg-hover:      #f4f3f0;
   --ink:           #16181d;
   --ink-2:         #4a4f59;
-  --ink-3:         #7b818d;
+  /* Tertiary text carries chart axis labels and field hints at 10.5px, so it
+     has to clear 4.5:1 on all three light surfaces, not just on white:
+     5.36 on #fff, 5.00 on the page ground, 4.66 on sunken panels. */
+  --ink-3:         #656b76;
   --rule:          #dedcd6;
   --rule-strong:   #c4c1b8;
   --accent:        #1c5f8b;
   --accent-soft:   #e3eef6;
+  --on-accent:     #ffffff;
   --pass:          #1c6b3f;
   --pass-soft:     #e2f0e7;
   --warn:          #8a5a00;
@@ -59,6 +78,7 @@
     --rule-strong: #414753;
     --accent:      #6fb4e0;
     --accent-soft: #1b3040;
+    --on-accent:   #0d1116;
     --pass:        #63c58c;
     --pass-soft:   #17301f;
     --warn:        #e0b155;
@@ -86,6 +106,7 @@
   --rule-strong: #414753;
   --accent:      #6fb4e0;
   --accent-soft: #1b3040;
+  --on-accent:   #0d1116;
   --pass:        #63c58c;
   --pass-soft:   #17301f;
   --warn:        #e0b155;
@@ -204,8 +225,7 @@ button.btn {
   border: 1px solid var(--rule-strong); background: var(--bg-panel); color: var(--ink); cursor: pointer;
 }
 button.btn:hover { background: var(--bg-hover); }
-button.btn.pri { background: var(--accent); color: #fff; border-color: var(--accent); }
-:root[data-theme="dark"] button.btn.pri { color: #0d1116; }
+button.btn.pri { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 button.btn.pri:hover { filter: brightness(1.08); }
 button.btn:disabled { opacity: .5; cursor: default; }
 
@@ -257,6 +277,9 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--pass
 .budget .cell .d { font-size: 11px; color: var(--ink-3); margin-top: 2px; line-height: 1.35; }
 .budget .cell.bind { background: var(--fail-soft); }
 .budget .cell.bind .k { color: var(--fail); font-weight: 700; }
+/* The binding cell sits on a tinted ground, where tertiary text falls just
+   under 4.5:1 — and this is the cell that most needs reading anyway. */
+.budget .cell.bind .d, .budget .cell.bind .n small { color: var(--ink-2); }
 
 /* ---------- charts ---------- */
 .chartbox { padding: 8px 6px 0; }
@@ -338,6 +361,7 @@ footer.foot a { color: var(--ink-2); }
       <a href="#" class="navlink on" data-view="map">Hardware map</a>
       <a href="#" class="navlink" data-view="compare">Compare</a>
       <a href="#" class="navlink" data-view="phasenoise">Phase noise</a>
+      <a href="#" class="navlink" data-view="beam">TX / RX beam</a>
       <a href="#" class="navlink" data-view="sweeps">Sweeps</a>
       <a href="#" class="navlink" data-view="decision">Decision</a>
       <a href="#" class="navlink" data-view="assumptions">Assumptions</a>
@@ -354,6 +378,7 @@ footer.foot a { color: var(--ink-2); }
     <h2>Architecture <span class="tag">pick a connection type and a reference clock</span>
       <span class="grow" id="pickerNote"></span></h2>
     <div class="body" id="pickerMount"></div>
+    <div class="body hidden" id="warnMount" style="padding-top:0"></div>
   </section>
 
   <!-- ===================== spec budget banner ===================== -->
@@ -486,6 +511,29 @@ footer.foot a { color: var(--ink-2); }
         </section>
       </div>
 
+      <!-- ---- BEAM ---- -->
+      <div class="view hidden" id="view-beam">
+        <section class="panel">
+          <h2>Beam pattern <span class="tag">from the selected architecture</span>
+            <span class="grow" id="beamHdr"></span></h2>
+          <div class="budget" id="beamStats"></div>
+          <div class="body">
+            <p class="note" id="beamNote"></p>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Principal-plane cut <span class="tag">TX vs RX</span></h2>
+          <div id="beamCutMount"></div>
+          <div class="body"><p class="note" id="beamCutNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>Across the signal band <span class="tag">squint</span>
+            <span class="grow">phase-steered subarray against a delay-steered tile grid</span></h2>
+          <div id="beamSquintMount"></div>
+          <div class="body"><p class="note" id="beamSquintNote"></p></div>
+        </section>
+      </div>
+
       <!-- ---- SWEEPS ---- -->
       <div class="view hidden" id="view-sweeps">
         <section class="panel">
@@ -547,6 +595,7 @@ footer.foot a { color: var(--ink-2); }
     <span id="footNote"></span>
   </footer>
 </div>
+
 
 
 
@@ -1768,6 +1817,45 @@ footer.foot a { color: var(--ink-2); }
   function evmPctFromPhi(sigmaRad) {
     return 100 * Math.sqrt(Math.max(2 * (1 - Math.exp(-sigmaRad * sigmaRad / 2)), 0));
   }
+
+  /* EVM in dB. EVM is an AMPLITUDE (voltage) ratio, so the factor is 20:
+        EVM_dB = 20*log10(EVM_rms)          EVM_rms as a fraction
+     Equivalently EVM^2 is an error-power to signal-power ratio, so
+     10*log10(EVM^2) gives the same number. Using 10*log10 on the amplitude
+     is the classic error and halves every figure: 8% would read -10.97 dB
+     instead of -21.94 dB, loosening every ceiling by ~11 dB.
+     More negative is better — the opposite sense to the percent figure.
+     Note the unit is dB, not dBc: EVM references the constellation
+     amplitude, not a carrier. */
+  function evmDb(evmPct) {
+    if (!isFinite(evmPct)) return NaN;
+    if (evmPct <= 0) return -Infinity;
+    return 20 * Math.log10(evmPct / 100);
+  }
+  function evmPctFromDb(db) { return 100 * Math.pow(10, db / 20); }
+
+  /* Straight from phase, one log and no sqrt: the argument is already EVM^2,
+     a power ratio, so 10*log10 is correct here and is not an exception to
+     the rule above. */
+  function evmDbFromPhi(sigmaRad) {
+    return 10 * Math.log10(Math.max(2 * (1 - Math.exp(-sigmaRad * sigmaRad / 2)), 1e-30));
+  }
+  /* Exact inverse. Saturates at +3.0103 dB (EVM -> sqrt2), above which no
+     pure phase error can produce that EVM. */
+  function phiFromEvmDb(db) {
+    var x = Math.pow(10, db / 10);
+    if (!(x < 2)) return Infinity;
+    return Math.sqrt(Math.max(-2 * Math.log(1 - x / 2), 0));
+  }
+
+  /* An evmShare of 0.3 multiplies the LINEAR EVM, so in dB it is an offset of
+     20*log10(0.3) = -10.46 dB. It is NOT -5.23 dB (that is 10*log10(0.3),
+     exactly half, and the likeliest mistake — it would loosen every LO budget
+     by a factor of 1.83 in error amplitude), and dB budgets take no
+     percentage subtraction at all. Isolated here so there is one place to be
+     wrong. This is an AMPLITUDE share: the LO then takes share^2 = 9% of the
+     error power, which is deliberately conservative. */
+  function shareDb(share) { return 20 * Math.log10(Math.max(share, 1e-6)); }
   function phiFromEvmPct(evmPct) {
     var e = evmPct / 100;
     var arg = 1 - e * e / 2;
@@ -1775,21 +1863,45 @@ footer.foot a { color: var(--ink-2); }
     return Math.sqrt(Math.max(-2 * Math.log(arg), 0));
   }
 
-  /* Practical total-EVM ceilings by modulation order. The LO is allocated
-     only a share of this (evmShare), the rest going to PA, ADC, channel. */
+  /* TOTAL-system EVM ceilings by modulation order — the whole TX + channel +
+     RX chain at the demodulator, including PA nonlinearity, ADC/DAC noise,
+     IQ imbalance and channel-estimation error, NOT just the LO. The LO is
+     allocated only `evmShare` of this. Never show an LO-only EVM beside an
+     unshared ceiling.
+     Provenance differs by row, which matters once these appear as tidy dB
+     figures: rows 1-4 are 3GPP TS 38.104 / TS 36.104, but the 1024QAM row is
+     IEEE 802.11ax MCS11 (-35 dB RCE), which is 2.85 dB STRICTER than
+     3GPP's 2.5% for the same constellation. */
   var QAM_EVM = [
-    { order: 4,    name: 'QPSK',    evm: 17.5 },
-    { order: 16,   name: '16QAM',   evm: 12.5 },
-    { order: 64,   name: '64QAM',   evm: 8.0 },
-    { order: 256,  name: '256QAM',  evm: 3.5 },
-    { order: 1024, name: '1024QAM', evm: 1.8 }
+    { order: 4,    name: 'QPSK',    evm: 17.5, src: '3GPP TS 38.104' },
+    { order: 16,   name: '16QAM',   evm: 12.5, src: '3GPP TS 38.104' },
+    { order: 64,   name: '64QAM',   evm: 8.0,  src: '3GPP TS 38.104' },
+    { order: 256,  name: '256QAM',  evm: 3.5,  src: '3GPP TS 38.104' },
+    { order: 1024, name: '1024QAM', evm: 1.8,  src: 'IEEE 802.11ax MCS11; 3GPP allows 2.5%' }
   ];
-  function maxQam(evmPct, share) {
-    var budget = evmPct / Math.max(share, 1e-3);
+  /* derived, so the dB and percent columns cannot drift apart */
+  QAM_EVM.forEach(function (q) { q.evmDb = 20 * Math.log10(q.evm / 100); });
+
+  /* Highest constellation an LO-only EVM can support. Un-applying the share
+     is a SUBTRACTION of a negative, i.e. it adds 10.46 dB, scaling the
+     LO figure up to a total-system equivalent. The comparator stays <= and
+     "lower is better" still holds, because 20*log10 is monotone increasing —
+     no inequality flips under the conversion. */
+  function maxQamFromDb(evmDbVal, share) {
+    if (!isFinite(evmDbVal)) return '—';
+    var budgetDb = evmDbVal - shareDb(share);
     var best = null;
-    QAM_EVM.forEach(function (q) { if (budget <= q.evm) { if (!best || q.order > best.order) best = q; } });
+    QAM_EVM.forEach(function (q) { if (budgetDb <= q.evmDb) { if (!best || q.order > best.order) best = q; } });
     return best ? best.name : '< QPSK';
   }
+  function evmLimitDbForQam(name, share) {
+    for (var i = 0; i < QAM_EVM.length; i++) {
+      if (QAM_EVM[i].name === name) return QAM_EVM[i].evmDb + shareDb(share);
+    }
+    return QAM_EVM[2].evmDb + shareDb(share);
+  }
+  /* percent forms kept for the parenthetical readouts */
+  function maxQam(evmPct, share) { return maxQamFromDb(evmDb(evmPct), share); }
   function evmLimitForQam(name, share) {
     for (var i = 0; i < QAM_EVM.length; i++) if (QAM_EVM[i].name === name) return QAM_EVM[i].evm * share;
     return QAM_EVM[2].evm * share;
@@ -1937,7 +2049,10 @@ footer.foot a { color: var(--ink-2); }
     pointingFromWalkDeg: pointingFromWalkDeg, walkRmsFactor: walkRmsFactor,
     squintDeg: squintDeg, apertureDelayPs: apertureDelayPs, squintLossDb: squintLossDb,
     evmPctFromPhi: evmPctFromPhi, phiFromEvmPct: phiFromEvmPct,
-    maxQam: maxQam, evmLimitForQam: evmLimitForQam,
+    evmDb: evmDb, evmPctFromDb: evmPctFromDb, evmDbFromPhi: evmDbFromPhi,
+    phiFromEvmDb: phiFromEvmDb, shareDb: shareDb,
+    maxQam: maxQam, maxQamFromDb: maxQamFromDb,
+    evmLimitForQam: evmLimitForQam, evmLimitDbForQam: evmLimitDbForQam,
     driftResidualDeg: driftResidualDeg, optimalUpdatePeriodS: optimalUpdatePeriodS,
     quantResidualDeg: quantResidualDeg, quantResidualPs: quantResidualPs,
     rss: rss, peakFactor: peakFactor, seriesRandom: seriesRandom,
@@ -1986,7 +2101,9 @@ footer.foot a { color: var(--ink-2); }
   /* ------------------------------------------------------ grid definition */
   function makeGrid(g) {
     var tileCm = g.tileCm;
-    var cols = Math.max(1, Math.round(g.apertureCm / tileCm));
+    /* Model.resolve() already worked this out; trust it so the map and the
+       metrics cannot disagree about how many tiles there are. */
+    var cols = g.tileCols || Math.max(1, Math.floor(g.apertureCm / tileCm + 1e-9));
     var rows = cols;
     var tiles = [];
     for (var r = 0; r < rows; r++) {
@@ -2750,16 +2867,24 @@ footer.foot a { color: var(--ink-2); }
       conf: 'measured/datasheet', why: 'RFIC characterised with a 78 GHz LO; the band is 71–86 GHz. The proposal’s own modelling text uses 75 GHz.' },
     { key: 'rfBwGHz', label: 'RF bandwidth', units: 'GHz', value: 2, min: 0.1, max: 5, step: 0.1, group: 'Array & band',
       conf: 'measured/datasheet', why: '≈2 GHz class per the RFIC front-end table.' },
-    { key: 'apertureCm', label: 'Aperture side', units: 'cm', value: 30, min: 6, max: 60, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal.' },
-    { key: 'tileCm', label: 'Tile side', units: 'cm', value: 6, min: 1.5, max: 15, step: 0.5, group: 'Array & band',
-      conf: 'published-literature', why: 'Sub-tiling to 5–10 cm keeps residual intra-tile delay under ~200 ps. 6 cm gives a 5×5 grid over 30 cm.' },
-    { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'One LO tap per RFIC die; 100 dies over 25 tiles is 4 dies per tile.' },
-    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 32, min: 2, max: 64, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: '4 dies × (4 RX + 4 TX) = 32 channels per tile, per rail.' },
+    { key: 'apertureCm', label: 'Aperture width', units: 'cm', value: 30, min: 6, max: 60, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal. This is D in the beamwidth 0.886·λ/D, and it is a hard system spec — the tile pitch is the design choice that has to fit inside it.' },
+    { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 4, min: 0.25, max: 15, step: 0.25, group: 'Array & band',
+      conf: 'published-literature', why: 'Centre-to-centre tile spacing; with abutting square tiles it equals the tile edge. "Pitch" rather than "side" or "size" because a spacing is what the grid is built from, and "size" for a 2-D module reads as an area. Sub-tiling to 5–10 cm keeps residual intra-tile delay under ~200 ps; 4 cm gives 116 ps with margin, at the cost of more tiles. Note 4 cm does not divide 30 cm — see the derived readout.' },
+    { key: 'nDies', label: 'RFIC dies in the array', units: '-', value: 100, min: 4, max: 4000, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: '≈100 existing 2.5 × 2.5 mm E-band dies. Tile pitch, taps per tile and this total are independent inputs that can disagree, so the tool checks them against each other rather than letting the mismatch pass silently.' },
+    { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 2, min: 1, max: 32, step: 1, group: 'Array & band',
+      conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At a 4 cm pitch 7×7 = 49 tiles fit, and the 100-die inventory allows floor(100/49) = 2 dies per tile: 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB of array gain. Two dies lay out as a 1×2 pair on one matched 1:2 split. At a 6 cm pitch it was 25 × 4 = 100 exactly.' },
+    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 16, min: 2, max: 64, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 2 dies per tile that is 16, and 49 × 16 = 784 per rail.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
+    { key: 'beamScanDeg', label: 'Beam steer angle', units: 'deg', value: 30, min: -75, max: 75, step: 1, group: 'Array & band',
+      conf: 'scaled-estimate', why: 'Direction the Beam view steers to. Separate from the max scan angle, which sizes the TTD range and the worst-case squint.' },
+    { key: 'txGainErrDb', label: 'TX amplitude spread', units: 'dB', value: 0.5, min: 0, max: 3, step: 0.05, group: 'Link & budget',
+      conf: 'engineering-guess', why: 'PA-to-PA gain variation, RMS. This and its RX counterpart are the only things that make the TX and RX patterns differ in this model — the LO residual is common to both directions.' },
+    { key: 'rxGainErrDb', label: 'RX amplitude spread', units: 'dB', value: 0.3, min: 0, max: 3, step: 0.05, group: 'Link & budget',
+      conf: 'engineering-guess', why: 'LNA and baseband VGA gain variation, RMS. Lower than TX because no device is running near compression.' },
 
     /* --- reference clock --- */
     { key: 'refSel', label: 'Reference clock', units: '', value: 2, group: 'Reference clock',
@@ -2892,6 +3017,37 @@ footer.foot a { color: var(--ink-2); }
     g.bbEdgeHz = g.bbEdgeGHz * 1e9;
     g.lambdaM = K.C0 / g.fLoHz;
     g.apertureM = g.apertureCm / 100;
+
+    /* A tile pitch need not divide the aperture. The grid is a whole number
+       of tiles, so the POPULATED aperture is cols*pitch, which can differ
+       from the requested figure — 4 cm over 30 cm is the obvious case. Beam
+       metrics must use the populated aperture, because that is the radiating
+       extent; the requested figure is only a target. Both are carried so the
+       UI can report the difference instead of printing a number that has
+       quietly stopped being true. */
+    /* FLOOR, never round. The aperture is a hard mechanical spec — a panel.
+       Rounding can overflow it (round(30/4) = 8 would draw a 32 cm array
+       inside a 30 cm panel, which cannot be built); flooring can only
+       under-fill, and an under-filled panel is buildable. The epsilon keeps
+       exact divisors exact against binary floating point, so 30/6 gives 5
+       and not 4. */
+    g.tileCols = Math.max(1, Math.floor(g.apertureCm / g.tileCm + 1e-9));
+    g.nTilesTotal = g.tileCols * g.tileCols;
+    g.effApertureCm = g.tileCols * g.tileCm;
+    g.effApertureM = g.effApertureCm / 100;
+    g.apertureMarginCm = (g.apertureCm - g.effApertureCm) / 2;   /* per side, >= 0 */
+    g.apertureFillSide = g.effApertureCm / g.apertureCm;
+    g.aperturePitchExact = Math.abs(g.apertureCm - g.effApertureCm) < 5e-3;
+    /* peak directivity relative to filling the panel: a side-length ratio on
+       an amplitude-like extent in each of two dimensions, so 20log10 of the
+       side ratio, identical to 10log10 of the area ratio */
+    g.apertureDirDeltaDb = 20 * Math.log10(g.apertureFillSide);
+    /* pitches that fill exactly, keeping this tile count or adding one row */
+    g.snapCoarseCm = g.apertureCm / g.tileCols;
+    g.snapFineCm = g.apertureCm / (g.tileCols + 1);
+    g.loTapsTotal = g.nTilesTotal * Math.round(g.tapsPerTile);
+    g.diesPlaced = Math.min(g.loTapsTotal, Math.round(g.nDies));
+    g.diePopGainDb = 10 * Math.log10(Math.max(g.diesPlaced, 1) / Math.max(Math.round(g.nDies), 1));
     return g;
   }
 
@@ -3169,10 +3325,11 @@ footer.foot a { color: var(--ink-2); }
     var gainLossDb = K.ruzeLossDb(sigRad);
     var sllDb = K.rmsSllDb(sigRad, nT);
     var pointingErrDeg = lo.kind === 'chain'
-      ? K.pointingFromWalkDeg(interTileResidualDeg / Math.sqrt(Math.max(lo.maxHop, 1)), lo.maxHop, g.apertureM, g.lambdaM, g.scanDegMax)
-      : K.pointingFromRandomDeg(interTileResidualDeg, nT, g.apertureM, g.lambdaM, g.scanDegMax);
+      ? K.pointingFromWalkDeg(interTileResidualDeg / Math.sqrt(Math.max(lo.maxHop, 1)), lo.maxHop, (g.effApertureM || g.apertureM), g.lambdaM, g.scanDegMax)
+      : K.pointingFromRandomDeg(interTileResidualDeg, nT, (g.effApertureM || g.apertureM), g.lambdaM, g.scanDegMax);
     var evmPct = K.evmPctFromPhi(phiArrRad);
-    var maxQamStr = K.maxQam(evmPct, g.evmShare);
+    var evmDbVal = K.evmDbFromPhi(phiArrRad);
+    var maxQamStr = K.maxQamFromDb(evmDbVal, g.evmShare);
 
     /* ---------------- calibration burden (physical counts) ---------------- */
     var nMeasLo = lo.kind === 'chain' ? (nT - lo.chains) : (nT - 1);
@@ -3239,7 +3396,7 @@ footer.foot a { color: var(--ink-2); }
       calBurdenScore: calBurdenScore, calBurdenDetail: calBurdenDetail,
       driftDegPerK: driftDegPerK, driftTotalDeg: driftTotalDeg,
       gainLossDb: gainLossDb, sllDb: sllDb, pointingErrDeg: pointingErrDeg,
-      evmPct: evmPct, maxQam: maxQamStr,
+      evmPct: evmPct, evmDb: evmDbVal, maxQam: maxQamStr,
       feasibility: feasibility, riskLevel: riskLevel,
       distFreqGHz: lo.distFreqHz / 1e9, tileMultiplier: lo.tileMultiplier,
       pathMeanCm: lo.pathMeanCm, pathMaxCm: lo.pathMaxCm, totalRoutedCm: lo.totalRoutedCm,
@@ -3260,7 +3417,7 @@ footer.foot a { color: var(--ink-2); }
     gg.bbOptionId = id;
     var bb = window.Topo.buildBb(id, gg);
     var nCh = bb.nCh, levels = bb.levels;
-    var side = Math.max(1, Math.round(g.apertureCm / g.tileCm));
+    var side = g.tileCols || Math.max(1, Math.floor(g.apertureCm / g.tileCm + 1e-9));
     var nT = side * side;
     /* The INTER-TILE tier — the network the hardware map draws from tiles to
        the RFSoC. Built from the same generator, so the path lengths below are
@@ -3279,7 +3436,7 @@ footer.foot a { color: var(--ink-2); }
        comparison: the H-tree's advantage is not that it alone is correctable,
        it is that it needs far less TTD range and leaves less to correct. */
     var interGeoRawPs = inter.pathRmsSpreadCm * psPerCmBb;
-    var ttdRangePs = K.apertureDelayPs(g.apertureM, g.scanDegMax);
+    var ttdRangePs = K.apertureDelayPs((g.effApertureM || g.apertureM), g.scanDegMax);
     var ttdQuantPs = K.quantResidualPs(g.ttdStepPs);
     var interUncompPs = Math.max(0, interGeoRawPs - ttdRangePs);
     var interGeoPs = K.rss(ttdQuantPs, interUncompPs);
@@ -3388,6 +3545,60 @@ footer.foot a { color: var(--ink-2); }
     };
   }
 
+  /* ===================================================================== *
+   * Consistency checks. Tile pitch, taps per tile and the die count are
+   * independent inputs, so they can disagree without anything failing —
+   * which is worse than an error. Surfaced rather than silently tolerated.
+   * =================================================================== */
+  function consistency(g) {
+    var out = [];
+
+    if (!g.aperturePitchExact) {
+      out.push({
+        severity: 'warn',
+        message: 'A ' + g.tileCm.toFixed(2) + ' cm tile pitch does not divide the ' + g.apertureCm.toFixed(1) +
+          ' cm panel. ' + g.tileCols + '×' + g.tileCols + ' = ' + g.nTilesTotal + ' whole tiles fit, populating ' +
+          g.effApertureCm.toFixed(1) + ' cm — ' + g.apertureMarginCm.toFixed(2) + ' cm of inactive margin per side, ' +
+          (100 * g.apertureFillSide).toFixed(1) + '% of the side and ' + g.apertureDirDeltaDb.toFixed(2) +
+          ' dB of peak directivity. The grid is floored rather than rounded, because a rounded grid would ' +
+          'overflow a hard mechanical spec and an under-filled panel is at least buildable. Beam metrics use the ' +
+          'populated ' + g.effApertureCm.toFixed(1) + ' cm, since that is what radiates. For an exact fill use ' +
+          g.snapCoarseCm.toFixed(2) + ' cm (same ' + g.nTilesTotal + ' tiles) or ' + g.snapFineCm.toFixed(2) +
+          ' cm (' + Math.pow(g.tileCols + 1, 2) + ' tiles).'
+      });
+    }
+
+    var taps = g.nTilesTotal * Math.round(g.tapsPerTile);
+    if (taps > g.nDies + 0.5) {
+      out.push({
+        severity: 'fail',
+        message: g.nTilesTotal + ' tiles × ' + Math.round(g.tapsPerTile) + ' LO taps = ' + taps +
+          ' taps, but only ' + g.nDies + ' RFIC dies exist — ' + (taps / g.nDies).toFixed(2) +
+          '× over the inventory. The die count is a hard limit, not a design variable. At this tile count the ' +
+          'inventory allows ' + Math.floor(g.nDies / g.nTilesTotal) + ' dies per tile. Distribution power and ' +
+          'the BOM scale with the tap count, so leaving this inflates M6.'
+      });
+    } else if (taps < g.nDies - 0.5) {
+      out.push({
+        severity: 'warn',
+        message: g.nTilesTotal + ' tiles × ' + Math.round(g.tapsPerTile) + ' LO taps places ' + taps + ' of the ' +
+          g.nDies + ' available dies, leaving ' + (g.nDies - taps) + ' spare and costing ' +
+          g.diePopGainDb.toFixed(2) + ' dB of array gain against a fully populated aperture. ' +
+          (g.nDies % g.nTilesTotal === 0 ? '' : 'An exact fit is not possible at this tile count: ' +
+            g.nDies + ' / ' + g.nTilesTotal + ' = ' + (g.nDies / g.nTilesTotal).toFixed(2) + ' dies per tile.')
+      });
+    }
+
+    if (g.tileCm > 10) out.push({
+      severity: 'warn',
+      message: 'A ' + g.tileCm.toFixed(1) + ' cm tile exceeds the 5–10 cm sub-tiling guidance: intra-tile residual delay is ' +
+        K.apertureDelayPs(g.tileCm / 100, g.scanDegMax).toFixed(0) + ' ps at ' + g.scanDegMax +
+        '° against the ~200 ps target, so phase-only steering inside the tile will not hold across the band.'
+    });
+
+    return out;
+  }
+
   function evaluate(state) {
     var g = resolve(state);
     var lo = {}, bb = {};
@@ -3401,14 +3612,15 @@ footer.foot a { color: var(--ink-2); }
       var st = sel.grid.tiles[i];
       if (st) { t.m = st.m; t.pathCm = st.pathCm; t.level = st.level; t.hop = st.hop; t.segments = st.segments; t.repeaters = st.repeaters; t.blocks = st.blocks; }
     });
-    return { g: g, lo: lo, bb: bb, selected: selected, blocks: BLOCKS, refSources: REF_SOURCES };
+    return { g: g, lo: lo, bb: bb, selected: selected, blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g) };
   }
 
   window.Model = {
     PARAMS: PARAMS, BLOCKS: BLOCKS, REF_SOURCES: REF_SOURCES,
     LO_IDS: LO_IDS, BB_IDS: BB_IDS, LO_META: LO_META, BB_META: BB_META,
     MEDIA_KEYS: MEDIA_KEYS,
-    resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb
+    resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,
+    consistency: consistency
   };
 })();
 
@@ -3435,9 +3647,12 @@ footer.foot a { color: var(--ink-2); }
   var K = window.K;
 
   function derive(g, qamTargetName) {
-    var nT = Math.pow(Math.max(1, Math.round(g.apertureCm / g.tileCm)), 2);
-    var hpbw = K.hpbwDeg(g.apertureM, g.lambdaM, 0);
-    var hpbwScan = K.hpbwDeg(g.apertureM, g.lambdaM, g.scanDegMax);
+    /* Beam metrics use the POPULATED aperture (whole tiles), not the
+       requested figure — see Model.resolve(). */
+    var apM = g.effApertureM || g.apertureM;
+    var nT = g.nTilesTotal || Math.pow(Math.max(1, Math.floor(g.apertureCm / g.tileCm + 1e-9)), 2);
+    var hpbw = K.hpbwDeg(apM, g.lambdaM, 0);
+    var hpbwScan = K.hpbwDeg(apM, g.lambdaM, g.scanDegMax);
 
     /* --- criterion 1: array gain loss (the loose one) --- */
     var sigFor01dB = Math.sqrt(Math.log(K.db2lin(0.1))) * K.DEG;
@@ -3451,16 +3666,23 @@ footer.foot a { color: var(--ink-2); }
     /* --- criterion 3: pointing, at a tenth of the scanned beamwidth --- */
     var pointBudget = 0.1 * hpbwScan;
 
-    /* --- criterion 4: EVM for the target modulation --- */
+    /* --- criterion 4: EVM for the target modulation ---
+       Expressed in dB, which is the composable form: EVM_dB is the impairment
+       level relative to the constellation, so it lines up directly with the
+       phase noise in dBc and with the 10log10(N) tile averaging. The
+       equivalent phase error in degrees is kept as a secondary readout,
+       because that is the figure an LO designer hands to a PLL simulation. */
     var qam = qamTargetName || '64QAM';
-    var evmLimit = K.evmLimitForQam(qam, g.evmShare);
-    var sigForEvm = K.phiFromEvmPct(evmLimit) * K.DEG;
+    var qamCeilDb = K.evmLimitDbForQam(qam, 1);            /* total-system ceiling */
+    var evmLimitDb = K.evmLimitDbForQam(qam, g.evmShare);  /* LO's allocation */
+    var evmLimit = K.evmPctFromDb(evmLimitDb);
+    var sigForEvm = K.phiFromEvmDb(evmLimitDb) * K.DEG;
 
     /* --- criterion 5: the proposal's own stated spec (Eq. 16) --- */
     var sigProposal = g.specPhaseDeg;
 
     /* --- delay / squint requirements (a SEPARATE budget) --- */
-    var tauRangePs = K.apertureDelayPs(g.apertureM, g.scanDegMax);
+    var tauRangePs = K.apertureDelayPs(apM, g.scanDegMax);
     var tauSubTilePs = K.apertureDelayPs(g.tileCm / 100, g.scanDegMax);
     var squintDeg = K.squintDeg(g.scanDegMax, g.rfBwGHz * 1e9, g.fLoHz);
     var ttdResidPs = K.quantResidualPs(g.ttdStepPs);
@@ -3483,8 +3705,11 @@ footer.foot a { color: var(--ink-2); }
         d: 'Binding criterion: ' + binding.name + '. Applies to the DIFFERENTIAL error between tiles.' },
       { k: 'Null-depth floor at spec', n: K.rmsSllDb(binding.v / K.DEG, nT).toFixed(1), unit: 'dB',
         d: '10log10(σ²/N) with N = ' + nT + ' independent tiles. This, not gain loss, is what the architecture buys.' },
-      { k: 'Array-output EVM budget', n: sigForEvm.toFixed(2), unit: '° RMS',
-        d: qam + ' at ' + (evmLimit).toFixed(2) + '% allocated to the LO. Applies to ABSOLUTE array-output noise, integrated from ' + g.carrierTrackMHz + ' MHz up.' },
+      { k: 'Array-output EVM budget', n: evmLimitDb.toFixed(2), unit: 'dB',
+        d: qam + ' TOTAL ceiling ' + qamCeilDb.toFixed(2) + ' dB (' + K.evmPctFromDb(qamCeilDb).toPrecision(2) +
+           '%), with 20log10(' + g.evmShare.toFixed(2) + ') = ' + K.shareDb(g.evmShare).toFixed(2) +
+           ' dB allocated to the LO → ' + evmLimit.toPrecision(2) + '%. Applies to ABSOLUTE array-output noise, ' +
+           'integrated from ' + g.carrierTrackMHz + ' MHz up. Equivalent to ' + sigForEvm.toFixed(2) + '° RMS of pure phase.' },
       { k: 'Skew equivalent of spec', n: (binding.v / K.degPerPs(g.fLoHz)).toFixed(2), unit: 'ps',
         d: 'At ' + g.fLoGHz + ' GHz, 1 ps = ' + K.degPerPs(g.fLoHz).toFixed(1) + '°. Skew is accumulated in time and converted once, here.' },
       { k: 'TTD range required', n: tauRangePs.toFixed(0), unit: 'ps',
@@ -3496,7 +3721,7 @@ footer.foot a { color: var(--ink-2); }
     var note = 'Two independent budgets. The <strong>inter-tile phase spec</strong> of ' +
       '<span class="kv">' + binding.v.toFixed(2) + '° RMS</span> applies to the <em>differential</em> error between ' +
       'tiles and is what sets the null-depth floor; it is set here by <em>' + binding.name + '</em>. The ' +
-      '<strong>array-output EVM budget</strong> of <span class="kv">' + sigForEvm.toFixed(2) + '° RMS</span> applies to ' +
+      '<strong>array-output EVM budget</strong> of <span class="kv">' + evmLimitDb.toFixed(2) + ' dB</span> applies to ' +
       'the <em>absolute</em> phase noise seen by the link after the coherent sum, where uncorrelated per-tile noise ' +
       'has already averaged down by 10log10(' + nT + ') = ' + (10 * Math.log10(nT)).toFixed(1) + ' dB. An architecture can ' +
       'pass one and fail the other, which is exactly what distinguishes the four LO options.';
@@ -3505,7 +3730,8 @@ footer.foot a { color: var(--ink-2); }
       nTiles: nT, hpbw: hpbw, hpbwScan: hpbwScan,
       sigSpecDeg: binding.v, bindingName: binding.name,
       sigFor01dB: sigFor01dB, sigFor30: sigFor30, sigFor40: sigFor40,
-      sigForEvmDeg: sigForEvm, evmLimitPct: evmLimit, qam: qam,
+      sigForEvmDeg: sigForEvm, evmLimitPct: evmLimit, evmLimitDb: evmLimitDb,
+      qamCeilDb: qamCeilDb, shareDbVal: K.shareDb(g.evmShare), qam: qam,
       pointBudgetDeg: pointBudget,
       skewSpecPs: binding.v / K.degPerPs(g.fLoHz),
       tauRangePs: tauRangePs, tauSubTilePs: tauSubTilePs,
@@ -3517,6 +3743,218 @@ footer.foot a { color: var(--ink-2); }
   }
 
   window.Budget = { derive: derive };
+})();
+
+/* ===== js/beam.js ===== */
+/* ============================================================================
+   beam.js — what the beam actually looks like with the chosen architecture.
+
+   The array is TILED, and that is the whole point of the pattern model:
+
+     * Inside a tile, elements are baseband PHASE shifted. A phase-steered
+       subarray's pattern does steer, but only correctly at the frequency the
+       phases were set for — off centre frequency the subarray beam walks.
+     * BETWEEN tiles the architecture applies coarse TRUE TIME DELAY, which is
+       frequency-independent, so the tile-level array factor stays put.
+
+   So across the signal band the subarray pattern slides off the array-factor
+   peak. That mismatch — not the band-centre pattern — is what sub-tiling and
+   the coarse TTD exist to control, and it is what this view shows.
+
+   Random per-tile errors are handled by the standard mean-power result: the
+   coherent pattern is attenuated by exp(-sigma^2) and the lost power
+   reappears as a diffuse floor at (1-exp(-sigma^2))/N_indep. That floor, not
+   the peak gain loss, is what limits null depth.
+
+   Phase and amplitude errors combine as sigma^2 = sigma_phi^2 + sigma_a^2
+   with sigma_a the RMS relative amplitude error (linear, not dB).
+
+   Exposes window.Beam.
+   ========================================================================= */
+(function () {
+  'use strict';
+
+  var K = window.K;
+
+  function dbToAmpSigma(dbRms) { return Math.log(10) / 20 * dbRms; }
+
+  /* Uniformly illuminated aperture of width L (m) at wavelength lam, steered
+     to steerSin. Returns the voltage pattern, normalised to 1 at its peak. */
+  function aperturePattern(L, lam, sinT, steerSin) {
+    var x = Math.PI * L / lam * (sinT - steerSin);
+    if (Math.abs(x) < 1e-9) return 1;
+    return Math.sin(x) / x;
+  }
+
+  /* N equally spaced tiles at pitch d, steered to steerSin. Dirichlet kernel,
+     normalised to 1 at its peak. */
+  function arrayFactor(N, d, lam, sinT, steerSin) {
+    var psi = Math.PI * d / lam * (sinT - steerSin);
+    if (Math.abs(Math.sin(psi)) < 1e-12) return 1;
+    var v = Math.sin(N * psi) / (N * Math.sin(psi));
+    return v;
+  }
+
+  /* ---------------------------------------------------------------------
+     One pattern cut in the principal plane.
+     opts: { nTiles1D, tilePitchM, tileApertureM, fHz, fCenterHz, scanDeg,
+             sigPhiDeg, sigAmpDb, nIndep, ttdResidPs, points }
+     Returns [{deg, ideal, real, floor}] in dB relative to the error-free
+     peak of the same array at band centre.
+     ------------------------------------------------------------------- */
+  function cut(o) {
+    var lam = K.C0 / o.fHz;
+    var lamC = K.C0 / o.fCenterHz;
+    var s0 = Math.sin(K.deg2rad(o.scanDeg));
+
+    /* Inter-tile steering is by true time delay, so it is achromatic: the
+       array factor points at s0 at every frequency. Intra-tile steering is by
+       phase set at band centre, so the subarray beam sits at (fc/f)*s0. */
+    var sTile = s0 * (o.fCenterHz / o.fHz);
+    /* Residual TTD quantisation. At band centre the per-tile baseband phase
+       shifter absorbs it completely — the architecture has both a coarse
+       delay and a phase shifter, and calibration zeroes the phase there. What
+       survives is only the FREQUENCY-DEPENDENT part, 2*pi*(f-fc)*tau_q, which
+       is zero at centre and grows toward the band edges. Using 2*pi*f*tau_q
+       instead would be 10.6 rad at 78 GHz and would saturate the pattern into
+       its diffuse floor at every frequency. */
+    var ttdPhiRad = 2 * Math.PI * (o.fHz - o.fCenterHz) * (o.ttdResidPs || 0) * 1e-12;
+
+    var sigPhi = K.deg2rad(o.sigPhiDeg);
+    var sigAmp = dbToAmpSigma(o.sigAmpDb || 0);
+    var sig2 = sigPhi * sigPhi + sigAmp * sigAmp + ttdPhiRad * ttdPhiRad / 3;
+    var coh = Math.exp(-sig2);
+    var diffuse = (1 - coh) / Math.max(o.nIndep, 1);
+
+    /* Sampled over a window rather than the full hemisphere: the beam is
+       under a degree wide here, so a uniform sweep of [-90,90] would
+       quantise the -3 dB width to the sample step and read ~12% wide. */
+    var d0 = o.degMin === undefined ? -90 : o.degMin;
+    var d1 = o.degMax === undefined ? 90 : o.degMax;
+    var pts = [];
+    var n = o.points || 1201;
+    for (var i = 0; i < n; i++) {
+      var deg = d0 + (d1 - d0) * i / (n - 1);
+      var sinT = Math.sin(K.deg2rad(deg));
+      var el = aperturePattern(o.tileApertureM, lam, sinT, sTile);
+      var af = arrayFactor(o.nTiles1D, o.tilePitchM, lam, sinT, s0);
+      var pIdeal = el * el * af * af;                   /* power, peak 1 */
+      var pReal = el * el * (coh * af * af + diffuse);
+      pts.push({
+        deg: deg,
+        ideal: 10 * Math.log10(Math.max(pIdeal, 1e-12)),
+        real: 10 * Math.log10(Math.max(pReal, 1e-12)),
+        floor: 10 * Math.log10(Math.max(diffuse, 1e-12))
+      });
+    }
+    return { points: pts, coh: coh, diffuseDb: 10 * Math.log10(Math.max(diffuse, 1e-12)), sig2: sig2 };
+  }
+
+  /* peak, beamwidth, first sidelobe — read off a computed cut */
+  function metrics(res, scanDeg) {
+    var pts = res.points;
+    var peak = -Infinity, peakI = 0;
+    for (var i = 0; i < pts.length; i++) if (pts[i].real > peak) { peak = pts[i].real; peakI = i; }
+
+    /* −3 dB width around the peak */
+    var lo = peakI, hi = peakI;
+    while (lo > 0 && pts[lo].real > peak - 3) lo--;
+    while (hi < pts.length - 1 && pts[hi].real > peak - 3) hi++;
+    var hpbw = pts[hi].deg - pts[lo].deg;
+
+    /* first sidelobe: highest local maximum outside the main lobe */
+    var sll = -Infinity;
+    for (var j = 1; j < pts.length - 1; j++) {
+      if (j >= lo - 1 && j <= hi + 1) continue;
+      if (pts[j].real >= pts[j - 1].real && pts[j].real >= pts[j + 1].real) {
+        if (pts[j].real > sll) sll = pts[j].real;
+      }
+    }
+    return {
+      peakDb: peak,
+      pointDeg: pts[peakI].deg,
+      pointErrDeg: pts[peakI].deg - scanDeg,
+      hpbwDeg: hpbw,
+      sllDb: sll - peak,
+      floorDb: res.diffuseDb - peak
+    };
+  }
+
+  /* ---------------------------------------------------------------------
+     Everything the Beam view needs, for one direction (TX or RX).
+     ------------------------------------------------------------------- */
+  function evaluate(g, budget, loRes, bbRes, dir) {
+    var nT1 = g.tileCols;
+    var fc = g.fLoHz;
+    var B = g.rfBwGHz * 1e9;
+
+    /* Phase error: the LO residual is common to both directions, the baseband
+       network's residual adds, and each direction carries its own amplitude
+       spread — PA-to-PA on transmit, LNA/VGA on receive. */
+    var sigPhi = K.rss(loRes.interTileResidualDeg, bbRes.interTileResidualDeg || 0);
+    var sigAmpDb = dir === 'tx' ? g.txGainErrDb : g.rxGainErrDb;
+
+    var common = {
+      nTiles1D: nT1,
+      tilePitchM: g.tileCm / 100,
+      tileApertureM: g.tileCm / 100,
+      fCenterHz: fc,
+      scanDeg: g.beamScanDeg,
+      sigPhiDeg: sigPhi,
+      sigAmpDb: sigAmpDb,
+      nIndep: g.nTilesTotal,
+      ttdResidPs: budget.ttdResidPs
+    };
+
+    /* Window the sample on the steered beam. The full-aperture beam is well
+       under a degree here, so sampling [-90,90] uniformly would read the
+       -3 dB width a good 10% wide from step quantisation alone. */
+    var lamC = K.C0 / fc;
+    var hpbwEst = 0.886 * lamC / (g.effApertureM * Math.max(Math.cos(K.deg2rad(g.beamScanDeg)), 0.15)) * K.DEG;
+    var win = Math.max(6 * hpbwEst, 4);
+    common.degMin = Math.max(-90, g.beamScanDeg - win);
+    common.degMax = Math.min(90, g.beamScanDeg + win);
+    common.points = 1601;
+
+    function at(fHz) {
+      var o = {};
+      for (var k in common) o[k] = common[k];
+      o.fHz = fHz;
+      return cut(o);
+    }
+
+    var centre = at(fc);
+    var lowEdge = at(fc - B / 2);
+    var highEdge = at(fc + B / 2);
+
+    return {
+      dir: dir,
+      sigPhiDeg: sigPhi,
+      sigAmpDb: sigAmpDb,
+      centre: centre, lowEdge: lowEdge, highEdge: highEdge,
+      hpbwEstDeg: hpbwEst,
+      m: metrics(centre, g.beamScanDeg),
+      mLow: metrics(lowEdge, g.beamScanDeg),
+      mHigh: metrics(highEdge, g.beamScanDeg),
+      /* which error class actually sets the coherence floor — at these
+         residual phase errors the amplitude spread usually wins, which is
+         not the intuition the LO discussion builds */
+      phaseVarShare: (function () {
+        var sp = K.deg2rad(sigPhi), sa = Math.log(10) / 20 * sigAmpDb;
+        var tot = sp * sp + sa * sa;
+        return tot > 0 ? sp * sp / tot : 0;
+      })(),
+      /* band-edge peak loss relative to band centre — the squint penalty the
+         sub-tiling and coarse TTD exist to bound */
+      edgeLossDb: centre.points.reduce(function (a, p) { return Math.max(a, p.real); }, -Infinity) -
+                  Math.max(
+                    lowEdge.points.reduce(function (a, p) { return Math.max(a, p.real); }, -Infinity),
+                    highEdge.points.reduce(function (a, p) { return Math.max(a, p.real); }, -Infinity)
+                  )
+    };
+  }
+
+  window.Beam = { evaluate: evaluate, cut: cut, metrics: metrics };
 })();
 
 /* ===== js/decision.js ===== */
@@ -3919,28 +4357,119 @@ footer.foot a { color: var(--ink-2); }
   /* ====================================================================== *
    * The aperture map
    * ==================================================================== */
+  /* ---------------------------------------------------------------- LOD
+     The map has to stay usable from 25 tiles to several thousand. Detail is
+     chosen from the number of tiles ACTUALLY VISIBLE, not the array total,
+     so zooming into a 5000-tile array restores full per-die detail for the
+     region on screen. Everything outside the view is culled, which is what
+     keeps the element count bounded rather than growing with the array.
+
+     Whatever a tier drops is named in the returned `lod.note` and shown
+     under the map — a simplification the reader cannot see is worse than a
+     slow render.                                                          */
+  function lodFor(visibleTiles) {
+    if (visibleTiles <= 120) {
+      return { tier: 'full', dies: true, taps: true, blocks: true, links: 99, tips: true, note: '' };
+    }
+    if (visibleTiles <= 500) {
+      return {
+        tier: 'no-dies', dies: false, taps: false, blocks: true, links: 99, tips: true,
+        note: 'dies and their LO taps hidden above 120 visible tiles — zoom in to see them'
+      };
+    }
+    if (visibleTiles <= 1500) {
+      return {
+        tier: 'network', dies: false, taps: false, blocks: false, links: 99, tips: false,
+        note: 'dies, taps and block symbols hidden, and tooltips off, above 500 visible tiles — zoom in for detail'
+      };
+    }
+    return {
+      tier: 'coarse', dies: false, taps: false, blocks: false, links: 6, tips: false,
+      note: 'above 1500 visible tiles only the tile heat map and the top 6 tree levels are drawn — zoom in for the rest'
+    };
+  }
+
   function renderMap(mount, built, view, onSelect) {
     mount.textContent = '';
     var grid = built.grid, lo = built.lo;
-    var apCm = grid.cols * grid.tileCm;
-    var scale = 640 / apCm;
-    var W = PAD * 2 + apCm * scale;
+    var apCm = grid.cols * grid.tileCm;                 /* POPULATED extent */
+    var apSpec = view.apertureSpecCm || apCm;           /* the panel spec    */
+    var marg = Math.max(0, (apSpec - apCm) / 2);        /* inactive per side */
+    /* The drawing frame is the SPEC aperture, so the picture does not rescale
+       as the pitch changes, and the under-filled margin is visible rather
+       than implied. Tile coordinates stay in populated-aperture space and are
+       shifted in by the margin. */
+    var scale = 640 / apSpec;
+    var W = PAD * 2 + apSpec * scale;
     /* room above the aperture for the RFSoC backend, and below it for the
        LO source — the two networks enter from opposite edges */
-    var H = PAD * 2 + (TOP_CM + apCm + SRC_CM) * scale;
-    function X(cm) { return PAD + cm * scale; }
-    function Y(cm) { return PAD + (cm + TOP_CM) * scale; }
+    var H = PAD * 2 + (TOP_CM + apSpec + SRC_CM) * scale;
+    function X(cm) { return PAD + (cm + marg) * scale; }
+    function Y(cm) { return PAD + (cm + marg + TOP_CM) * scale; }
 
-    var svg = el('svg', { class: 'chart map', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet' });
+    /* ---- zoom / pan: crop the viewBox, leave the coordinate map alone ---- */
+    var Z = Math.max(1, view.zoom || 1);
+    var cxCm = view.panXCm === undefined ? apCm / 2 : view.panXCm;
+    var cyCm = view.panYCm === undefined ? apCm / 2 : view.panYCm;
+    var vw = W / Z, vh = H / Z;
+    var vx = X(cxCm) - vw / 2, vy = Y(cyCm) - vh / 2;
+    /* keep the crop inside the drawing so panning cannot wander off it */
+    vx = Math.max(0, Math.min(W - vw, vx));
+    vy = Math.max(0, Math.min(H - vh, vy));
 
-    /* ---- aperture outline + rulers ---- */
-    svg.appendChild(el('rect', {
+    /* visible rectangle back in cm, for culling and the LOD decision */
+    var visCm = {
+      x0: (vx - PAD) / scale, x1: (vx + vw - PAD) / scale,
+      y0: (vy - PAD) / scale - TOP_CM, y1: (vy + vh - PAD) / scale - TOP_CM
+    };
+    function tileVisible(t) {
+      return t.x + t.w >= visCm.x0 && t.x <= visCm.x1 && t.y + t.h >= visCm.y0 && t.y <= visCm.y1;
+    }
+    function segVisible(x1, y1, x2, y2) {
+      return Math.max(x1, x2) >= visCm.x0 && Math.min(x1, x2) <= visCm.x1 &&
+             Math.max(y1, y2) >= visCm.y0 && Math.min(y1, y2) <= visCm.y1;
+    }
+
+    var shown = grid.tiles.filter(tileVisible);
+    var lod = lodFor(shown.length);
+    /* explicit layer switches always win over the LOD default */
+    var wantDies = view.showDies !== false && lod.dies;
+    var wantBlocks = view.showBlocks !== false && lod.blocks;
+
+    var svg = el('svg', {
+      class: 'chart map', viewBox: vx.toFixed(1) + ' ' + vy.toFixed(1) + ' ' + vw.toFixed(1) + ' ' + vh.toFixed(1),
+      preserveAspectRatio: 'xMidYMid meet'
+    });
+    /* strokes and glyphs stay a constant size on screen no matter the crop */
+    function nss(e) { e.setAttribute('vector-effect', 'non-scaling-stroke'); return e; }
+    function place(g2, x, y) {
+      g2.setAttribute('transform', 'translate(' + X(x).toFixed(1) + ',' + Y(y).toFixed(1) + ') scale(' + (1 / Z).toFixed(4) + ')');
+      return g2;
+    }
+    var fs = function (px) { return (px / Z).toFixed(2); };
+
+    /* ---- panel spec (dashed) and populated area (solid) ---- */
+    if (marg > 1e-6) {
+      svg.appendChild(nss(el('rect', {
+        x: X(-marg), y: Y(-marg), width: apSpec * scale, height: apSpec * scale,
+        fill: 'none', stroke: 'var(--ink-3)', 'stroke-width': 1.2,
+        'stroke-dasharray': '6 4', rx: 3
+      })));
+    }
+    svg.appendChild(nss(el('rect', {
       x: X(0), y: Y(0), width: apCm * scale, height: apCm * scale,
       fill: 'var(--bg-sunken)', stroke: 'var(--rule-strong)', 'stroke-width': 1.4, rx: 3
-    }));
-    svg.appendChild(el('text', { x: X(apCm / 2), y: Y(0) - 12, 'text-anchor': 'middle', fill: 'var(--ink-3)' },
-      apCm.toFixed(0) + ' cm aperture · ' + grid.rows + '×' + grid.cols + ' = ' + grid.nTiles +
-      ' tiles of ' + grid.tileCm.toFixed(1) + ' cm'));
+    })));
+    svg.appendChild(el('text', {
+      x: X(apCm / 2), y: Y(-marg) - 12 / Z, 'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-size': fs(10.5)
+    }, (marg > 1e-6
+        ? apSpec.toFixed(1) + ' cm panel · ' + grid.rows + '×' + grid.cols + ' = ' + grid.nTiles +
+          ' tiles at ' + grid.tileCm.toFixed(2) + ' cm pitch · ' + apCm.toFixed(1) + ' cm populated (' +
+          (100 * apCm / apSpec).toFixed(1) + '% of side, ' + (20 * Math.log10(apCm / apSpec)).toFixed(2) +
+          ' dB peak directivity) · ' + marg.toFixed(2) + ' cm inactive margin per side'
+        : apSpec.toFixed(1) + ' cm aperture · ' + grid.rows + '×' + grid.cols + ' = ' + grid.nTiles +
+          ' tiles at ' + grid.tileCm.toFixed(2) + ' cm pitch · fills the aperture exactly') +
+       (Z > 1 ? '  ·  ' + Z + '× zoom' : '')));
 
     /* ---- tiles, coloured by the chosen metric ---- */
     var metric = view.tileMetric || 'skewPs';
@@ -3948,58 +4477,66 @@ footer.foot a { color: var(--ink-2); }
     var vmin = vals.length ? Math.min.apply(null, vals) : 0;
     var vmax = vals.length ? Math.max.apply(null, vals) : 1;
     var span = vmax - vmin;
+    /* gaps between tiles are a fixed screen size, so they do not swallow the
+       tile at high counts */
+    var gap = Math.min(1.5, 0.06 * grid.tileCm * scale);
 
     var tileG = el('g');
-    grid.tiles.forEach(function (t) {
+    shown.forEach(function (t) {
       var v = t.m ? t.m[metric] : NaN;
       var norm = span > 1e-12 ? (v - vmin) / span : 0.15;
+      var sel = view.selected === t.i;
       var r = el('rect', {
-        x: X(t.x) + 1.5, y: Y(t.y) + 1.5,
-        width: t.w * scale - 3, height: t.h * scale - 3, rx: 3,
+        x: X(t.x) + gap, y: Y(t.y) + gap,
+        width: Math.max(0.5, t.w * scale - 2 * gap), height: Math.max(0.5, t.h * scale - 2 * gap),
+        rx: Math.min(3, t.w * scale * 0.08),
         fill: rampColor(norm), 'fill-opacity': 0.38,
-        stroke: view.selected === t.i ? 'var(--ink)' : 'var(--rule-strong)',
-        'stroke-width': view.selected === t.i ? 2.2 : 0.8,
+        stroke: sel ? 'var(--ink)' : 'var(--rule-strong)',
+        'stroke-width': sel ? 2.2 : 0.8, 'vector-effect': 'non-scaling-stroke',
         style: 'cursor:pointer'
       });
-      r.appendChild(el('title', null,
-        'tile ' + t.i + ' (r' + t.r + ',c' + t.c + ')\n' +
-        'routed path ' + t.pathCm.toFixed(1) + ' cm\n' +
-        (t.hop ? 'chain hop ' + t.hop + '\n' : 'tree level ' + t.level + '\n') +
-        (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
-                'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
+      if (lod.tips) {
+        r.appendChild(el('title', null,
+          'tile ' + t.i + ' (r' + t.r + ',c' + t.c + ')\n' +
+          'routed path ' + t.pathCm.toFixed(1) + ' cm\n' +
+          (t.hop ? 'chain hop ' + t.hop + '\n' : 'tree level ' + t.level + '\n') +
+          (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
+                  'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
+      }
       r.addEventListener('click', function () { onSelect(t.i); });
       tileG.appendChild(r);
 
-      if (t.hop) tileG.appendChild(el('text', {
-        x: X(t.x + t.w) - 4, y: Y(t.y) + 11, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--ink-3)'
+      if (t.hop && lod.tier === 'full') tileG.appendChild(el('text', {
+        x: X(t.x + t.w) - 4 / Z, y: Y(t.y) + 11 / Z, 'text-anchor': 'end',
+        'font-size': fs(9), fill: 'var(--ink-3)'
       }, t.hop));
     });
     svg.appendChild(tileG);
 
     /* ---- RFIC dies and the intra-tile LO tap fan-out, drawn to scale ---- */
-    if (view.showDies !== false) {
+    if (wantDies) {
       var dieG = el('g');
       var eb = BAND_STYLE.eband.stroke;          /* the taps are always E-band */
-      grid.tiles.forEach(function (t) {
-        (t.tapLinks || []).forEach(function (L) {
-          dieG.appendChild(el('line', {
+      shown.forEach(function (t) {
+        if (lod.taps) (t.tapLinks || []).forEach(function (L) {
+          dieG.appendChild(nss(el('line', {
             x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
             stroke: eb, 'stroke-width': 1.1, 'stroke-opacity': 0.75, 'stroke-linecap': 'round'
-          }));
+          })));
         });
         (t.dies || []).forEach(function (d) {
-          var w = Math.max(4.2, d.w * scale);    /* floor so it stays visible */
+          var w = Math.max(3, d.w * scale);
           var rect = el('rect', {
             x: X(d.x) - w / 2, y: Y(d.y) - w / 2, width: w, height: w, rx: 0.8,
-            fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb, 'stroke-width': 0.9
+            fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb,
+            'stroke-width': 0.9, 'vector-effect': 'non-scaling-stroke'
           });
-          rect.appendChild(el('title', null,
+          if (lod.tips) rect.appendChild(el('title', null,
             'tile ' + t.i + ' · RFIC die ' + d.i + '\n' +
             '2.5 × 2.5 mm SiGe, 4 RX + 4 TX with IQ baseband\n' +
             'one 78 GHz LO tap, fed by the intra-tile fan-out'));
           dieG.appendChild(rect);
-          /* the LO tap port itself */
-          dieG.appendChild(el('circle', { cx: X(d.x), cy: Y(d.y - d.w / 2), r: 1.5, fill: eb }));
+          dieG.appendChild(el('circle', { cx: X(d.x), cy: Y(d.y - d.w / 2), r: 1.5 / Z, fill: eb }));
         });
       });
       svg.appendChild(dieG);
@@ -4010,28 +4547,31 @@ footer.foot a { color: var(--ink-2); }
     if (view.showBb !== false && bbi) {
       var bbLinkG = el('g');
       bbi.links.forEach(function (L) {
-        bbLinkG.appendChild(el('line', {
+        if (!segVisible(L.x1, L.y1, L.x2, L.y2)) return;
+        if ((L.level || 0) > lod.links) return;
+        bbLinkG.appendChild(nss(el('line', {
           x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
           stroke: BB_STYLE.stroke, 'stroke-width': L.kind === 'bbroot' ? BB_STYLE.w + 1 : BB_STYLE.w,
-          'stroke-dasharray': BB_STYLE.dash, 'stroke-linecap': 'round',
-          'stroke-opacity': 0.9
-        }));
+          'stroke-dasharray': BB_STYLE.dash, 'stroke-linecap': 'round', 'stroke-opacity': 0.9
+        })));
       });
       svg.appendChild(bbLinkG);
 
-      var bbNodeG = el('g');
-      bbi.nodes.forEach(function (n) {
-        if (!view.showBlocks && n.type !== 'backend') return;
-        var gl = glyph(n.type, n.label, n.freqHz);
-        gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
-        gl.appendChild(el('title', null, 'baseband · ' + (n.label || n.type)));
-        bbNodeG.appendChild(gl);
-      });
-      svg.appendChild(bbNodeG);
+      if (wantBlocks) {
+        var bbNodeG = el('g');
+        bbi.nodes.forEach(function (n2) {
+          if (n2.type !== 'backend' && !segVisible(n2.x, n2.y, n2.x, n2.y)) return;
+          var gl = glyph(n2.type, n2.label, n2.freqHz);
+          place(gl, n2.x, n2.y);
+          if (lod.tips) gl.appendChild(el('title', null, 'baseband · ' + (n2.label || n2.type)));
+          bbNodeG.appendChild(gl);
+        });
+        svg.appendChild(bbNodeG);
+      }
 
       svg.appendChild(el('text', {
-        x: X(bbi.root.x), y: Y(bbi.root.y) - 17, 'text-anchor': 'middle',
-        fill: 'var(--s3)', 'font-size': 10.5
+        x: X(bbi.root.x), y: Y(bbi.root.y) - 17 / Z, 'text-anchor': 'middle',
+        fill: 'var(--s3)', 'font-size': fs(10.5)
       }, 'baseband backend · ' + bbi.kind + ' · ' + bbi.totalRoutedCm.toFixed(0) + ' cm routed'));
     }
 
@@ -4039,29 +4579,34 @@ footer.foot a { color: var(--ink-2); }
     if (view.showLo !== false) {
       var linkG = el('g');
       lo.net.links.forEach(function (L) {
+        if (!segVisible(L.x1, L.y1, L.x2, L.y2)) return;
+        if ((L.level || 0) > lod.links) return;
         var st = BAND_STYLE[bandOf(L.freqHz)];
-        linkG.appendChild(el('line', {
+        linkG.appendChild(nss(el('line', {
           x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
           stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
           'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
-        }));
+        })));
       });
       svg.appendChild(linkG);
 
-      var nodeG = el('g');
-      lo.net.nodes.forEach(function (n) {
-        if (!view.showBlocks && n.type !== 'source') return;
-        var gl = glyph(n.type, n.label, n.freqHz);
-        gl.setAttribute('transform', 'translate(' + X(n.x).toFixed(1) + ',' + Y(n.y).toFixed(1) + ')');
-        gl.appendChild(el('title', null, (n.label || n.type) +
-          (isFinite(n.freqHz) ? ' @ ' + (n.freqHz >= 1e9 ? (n.freqHz / 1e9).toFixed(1) + ' GHz' : (n.freqHz / 1e6).toFixed(0) + ' MHz') : '')));
-        nodeG.appendChild(gl);
-      });
-      svg.appendChild(nodeG);
+      if (wantBlocks) {
+        var nodeG = el('g');
+        lo.net.nodes.forEach(function (n2) {
+          if (n2.type !== 'source' && !segVisible(n2.x, n2.y, n2.x, n2.y)) return;
+          var gl = glyph(n2.type, n2.label, n2.freqHz);
+          place(gl, n2.x, n2.y);
+          if (lod.tips) gl.appendChild(el('title', null, (n2.label || n2.type) +
+            (isFinite(n2.freqHz) ? ' @ ' + (n2.freqHz >= 1e9 ? (n2.freqHz / 1e9).toFixed(1) + ' GHz' : (n2.freqHz / 1e6).toFixed(0) + ' MHz') : '')));
+          nodeG.appendChild(gl);
+        });
+        svg.appendChild(nodeG);
+      }
 
       var src = lo.net.source;
       svg.appendChild(el('text', {
-        x: X(src.x), y: Y(src.y) + 25, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 10.5
+        x: X(src.x), y: Y(src.y) + 25 / Z, 'text-anchor': 'middle',
+        fill: 'var(--ink-2)', 'font-size': fs(10.5)
       }, (view.sourceLabel || 'source') + ' · ' +
          (lo.distFreqHz >= 1e9 ? (lo.distFreqHz / 1e9).toFixed(2) + ' GHz' : (lo.distFreqHz / 1e6).toFixed(0) + ' MHz') +
          ' on the board'));
@@ -4069,7 +4614,41 @@ footer.foot a { color: var(--ink-2); }
 
     mount.appendChild(svg);
 
-    /* ---- colour-scale legend ---- */
+    /* ---- drag to pan ----
+       The viewBox is updated in place during the drag: re-rendering on every
+       pointermove would destroy the element holding the pointer capture, so
+       the drag would die after one frame. State is committed once on release,
+       and only then does the caller re-render — which re-runs culling and the
+       LOD decision for the region now on screen. */
+    if (Z > 1) {
+      svg.style.cursor = 'grab';
+      var drag = null;
+      svg.addEventListener('pointerdown', function (e) {
+        drag = { x: e.clientX, y: e.clientY, nx: vx, ny: vy };
+        svg.style.cursor = 'grabbing';
+        try { svg.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+      });
+      svg.addEventListener('pointermove', function (e) {
+        if (!drag) return;
+        var box = svg.getBoundingClientRect();
+        if (!box.width) return;
+        var unitsPerPx = vw / box.width;
+        drag.nx = Math.max(0, Math.min(W - vw, vx - (e.clientX - drag.x) * unitsPerPx));
+        drag.ny = Math.max(0, Math.min(H - vh, vy - (e.clientY - drag.y) * unitsPerPx));
+        svg.setAttribute('viewBox', drag.nx.toFixed(1) + ' ' + drag.ny.toFixed(1) + ' ' + vw.toFixed(1) + ' ' + vh.toFixed(1));
+      });
+      function endDrag() {
+        if (drag && view.onPanEnd) {
+          view.onPanEnd((drag.nx + vw / 2 - PAD) / scale, (drag.ny + vh / 2 - PAD) / scale - TOP_CM);
+        }
+        drag = null;
+        svg.style.cursor = 'grab';
+      }
+      svg.addEventListener('pointerup', endDrag);
+      svg.addEventListener('pointercancel', endDrag);
+    }
+
+    /* ---- colour-scale legend + what the LOD dropped ---- */
     var sc = document.createElement('div');
     sc.className = 'legend';
     var lab = document.createElement('span');
@@ -4083,14 +4662,16 @@ footer.foot a { color: var(--ink-2); }
       '<span style="display:inline-block;width:88px;height:9px;border-radius:2px;background:linear-gradient(90deg,' + RAMP.join(',') + ');opacity:.75"></span>' +
       '<span style="font:10px var(--mono)">' + UI.num(vmax) + '</span>';
     sc.appendChild(bar);
+    var cnt = document.createElement('span');
+    cnt.className = 'li';
+    cnt.innerHTML = '<span style="font-size:11px;color:var(--ink-3)">' + shown.length + ' of ' +
+      grid.nTiles + ' tiles in view' + (lod.note ? ' — ' + lod.note : '') + '</span>';
+    sc.appendChild(cnt);
     mount.appendChild(sc);
 
-    return svg;
+    return { svg: svg, lod: lod, visible: shown.length, zoom: Z };
   }
 
-  /* ====================================================================== *
-   * Symbol / frequency legend
-   * ==================================================================== */
   function renderLegend(mount, built) {
     mount.textContent = '';
     var wrap = document.createElement('div');
@@ -4647,7 +5228,11 @@ footer.foot a { color: var(--ink-2); }
     rows.push({ name: 'Sidelobe / null-depth floor', sub: '10log10(σ²/N) — the decisive metric', field: 'sllDb', units: 'dB', better: 'low', dec: 1 });
     rows.push({ name: 'Array gain loss', sub: 'Ruze — negligible at these levels', field: 'gainLossDb', units: 'dB', better: 'low', dec: 3 });
     rows.push({ name: 'Pointing error', field: 'pointingErrDeg', units: '°', better: 'low', dec: 3, spec: budget.pointBudgetDeg });
-    rows.push({ name: 'Array-output EVM', field: 'evmPct', units: '%', better: 'low' });
+    rows.push({
+      name: 'Array-output EVM', sub: 'impairment level relative to the constellation; more negative is better',
+      field: 'evmDb', units: 'dB', better: 'low', spec: budget.evmLimitDb,
+      fmt: function (v, r) { return isFinite(v) ? n(v, 1) + ' (' + n(r.evmPct, 2) + '%)' : '—'; }
+    });
     rows.push({ name: 'Highest supportable QAM', field: 'maxQam', fmt: function (v, r) { return str(r.maxQam); } });
     rows.push({ section: 'Hardware' });
     rows.push({ name: 'Frequency on the board', field: 'distFreqGHz', units: 'GHz', dec: 2 });
@@ -4797,9 +5382,25 @@ footer.foot a { color: var(--ink-2); }
       M.PARAMS.filter(function (p) { return p.key === 'bbOption'; })[0].choices,
       res.bb[res.g.bbOptionId].note);
 
-    document.getElementById('pickerNote').textContent =
-      budget.nTiles + ' tiles · ' + n(state.tapsPerTile * budget.nTiles, 0) + ' LO taps · ' +
-      n(state.chPerTile * budget.nTiles, 0) + ' BB channels per rail';
+    var g2 = res.g;
+    document.getElementById('pickerNote').innerHTML =
+      g2.tileCols + '×' + g2.tileCols + ' = ' + g2.nTilesTotal + ' tiles at ' + n(g2.tileCm, 1) + ' cm pitch · ' +
+      'populated aperture <strong>' + n(g2.effApertureCm, 1) + ' cm</strong>' +
+      (g2.aperturePitchExact ? '' : ' (requested ' + n(g2.apertureCm, 0) + ')') + ' · ' +
+      n(g2.loTapsTotal, 0) + ' LO taps · ' + n(state.chPerTile * g2.nTilesTotal, 0) + ' BB channels per rail';
+
+    /* consistency banner — a mismatch that changes the answer should not be
+       discoverable only by doing the arithmetic yourself */
+    var wm = document.getElementById('warnMount');
+    wm.textContent = '';
+    (res.warnings || []).forEach(function (w) {
+      var d = document.createElement('div');
+      d.className = 'callout ' + (w.severity === 'fail' ? 'failc' : 'warnc');
+      d.style.margin = '0 0 8px';
+      d.innerHTML = '<strong>' + (w.severity === 'fail' ? 'Inconsistent: ' : 'Check: ') + '</strong>' + w.message;
+      wm.appendChild(d);
+    });
+    wm.classList.toggle('hidden', !(res.warnings || []).length);
   }
 
   /* =====================================================================
@@ -4853,13 +5454,55 @@ footer.foot a { color: var(--ink-2); }
       tb.appendChild(b);
     });
 
+    /* zoom / pan — what makes the map usable at thousands of tiles */
+    var zsp = document.createElement('span');
+    zsp.className = 'sp';
+    tb.appendChild(zsp);
+    var zlbl = document.createElement('span');
+    zlbl.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
+    zlbl.textContent = 'zoom';
+    tb.appendChild(zlbl);
+    function zoomBtn(txt, fn, title) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn';
+      b.textContent = txt;
+      b.title = title;
+      b.addEventListener('click', fn);
+      tb.appendChild(b);
+      return b;
+    }
+    var ZMAX = 64;
+    zoomBtn('−', function () {
+      view.zoom = Math.max(1, (view.zoom || 1) / 2);
+      if (view.zoom === 1) { view.panXCm = undefined; view.panYCm = undefined; }
+      render();
+    }, 'zoom out').disabled = (view.zoom || 1) <= 1;
+    var zi = document.createElement('span');
+    zi.style.cssText = 'font:12px var(--mono);color:var(--ink-2);min-width:34px;text-align:center';
+    zi.textContent = (view.zoom || 1) + '×';
+    tb.appendChild(zi);
+    zoomBtn('+', function () {
+      view.zoom = Math.min(ZMAX, (view.zoom || 1) * 2);
+      render();
+    }, 'zoom in — then drag the map to pan').disabled = (view.zoom || 1) >= ZMAX;
+    if ((view.zoom || 1) > 1) {
+      zoomBtn('fit', function () {
+        view.zoom = 1; view.panXCm = undefined; view.panYCm = undefined; render();
+      }, 'zoom to fit the whole aperture');
+    }
+
     var tm = TILE_METRICS.filter(function (m) { return m.key === view.tileMetric; })[0];
-    window.Diagram.renderMap(document.getElementById('mapMount'), built, {
+    var mapInfo = window.Diagram.renderMap(document.getElementById('mapMount'), built, {
       tileMetric: view.tileMetric, tileMetricLabel: tm ? tm.label : view.tileMetric,
       selected: view.selected, sourceLabel: res.g.refName,
       showBlocks: view.showBlocks, showLo: view.showLo,
-      showBb: view.showBb, showDies: view.showDies
+      showBb: view.showBb, showDies: view.showDies,
+      zoom: view.zoom, panXCm: view.panXCm, panYCm: view.panYCm,
+      apertureSpecCm: res.g.apertureCm,
+      onPanEnd: function (x, y) { view.panXCm = x; view.panYCm = y; render(); }
     }, function (i) { view.selected = i; render(); });
+    void mapInfo;
 
     window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
     var bsel0 = res.bb[res.g.bbOptionId];
@@ -4894,9 +5537,9 @@ footer.foot a { color: var(--ink-2); }
         { k: 'Repeater amps', n: n(sel.repeaters, 0), unit: '', d: sel.splitCount + ' splitters, ' + n(sel.totalRoutedCm, 0) + ' cm routed' },
         { k: 'RMS skew', n: n(sel.skewRmsPs), unit: 'ps', d: n(sel.skewDeg78) + '° at the LO · spec is ' + n(budget.skewSpecPs) + ' ps' },
         {
-          k: 'Array-output EVM', n: n(sel.evmPct), unit: '%',
-          binding: sel.evmPct > budget.evmLimitPct,
-          d: 'from ' + n(sel.phiArrayDeg) + '° absolute · supports ' + sel.maxQam +
+          k: 'Array-output EVM', n: n(sel.evmDb, 1), unit: 'dB',
+          binding: sel.evmDb > budget.evmLimitDb,
+          d: n(sel.evmPct, 2) + '% · budget ' + n(budget.evmLimitDb, 1) + ' dB · supports ' + sel.maxQam +
              '. This is what the reference clock changes — the differential is common-mode and does not move.'
         },
         {
@@ -5026,7 +5669,7 @@ footer.foot a { color: var(--ink-2); }
       'Phase noise at the <strong>coherent array output</strong>, where uncorrelated per-tile noise has averaged ' +
       'down by 10log10(' + budget.nTiles + ') = <span class="kv">' + n(10 * Math.log10(budget.nTiles), 1) +
       ' dB</span> while correlated noise has not. This is why per-tile PLLs can give <em>better</em> link EVM ' +
-      '(<span class="kv">' + n(a1.evmPct) + '%</span> against <span class="kv">' + n(a4.evmPct) + '%</span>) while ' +
+      '(<span class="kv">' + n(a1.evmDb, 1) + ' dB</span> against <span class="kv">' + n(a4.evmDb, 1) + ' dB</span>, a ' + n(Math.abs(a1.evmDb - a4.evmDb), 1) + ' dB difference in impairment level) while ' +
       'giving <em>worse</em> beam coherence. The two budgets genuinely point in opposite directions.');
 
     /* jitter table */
@@ -5037,11 +5680,126 @@ footer.foot a { color: var(--ink-2); }
       { name: 'Inter-tile differential φ, raw', field: 'pnDiffRawDeg', units: '°', better: 'low' },
       { name: 'Inter-tile differential φ, calibrated', field: 'pnDiffCalDeg', units: '°', better: 'low', spec: budget.sigSpecDeg },
       { name: 'Calibration corner f_cal', field: 'fCalHz', units: 'Hz', dec: 3 },
-      { name: 'Array-output EVM', field: 'evmPct', units: '%', better: 'low' },
+      { name: 'Array-output EVM', field: 'evmDb', units: 'dB', better: 'low', spec: budget.evmLimitDb,
+        fmt: function (v, r) { return isFinite(v) ? n(v, 1) + ' (' + n(r.evmPct, 2) + '%)' : '—'; } },
       { name: 'Highest supportable QAM', field: 'maxQam', fmt: function (v, r) { return str(r.maxQam); } }
     ];
     UI.renderTable(document.getElementById('jitterTable'),
       M.LO_META.map(function (m) { return { id: m.id, name: m.name }; }), res.lo, rows, null);
+  }
+
+  /* =====================================================================
+     TX / RX beam
+     ================================================================== */
+  function renderBeam(res, budget) {
+    var g = res.g;
+    var lo = res.lo[g.loOptionId], bb = res.bb[g.bbOptionId];
+    var tx = window.Beam.evaluate(g, budget, lo, bb, 'tx');
+    var rx = window.Beam.evaluate(g, budget, lo, bb, 'rx');
+
+    document.getElementById('beamHdr').textContent =
+      M.LO_META[Math.round(state.loOption)].short + ' + ' + M.BB_META[Math.round(state.bbOption)].short +
+      ' · steered to ' + n(g.beamScanDeg, 0) + '° · ' + g.tileCols + '×' + g.tileCols + ' tiles';
+
+    UI.renderBudget(document.getElementById('beamStats'), null, null, {
+      cells: [
+        { k: 'Beamwidth', n: n(tx.m.hpbwDeg, 2), unit: '°',
+          d: 'at ' + n(g.beamScanDeg, 0) + '° steer, from the populated ' + n(g.effApertureCm, 1) + ' cm aperture' },
+        { k: 'Pointing error', n: n(tx.m.pointErrDeg, 3), unit: '°',
+          binding: Math.abs(tx.m.pointErrDeg) > budget.pointBudgetDeg,
+          d: 'budget is ' + n(budget.pointBudgetDeg, 3) + '° (a tenth of the beamwidth)' },
+        { k: 'First sidelobe', n: n(tx.m.sllDb, 1), unit: 'dB', d: 'TX; RX ' + n(rx.m.sllDb, 1) + ' dB' },
+        { k: 'Coherence floor', n: n(tx.m.floorDb, 1), unit: 'dB',
+          d: 'diffuse scattered level = the deepest null achievable. TX; RX ' + n(rx.m.floorDb, 1) + ' dB.' },
+        { k: 'Band-edge loss', n: n(tx.edgeLossDb, 2), unit: 'dB',
+          d: 'peak drop at ±' + n(g.rfBwGHz / 2, 1) + ' GHz from centre, from the subarray walking off the tile grid' },
+        { k: 'TX phase / amp error', n: n(tx.sigPhiDeg, 2), unit: '° RMS',
+          d: 'plus ' + n(tx.sigAmpDb, 2) + ' dB amplitude spread' },
+        { k: 'RX phase / amp error', n: n(rx.sigPhiDeg, 2), unit: '° RMS',
+          d: 'plus ' + n(rx.sigAmpDb, 2) + ' dB amplitude spread' }
+      ]
+    });
+
+    document.getElementById('beamNote').innerHTML =
+      'The pattern is built from the architecture actually selected: the per-tile residual phase error ' +
+      '(<span class="kv">' + n(lo.interTileResidualDeg) + '°</span> from the LO plus <span class="kv">' +
+      n(bb.interTileResidualDeg) + '°</span> from the baseband network) sets how much power leaves the coherent ' +
+      'pattern, and it reappears as a diffuse floor at <span class="kv">' + n(tx.m.floorDb, 1) +
+      ' dB</span>. That floor is what caps null depth — deepening a null below it is not possible however good the ' +
+      'weights are. TX and RX differ only through the amplitude spread here, since the LO residual is common to both.' +
+      (tx.phaseVarShare < 0.5
+        ? ' <strong>Worth noting:</strong> phase error contributes only <span class="kv">' +
+          n(100 * tx.phaseVarShare, 0) + '%</span> of the TX error variance — the <span class="kv">' +
+          n(tx.sigAmpDb, 2) + ' dB</span> amplitude spread dominates it. If the coherence floor is the binding ' +
+          'metric, PA gain matching buys more than further LO phase improvement does, which is not the intuition ' +
+          'the LO comparison builds.'
+        : ' Phase error contributes <span class="kv">' + n(100 * tx.phaseVarShare, 0) +
+          '%</span> of the TX error variance, so the LO is genuinely in control of the floor here.');
+
+    /* ---- principal-plane cut ---- */
+    var mount = document.getElementById('beamCutMount');
+    mount.textContent = '';
+    var box = document.createElement('div');
+    box.className = 'chartbox';
+    var win = Math.max(6 * tx.hpbwEstDeg, 4);
+    box.appendChild(C.sweepChart({
+      series: [
+        { name: 'ideal, no errors', color: 'var(--ink-3)', dashed: true,
+          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.ideal }; }) },
+        { name: 'TX', color: 'var(--s2)',
+          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: 'RX', color: 'var(--s4)',
+          points: rx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) }
+      ],
+      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to peak', height: 320,
+      xMin: g.beamScanDeg - win, xMax: g.beamScanDeg + win,
+      yMin: -60, yMax: 3, hLine: tx.m.floorDb, hLabel: 'coherence floor'
+    }));
+    mount.appendChild(box);
+    mount.appendChild(C.legend([
+      { name: 'ideal, no errors', color: 'var(--ink-3)' },
+      { name: 'TX (' + n(tx.sigAmpDb, 2) + ' dB amp spread)', color: 'var(--s2)' },
+      { name: 'RX (' + n(rx.sigAmpDb, 2) + ' dB amp spread)', color: 'var(--s4)' }
+    ]));
+    document.getElementById('beamCutNote').innerHTML =
+      'Cut through the principal plane at band centre. The dashed trace is the same array with no errors, so the ' +
+      'gap between it and the solid traces is what the distribution architecture costs. Sidelobes near the main ' +
+      'beam still follow the ideal envelope; far out, the pattern flattens onto the diffuse floor, which is where ' +
+      'the architecture — not the taper — is in control.';
+
+    /* ---- band edges: the squint story ---- */
+    var m2 = document.getElementById('beamSquintMount');
+    m2.textContent = '';
+    var box2 = document.createElement('div');
+    box2.className = 'chartbox';
+    var fLo = g.fLoGHz - g.rfBwGHz / 2, fHi = g.fLoGHz + g.rfBwGHz / 2;
+    box2.appendChild(C.sweepChart({
+      series: [
+        { name: n(fLo, 1) + ' GHz', color: 'var(--s1)',
+          points: tx.lowEdge.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: n(g.fLoGHz, 1) + ' GHz', color: 'var(--s2)',
+          points: tx.centre.points.map(function (p) { return { x: p.deg, y: p.real }; }) },
+        { name: n(fHi, 1) + ' GHz', color: 'var(--s4)',
+          points: tx.highEdge.points.map(function (p) { return { x: p.deg, y: p.real }; }) }
+      ],
+      xLabel: 'angle from broadside (°)', yLabel: 'dB relative to band-centre peak', height: 300,
+      xMin: g.beamScanDeg - win, xMax: g.beamScanDeg + win, yMin: -45, yMax: 3
+    }));
+    m2.appendChild(box2);
+    m2.appendChild(C.legend([
+      { name: n(fLo, 1) + ' GHz', color: 'var(--s1)' },
+      { name: n(g.fLoGHz, 1) + ' GHz (centre)', color: 'var(--s2)' },
+      { name: n(fHi, 1) + ' GHz', color: 'var(--s4)' }
+    ]));
+    document.getElementById('beamSquintNote').innerHTML =
+      'Inside a tile the elements are <strong>phase</strong> steered, so the subarray beam is only correct at band ' +
+      'centre and walks to <span class="kv">' + n(Math.asin(Math.min(1, Math.sin(K.deg2rad(g.beamScanDeg)) * g.fLoGHz / fLo)) * K.DEG - g.beamScanDeg, 2) +
+      '°</span> at the lower edge. Between tiles the architecture applies coarse <strong>true time delay</strong>, ' +
+      'which is achromatic, so the tile grid keeps pointing at ' + n(g.beamScanDeg, 0) + '°. The two therefore slide ' +
+      'apart across the band, and the peak drops <span class="kv">' + n(tx.edgeLossDb, 2) + ' dB</span> at the edges. ' +
+      'That mismatch is exactly what sub-tiling bounds: a smaller tile has a broader subarray pattern, so it ' +
+      'tolerates more walk before the peak falls off. A ' + n(g.tileCm, 2) + ' cm tile gives ' +
+      n(budget.tauSubTilePs, 0) + ' ps of intra-tile residual delay at ' + n(g.scanDegMax, 0) + '°.';
   }
 
   /* =====================================================================
@@ -5119,12 +5877,12 @@ footer.foot a { color: var(--ink-2); }
           name: 'residual inter-tile φ (°)', color: 'var(--s1)', markers: true,
           points: bws.map(function (b) { return { x: b, y: sweepEval('local-pll', { pllLoopBwMHz: b }).interTileResidualDeg }; })
         }, {
-          name: 'array-output EVM (%)', color: 'var(--s4)', markers: true,
-          points: bws.map(function (b) { return { x: b, y: sweepEval('local-pll', { pllLoopBwMHz: b }).evmPct }; })
+          name: 'array-output EVM (dB)', color: 'var(--s4)', markers: true,
+          points: bws.map(function (b) { return { x: b, y: sweepEval('local-pll', { pllLoopBwMHz: b }).evmDb }; })
         }],
         xLabel: 'PLL loop bandwidth (MHz)', yLabel: 'value', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'φ spec'
-      }), [{ name: 'residual φ (°)', color: 'var(--s1)' }, { name: 'EVM (%)', color: 'var(--s4)' }]);
+      }), [{ name: 'residual φ (° RMS)', color: 'var(--s1)' }, { name: 'EVM (dB)', color: 'var(--s4)' }]);
 
     /* 3 — BIST update rate: the genuine optimum */
     var rates = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100];
@@ -5324,6 +6082,7 @@ footer.foot a { color: var(--ink-2); }
     if (view.name === 'map') renderMapView(res, budget);
     if (view.name === 'compare') renderCompare(res, budget, dec);
     if (view.name === 'phasenoise') renderPn(res, budget);
+    if (view.name === 'beam') renderBeam(res, budget);
     if (view.name === 'sweeps') renderSweeps(res, budget);
     if (view.name === 'decision') renderDecision(res, budget, dec);
     if (view.name === 'assumptions') renderAssumptions(res);
@@ -5413,19 +6172,31 @@ footer.foot a { color: var(--ink-2); }
   document.getElementById('permaBtn').addEventListener('click', function () {
     X.copy(X.permalink(overrides()), 'Permalink');
   });
+  /* light -> dark -> follow system -> light. Light is the shipped default;
+     the inline script in the document head applies it before first paint. */
+  var THEME_CYCLE = { 'light': 'dark', 'dark': '', '': 'light' };
+  var THEME_LABEL = { 'light': 'Light theme — click for dark', 'dark': 'Dark theme — click to follow system', '': 'Following system — click for light' };
+  function labelTheme() {
+    var cur = document.documentElement.getAttribute('data-theme') || '';
+    var b = document.getElementById('themeBtn');
+    b.title = THEME_LABEL[cur] || THEME_LABEL['light'];
+    b.setAttribute('aria-label', b.title);
+    b.textContent = cur === 'dark' ? '☽' : cur === 'light' ? '☀' : '◑';
+  }
   document.getElementById('themeBtn').addEventListener('click', function () {
-    var cur = document.documentElement.getAttribute('data-theme');
-    var next = cur === 'dark' ? 'light' : cur === 'light' ? '' : 'dark';
+    var cur = document.documentElement.getAttribute('data-theme') || '';
+    var next = THEME_CYCLE[cur] !== undefined ? THEME_CYCLE[cur] : 'light';
     document.documentElement.setAttribute('data-theme', next);
     try { localStorage.setItem('ebdt-theme', next); } catch (e) { /* private mode */ }
+    labelTheme();
     render();
   });
 
-  /* ------------------------------- boot --------------------------------- */
-  try {
-    var th = localStorage.getItem('ebdt-theme');
-    if (th) document.documentElement.setAttribute('data-theme', th);
-  } catch (e) { /* ignore */ }
+  /* ------------------------------- boot ---------------------------------
+     The theme itself is applied by the inline script in the document head,
+     before first paint. Here we only sync the button's icon and tooltip to
+     whatever it settled on. */
+  labelTheme();
 
   loadState();
   setView(view.name);

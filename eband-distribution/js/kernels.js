@@ -365,6 +365,45 @@
   function evmPctFromPhi(sigmaRad) {
     return 100 * Math.sqrt(Math.max(2 * (1 - Math.exp(-sigmaRad * sigmaRad / 2)), 0));
   }
+
+  /* EVM in dB. EVM is an AMPLITUDE (voltage) ratio, so the factor is 20:
+        EVM_dB = 20*log10(EVM_rms)          EVM_rms as a fraction
+     Equivalently EVM^2 is an error-power to signal-power ratio, so
+     10*log10(EVM^2) gives the same number. Using 10*log10 on the amplitude
+     is the classic error and halves every figure: 8% would read -10.97 dB
+     instead of -21.94 dB, loosening every ceiling by ~11 dB.
+     More negative is better — the opposite sense to the percent figure.
+     Note the unit is dB, not dBc: EVM references the constellation
+     amplitude, not a carrier. */
+  function evmDb(evmPct) {
+    if (!isFinite(evmPct)) return NaN;
+    if (evmPct <= 0) return -Infinity;
+    return 20 * Math.log10(evmPct / 100);
+  }
+  function evmPctFromDb(db) { return 100 * Math.pow(10, db / 20); }
+
+  /* Straight from phase, one log and no sqrt: the argument is already EVM^2,
+     a power ratio, so 10*log10 is correct here and is not an exception to
+     the rule above. */
+  function evmDbFromPhi(sigmaRad) {
+    return 10 * Math.log10(Math.max(2 * (1 - Math.exp(-sigmaRad * sigmaRad / 2)), 1e-30));
+  }
+  /* Exact inverse. Saturates at +3.0103 dB (EVM -> sqrt2), above which no
+     pure phase error can produce that EVM. */
+  function phiFromEvmDb(db) {
+    var x = Math.pow(10, db / 10);
+    if (!(x < 2)) return Infinity;
+    return Math.sqrt(Math.max(-2 * Math.log(1 - x / 2), 0));
+  }
+
+  /* An evmShare of 0.3 multiplies the LINEAR EVM, so in dB it is an offset of
+     20*log10(0.3) = -10.46 dB. It is NOT -5.23 dB (that is 10*log10(0.3),
+     exactly half, and the likeliest mistake — it would loosen every LO budget
+     by a factor of 1.83 in error amplitude), and dB budgets take no
+     percentage subtraction at all. Isolated here so there is one place to be
+     wrong. This is an AMPLITUDE share: the LO then takes share^2 = 9% of the
+     error power, which is deliberately conservative. */
+  function shareDb(share) { return 20 * Math.log10(Math.max(share, 1e-6)); }
   function phiFromEvmPct(evmPct) {
     var e = evmPct / 100;
     var arg = 1 - e * e / 2;
@@ -372,21 +411,45 @@
     return Math.sqrt(Math.max(-2 * Math.log(arg), 0));
   }
 
-  /* Practical total-EVM ceilings by modulation order. The LO is allocated
-     only a share of this (evmShare), the rest going to PA, ADC, channel. */
+  /* TOTAL-system EVM ceilings by modulation order — the whole TX + channel +
+     RX chain at the demodulator, including PA nonlinearity, ADC/DAC noise,
+     IQ imbalance and channel-estimation error, NOT just the LO. The LO is
+     allocated only `evmShare` of this. Never show an LO-only EVM beside an
+     unshared ceiling.
+     Provenance differs by row, which matters once these appear as tidy dB
+     figures: rows 1-4 are 3GPP TS 38.104 / TS 36.104, but the 1024QAM row is
+     IEEE 802.11ax MCS11 (-35 dB RCE), which is 2.85 dB STRICTER than
+     3GPP's 2.5% for the same constellation. */
   var QAM_EVM = [
-    { order: 4,    name: 'QPSK',    evm: 17.5 },
-    { order: 16,   name: '16QAM',   evm: 12.5 },
-    { order: 64,   name: '64QAM',   evm: 8.0 },
-    { order: 256,  name: '256QAM',  evm: 3.5 },
-    { order: 1024, name: '1024QAM', evm: 1.8 }
+    { order: 4,    name: 'QPSK',    evm: 17.5, src: '3GPP TS 38.104' },
+    { order: 16,   name: '16QAM',   evm: 12.5, src: '3GPP TS 38.104' },
+    { order: 64,   name: '64QAM',   evm: 8.0,  src: '3GPP TS 38.104' },
+    { order: 256,  name: '256QAM',  evm: 3.5,  src: '3GPP TS 38.104' },
+    { order: 1024, name: '1024QAM', evm: 1.8,  src: 'IEEE 802.11ax MCS11; 3GPP allows 2.5%' }
   ];
-  function maxQam(evmPct, share) {
-    var budget = evmPct / Math.max(share, 1e-3);
+  /* derived, so the dB and percent columns cannot drift apart */
+  QAM_EVM.forEach(function (q) { q.evmDb = 20 * Math.log10(q.evm / 100); });
+
+  /* Highest constellation an LO-only EVM can support. Un-applying the share
+     is a SUBTRACTION of a negative, i.e. it adds 10.46 dB, scaling the
+     LO figure up to a total-system equivalent. The comparator stays <= and
+     "lower is better" still holds, because 20*log10 is monotone increasing —
+     no inequality flips under the conversion. */
+  function maxQamFromDb(evmDbVal, share) {
+    if (!isFinite(evmDbVal)) return '—';
+    var budgetDb = evmDbVal - shareDb(share);
     var best = null;
-    QAM_EVM.forEach(function (q) { if (budget <= q.evm) { if (!best || q.order > best.order) best = q; } });
+    QAM_EVM.forEach(function (q) { if (budgetDb <= q.evmDb) { if (!best || q.order > best.order) best = q; } });
     return best ? best.name : '< QPSK';
   }
+  function evmLimitDbForQam(name, share) {
+    for (var i = 0; i < QAM_EVM.length; i++) {
+      if (QAM_EVM[i].name === name) return QAM_EVM[i].evmDb + shareDb(share);
+    }
+    return QAM_EVM[2].evmDb + shareDb(share);
+  }
+  /* percent forms kept for the parenthetical readouts */
+  function maxQam(evmPct, share) { return maxQamFromDb(evmDb(evmPct), share); }
   function evmLimitForQam(name, share) {
     for (var i = 0; i < QAM_EVM.length; i++) if (QAM_EVM[i].name === name) return QAM_EVM[i].evm * share;
     return QAM_EVM[2].evm * share;
@@ -534,7 +597,10 @@
     pointingFromWalkDeg: pointingFromWalkDeg, walkRmsFactor: walkRmsFactor,
     squintDeg: squintDeg, apertureDelayPs: apertureDelayPs, squintLossDb: squintLossDb,
     evmPctFromPhi: evmPctFromPhi, phiFromEvmPct: phiFromEvmPct,
-    maxQam: maxQam, evmLimitForQam: evmLimitForQam,
+    evmDb: evmDb, evmPctFromDb: evmPctFromDb, evmDbFromPhi: evmDbFromPhi,
+    phiFromEvmDb: phiFromEvmDb, shareDb: shareDb,
+    maxQam: maxQam, maxQamFromDb: maxQamFromDb,
+    evmLimitForQam: evmLimitForQam, evmLimitDbForQam: evmLimitDbForQam,
     driftResidualDeg: driftResidualDeg, optimalUpdatePeriodS: optimalUpdatePeriodS,
     quantResidualDeg: quantResidualDeg, quantResidualPs: quantResidualPs,
     rss: rss, peakFactor: peakFactor, seriesRandom: seriesRandom,

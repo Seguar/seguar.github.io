@@ -1,8 +1,23 @@
 <!doctype html>
-<html lang="en" data-theme="">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* Light is the default regardless of the OS setting; an explicit choice is
+   remembered. This runs before first paint so a dark-OS viewer never sees a
+   flash of the dark palette, and it is done in JS rather than only on the
+   <html> tag because the artifact build strips that tag - the host supplies
+   its own. Stored "" means follow the system. */
+(function () {
+  try {
+    var t = localStorage.getItem('ebdt-theme');
+    document.documentElement.setAttribute('data-theme', t === null ? 'light' : t);
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+</script>
 <title>E-Band Distribution Comparison Tool</title>
 <meta name="description" content="Interactive hardware map and parameterized model comparing clock/reference and LO distribution and baseband split/combine architectures for a large tiled E-band (71-86 GHz) phased array.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
@@ -21,6 +36,7 @@
       <a href="#" class="navlink on" data-view="map">Hardware map</a>
       <a href="#" class="navlink" data-view="compare">Compare</a>
       <a href="#" class="navlink" data-view="phasenoise">Phase noise</a>
+      <a href="#" class="navlink" data-view="beam">TX / RX beam</a>
       <a href="#" class="navlink" data-view="sweeps">Sweeps</a>
       <a href="#" class="navlink" data-view="decision">Decision</a>
       <a href="#" class="navlink" data-view="assumptions">Assumptions</a>
@@ -37,6 +53,7 @@
     <h2>Architecture <span class="tag">pick a connection type and a reference clock</span>
       <span class="grow" id="pickerNote"></span></h2>
     <div class="body" id="pickerMount"></div>
+    <div class="body hidden" id="warnMount" style="padding-top:0"></div>
   </section>
 
   <!-- ===================== spec budget banner ===================== -->
@@ -169,6 +186,29 @@
         </section>
       </div>
 
+      <!-- ---- BEAM ---- -->
+      <div class="view hidden" id="view-beam">
+        <section class="panel">
+          <h2>Beam pattern <span class="tag">from the selected architecture</span>
+            <span class="grow" id="beamHdr"></span></h2>
+          <div class="budget" id="beamStats"></div>
+          <div class="body">
+            <p class="note" id="beamNote"></p>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Principal-plane cut <span class="tag">TX vs RX</span></h2>
+          <div id="beamCutMount"></div>
+          <div class="body"><p class="note" id="beamCutNote"></p></div>
+        </section>
+        <section class="panel">
+          <h2>Across the signal band <span class="tag">squint</span>
+            <span class="grow">phase-steered subarray against a delay-steered tile grid</span></h2>
+          <div id="beamSquintMount"></div>
+          <div class="body"><p class="note" id="beamSquintNote"></p></div>
+        </section>
+      </div>
+
       <!-- ---- SWEEPS ---- -->
       <div class="view hidden" id="view-sweeps">
         <section class="panel">
@@ -238,6 +278,7 @@
 <script src="js/topology.js"></script>
 <script src="js/model.js"></script>
 <script src="js/budget.js"></script>
+<script src="js/beam.js"></script>
 <script src="js/decision.js"></script>
 <script src="js/diagram.js"></script>
 <script src="js/content.js"></script>

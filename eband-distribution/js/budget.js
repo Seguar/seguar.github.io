@@ -20,9 +20,12 @@
   var K = window.K;
 
   function derive(g, qamTargetName) {
-    var nT = Math.pow(Math.max(1, Math.round(g.apertureCm / g.tileCm)), 2);
-    var hpbw = K.hpbwDeg(g.apertureM, g.lambdaM, 0);
-    var hpbwScan = K.hpbwDeg(g.apertureM, g.lambdaM, g.scanDegMax);
+    /* Beam metrics use the POPULATED aperture (whole tiles), not the
+       requested figure — see Model.resolve(). */
+    var apM = g.effApertureM || g.apertureM;
+    var nT = g.nTilesTotal || Math.pow(Math.max(1, Math.floor(g.apertureCm / g.tileCm + 1e-9)), 2);
+    var hpbw = K.hpbwDeg(apM, g.lambdaM, 0);
+    var hpbwScan = K.hpbwDeg(apM, g.lambdaM, g.scanDegMax);
 
     /* --- criterion 1: array gain loss (the loose one) --- */
     var sigFor01dB = Math.sqrt(Math.log(K.db2lin(0.1))) * K.DEG;
@@ -36,16 +39,23 @@
     /* --- criterion 3: pointing, at a tenth of the scanned beamwidth --- */
     var pointBudget = 0.1 * hpbwScan;
 
-    /* --- criterion 4: EVM for the target modulation --- */
+    /* --- criterion 4: EVM for the target modulation ---
+       Expressed in dB, which is the composable form: EVM_dB is the impairment
+       level relative to the constellation, so it lines up directly with the
+       phase noise in dBc and with the 10log10(N) tile averaging. The
+       equivalent phase error in degrees is kept as a secondary readout,
+       because that is the figure an LO designer hands to a PLL simulation. */
     var qam = qamTargetName || '64QAM';
-    var evmLimit = K.evmLimitForQam(qam, g.evmShare);
-    var sigForEvm = K.phiFromEvmPct(evmLimit) * K.DEG;
+    var qamCeilDb = K.evmLimitDbForQam(qam, 1);            /* total-system ceiling */
+    var evmLimitDb = K.evmLimitDbForQam(qam, g.evmShare);  /* LO's allocation */
+    var evmLimit = K.evmPctFromDb(evmLimitDb);
+    var sigForEvm = K.phiFromEvmDb(evmLimitDb) * K.DEG;
 
     /* --- criterion 5: the proposal's own stated spec (Eq. 16) --- */
     var sigProposal = g.specPhaseDeg;
 
     /* --- delay / squint requirements (a SEPARATE budget) --- */
-    var tauRangePs = K.apertureDelayPs(g.apertureM, g.scanDegMax);
+    var tauRangePs = K.apertureDelayPs(apM, g.scanDegMax);
     var tauSubTilePs = K.apertureDelayPs(g.tileCm / 100, g.scanDegMax);
     var squintDeg = K.squintDeg(g.scanDegMax, g.rfBwGHz * 1e9, g.fLoHz);
     var ttdResidPs = K.quantResidualPs(g.ttdStepPs);
@@ -68,8 +78,11 @@
         d: 'Binding criterion: ' + binding.name + '. Applies to the DIFFERENTIAL error between tiles.' },
       { k: 'Null-depth floor at spec', n: K.rmsSllDb(binding.v / K.DEG, nT).toFixed(1), unit: 'dB',
         d: '10log10(σ²/N) with N = ' + nT + ' independent tiles. This, not gain loss, is what the architecture buys.' },
-      { k: 'Array-output EVM budget', n: sigForEvm.toFixed(2), unit: '° RMS',
-        d: qam + ' at ' + (evmLimit).toFixed(2) + '% allocated to the LO. Applies to ABSOLUTE array-output noise, integrated from ' + g.carrierTrackMHz + ' MHz up.' },
+      { k: 'Array-output EVM budget', n: evmLimitDb.toFixed(2), unit: 'dB',
+        d: qam + ' TOTAL ceiling ' + qamCeilDb.toFixed(2) + ' dB (' + K.evmPctFromDb(qamCeilDb).toPrecision(2) +
+           '%), with 20log10(' + g.evmShare.toFixed(2) + ') = ' + K.shareDb(g.evmShare).toFixed(2) +
+           ' dB allocated to the LO → ' + evmLimit.toPrecision(2) + '%. Applies to ABSOLUTE array-output noise, ' +
+           'integrated from ' + g.carrierTrackMHz + ' MHz up. Equivalent to ' + sigForEvm.toFixed(2) + '° RMS of pure phase.' },
       { k: 'Skew equivalent of spec', n: (binding.v / K.degPerPs(g.fLoHz)).toFixed(2), unit: 'ps',
         d: 'At ' + g.fLoGHz + ' GHz, 1 ps = ' + K.degPerPs(g.fLoHz).toFixed(1) + '°. Skew is accumulated in time and converted once, here.' },
       { k: 'TTD range required', n: tauRangePs.toFixed(0), unit: 'ps',
@@ -81,7 +94,7 @@
     var note = 'Two independent budgets. The <strong>inter-tile phase spec</strong> of ' +
       '<span class="kv">' + binding.v.toFixed(2) + '° RMS</span> applies to the <em>differential</em> error between ' +
       'tiles and is what sets the null-depth floor; it is set here by <em>' + binding.name + '</em>. The ' +
-      '<strong>array-output EVM budget</strong> of <span class="kv">' + sigForEvm.toFixed(2) + '° RMS</span> applies to ' +
+      '<strong>array-output EVM budget</strong> of <span class="kv">' + evmLimitDb.toFixed(2) + ' dB</span> applies to ' +
       'the <em>absolute</em> phase noise seen by the link after the coherent sum, where uncorrelated per-tile noise ' +
       'has already averaged down by 10log10(' + nT + ') = ' + (10 * Math.log10(nT)).toFixed(1) + ' dB. An architecture can ' +
       'pass one and fail the other, which is exactly what distinguishes the four LO options.';
@@ -90,7 +103,8 @@
       nTiles: nT, hpbw: hpbw, hpbwScan: hpbwScan,
       sigSpecDeg: binding.v, bindingName: binding.name,
       sigFor01dB: sigFor01dB, sigFor30: sigFor30, sigFor40: sigFor40,
-      sigForEvmDeg: sigForEvm, evmLimitPct: evmLimit, qam: qam,
+      sigForEvmDeg: sigForEvm, evmLimitPct: evmLimit, evmLimitDb: evmLimitDb,
+      qamCeilDb: qamCeilDb, shareDbVal: K.shareDb(g.evmShare), qam: qam,
       pointBudgetDeg: pointBudget,
       skewSpecPs: binding.v / K.degPerPs(g.fLoHz),
       tauRangePs: tauRangePs, tauSubTilePs: tauSubTilePs,
