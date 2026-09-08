@@ -364,6 +364,7 @@
     var zlbl = document.createElement('span');
     zlbl.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
     zlbl.textContent = 'zoom';
+    zlbl.title = 'scroll to zoom at the cursor, drag to pan, double-click to zoom in';
     tb.appendChild(zlbl);
     function zoomBtn(txt, fn, title) {
       var b = document.createElement('button');
@@ -403,13 +404,16 @@
       showBb: view.showBb, showDies: view.showDies,
       zoom: view.zoom, panXCm: view.panXCm, panYCm: view.panYCm,
       apertureSpecCm: res.g.apertureCm,
-      onPanEnd: function (x, y) { view.panXCm = x; view.panYCm = y; render(); }
+      onViewChange: function (z, x, y) { view.zoom = z; view.panXCm = x; view.panYCm = y; render(); }
     }, function (i) { view.selected = i; render(); });
     void mapInfo;
 
     window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
     var bsel0 = res.bb[res.g.bbOptionId];
     document.getElementById('mapNote').innerHTML =
+      '<strong>Scroll to zoom at the cursor, drag to pan, double-click to zoom in</strong> ' +
+      '(shift double-click to zoom out). Detail follows how many tiles are actually on screen, so zooming in ' +
+      'restores the dies and taps even on a several-thousand-tile array. ' +
       '<strong>Two networks, one aperture.</strong> The <span style="color:var(--s2)">LO / reference</span> tier ' +
       'enters from the source below and lands at each tile centre; line weight and colour encode the frequency ' +
       'each segment carries, so what is actually on the board is visible at a glance. The ' +

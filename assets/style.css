@@ -260,7 +260,13 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
 /* The aperture map is nearly square plus board margins top and bottom, so at
    full container width it grows taller than the viewport. Cap it so the whole
    floorplan is visible at once — preserveAspectRatio letterboxes it. */
-svg.chart.map { max-height: 76vh; width: auto; max-width: 100%; margin: 0 auto; }
+svg.chart.map {
+  display: block; width: 100%; height: auto; max-height: 76vh;
+  /* min-height wins over max-height in CSS, so the map cannot collapse in an
+     embedding context where vh resolves to zero during layout */
+  min-height: 320px;
+  margin: 0 auto; touch-action: none;   /* the map handles its own gestures */
+}
 svg.chart text { font: 10.5px var(--sans); fill: var(--ink-3); }
 svg.chart text.axlabel { font-size: 11px; fill: var(--ink-2); }
 svg.chart .gl { stroke: var(--grid); stroke-width: 1; }
