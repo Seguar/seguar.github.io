@@ -234,7 +234,20 @@
 
       var specTd = elt('td', 'v');
       var specTxt;
-      if (r.specLabel !== undefined) specTxt = r.specLabel;
+      /* r.spread turns the trailing column into the range of the row's OWN
+         values. The Systems requirement panel needs it: those rows have no
+         threshold of their own — they ARE the thresholds — so the useful
+         thing to put beside them is how far apart the columns are. */
+      if (r.spread) {
+        var rv = vals.filter(isFinite);
+        if (!rv.length) specTxt = '—';
+        else {
+          var rlo = Math.min.apply(null, rv), rhi = Math.max.apply(null, rv);
+          specTxt = Math.abs(rhi - rlo) < 1e-9
+            ? 'same'
+            : num(rlo, r.dec) + '…' + num(rhi, r.dec) + '  (Δ' + num(rhi - rlo, r.dec) + ')';
+        }
+      } else if (r.specLabel !== undefined) specTxt = r.specLabel;
       else if (r.specField !== undefined) {
         /* a per-column threshold has no single value to print — show the
            range, so a reader can see at a glance whether the systems are
