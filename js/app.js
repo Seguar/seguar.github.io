@@ -45,14 +45,38 @@
          URL is input from wherever it came, and it should not be able to
          silently replace systems someone saved. */
       if (k === '_sys') {
-        try { view.sys.shared = window.Systems.decodeSet(over[k], DEFAULTS); }
+        try { view.sys.shared = window.Systems.decodeSet(over[k], DEFAULTS, clampParam); }
         catch (e) { view.sys.shared = []; }
         return;
       }
       if (!(k in DEFAULTS)) return;
       var v = parseFloat(over[k]);
-      if (isFinite(v)) state[k] = v;
+      if (isFinite(v)) state[k] = clampParam(k, v);
     });
+  }
+
+  /* A hash is input from wherever it came — a hand-edited link, a truncated
+     paste, an older version of the tool — so a value out of a parameter's
+     declared range must not reach the renderers. A choice-valued parameter
+     is the dangerous case: several places index the option metadata by it
+     (the map title, the beam header, the save handler), and an out-of-range
+     index throws on `.name` before anything gets a chance to fall back,
+     which took the whole page down at boot rather than degrading. Numeric
+     parameters are clamped to their declared min/max for the same reason. */
+  function clampParam(key, v) {
+    var p = paramByKey(key);
+    if (!p) return v;
+    if (p.choices && p.choices.length) {
+      var best = p.choices[0].value, bestD = Infinity;
+      p.choices.forEach(function (c) {
+        var d = Math.abs(c.value - v);
+        if (d < bestD) { bestD = d; best = c.value; }
+      });
+      return best;
+    }
+    if (isFinite(p.min) && v < p.min) return p.min;
+    if (isFinite(p.max) && v > p.max) return p.max;
+    return v;
   }
   function overrides() {
     var o = {};
@@ -1610,16 +1634,16 @@
 
   function sysReqRows() {
     return [
-      { name: 'Binding requirement', sub: 'inter-tile differential phase error', field: 'req_sigSpecDeg', units: '°', dec: 2 },
+      { name: 'Binding requirement', sub: 'inter-tile differential phase error', field: 'req_sigSpecDeg', units: '°', dec: 2 , spread: true },
       { name: 'What binds it', field: 'req_binding', fmt: function (v, r) { return str(r.req_binding); } },
-      { name: 'Implied null-depth floor', field: 'req_nullFloorDb', units: 'dB', dec: 1 },
-      { name: 'Array-output EVM limit', field: 'req_evmLimitDb', units: 'dB', dec: 1 },
-      { name: 'Absolute φ for that EVM', field: 'req_sigForEvmDeg', units: '°', dec: 2 },
-      { name: 'Pointing budget', field: 'req_pointDeg', units: '°', dec: 3 },
-      { name: 'Skew equivalent of the spec', field: 'req_skewPs', units: 'ps', dec: 2 },
-      { name: 'Independent tiles', field: 'req_nTiles', dec: 0 },
-      { name: 'Beamwidth at max scan', field: 'req_hpbwScan', units: '°', dec: 3 },
-      { name: 'TTD range required', field: 'req_tauRangePs', units: 'ps', dec: 0 }
+      { name: 'Implied null-depth floor', field: 'req_nullFloorDb', units: 'dB', dec: 1 , spread: true },
+      { name: 'Array-output EVM limit', field: 'req_evmLimitDb', units: 'dB', dec: 1 , spread: true },
+      { name: 'Absolute φ for that EVM', field: 'req_sigForEvmDeg', units: '°', dec: 2 , spread: true },
+      { name: 'Pointing budget', field: 'req_pointDeg', units: '°', dec: 3 , spread: true },
+      { name: 'Skew equivalent of the spec', field: 'req_skewPs', units: 'ps', dec: 2 , spread: true },
+      { name: 'Independent tiles', field: 'req_nTiles', dec: 0 , spread: true },
+      { name: 'Beamwidth at max scan', field: 'req_hpbwScan', units: '°', dec: 3 , spread: true },
+      { name: 'TTD range required', field: 'req_tauRangePs', units: 'ps', dec: 0 , spread: true }
     ];
   }
 
@@ -1713,6 +1737,24 @@
       var stTd = UI.elt('td');
       if (isCur) stTd.appendChild(UI.elt('span', 'badge acc', 'loaded'));
       if (rec.shared) stTd.appendChild(UI.elt('span', 'badge warn', 'from link'));
+      if (rec.decodeLost) {
+        var dl = UI.elt('span', 'badge fail', 'link decode failed');
+        dl.title = 'The link carried ' + rec.decodeLost + ' parameter value(s) for this system but none could be ' +
+          'read — it was probably produced by a different version of the tool, or the URL was truncated. What ' +
+          'is shown is entirely at YOUR defaults, so do not treat it as the sender\'s system.';
+        stTd.appendChild(dl);
+      } else if (rec.decodeClamped) {
+        var dc = UI.elt('span', 'badge warn', rec.decodeClamped + ' clamped');
+        dc.title = rec.decodeClamped + ' value(s) in the link were outside the parameter\'s declared range and ' +
+          'have been clamped to it. The sender either hand-edited the link or is on a version of the tool with ' +
+          'different limits, so this column is not exactly the system they saved.';
+        stTd.appendChild(dc);
+      } else if (rec.decodePartial) {
+        var dp = UI.elt('span', 'badge warn', rec.decodePartial + ' unreadable');
+        dp.title = rec.decodePartial + ' parameter value(s) in the link were not recognised and are at your ' +
+          'defaults instead — most likely parameters this version of the tool does not have.';
+        stTd.appendChild(dp);
+      }
       if (e.filled.length) {
         var sb = UI.elt('span', 'badge warn', e.filled.length + ' filled');
         sb.title = 'Saved before these parameters existed, so they take today\'s defaults:\n' +
@@ -1985,14 +2027,28 @@
     var allEntries = recs.map(sysEntry);
     var ex = view.sys.excluded || {};
     var entries = allEntries.filter(function (e) { return !ex[e.rec.id]; });
-    if (!entries.length) entries = allEntries;    /* never an empty comparison */
+    /* A comparison cannot be empty, so unticking everything falls back to
+       showing everything — but that has to be SAID. Counting the exclusions
+       after the fallback made the count zero by construction, so the roster
+       showed every box unticked while the tables compared every column and
+       the header mentioned neither. */
+    var allExcluded = allEntries.length > 0 && entries.length === 0;
+    var nOff = allEntries.length - entries.length;
+    if (allExcluded) entries = allEntries;
     var flats = entries.map(function (e) { return e.flat; });
 
-    var nSaved = SYS.list().length, nShared = (view.sys.shared || []).length;
-    var nOff = allEntries.length - entries.length;
+    var nSaved = SYS.list().length;
+    var nSharedAll = (view.sys.shared || []).length;
+    /* the roster can only hold MAX columns, so shared systems past the cap
+       are not shown — and must not be counted as if they were */
+    var nShared = recs.filter(function (r) { return r.shared; }).length;
+    var nSharedHidden = nSharedAll - nShared;
     document.getElementById('sysHdr').textContent =
       nSaved + ' saved' + (nShared ? ' · ' + nShared + ' from a shared link' : '') +
-      (nOff ? ' · ' + nOff + ' excluded from the comparison' : '') +
+      (nSharedHidden ? ' · ' + nSharedHidden + ' from the link not shown (at the limit)' : '') +
+      (allExcluded
+        ? ' · every system unticked — showing all ' + allEntries.length + ', a comparison cannot be empty'
+        : (nOff ? ' · ' + nOff + ' excluded from the comparison' : '')) +
       ' · limit ' + SYS.limit();
     var navc = document.getElementById('navSysCount');
     if (navc) navc.textContent = nSaved ? ' (' + nSaved + ')' : '';
@@ -2049,6 +2105,12 @@
       'so it keeps the numbers it was costed with even if a default changes later. Parameters added to the tool ' +
       'after a system was saved are filled from today\'s defaults and flagged, because the system never expressed ' +
       'an opinion about them.' +
+      (nSharedHidden
+        ? ' <strong>' + nSharedHidden + ' system' + (nSharedHidden === 1 ? '' : 's') + ' in that link ' +
+          (nSharedHidden === 1 ? 'is' : 'are') + ' not shown</strong> because the roster is at its ' +
+          SYS.limit() + '-column limit — delete or export a saved system to make room for ' +
+          (nSharedHidden === 1 ? 'it' : 'them') + '.'
+        : '') +
       (nShared
         ? ' <strong>The ' + nShared + ' system' + (nShared === 1 ? '' : 's') + ' marked “from link” ' +
           (nShared === 1 ? 'is' : 'are') + ' not stored</strong> until you press Import, so a link cannot ' +
@@ -2190,6 +2252,7 @@
     UI.renderTable(tableIn('sysMetricMount'), opts, results, rows, null,
       { firstHeader: 'Metric', lastHeader: 'Requirement' });
     document.getElementById('sysResultsHdr').textContent =
+      (allExcluded ? 'all ' : '') +
       entries.length + ' system' + (entries.length === 1 ? '' : 's') + ' · ' +
       rows.filter(function (r) { return !r.section; }).length + ' metrics' +
       (view.sys.diffOnly ? ' (identical rows hidden)' : '') +
@@ -2337,15 +2400,16 @@
   function saveCurrentSystem() {
     var box = document.getElementById('saveName');
     var g = last ? last.res.g : null;
+    /* resolved defensively rather than indexed blind: the model falls back
+       for an out-of-range option index, so a save must not be the one place
+       that throws instead */
+    var lm = M.LO_META[Math.round(state.loOption)] || M.LO_META[M.LO_META.length - 1];
+    var bm = M.BB_META[Math.round(state.bbOption)] || M.BB_META[M.BB_META.length - 1];
     var auto = g
-      ? (M.LO_META[Math.round(state.loOption)].short + ' + ' + M.BB_META[Math.round(state.bbOption)].short +
-         ' · ' + n(state.tileCm, 2) + ' cm')
+      ? (lm.short + ' + ' + bm.short + ' · ' + n(state.tileCm, 2) + ' cm')
       : 'System ' + (SYS.count() + 1);
     var name = (box && box.value.trim()) || auto;
-    var r = SYS.save(name, state, {
-      lo: M.LO_META[Math.round(state.loOption)].id,
-      bb: M.BB_META[Math.round(state.bbOption)].id
-    });
+    var r = SYS.save(name, state, { lo: lm.id, bb: bm.id });
     if (!r.ok) {
       X.flash(r.reason === 'full'
         ? 'At the ' + SYS.limit() + '-system limit — delete one first'

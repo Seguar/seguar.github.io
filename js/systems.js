@@ -59,8 +59,12 @@
 
   function readRaw() {
     if (mem) return mem;
-    var txt = null;
-    try { txt = localStorage.getItem(KEY); } catch (e) { txt = null; }
+    var txt = null, threw = false;
+    try { txt = localStorage.getItem(KEY); } catch (e) { threw = true; }
+    /* a read that THREW is not the same as a store that is empty: it says
+       nothing about what was saved, so it must never be allowed to stand in
+       for an empty list */
+    if (threw) { mem = mem || []; return mem; }
     var list = [];
     if (txt) {
       try {
@@ -90,22 +94,46 @@
     }
   }
 
-  /* ids are derived from a counter plus the name, never from a clock —
-     Date.now() is unavailable in some of the contexts this file runs in and
-     a monotonic counter is enough to keep keys distinct within a session */
+  /* Ids are derived from a counter plus the name, never from a clock —
+     Date.now() is unavailable in some of the contexts this file runs in.
+
+     A session-local counter alone is NOT enough. It resets to zero on every
+     reload, so a second session that starts with the same number of saved
+     systems and saves the same name at the same ordinal produces a
+     byte-identical id — and a duplicate id is not a cosmetic problem here:
+     the comparison keys its results by id, so two differently-parameterised
+     systems would render two columns of the SAME numbers under different
+     names. The id is therefore checked against the list it is joining and
+     extended until it is unique. */
   var seq = 0;
-  function makeId(name) {
-    seq++;
+  function makeId(name, list) {
     var slug = String(name || 'system').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    return (slug || 'system') + '-' + seq + '-' + readRaw().length;
+    var base = (slug || 'system') + '-' + (++seq) + '-' + (list ? list.length : 0);
+    var id = base, n = 0;
+    function taken(cand) {
+      for (var i = 0; i < (list || []).length; i++) if (list[i].id === cand) return true;
+      return false;
+    }
+    while (taken(id)) { n++; id = base + '-' + n; }
+    return id;
   }
 
   /* Drop the in-memory mirror so the next read comes from storage. Called
      before every mutation, because two tabs of the tool each hold their own
      mirror: without this, the second tab writes its whole stale list back
      and silently discards everything the first tab saved. Re-reading first
-     narrows that to a per-operation race instead of a per-session one. */
-  function refresh() { mem = null; return readRaw(); }
+     narrows that to a per-operation race instead of a per-session one.
+
+     It must NOT run when there is no storage to re-read from. With site
+     data blocked, getItem throws, readRaw() treats that as an empty store,
+     and the mirror — which is then the only copy — is destroyed. Dropping
+     it before every mutation turned the documented "works for this
+     session" fallback into "loses everything on the next save". */
+  function refresh() {
+    if (!probe()) return readRaw();
+    mem = null;
+    return readRaw();
+  }
 
   function list() { return readRaw().slice(); }
   function count() { return readRaw().length; }
@@ -124,7 +152,7 @@
       if (typeof v === 'number' && isFinite(v)) copy[k] = v;
     });
     var rec = {
-      id: makeId(name),
+      id: makeId(name, l),
       name: String(name || 'Untitled').slice(0, 48),
       note: meta && meta.note ? String(meta.note).slice(0, 240) : '',
       lo: meta && meta.lo ? meta.lo : '',
@@ -266,34 +294,74 @@
    * link short enough to paste; a decoded system is therefore pinned to the
    * defaults of whoever opens it, and the view says so.
    * ------------------------------------------------------------------ */
+  /* encodeURIComponent leaves ! ~ * ' ( ) unescaped, and this format uses
+     '!' as the name/parameters separator and '~' inside each pair. A system
+     called "Winner!" therefore split at the wrong '!', shifted the whole
+     key list by one character, and every key then failed the
+     hasOwnProperty(defaults) test — so the shared column silently rendered
+     a system entirely at the recipient's defaults, under the right name,
+     with "none" under 'Changed from defaults'. Exactly the confidently
+     wrong comparison this file exists to prevent. The separators are now
+     escaped out of the name explicitly. */
+  function encName(s) {
+    return encodeURIComponent(String(s))
+      .replace(/!/g, '%21').replace(/~/g, '%7E')
+      .replace(/\*/g, '%2A').replace(/'/g, '%27')
+      .replace(/\(/g, '%28').replace(/\)/g, '%29');
+  }
+
   function encodeSet(records, defaults) {
     var parts = (records || []).map(function (r) {
       var o = overrides(r, defaults);
       var kv = Object.keys(o).sort().map(function (k) { return k + '~' + o[k]; }).join(',');
-      return encodeURIComponent(r.name) + '!' + kv;
+      return encName(r.name) + '!' + kv;
     });
     return parts.join('|');
   }
 
-  function decodeSet(str, defaults) {
+  /* clamp is supplied by the caller (which owns the parameter metadata this
+     file deliberately does not know about). Without it a link could carry
+     an out-of-range option index or a tile pitch of 999 cm straight into a
+     shared system's state — the model falls back rather than throwing, but
+     the column would then report numbers for a configuration that cannot
+     exist, which is worse than refusing the value. */
+  function decodeSet(str, defaults, clamp) {
     var out = [];
     if (!str) return out;
+    var fix = typeof clamp === 'function' ? clamp : function (k, v) { return v; };
     String(str).split('|').forEach(function (chunk, idx) {
       if (!chunk) return;
       var bang = chunk.indexOf('!');
       if (bang < 0) return;
-      var name = decodeURIComponent(chunk.slice(0, bang)) || ('System ' + (idx + 1));
+      var name;
+      try { name = decodeURIComponent(chunk.slice(0, bang)); } catch (e) { name = chunk.slice(0, bang); }
+      if (!name) name = 'System ' + (idx + 1);
       var state = {};
       Object.keys(defaults).forEach(function (k) { state[k] = defaults[k]; });
+      var pairs = 0, taken = 0, clamped = 0;
       chunk.slice(bang + 1).split(',').forEach(function (kv) {
         if (!kv) return;
         var i = kv.indexOf('~');
         if (i < 0) return;
+        pairs++;
         var k = kv.slice(0, i), v = parseFloat(kv.slice(i + 1));
-        if (Object.prototype.hasOwnProperty.call(defaults, k) && isFinite(v)) state[k] = v;
+        if (Object.prototype.hasOwnProperty.call(defaults, k) && isFinite(v)) {
+          var fixed = fix(k, v);
+          if (isFinite(fixed) && fixed !== v) clamped++;
+          state[k] = isFinite(fixed) ? fixed : v;
+          taken++;
+        }
       });
       seq++;
-      out.push({ id: 'shared-' + seq + '-' + idx, name: name, note: '', state: state, shared: true });
+      out.push({
+        id: 'shared-' + seq + '-' + idx, name: name, note: '', state: state, shared: true,
+        /* a chunk that carried parameters but yielded none is a decode
+           failure, not a system that happens to be at the defaults — the
+           roster says so rather than showing a plausible blank */
+        decodeLost: pairs > 0 && taken === 0 ? pairs : 0,
+        decodePartial: taken > 0 && taken < pairs ? pairs - taken : 0,
+        decodeClamped: clamped
+      });
     });
     return out.slice(0, MAX);
   }
