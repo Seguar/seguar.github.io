@@ -246,6 +246,113 @@
     { id: 'h-tree-active', name: 'B3 H-tree active', short: 'H-tree active' }
   ];
 
+  /* ---------------------------------------------------------------------
+     Per-option constants, in ONE table rather than scattered through
+     evalLo as `id === 'hf-foldback' ? 0.8 : 0.3` chains.
+
+     Those chains all defaulted to the mid-mult values, so any option added
+     later would silently inherit mid-mult's repeater block, its splitter
+     excess loss and its transition loss without anyone noticing — the
+     numbers would look plausible and be wrong. A table forces a new option
+     to state what it is, and traitsOf() refuses to guess.
+
+       ampBlockKey      the repeater/buffer this option's line uses
+       vcoFomPenaltyDb  FOM penalty for running the source at this frequency
+       splitExcessDb    excess loss per corporate split, above the ideal 3.01
+       transLossDb      per board/package transition
+       mediumKey        which medium parameter applies: 'ref' or 'lo'
+       perTileSource    true if each tile generates its own carrier
+       activeFanout     true if the tree is fanned out with buffers rather
+                        than passive splitters, so it pays no 3 dB per level
+     ------------------------------------------------------------------- */
+  var LO_TRAITS = {
+    'local-pll': {
+      ampBlockKey: 'refRepeater', vcoFomPenaltyDb: 0, splitExcessDb: 0.3,
+      transLossDb: 0.25, mediumKey: 'ref', perTileSource: true, activeFanout: true,
+      verdict: function (c) {
+        var bare = Math.round(c.g.pllMult) === 1;
+        return {
+          feasibility: bare
+            ? 'a 78 GHz PLL per tile in 65nm LP CMOS is beyond the technology'
+            : 'realisable',
+          risk: bare ? 'high' : 'medium'
+        };
+      }
+    },
+    'hf-foldback': {
+      ampBlockKey: 'loAmp78', vcoFomPenaltyDb: 3, splitExcessDb: 0.8,
+      transLossDb: 0.9, mediumKey: 'lo', perTileSource: false, activeFanout: false,
+      verdict: function (c) {
+        return {
+          feasibility: c.lossTotalDb > 60
+            ? 'E-band distribution loss is extreme'
+            : 'realisable but E-band routing dominates the board',
+          risk: 'high'
+        };
+      }
+    },
+    'daisy-chain': {
+      ampBlockKey: 'chainBuf', vcoFomPenaltyDb: 0, splitExcessDb: 0.3,
+      transLossDb: 0.25, mediumKey: 'lo', perTileSource: false, activeFanout: false,
+      verdict: function () {
+        return {
+          feasibility: 'realisable; one dead buffer disables every downstream tile',
+          risk: 'high'
+        };
+      }
+    },
+    'mid-mult': {
+      ampBlockKey: 'loAmpMid', vcoFomPenaltyDb: 0, splitExcessDb: 0.3,
+      transLossDb: 0.25, mediumKey: 'lo', perTileSource: false, activeFanout: false,
+      verdict: function () {
+        return { feasibility: 'realisable; the board never carries E-band', risk: 'low' };
+      }
+    }
+  };
+
+  function traitsOf(id) {
+    var t = LO_TRAITS[id];
+    if (!t) throw new Error('model.js: no LO_TRAITS entry for option "' + id +
+      '" — a new distribution option must declare its own constants rather than ' +
+      'inheriting another option\'s by falling through a conditional.');
+    return t;
+  }
+
+  /* The same discipline for the baseband options. Only the pure constants
+     live here; the loss, noise-figure and skew MODELS differ in form
+     between options, not just in value, so they stay as explicit branches
+     in evalBb where they can be read. */
+  var BB_TRAITS = {
+    'passive-50': {
+      driftDegPerK: 0.002, bwGHz: 4.0, cascadedIip3: false,
+      verdict: function () {
+        return {
+          feasibility: 'realisable and essentially drift-free; the cost is TX-direction drive power',
+          risk: 'low'
+        };
+      }
+    },
+    'bb-daisy': {
+      driftDegPerK: 0.03, bwGHz: null, cascadedIip3: false,
+      bwOf: function (c) { return Math.max(0.15, 4 / c.nCh); },
+      verdict: function () {
+        return { feasibility: 'bandwidth collapses as channel count grows', risk: 'high' };
+      }
+    },
+    'h-tree-active': {
+      driftDegPerK: 0.05, bwGHz: 3.5, cascadedIip3: true,
+      verdict: function () {
+        return { feasibility: 'realisable; needs group-delay BIST', risk: 'medium' };
+      }
+    }
+  };
+
+  function bbTraitsOf(id) {
+    var t = BB_TRAITS[id];
+    if (!t) throw new Error('model.js: no BB_TRAITS entry for option "' + id + '".');
+    return t;
+  }
+
   /* resolve the raw numeric state into a convenient object */
   function resolve(state) {
     var g = {};
@@ -539,8 +646,9 @@
     /* --- shared-source options --- */
     var fDist = topo.lo.distFreqHz;
     var Ms = Math.max(1, topo.lo.tileMultiplier);
-    var ampBlk = id === 'hf-foldback' ? BLOCKS.loAmp78 : (id === 'daisy-chain' ? BLOCKS.chainBuf : BLOCKS.loAmpMid);
-    var fomS = id === 'hf-foldback' ? g.fomVco + 3 : g.fomVco;    /* 78 GHz VCO FOM penalty */
+    var trS = traitsOf(id);
+    var ampBlk = BLOCKS[trS.ampBlockKey] || BLOCKS.loAmpMid;
+    var fomS = g.fomVco + trS.vcoFomPenaltyDb;   /* FOM penalty at this frequency */
     var srcS = sourcePn(fDist, Ms, fomS, nAmp, ampBlk, BLOCKS.tileMult);
 
     return {
@@ -562,6 +670,7 @@
    * Evaluate one LO option end to end.
    * =================================================================== */
   function evalLo(id, g) {
+    var trL = traitsOf(id);
     var gg = {};
     for (var k in g) gg[k] = g[k];
     gg.loOption = id;
@@ -620,7 +729,8 @@
     var injDeg = g.bistNoiseDeg * Math.sqrt(g.calLoopGain / (2 - g.calLoopGain) / nAvg);
     /* A4's BIST measurement made at the distribution frequency is
        multiplied by M when referred to the LO */
-    if (id === 'mid-mult' || (id === 'daisy-chain' && lo.tileMultiplier > 1)) injDeg *= lo.tileMultiplier;
+    /* a per-tile multiplier multiplies the BIST measurement noise too */
+    if (!trL.perTileSource && lo.tileMultiplier > 1) injDeg *= lo.tileMultiplier;
 
     /* ---------------- M4: skew ----------------
        Three distinct classes, kept apart because they have different fates:
@@ -635,7 +745,7 @@
        (c) RANDOM: per-segment etch tolerance and transition repeatability.
            This is the part that survives calibration, and it is the only one
            that belongs in the inter-tile phase error.                       */
-    var medKey = (id === 'local-pll') ? g.refMediumKey : g.loMediumKey;
+    var medKey = trL.mediumKey === 'ref' ? g.refMediumKey : g.loMediumKey;
     var psPerCm = K.lineDelayPsCm(medKey);
     var alpha = K.lineAlphaDbCm(medKey, lo.distFreqHz);
     var degPs = K.degPerPs(g.fLoHz);
@@ -701,15 +811,13 @@
          buffers, not passive splitters, so it pays no 3 dB per level — the
          cost shows up as buffer power instead. Charging it passive split
          loss would be double-counting. */
-      if (id !== 'local-pll') {
-        var lvl = lo.net.maxLevel;
-        var exc = id === 'hf-foldback' ? 0.8 : 0.3;
-        splitLossDb = lvl * (3.01 + exc);
+      if (!trL.activeFanout) {
+        splitLossDb = lo.net.maxLevel * (3.01 + trL.splitExcessDb);
       }
     } else {
       splitLossDb = lo.maxHop * 1.2;                    /* per-hop tap loss */
     }
-    var transLossDb = nTrans * (id === 'hf-foldback' ? 0.9 : 0.25);
+    var transLossDb = nTrans * trL.transLossDb;
     var lossTotalDb = lineLossDb + splitLossDb + transLossDb;
     var lossPerCmDb = alpha;
     var requiredGainDb = lossTotalDb;
@@ -724,7 +832,7 @@
     });
     /* the reference oscillator's own power follows the selected preset */
     var refSrc = REF_SOURCES[Math.round(g.refSel)];
-    if (id === 'local-pll' && refSrc) powerTotalMw += refSrc.powerMw - BLOCKS.refSource.powerMw;
+    if (trL.perTileSource && refSrc) powerTotalMw += refSrc.powerMw - BLOCKS.refSource.powerMw;
     var powerPerTileMw = powerTotalMw / nT;
     var powerFracOfArray = powerTotalMw / (g.arrayPowerW * 1000);
 
@@ -758,30 +866,19 @@
     grid.tiles.forEach(function (t) {
       var dev = (t.pathCm - lo.pathMeanCm) * psPerCm;
       t.m = {
-        lossDb: t.pathCm * alpha + (lo.kind === 'tree' ? t.level * (3.01 + (id === 'hf-foldback' ? 0.8 : 0.3)) : t.hop * 1.2),
+        lossDb: t.pathCm * alpha + (lo.kind === 'tree' ? t.level * (3.01 + trL.splitExcessDb) : t.hop * 1.2),
         skewPs: dev,
         wraps: Math.abs(dev) * degPs / 360,
         driftDeg: t.pathCm * psPerCm * g.tcPpmPerK * 1e-6 * g.dTTileK * degPs,
-        powerMw: powerPerTileMw + (t.repeaters * (BLOCKS[id === 'hf-foldback' ? 'loAmp78' : 'loAmpMid'].powerMw))
+        powerMw: powerPerTileMw + (t.repeaters * ((BLOCKS[trL.ampBlockKey] || BLOCKS.loAmpMid).powerMw))
       };
     });
 
-    /* feasibility flags */
-    var feasibility = 'realisable';
-    var riskLevel = 'medium';
-    if (id === 'hf-foldback') {
-      feasibility = lossTotalDb > 60 ? 'E-band distribution loss is extreme' : 'realisable but E-band routing dominates the board';
-      riskLevel = 'high';
-    } else if (id === 'local-pll') {
-      feasibility = Math.round(g.pllMult) === 1 ? 'a 78 GHz PLL per tile in 65nm LP CMOS is beyond the technology' : 'realisable';
-      riskLevel = Math.round(g.pllMult) === 1 ? 'high' : 'medium';
-    } else if (id === 'daisy-chain') {
-      feasibility = 'realisable; one dead buffer disables every downstream tile';
-      riskLevel = 'high';
-    } else {
-      feasibility = 'realisable; the board never carries E-band';
-      riskLevel = 'low';
-    }
+    /* feasibility flags — from the option's own verdict() in LO_TRAITS, so
+       an option added later cannot fall through to another one's */
+    var verdict = trL.verdict({ g: g, lossTotalDb: lossTotalDb, lo: lo, nT: nT });
+    var feasibility = verdict.feasibility;
+    var riskLevel = verdict.risk;
 
     return {
       id: id, topo: topo, grid: grid, nTiles: nT,
@@ -819,6 +916,7 @@
    * the mixer and contributes zero phase noise at the carrier.
    * =================================================================== */
   function evalBb(id, g) {
+    var trB = bbTraitsOf(id);
     var gg = {};
     for (var k in g) gg[k] = g[k];
     gg.bbOption = id;
@@ -913,11 +1011,12 @@
     var powerTotalMw = powerPerTileMw * nT;
 
     /* ---- PVT drift ---- */
-    var driftDegPerK = id === 'passive-50' ? 0.002 : (id === 'h-tree-active' ? 0.05 : 0.03);
+    var driftDegPerK = trB.driftDegPerK;
     /* ---- linearity ---- */
-    var iip3PenaltyDb = id === 'h-tree-active' ? K.cascadeIip3PenaltyDb(levels) : 0;
+    var iip3PenaltyDb = trB.cascadedIip3 ? K.cascadeIip3PenaltyDb(levels) : 0;
     /* ---- bandwidth ---- */
-    var bwGHz = id === 'bb-daisy' ? Math.max(0.15, 4 / nCh) : (id === 'h-tree-active' ? 3.5 : 4.0);
+    var bwGHz = trB.bwOf ? trB.bwOf({ nCh: nCh, levels: levels }) : trB.bwGHz;
+    var bbVerdict = trB.verdict({ nCh: nCh, levels: levels, g: g });
 
     return {
       id: id, bb: bb, inter: inter, nCh: nCh, levels: levels, hops: hops,
@@ -945,10 +1044,8 @@
         'measured with a two-tone or swept baseband loopback, since a single-tone phase measurement cannot ' +
         'distinguish a delay error from a phase error',
       gainLossDb: squintLossDb, sllDb: NaN, pointingErrDeg: Math.abs(rampSteerDeg), evmPct: NaN, maxQam: '—',
-      feasibility: id === 'passive-50'
-        ? 'realisable and essentially drift-free; the cost is TX-direction drive power'
-        : (id === 'bb-daisy' ? 'bandwidth collapses as channel count grows' : 'realisable; needs group-delay BIST'),
-      riskLevel: id === 'passive-50' ? 'low' : (id === 'bb-daisy' ? 'high' : 'medium'),
+      feasibility: bbVerdict.feasibility,
+      riskLevel: bbVerdict.risk,
       note: bb.note, bom: bb.bom
     };
   }
