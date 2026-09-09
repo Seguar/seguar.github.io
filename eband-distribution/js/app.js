@@ -1277,12 +1277,21 @@
      row shows, which is below the precision any of them is displayed to,
      but it is not exact and the docstring in beam.js says so. */
   function bundleFor(st, opts) {
-    var res = M.evaluate(st);
+    var light = !!(opts && opts.light);
+    /* light mode narrows the WHOLE chain, not just the beam. The Systems
+       view reads one LO option, one baseband option, no map and no ranking
+       per system; a full evaluation builds all seven option topologies, the
+       map topology, and twelve complete recommendation documents that
+       nothing then reads. At a 0.5 cm tile pitch that unread work is most
+       of the second-plus each system costs. */
+    var res = M.evaluate(st, light ? { onlySelected: true } : undefined);
     var budget = window.Budget.derive(res.g, '64QAM');
-    var dec = window.Decision.build(res, budget);
+    /* Decision.build ranks every option against every other, so it needs
+       the full evaluation — and the comparison never reads it */
+    var dec = light ? null : window.Decision.build(res, budget);
     var g = res.g;
     var beam = window.Beam.evaluate(g, budget, res.lo[g.loOptionId], res.bb[g.bbOptionId],
-      opts && opts.light ? { light: true } : undefined);
+      light ? { light: true } : undefined);
     return { res: res, g: g, budget: budget, dec: dec, beam: beam };
   }
 
@@ -1369,16 +1378,42 @@
      not the bundle: a bundle keeps five 800-2400-point pattern arrays that
      nothing in this view reads, and holding 12 of those alive is megabytes
      of garbage for no benefit. */
-  function sysEntry(rec) {
+  function sysEntry(rec, opts) {
     var r = SYS.resolveState(rec, DEFAULTS);
+    var base = {
+      rec: rec, state: r.state, filled: r.filled, unknown: r.unknown
+    };
+    /* A system that is not in the comparison still appears in the roster,
+       which needs only its architecture, its tile count and its consistency
+       warnings — all of which come from resolve(), the cheap part. Fully
+       evaluating it would cost a second per system at a fine tile pitch for
+       a row the user has explicitly excluded, which would make the Compare
+       checkboxes save nothing at all. */
+    if (opts && opts.rosterOnly) {
+      var packedLite = SYS.evaluated(r.state, function (st) {
+        var g = M.resolve(st);
+        var lm = M.LO_META[Math.round(st.loOption)] || M.LO_META[M.LO_META.length - 1];
+        var bm = M.BB_META[Math.round(st.bbOption)] || M.BB_META[M.BB_META.length - 1];
+        return {
+          flat: {
+            arch_lo: lm ? lm.short : '—', arch_bb: bm ? bm.short : '—',
+            arch_ref: g.refName || '—', g_nTilesTotal: g.nTilesTotal
+          },
+          warnings: M.consistency(g) || []
+        };
+      }, 'sys-roster-v1');
+      base.flat = packedLite.flat;
+      base.warnings = packedLite.warnings;
+      base.rosterOnly = true;
+      return base;
+    }
     var packed = SYS.evaluated(r.state, function (st) {
       var b = bundleFor(st, { light: true });
       return { flat: flattenBundle(b, st), warnings: b.res.warnings || [] };
     }, 'sys-light-v1');
-    return {
-      rec: rec, state: r.state, filled: r.filled, unknown: r.unknown,
-      flat: packed.flat, warnings: packed.warnings
-    };
+    base.flat = packed.flat;
+    base.warnings = packed.warnings;
+    return base;
   }
 
   var LO_FIELDS = ['interTileResidualDeg', 'interTileRawDeg', 'pnDiffCalDeg', 'driftResidDeg',
@@ -1428,7 +1463,12 @@
        radiate them, and reporting "42 grating lobes" in the same column
        that reports "worst grating lobe: none" is a contradiction on one
        screen. The comparison reports the effective count. */
-    o.g_lobeCount = Math.round(g.latticePeriodic) === 1 ? g.lobeCount : 0;
+    /* the count AT THE COMMANDED ANGLE, to match the lobe level reported
+       next to it. g.lobeCount is the broadside count, and lobes cross the
+       horizon as the beam steers, so pairing a broadside count with a
+       scanned level put two different geometries on adjacent rows. */
+    o.g_lobeCount = Math.round(g.latticePeriodic) === 1 ? (bm.lobes ? bm.lobes.length : g.lobeCount) : 0;
+    o.g_lobeCountBroadside = Math.round(g.latticePeriodic) === 1 ? g.lobeCount : 0;
     o.g_latticeMode = Math.round(g.latticePeriodic) === 1 ? 'periodic' : 'aperiodic';
     o.g_thinningLossDb = g.thinningLossDb;
     o.g_dCellDbi = g.dCellDbi;
@@ -1595,11 +1635,26 @@
         fmt: function (v, r) {
           return n(v, 2) + (isFinite(r.g_dElHeadroomDb) && r.g_dElHeadroomDb <= 0 ? ' (capped)' : '');
         },
-        alsoFields: ['g_dArrayRawDbi']
+        /* only what the cell prints: an alsoField the fmt never shows would keep a row in "differences only" that reads identically */
+        alsoFields: []
       },
       { name: 'Realised gain', sub: 'after scan, error and the antenna-side chain', field: 'bm_realisedDbi', units: 'dBi', better: 'high', dec: 2 },
-      { name: 'Element-to-cell fill gap', sub: 'not a thinning loss — recoverable up to the cell ceiling', field: 'g_thinningLossDb', units: 'dB', better: 'low', dec: 2, rank: false },
-      { name: 'Element directivity headroom', sub: 'how much of the gap the element could still recover', field: 'g_dElHeadroomDb', units: 'dB', better: 'high', dec: 2 },
+      {
+        /* This is 10log10(4*pi*A_cell/(lambda^2*D_el)), and the "element
+           directivity headroom" that used to sit on the next row is the
+           SAME NUMBER by construction — dCellDbi - dElDbi reduces to it
+           once the populated area is written as N cells. Two rows, one
+           quantity, opposite `better` directions, and the duplicate was the
+           ranked one, so the array with the WORST element-to-cell fill was
+           being crowned. One row, one direction, and the cell ceiling is
+           named in the sub-line instead of pretending to be a second
+           measurement. */
+        name: 'Element-to-cell fill gap',
+        sub: 'not a thinning loss — the same dB is the headroom left to the cell ceiling, and it is recoverable',
+        field: 'g_thinningLossDb', units: 'dB', better: 'low', dec: 2, rank: false,
+        alsoFields: ['g_dCellDbi']
+      },
+      { name: 'Cell directivity ceiling', sub: 'what a cell-filling radiator could reach', field: 'g_dCellDbi', units: 'dBi', better: 'high', dec: 2 },
       {
         name: 'Beamwidth', field: 'bm_hpbwDeg', units: '°', dec: 3, alsoFields: ['bm_hpbwResolved'],
         fmt: function (v, r) { return r.bm_hpbwResolved === 'yes' ? n(v, 3) : 'not resolved'; }
@@ -1611,10 +1666,12 @@
         fmt: function (v, r) { return isFinite(v) ? n(v, 2) + ' @ ' + n(r.bm_gratingAtDeg, 1) + '°' : 'none'; }
       },
       {
-        name: 'Grating lobes in visible space', field: 'g_lobeCount', better: 'low', dec: 0,
-        alsoFields: ['g_latticeMode'],
+        name: 'Grating lobes in visible space', sub: 'at the commanded angle; broadside count in brackets',
+        field: 'g_lobeCount', better: 'low', dec: 0,
+        alsoFields: ['g_latticeMode', 'g_lobeCountBroadside'],
         fmt: function (v, r) {
-          return r.g_latticeMode === 'aperiodic' ? 'none (aperiodic)' : n(v, 0);
+          if (r.g_latticeMode === 'aperiodic') return 'none (aperiodic)';
+          return n(v, 0) + (r.g_lobeCountBroadside !== v ? ' (' + n(r.g_lobeCountBroadside, 0) + ')' : '');
         }
       },
       { name: 'Lattice mode', field: 'g_latticeMode', noDelta: true, fmt: function (v, r) { return str(r.g_latticeMode); } },
@@ -1656,7 +1713,7 @@
     var curKey = SYS.stateKey(state);
 
     var t = document.createElement('table');
-    t.className = 'grid';
+    t.className = 'grid narrow1';
     var thead = document.createElement('thead'), htr = document.createElement('tr');
     ['Compare', 'System', 'Architecture', 'Changed from defaults', 'Status', ''].forEach(function (h, i) {
       var th = UI.elt('th', null, h);
@@ -1676,6 +1733,11 @@
       chk.title = 'Include this system in the comparison tables and charts';
       chk.setAttribute('aria-label', 'Include ' + rec.name + ' in the comparison');
       chk.addEventListener('change', function () {
+        /* touching any other control ends a rename. Blur normally does
+           that, but an input that never received focus never blurs, and
+           the row would then stay stuck in edit mode across every
+           subsequent render. */
+        view.sys.renaming = null;
         view.sys.excluded = view.sys.excluded || {};
         if (chk.checked) delete view.sys.excluded[rec.id];
         else view.sys.excluded[rec.id] = true;
@@ -1696,7 +1758,16 @@
         });
         inp.addEventListener('blur', function () {
           if (view.sys.renaming !== rec.id) return;
-          SYS.update(rec.id, { name: inp.value }); view.sys.renaming = null; render();
+          view.sys.renaming = null;
+          var next = String(inp.value).slice(0, 48);
+          if (next !== rec.name) SYS.update(rec.id, { name: next });
+          /* Blur fires on MOUSEDOWN, before the click completes. Rendering
+             synchronously here replaces the node the click was travelling
+             to, so the first click on any other control after a rename was
+             swallowed. Deferring lets mouseup and click land on the DOM the
+             user actually aimed at; the re-render follows immediately
+             after, and is harmless if that handler already rendered. */
+          setTimeout(render, 0);
         });
         nameTd.appendChild(inp);
         setTimeout(function () { inp.focus(); inp.select(); }, 0);
@@ -1789,7 +1860,10 @@
         b.className = 'btn' + (cls ? ' ' + cls : '');
         b.style.cssText = 'padding:2px 7px;margin-left:3px;font-size:11px';
         b.textContent = label; b.title = title;
-        b.addEventListener('click', fn);
+        /* as with the Compare checkbox: acting on a row ends any rename in
+           progress, including one whose input never got focus and so can
+           never blur */
+        b.addEventListener('click', function (ev) { view.sys.renaming = null; fn(ev); });
         actTd.appendChild(b);
         return b;
       }
@@ -2017,15 +2091,25 @@
   /* ---------------------------------------------------------------------
      the view
      ------------------------------------------------------------------- */
+  /* every render starts from a hidden kind-note, so no path can leave a
+     caveat about columns that no longer exist sitting above an empty table */
+  function hideKindNote() {
+    var el = document.getElementById('sysKindNote');
+    var wrap = document.getElementById('sysKindWrap');
+    if (el) { el.classList.add('hidden'); el.textContent = ''; }
+    if (wrap) wrap.classList.add('hidden');
+  }
+
   function renderSystems() {
+    hideKindNote();
     var recs = sysAll();
     /* Evaluated once, then split: the roster lists every system, the tables
        and charts use only the ones ticked for comparison. Saving a system
        and comparing it are different acts — at eight columns the table
        stops being readable, and the usual move is to keep a library and
        look at three of them at a time. */
-    var allEntries = recs.map(sysEntry);
     var ex = view.sys.excluded || {};
+    var allEntries = recs.map(function (r) { return sysEntry(r, { rosterOnly: !!ex[r.id] }); });
     var entries = allEntries.filter(function (e) { return !ex[e.rec.id]; });
     /* A comparison cannot be empty, so unticking everything falls back to
        showing everything — but that has to be SAID. Counting the exclusions
@@ -2034,7 +2118,12 @@
        the header mentioned neither. */
     var allExcluded = allEntries.length > 0 && entries.length === 0;
     var nOff = allEntries.length - entries.length;
-    if (allExcluded) entries = allEntries;
+    if (allExcluded) {
+      /* the fallback shows everything, so everything now needs the full
+         evaluation the roster-only path skipped */
+      allEntries = recs.map(function (r) { return sysEntry(r); });
+      entries = allEntries;
+    }
     var flats = entries.map(function (e) { return e.flat; });
 
     var nSaved = SYS.list().length;
@@ -2225,10 +2314,16 @@
     toggle('Differences only', view.sys.diffOnly, 'Hide rows where every system agrees', function () {
       view.sys.diffOnly = !view.sys.diffOnly; render();
     });
+    /* the toggle stays rendered while the flag is set even at one column, so
+       a mode that cannot do anything can always be switched off */
+    if (entries.length > 1 || view.sys.deltaMode) {
+      toggle('Δ vs baseline', view.sys.deltaMode,
+        entries.length > 1
+          ? 'Show each value as a difference from the baseline system'
+          : 'Δ mode needs at least two columns — tick another system, or click to turn it off',
+        function () { view.sys.deltaMode = !view.sys.deltaMode; render(); });
+    }
     if (entries.length > 1) {
-      toggle('Δ vs baseline', view.sys.deltaMode, 'Show each value as a difference from the baseline system', function () {
-        view.sys.deltaMode = !view.sys.deltaMode; render();
-      });
       var sel = document.createElement('select');
       sel.style.cssText = 'font:12px var(--mono);padding:4px 6px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--bg-panel);color:var(--ink)';
       sel.title = 'Which system the Δ column is measured from';
@@ -2245,9 +2340,16 @@
 
     var rows = sysMetricRows();
     if (view.sys.diffOnly) rows = filterDifferingRows(rows, opts, results);
-    rows = view.sys.deltaMode && entries.length > 1
-      ? deltaRows(rows, results[view.sys.baseline])
-      : applyScales(rows);
+    /* Delta mode needs something to be different FROM, so it is inert with
+       one column — and the toggle that would turn it off is not rendered
+       there either. Deciding once, here, keeps the table, the header and
+       the export footnote from disagreeing: they were each testing the raw
+       flag, so unticking down to one column produced absolute values under
+       a "Δ from X" header and a CSV footnoted as differences, with no
+       control on screen to clear it. */
+    var deltaOn = view.sys.deltaMode && entries.length > 1;
+    view.sys.deltaActive = deltaOn;
+    rows = deltaOn ? deltaRows(rows, results[view.sys.baseline]) : applyScales(rows);
 
     UI.renderTable(tableIn('sysMetricMount'), opts, results, rows, null,
       { firstHeader: 'Metric', lastHeader: 'Requirement' });
@@ -2256,7 +2358,8 @@
       entries.length + ' system' + (entries.length === 1 ? '' : 's') + ' · ' +
       rows.filter(function (r) { return !r.section; }).length + ' metrics' +
       (view.sys.diffOnly ? ' (identical rows hidden)' : '') +
-      (view.sys.deltaMode ? ' · Δ from ' + (results[view.sys.baseline] ? optName(opts, view.sys.baseline) : '?') : '');
+      (deltaOn ? ' · Δ from ' + (results[view.sys.baseline] ? optName(opts, view.sys.baseline) : '?') : '') +
+      (view.sys.deltaMode && !deltaOn ? ' · Δ mode is on but needs two columns' : '');
 
     /* the kind-of-system warning, stated once above the table rather than
        left in tooltips */
@@ -2264,9 +2367,7 @@
     var kindWrap = document.getElementById('sysKindWrap');
     if (kindEl) {
       if (!kindVary.length) {
-        kindEl.classList.add('hidden');
-        if (kindWrap) kindWrap.classList.add('hidden');
-        kindEl.textContent = '';
+        hideKindNote();
       } else {
         kindEl.classList.remove('hidden');
         if (kindWrap) kindWrap.classList.remove('hidden');
@@ -2391,8 +2492,8 @@
       out.fmt = function (v) {
         return (typeof v === 'number' && isFinite(v)) ? UI.num(v * r.scale, r.dec) : '—';
       };
-      /* the requirement column must be scaled to match */
-      if (isFinite(r.spec)) out.spec = r.spec * r.scale;
+      /* the spec is left alone: renderTable now applies r.scale to the
+         value before testing it, so scaling here as well would double it */
       return out;
     });
   }
@@ -2486,11 +2587,21 @@
          has to record the mode, and it lists the columns actually rendered
          rather than the saved list, which can differ when a shared link
          contributed columns. */
+      /* the same badge-stripping the table export uses — otherwise the
+         footnote reads "A4 mid+x4 4cmloaded in main window" */
       var cols = [].map.call(
         document.querySelectorAll('#' + m.id + ' table thead th'),
-        function (th) { return th.textContent; }).slice(1, -1);
+        function (th) { return UI.cellExportText(th); }).slice(1, -1);
       foot.push('Systems compared: ' + (cols.join(' | ') || '(none)'));
-      if (kind === 'sys' && view.sys.deltaMode) {
+      var offNames = (function () {
+        var exl = view.sys.excluded || {}, names = [];
+        window.Systems.list().forEach(function (r) { if (exl[r.id]) names.push(r.name); });
+        return names;
+      })();
+      if (offNames.length) {
+        foot.push('EXCLUDED from this comparison: ' + offNames.join(' | '));
+      }
+      if (kind === 'sys' && view.sys.deltaActive) {
         foot.push('DISPLAY MODE: differences from the baseline system, not absolute values.');
       }
       if (kind === 'sys' && view.sys.diffOnly) {

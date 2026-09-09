@@ -1007,20 +1007,40 @@
     return out;
   }
 
-  function evaluate(state) {
+  /* opts.onlySelected evaluates ONLY the selected LO and baseband option and
+     skips building the map topology. The Systems view compares whole
+     parameter sets, and for each one it reads exactly one LO option, one
+     baseband option and no map — while a full evaluation builds all seven
+     option topologies plus the map's, which at a fine tile pitch is most of
+     the wall time and all of it unread. Anything that ranks the options
+     (Decision.build) or draws the map needs the full evaluation and must
+     not pass this. */
+  function evaluate(state, opts) {
     var g = resolve(state);
+    var only = !!(opts && opts.onlySelected);
     var lo = {}, bb = {};
-    LO_IDS.forEach(function (id) { lo[id] = evalLo(id, g); });
-    BB_IDS.forEach(function (id) { bb[id] = evalBb(id, g); });
-    /* the built topology for the CURRENTLY SELECTED options, for the map */
-    var selected = window.Topo.build(g);
-    /* re-attach the per-tile metrics of the selected LO option */
-    var sel = lo[g.loOptionId];
-    selected.grid.tiles.forEach(function (t, i) {
-      var st = sel.grid.tiles[i];
-      if (st) { t.m = st.m; t.pathCm = st.pathCm; t.level = st.level; t.hop = st.hop; t.segments = st.segments; t.repeaters = st.repeaters; t.blocks = st.blocks; }
-    });
-    return { g: g, lo: lo, bb: bb, selected: selected, blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g) };
+    if (only) {
+      lo[g.loOptionId] = evalLo(g.loOptionId, g);
+      bb[g.bbOptionId] = evalBb(g.bbOptionId, g);
+    } else {
+      LO_IDS.forEach(function (id) { lo[id] = evalLo(id, g); });
+      BB_IDS.forEach(function (id) { bb[id] = evalBb(id, g); });
+    }
+    var selected = null;
+    if (!only) {
+      /* the built topology for the CURRENTLY SELECTED options, for the map */
+      selected = window.Topo.build(g);
+      /* re-attach the per-tile metrics of the selected LO option */
+      var sel = lo[g.loOptionId];
+      selected.grid.tiles.forEach(function (t, i) {
+        var st = sel.grid.tiles[i];
+        if (st) { t.m = st.m; t.pathCm = st.pathCm; t.level = st.level; t.hop = st.hop; t.segments = st.segments; t.repeaters = st.repeaters; t.blocks = st.blocks; }
+      });
+    }
+    return {
+      g: g, lo: lo, bb: bb, selected: selected, partial: only,
+      blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g)
+    };
   }
 
   window.Model = {

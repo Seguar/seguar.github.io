@@ -263,7 +263,9 @@
    * ------------------------------------------------------------------ */
   var evalCache = {};
   var evalOrder = [];
-  var EVAL_MAX = 24;
+  /* above the 12-system column limit, so a main-window entry sharing the
+     cache can never evict a column that is on screen */
+  var EVAL_MAX = 32;
 
   function stateKey(state) {
     var ks = Object.keys(state).sort(), out = '';

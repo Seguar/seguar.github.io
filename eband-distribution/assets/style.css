@@ -218,6 +218,11 @@ table.grid th:first-child, table.grid td:first-child { text-align: left; white-s
    and the metric name is the first thing to leave the screen, which makes
    the numbers unreadable. Pin it. The explicit background matters — a
    transparent sticky cell lets the scrolled columns show through it. */
+/* The roster's first column is a checkbox, and the 200px minimum meant for
+   metric names left it absurdly wide. Only that table opts out. */
+table.grid.narrow1 th:first-child, table.grid.narrow1 td:first-child {
+  min-width: 0; width: 1%; white-space: nowrap; text-align: center;
+}
 table.grid.sticky1 th:first-child, table.grid.sticky1 td:first-child {
   position: sticky; left: 0; z-index: 1; background: var(--bg-panel);
   box-shadow: 1px 0 0 var(--rule);
