@@ -249,7 +249,14 @@
       var origin = cfg.logX || cfg.zeroBase === false ? lo : Math.min(0, b.value);
       var x0 = X(origin), x1 = X(b.value);
       svg.appendChild(el('rect', { class: 'bar', x: Math.min(x0, x1), y: y, width: Math.max(1, Math.abs(x1 - x0)), height: h, rx: 2, fill: b.color }));
-      svg.appendChild(el('text', { x: m.l - 8, y: y + h / 2 + 3.5, 'text-anchor': 'end', fill: 'var(--ink-2)' }, b.name));
+      /* the label gutter is fixed, so a long name would run off the left
+         edge of the viewBox and simply disappear — truncate to what fits
+         and keep the whole name in the tooltip */
+      var maxChars = Math.max(6, Math.floor((m.l - 12) / 5.6));
+      var shown = b.name.length > maxChars ? b.name.slice(0, maxChars - 1) + '…' : b.name;
+      var nameEl = el('text', { x: m.l - 8, y: y + h / 2 + 3.5, 'text-anchor': 'end', fill: 'var(--ink-2)' }, shown);
+      if (shown !== b.name) nameEl.appendChild(el('title', null, b.name));
+      svg.appendChild(nameEl);
       svg.appendChild(el('text', { class: 'blab', x: Math.max(x0, x1) + 5, y: y + h / 2 + 3.5 }, b.label !== undefined ? b.label : b.value.toPrecision(3)));
     });
 

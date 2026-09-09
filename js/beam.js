@@ -526,7 +526,14 @@
       scanLossDb: scanLossDb, cohLossDb: cohLossDb,
       dFilledDbi: g.dFilledDbi, dArrayDbi: g.dArrayDbi, realisedDbi: realisedDbi,
       thinningLossDb: g.thinningLossDb,
-      edgeLossDb: mC.mainDb - Math.max(mLo.mainDb, mHi.mainDb),
+      /* the WORST edge, not the better one. Math.max picked whichever band
+         edge had held up best, so the figure called "band-edge loss"
+         reported the edge that was least affected — the opposite of a
+         budget number. The two edges are not symmetric once the intra-tile
+         factor walks chromatically. */
+      edgeLossDb: mC.mainDb - Math.min(mLo.mainDb, mHi.mainDb),
+      edgeLossLowDb: mC.mainDb - mLo.mainDb,
+      edgeLossHighDb: mC.mainDb - mHi.mainDb,
       tauTilePs: tauTilePs, tauApPs: tauApPs, taperDeg: taperDeg,
       spanXcm: spanXm * 100, tauSpanPs: spanXm * sMax / K.C0 * 1e12,
       taperLossDb: tapLoss, squintBeamwidths: squintBw, jitterU: jitU, bwU: bwU,

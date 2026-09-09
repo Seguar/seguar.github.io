@@ -179,7 +179,15 @@
       }
 
       var nameTd = elt('td', 'mn');
-      nameTd.appendChild(document.createTextNode(r.name));
+      /* Every row declares `units` and nothing was printing them, so these
+         tables were a wall of unitless numbers — worst in the Systems
+         comparison, where one panel mixes W, %, mm², dB, ° and ps, and the
+         adjacent inputs panel DOES print units, which made the results look
+         deliberately unitless rather than broken. It also made the
+         unit-conversion machinery's own justification ("milliwatts under a
+         header that says W") refer to a header that did not exist. */
+      var unit = r.units && r.units !== '-' && r.units !== '' ? ' (' + r.units + ')' : '';
+      nameTd.appendChild(document.createTextNode(r.name + unit));
       if (r.sub) nameTd.appendChild(elt('small', null, r.sub));
       tr.appendChild(nameTd);
 
@@ -219,10 +227,23 @@
            one happened to supply the number. */
         var rspec = r.specField !== undefined && isFinite(res[r.specField])
           ? res[r.specField] : r.spec;
-        if (rspec !== undefined && rspec !== null && isFinite(rspec) && isFinite(v)) {
-          var ok = r.better === 'high' ? v >= rspec : v <= rspec;
-          var marg = r.better === 'high' ? v / rspec : rspec / v;
-          cls += ok ? (marg > 1.5 ? ' pass' : ' warn') : ' fail';
+        /* the value is compared in the units the row DISPLAYS, so a row
+           that declares a scale does not test raw milliwatts against a
+           threshold in watts */
+        var vCmp = isFinite(r.scale) && isFinite(v) ? v * r.scale : v;
+        if (rspec !== undefined && rspec !== null && isFinite(rspec) && isFinite(vCmp)) {
+          var ok = r.better === 'high' ? vCmp >= rspec : vCmp <= rspec;
+          /* Margin as a RATIO is meaningless for a logarithmic quantity:
+             −45 dB against a −38 dB limit passes by 7 dB, but the ratio
+             −38/−45 = 0.84 never clears the 1.5 "comfortable" test, so
+             every decibel row that passed still rendered amber. For dB the
+             margin is a difference, and 3 dB is comfortable. */
+          var isDb = /\bdB/.test(r.units || '');
+          var marg = isDb
+            ? (r.better === 'high' ? vCmp - rspec : rspec - vCmp)
+            : (r.better === 'high' ? vCmp / rspec : rspec / vCmp);
+          var comfy = isDb ? marg > 3 : marg > 1.5;
+          cls += ok ? (comfy ? ' pass' : ' warn') : ' fail';
         }
         var td = elt('td', cls + (o.id === recommendedId ? ' rec' : '') +
           (isFinite(best) && v === best && finite.length > 1 ? ' best' : ''));
@@ -404,7 +425,7 @@
     confShort: confShort,
     renderParams: renderParams,
     renderBudget: renderBudget,
-    renderTable: renderTable,
+    renderTable: renderTable, cellExportText: cellExportText,
     tableToRows: tableToRows,
     renderAssumptions: renderAssumptions,
     renderProse: renderProse,
