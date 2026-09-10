@@ -1292,10 +1292,11 @@
      window uses — a comparison built from a second, parallel evaluation
      path is a comparison that can disagree with the thing it compares.
      light: true drops the plot-only parts of the beam evaluation and
-     coarsens two sampling grids (see beam.js) — measured agreement with
-     the full evaluation is within 0.031 dB on every scalar a comparison
-     row shows, which is below the precision any of them is displayed to,
-     but it is not exact and the docstring in beam.js says so. */
+     coarsens the cut sampling (see beam.js). Measured across 250 parameter
+     combinations, the largest light-vs-full difference on any scalar a
+     comparison row shows is 0.0016 dB — the TTD numbers are bit-identical
+     — but it is a coarser evaluation, not an exact one, and the docstring
+     in beam.js records the bound rather than claiming exactness. */
   function bundleFor(st, opts) {
     var light = !!(opts && opts.light);
     /* light mode narrows the WHOLE chain, not just the beam. The Systems

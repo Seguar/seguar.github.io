@@ -264,11 +264,21 @@
      commanded-angle grid at band edge, its level at the current angle, and
      the angle-averaged variance proxy that understates both.
      ------------------------------------------------------------------- */
-  function ttdSweep(g, c, fEdge, coarse) {
+  function ttdSweep(g, c, fEdge) {
     var stepS = c.stepS, p = c.p, N = c.Nt1;
     if (!(stepS > 0) || N < 2) return null;
     var w = 2 * Math.PI * (fEdge - c.fc);
-    var nU = coarse ? 180 : 360;
+
+    /* The u-scan is PERIODIC in du with period lambda/p, because the tile
+       index is an integer — so scanning [-2, 2] as an earlier version did
+       covered the same period 41 times over and spent its samples on
+       repeats. One period at 256 points is both finer and 40x cheaper, and
+       it removes the grid dependence that made light and full modes
+       disagree here. */
+    /* The scatter peaks in u no more sharply than 1/N of a period — it is a
+       sum of N terms — so 8 samples per lobe is ample and a fixed 256 is
+       waste at small N and thin at large N. */
+    var nU = Math.max(48, Math.min(160, 6 * N)), duPeriod = c.lamC / p;
 
     /* Peak scattered power from the quantisation sequence at one commanded
        angle, relative to the coherent peak. The mean of the sequence is a
@@ -282,8 +292,8 @@
       }
       mean /= N;
       var peak = 0;
-      for (var iu = 0; iu <= nU; iu++) {
-        var du = -2 + 4 * iu / nU;
+      for (var iu = 0; iu < nU; iu++) {
+        var du = duPeriod * iu / nU;
         var re = 0, im = 0;
         for (t = 0; t < N; t++) {
           var a = 2 * Math.PI * p * t * du / c.lamC;
@@ -295,15 +305,78 @@
       return 10 * Math.log10(Math.max(peak, 1e-18));
     }
 
-    var best = { db: -Infinity, scanDeg: NaN };
     var maxScan = Math.max(Math.abs(g.scanDegMax || 60), Math.abs(g.beamScanDeg));
-    var dSd = coarse ? 1 : 0.25;
-    for (var sd = 0; sd <= maxScan + 1e-9; sd += dSd) {
-      var db = scatterAt(sd);
-      if (db > best.db) best = { db: db, scanDeg: sd };
+
+    /* WHERE the worst case is, without hunting for it on a uniform grid.
+       scatterAt is a sawtooth in commanded angle: each tile's residual
+       e_t = step·round(tau_t/step) − tau_t grows linearly and snaps back
+       whenever tau_t crosses a half-step, so the apexes sit at exactly the
+       angles where some tile flips —
+
+           sin(sd) = (m + 1/2)·step·c / (p·t)
+
+       for tile t and integer m. That is a small closed-form candidate set,
+       maybe fifty angles, against the 241 a 0.25 deg grid spends — and a
+       uniform grid can still walk past a tooth. Both modes now evaluate the
+       same candidates, so the Beam view and a Systems comparison row can no
+       longer disagree about the same system: an earlier version swept 1 deg
+       in light mode and 0.25 deg in full, which differed by up to 0.35 dB,
+       ten times what the docstring claimed, and even the 0.25 deg grid
+       understated the true worst. */
+    var sMax = Math.sin(K.deg2rad(maxScan));
+    var cand = [0, maxScan, Math.abs(g.beamScanDeg)];
+    for (var t2 = 1; t2 < N; t2++) {
+      var quantum = stepS * K.C0 / (p * t2);        /* sin(sd) per half-step */
+      var mMax = Math.ceil(sMax / quantum) + 1;
+      for (var m = 0; m <= mMax; m++) {
+        var s = (m + 0.5) * quantum;
+        if (s > sMax) break;
+        var a0 = Math.asin(s) * K.DEG;
+        /* the residual is discontinuous AT the flip, so sample both sides */
+        cand.push(Math.max(0, a0 - 1e-4));
+        cand.push(Math.min(maxScan, a0 + 1e-4));
+      }
     }
-    /* the current angle is evaluated explicitly rather than read off the
-       sweep grid, so it stays right whatever the grid step is */
+    /* a coarse net as well, so a maximum that falls between teeth — the
+       tiles do not all flip together — is not missed either */
+    for (var sd = 0; sd <= maxScan + 1e-9; sd += 1) cand.push(sd);
+
+    /* The flip set grows as the square of the tile count — 2500 angles at a
+       2 cm pitch on a 60 cm panel — and each evaluation is N trig pairs per
+       u-sample, so the honest search has to be bounded somewhere. Thinning
+       uniformly keeps the teeth represented across the whole scan range
+       rather than truncating the far half of it, and the golden-section
+       refinement below recovers the apex of whichever tooth wins. */
+    var CAND_CAP = Math.max(90, Math.min(420, Math.round(9000 / N)));
+    if (cand.length > CAND_CAP) {
+      var keep = [], stride = cand.length / CAND_CAP;
+      for (var ci = 0; ci < CAND_CAP; ci++) keep.push(cand[Math.floor(ci * stride)]);
+      keep.push(0, maxScan, Math.abs(g.beamScanDeg));
+      cand = keep;
+    }
+
+    var best = { db: -Infinity, scanDeg: NaN };
+    for (var i2 = 0; i2 < cand.length; i2++) {
+      var db = scatterAt(cand[i2]);
+      if (db > best.db) best = { db: db, scanDeg: cand[i2] };
+    }
+    /* refine around the winner: golden-section on a half-degree window,
+       which costs a dozen more evaluations and pins the apex */
+    (function () {
+      var lo = Math.max(0, best.scanDeg - 0.5), hi = Math.min(maxScan, best.scanDeg + 0.5);
+      var gr = 0.6180339887;
+      var x1 = hi - gr * (hi - lo), x2 = lo + gr * (hi - lo);
+      var f1 = scatterAt(x1), f2 = scatterAt(x2);
+      for (var k = 0; k < 14; k++) {
+        if (f1 > f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - gr * (hi - lo); f1 = scatterAt(x1); }
+        else { lo = x1; x1 = x2; f1 = f2; x2 = lo + gr * (hi - lo); f2 = scatterAt(x2); }
+      }
+      var fBest = Math.max(f1, f2);
+      if (fBest > best.db) best = { db: fBest, scanDeg: f1 > f2 ? x1 : x2 };
+    })();
+
+    /* the current angle is evaluated explicitly rather than read off any
+       grid, so it stays right whatever the search does */
     var atCur = scatterAt(Math.abs(g.beamScanDeg));
     var rms = w * stepS / Math.sqrt(12);
     return {
@@ -354,9 +427,17 @@
     for (var j = 1; j < pts.length - 1; j++) {
       if (j >= lo - 1 && j <= hi + 1) continue;
       if (!(pts[j].real >= pts[j - 1].real && pts[j].real >= pts[j + 1].real)) continue;
+      /* A lobe only masks this cut if it actually LIES on it. Testing the u
+         coordinate alone masked a +/-0.02 band of u for every one of the 42
+         lobes regardless of its v — most of them are nowhere near the
+         phi = 0 plane — which blanked much of the cut and made the reported
+         first sidelobe swing by 4 dB with the sample pitch alone. The cut
+         runs along v = 0, so a lobe is on it only when its own v is small. */
       var isG = false;
+      var uHere = Math.sin(K.deg2rad(pts[j].deg));
       for (var q = 0; q < (lobeTable || []).length; q++) {
-        if (Math.abs(Math.sin(K.deg2rad(pts[j].deg)) - lobeTable[q].u) < 0.02) { isG = true; break; }
+        var L = lobeTable[q];
+        if (Math.abs(uHere - L.u) < 0.02 && Math.abs(L.v || 0) < 0.02) { isG = true; break; }
       }
       if (isG) continue;
       if (pts[j].real > sll) { sll = pts[j].real; sllDeg = pts[j].deg; }
@@ -389,14 +470,27 @@
        commanded-angle sweep (1 deg instead of 0.25 deg steps, 180 instead
        of 360 u-samples). 40 ms -> 5 ms per system.
 
-       It is a COARSER evaluation, not an exact one, and the difference was
+       It is a COARSER evaluation, not an exact one, and the difference is
        measured rather than assumed: across scan angle 0-60 deg, tile pitch
-       2-6 cm, TTD step 20-200 ps and both lattice modes, every scalar a
-       comparison row shows agrees with the full evaluation to within
-       0.031 dB, and all but the TTD sweep to within 0.004 dB. HPBW is
+       2-6 cm, TTD step 20-200 ps and both lattice modes — 250 combinations
+       — the largest light-vs-full difference on any scalar a comparison row
+       shows is 0.0016 dB, on the first-sidelobe level. HPBW is
        grid-independent because the -3 dB crossings are interpolated (see
-       metrics()). What light mode omits entirely is left undefined rather
-       than set to a plausible-looking number. */
+       metrics()), and the TTD numbers are now bit-identical because
+       ttdSweep no longer has a light variant at all.
+
+       That last point was a defect, found by review and fixed here. Light
+       mode used to sweep the commanded angle at 1 deg against the full
+       path's 0.25 deg, which disagreed by up to 0.35 dB — ten times what
+       this comment claimed — so the Beam view and a Systems row could
+       report different quantisation lobes for the same system. Worse, the
+       0.25 deg grid was itself understating the true worst by up to
+       0.23 dB, because the residual is a sawtooth in commanded angle whose
+       apexes a uniform grid walks straight past. ttdSweep now searches the
+       closed-form flip angles instead, in both modes.
+
+       What light mode omits entirely is left undefined rather than set to a
+       plausible-looking number. */
     var light = !!(opts && opts.light);
 
     /* ---- the error partition, on which the headline depends ----
@@ -505,7 +599,9 @@
     })();
     var bwU = 0.886 * c.lamC / g.effApertureM;
     var squintBw = Math.abs(sMax) * (B / 2) / fc / bwU;
-    var ttd = ttdSweep(g, c, fc + B / 2, light);
+    /* no light/full variant any more: the search is the same in both modes, so
+       a Systems row and the Beam view cannot disagree about the same system */
+    var ttd = ttdSweep(g, c, fc + B / 2);
 
     /* random-error pointing jitter in u, so it can be dismissed with a
        number: sigma_u = sqrt(3)*sigma_phi / (pi * (D/lambda) * sqrt(N)),
