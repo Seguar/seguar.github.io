@@ -256,6 +256,44 @@
     'defaults of whoever opens it, and it is shown as "from a link" until imported rather than being written over ' +
     'what the recipient had saved.',
 
+    '### The design space, and what is not in the option list',
+    'The original four LO options and three baseband options came from the proposal. The space was then swept ' +
+    'deliberately — classical RF architectures, photonic and digital LO generation, baseband alternatives, and ' +
+    'what is actually built and measured in tiled mmWave arrays — and four things were added: **A5** round-trip ' +
+    'stabilised link, **A6** injection-locked tile oscillator, **B4** current-mode summing, **B5** digitise at ' +
+    'the tile. Each earned a column by being *distinct*, not merely different: A5 is the only architecture with a ' +
+    'return path inside the distribution network, so it attacks drift instead of tracking it; A6 is the only one ' +
+    'whose tile contains no PFD, charge pump or divider, and the only one with a locked-phase-offset error term; ' +
+    'B4 changes the impedance regime rather than the topology; B5 deletes the analog inter-tile tier.',
+    'The following were considered and are **not** modelled. They are listed because "we did not think of it" and ' +
+    '"we costed it and it lost" are very different statements, and only the second is worth anything in a defence.',
+    '- **Sub-harmonic distribution with a subharmonic mixer at the tile.** Real and attractive — it removes the ' +
+    'explicit multiplier chain — but the phase-noise accounting is identical to A4 with M = 2 (the mixer does the ' +
+    'doubling), so it is a tile-implementation choice inside A4 rather than a separate column.',
+    '- **Photonic / RF-over-fibre LO, optical heterodyne, frequency combs, optoelectronic oscillators.** The right ' +
+    'answer at a different scale. Fibre earns its E/O and O/E conversion over hundreds of metres, as at ALMA; over ' +
+    'a 30 cm panel with 49 tiles it adds a laser, a modulator and 49 photodiodes to beat a copper run whose total ' +
+    'loss is 38 dB at 19.5 GHz. Worth revisiting only if the array grows to a distributed aperture.',
+    '- **Space-fed / quasi-optical LO illumination.** Genuinely distinct — no distribution network at all, and a ' +
+    'per-tile phase that is a closed-form function of geometry rather than a manufactured artefact. Not modelled ' +
+    'because it brings error classes this tool has no machinery for (illumination taper, feed pointing, LO ' +
+    'leakage into the RX aperture) and because it needs a standoff the panel does not have.',
+    '- **Radial / parallel-plate equal-path feed.** The sharpest of the rejected ideas, and the one to revisit ' +
+    'first. It is a third topology class — one N-way junction at equal radius instead of 5.6 cascaded levels of ' +
+    '2-way splitters — so path spread goes to zero by symmetry, cascaded transitions go from ~6 to 1, and ' +
+    'repeaters in path go to zero. This tool\'s honesty ledger already admits that recursive bisection on a ' +
+    'non-power-of-two grid manufactures deterministic skew, and a radial feed is the standard answer to exactly ' +
+    'that. It is not modelled because it belongs as a *topology* axis under A2/A4 rather than as a fifth LO ' +
+    'family, and adding an axis is a larger change than adding a column. Its own weakness is port-to-port ' +
+    'isolation: one mismatched tile perturbs all the others.',
+    '- **Coupled-oscillator arrays, standing-wave/resonant networks, two-tone difference-frequency LO, reference ' +
+    'multiplexed onto the baseband or power interconnect, per-tile DDS, SYSREF-only synchronisation.** All real ' +
+    'techniques; none distinct enough at this scale to earn a column against A1–A6.',
+    '- **Fully digital per element** (784 converters rather than 98). The limiting case of B5, and it loses by the ' +
+    'same argument by a factor of eight.',
+    '- **Frequency-division-multiplexed IF over one coax, delta-sigma bitstream distribution, transformer ' +
+    'combining, TDM calibration receivers.** Each solves a narrower problem than the one this comparison is about.',
+
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
     'carrier phase noise; a number there would be fabricated.',

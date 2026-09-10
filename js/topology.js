@@ -449,6 +449,100 @@
               ' multiplier adds exactly ' + (20 * Math.log10(M)).toFixed(1) + ' dB to L(f) and multiplies any ' +
               'distributed phase error by ' + M + ' — so this buys loss and power, not skew.'
       };
+    },
+
+    /* ------------------------------------------------- A5 stabilised-link
+       Physically A4's tree, plus a return path. Each tile carries a
+       directional coupler that sends the arriving tone back down the same
+       line; at the master a mixer compares outgoing against returned and
+       measures TWICE the one-way path phase, which a servo then
+       pre-corrects. The distribution network measures and cancels its own
+       drift, continuously, with no over-the-air step and no per-element
+       BIST in the loop.
+
+       Everything downstream of the coupler is A4: the same ×M at the tile,
+       the same SiGe last mile. The extra hardware is the coupler, the
+       return amplifier and the phase detector, and the extra RISK is that
+       the cancellation is only as good as the path's reciprocity.        */
+    'stabilised-link': function (g, grid) {
+      var M = Math.max(2, Math.round(g.midM));
+      var fHz = g.fLoGHz * 1e9 / M;
+      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var net = corporate(grid, {
+        freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz stabilised source',
+        alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.31
+      });
+      var reps = countAmps(net.nodes);
+      var splits = net.nodes.filter(function (n) { return n.type === 'split'; }).length;
+      grid.tiles.forEach(function (t) {
+        t.blocks = [
+          { type: 'coupler', label: 'rtn' },
+          { type: 'mult', label: '×' + M },
+          { type: 'amp', label: 'LO buf' }
+        ];
+      });
+      net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
+        return { type: 'mult', x: t.cx, y: t.cy, label: '×' + M, freqHz: g.fLoGHz * 1e9, tile: t.i };
+      }));
+      return {
+        net: net, distFreqHz: fHz, tileMultiplier: M, repeaters: reps,
+        kind: 'tree',
+        bom: bomOf([
+          ['loSourceMid', 1, 'one source at ' + (fHz / 1e9).toFixed(1) + ' GHz'],
+          ['loSplitMid', splits, '1:2 splitters at ' + (fHz / 1e9).toFixed(1) + ' GHz'],
+          ['loAmpMid', reps + Math.round(splits / 2), 'mid-frequency repeaters and drivers'],
+          ['rtnCoupler', grid.nTiles, 'directional coupler per tile returning the tone to the master'],
+          ['rtnPhaseDet', grid.nTiles, 'round-trip phase detector and correction servo per tile'],
+          ['tileMult', grid.nTiles, 'per-tile ×' + M + ' multiplier to 78 GHz'],
+          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile'],
+          ['loBuf78', grid.nTiles * g.tapsPerTile, 'per-tile LO buffers driving ' + g.tapsPerTile + ' RFIC taps'],
+          ['midTransition', grid.nTiles, 'board-to-package transition at ' + (fHz / 1e9).toFixed(1) + ' GHz']
+        ]),
+        note: 'A4\'s tree with a return path. The master mixes outgoing against returned to read twice the ' +
+              'one-way path phase and pre-corrects it at the loop bandwidth, so line drift cancels itself ' +
+              'instead of being tracked by BIST. What survives is the path\'s non-reciprocity, not its drift.'
+      };
+    },
+
+    /* ---------------------------------------------------- A6 inj-lock
+       A4's tree again, but the tile holds an oscillator locked by
+       injection instead of a multiplier chain. No PFD, no charge pump, no
+       divider — and a lock bandwidth of hundreds of MHz where a PLL closes
+       a few, so the line's additive noise is suppressed far wider than A4
+       suppresses it. The price is a static locked phase offset that varies
+       tile to tile with the free-running frequency.                      */
+    'inj-lock': function (g, grid) {
+      var M = Math.max(2, Math.round(g.midM));
+      var fHz = g.fLoGHz * 1e9 / M;
+      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var net = corporate(grid, {
+        freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz injection source',
+        alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.31
+      });
+      var reps = countAmps(net.nodes);
+      var splits = net.nodes.filter(function (n) { return n.type === 'split'; }).length;
+      grid.tiles.forEach(function (t) {
+        t.blocks = [{ type: 'ilo', label: 'ILO ×' + M }, { type: 'amp', label: 'LO buf' }];
+      });
+      net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
+        return { type: 'ilo', x: t.cx, y: t.cy, label: 'ILO ×' + M, freqHz: g.fLoGHz * 1e9, tile: t.i };
+      }));
+      return {
+        net: net, distFreqHz: fHz, tileMultiplier: M, repeaters: reps,
+        kind: 'tree',
+        bom: bomOf([
+          ['loSourceMid', 1, 'one source at ' + (fHz / 1e9).toFixed(1) + ' GHz'],
+          ['loSplitMid', splits, '1:2 splitters at ' + (fHz / 1e9).toFixed(1) + ' GHz'],
+          ['loAmpMid', reps + Math.round(splits / 2), 'mid-frequency repeaters and drivers'],
+          ['tileIlo', grid.nTiles, 'injection-locked oscillator per tile, locked to the ×' + M + ' sub-harmonic'],
+          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile'],
+          ['loBuf78', grid.nTiles * g.tapsPerTile, 'per-tile LO buffers driving ' + g.tapsPerTile + ' RFIC taps'],
+          ['midTransition', grid.nTiles, 'board-to-package transition at ' + (fHz / 1e9).toFixed(1) + ' GHz']
+        ]),
+        note: 'The tile oscillator is locked by harmonic injection, not by a PLL, so there is no PFD, charge ' +
+              'pump or divider noise at all — and the lock corner is hundreds of MHz rather than a few. The ' +
+              'new error is the locked phase offset arcsin(Δf/f_lock), which differs tile to tile.'
+      };
     }
   };
 
@@ -493,6 +587,64 @@
         ]),
         note: 'One wire, ' + nCh + ' taps. Simplest routing, but tap capacitance grows with channel count so ' +
               'the bandwidth collapses, and the delay ramp survives calibration as a frequency-dependent beam steer.'
+      };
+    }
+
+    /* B4 current-mode: every channel drives current into ONE virtual
+       ground. Not a tree — a single node — which is the whole point: no
+       staging, no cascade, no accumulated cell mismatch. */
+    if (id === 'current-mode') {
+      var sumX = 26 + (W - 46) * 0.35;
+      leaves.forEach(function (L) {
+        links.push({ x1: L.x, y1: L.y, x2: sumX, y2: L.y, kind: 'branch', level: 1 });
+        links.push({ x1: sumX, y1: L.y, x2: sumX, y2: H / 2, kind: 'join', level: 1 });
+      });
+      nodes.push({ type: 'cell', x: sumX, y: H / 2, label: 'TIA', level: 1 });
+      links.push({ x1: sumX, y1: H / 2, x2: W - 14, y2: H / 2, kind: 'root' });
+      nodes.push({ type: 'out', x: W - 10, y: H / 2, label: 'to RFSoC' });
+      return {
+        id: id, nCh: nCh, levels: 1, hops: 1, links: links, nodes: nodes, W: W, H: H,
+        bom: bomOf([
+          ['tiaSum', 2, 'one summing transimpedance amplifier per rail — replaces ' + (nCh - 1) + ' cascaded cells'],
+          ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA, now current-output'],
+          ['bbDecap', 1, 'supply decoupling for the TIA']
+        ]),
+        note: 'One node, one amplifier per rail. A virtual ground removes B1\'s 20log10(N) voltage division ' +
+              'and B3\'s ' + levels + '-level cascade at the same time — the impedance regime, not the topology. ' +
+              'What limits it is the summing-node capacitance of ' + nCh + ' channels against the TIA bandwidth.'
+      };
+    }
+
+    /* B5 digitise at the tile: the analog network stops at one combiner per
+       rail; after that it is bits. Drawn as the combine plus the converter
+       and the serial lane, because that is what is physically in the tile. */
+    if (id === 'digital-tile') {
+      var cmX = 26 + (W - 46) * 0.28;
+      leaves.forEach(function (L) {
+        links.push({ x1: L.x, y1: L.y, x2: cmX, y2: L.y, kind: 'branch', level: 1 });
+        links.push({ x1: cmX, y1: L.y, x2: cmX, y2: H / 2, kind: 'join', level: 1 });
+      });
+      nodes.push({ type: 'cell', x: cmX, y: H / 2, label: 'Σ', level: 1 });
+      var adcX = cmX + (W - cmX) * 0.34, serX = cmX + (W - cmX) * 0.66;
+      links.push({ x1: cmX, y1: H / 2, x2: adcX, y2: H / 2, kind: 'root' });
+      nodes.push({ type: 'adc', x: adcX, y: H / 2, label: 'ADC' });
+      links.push({ x1: adcX, y1: H / 2, x2: serX, y2: H / 2, kind: 'root' });
+      nodes.push({ type: 'serdes', x: serX, y: H / 2, label: 'SerDes' });
+      links.push({ x1: serX, y1: H / 2, x2: W - 14, y2: H / 2, kind: 'digital' });
+      nodes.push({ type: 'out', x: W - 10, y: H / 2, label: 'lanes to RFSoC' });
+      return {
+        id: id, nCh: nCh, levels: 1, hops: 1, links: links, nodes: nodes, W: W, H: H,
+        bom: bomOf([
+          ['tiaSum', 2, 'one summing amplifier per rail ahead of the converter'],
+          ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA'],
+          ['tileAdc', 2, 'one ADC per rail — power computed from the converter FOM parameters, not from this entry'],
+          ['tileDac', 2, 'one DAC per rail, TX direction'],
+          ['tileSerdes', 2, 'serial lanes to the backend, both directions'],
+          ['bbDecap', 2, 'supply decoupling for the converters and the SerDes']
+        ]),
+        note: 'The analog inter-tile tier does not exist: the tile combines, digitises and sends bits. ' +
+              'Inter-tile alignment becomes deterministic-latency rather than a routed path length, which is ' +
+              'a strictly better skew story — and the converters are what you pay for it.'
       };
     }
 
@@ -619,6 +771,37 @@
       grid.tiles.forEach(function (t) { t.bbPathCm = (busTotal - t.bbPathCm) + tail; });
       nodes.push({ type: 'drv', x: root.x - 1.8, y: root.y, label: 'drv', freqHz: fBb });
       return finish('bus', order.length);
+    }
+
+    /* B4 current-mode: like B1 a single summing node, because a virtual
+       ground gains nothing from hierarchy either — but the node is held low
+       by a TIA rather than being a resistive junction, so the arms carry
+       current and their length costs delay, not division. */
+    if (id === 'current-mode') {
+      var vg = { x: apCm / 2, y: -0.9 };
+      nodes.push({ type: 'cell', x: vg.x, y: vg.y, label: 'TIA', freqHz: fBb });
+      emit(vg.x, vg.y, root.x, root.y, 'bbroot', 0);
+      grid.tiles.forEach(function (t) {
+        var len = emit(t.bbX, t.bbY, vg.x, vg.y, 'bbarm', 1);
+        t.bbPathCm = len;
+        t.bbLevel = 1;
+        nodes.push({ type: 'src', x: t.bbX, y: t.bbY, label: 'I', freqHz: fBb, tile: t.i });
+      });
+      return finish('star', 1);
+    }
+
+    /* B5 digitise at the tile: there is no analog inter-tile network to
+       draw. Each tile has its own serial lane to the backend, and the
+       drawing says so — the arms are digital links, not signal paths whose
+       length enters a phase budget. */
+    if (id === 'digital-tile') {
+      grid.tiles.forEach(function (t) {
+        var len = emit(t.bbX, t.bbY, root.x, root.y, 'bbdigital', 1);
+        t.bbPathCm = len;
+        t.bbLevel = 1;
+        nodes.push({ type: 'serdes', x: t.bbX, y: t.bbY, label: 'SerDes', freqHz: fBb, tile: t.i });
+      });
+      return finish('lanes', 1);
     }
 
     /* B3: hierarchical H-tree with an active cell at every junction */

@@ -132,6 +132,26 @@
     rows.push({ name: '· differential phase noise', field: 'pnDiffCalDeg', units: '°', better: 'low' });
     rows.push({ name: '· injected BIST noise', field: 'injDeg', units: '°', better: 'low' });
     rows.push({ name: '· drift residual', field: 'driftResidDeg', units: '°', better: 'low' });
+    rows.push({
+      name: '· · round-trip reciprocity (A5)', sub: 'what a self-correcting line leaves behind: the forward/reverse asymmetry it cannot see',
+      field: 'reciprocityDeg', units: '°', better: 'low', rank: false,
+      fmt: function (v, r) { return r.selfCorrecting ? n(v) : 'n/a'; }
+    });
+    rows.push({
+      name: '· · return-coupler bias (A5)', sub: 'leakage through finite directivity, biasing the phase the servo measures',
+      field: 'couplerBiasDeg', units: '°', better: 'low', rank: false,
+      fmt: function (v, r) { return r.selfCorrecting ? n(v) : 'n/a'; }
+    });
+    rows.push({
+      name: '· · locked-phase drift (A6)', sub: 'arcsin(Δf/f_lock) moving with temperature — an error class A1–A5 do not have',
+      field: 'lockOffsetDriftDeg', units: '°', better: 'low', rank: false,
+      fmt: function (v, r) { return r.lockOffsetDeg > 0 ? n(v) : 'n/a'; }
+    });
+    rows.push({
+      name: 'Locked phase offset, static (A6)', sub: 'deterministic and calibratable, but it is why A6 needs trimmed tanks',
+      field: 'lockOffsetDeg', units: '°', better: 'low', rank: false,
+      fmt: function (v, r) { return r.lockOffsetDeg > 0 ? n(v) : 'n/a'; }
+    });
     rows.push({ name: '· phase-shifter quantisation', field: 'quantDeg', units: '°', better: 'low' });
     rows.push({ section: 'M4 · inter-tile skew — static (calibratable) vs drifting (not)' });
     rows.push({ name: 'Total RMS skew', field: 'skewRmsPs', units: 'ps', better: 'low' });
@@ -546,7 +566,7 @@
     /* charts */
     var cc = document.getElementById('compareCharts');
     cc.textContent = '';
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'];
+    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
     function barPanel(title, field, unit, spec, transform, logX) {
       var sec = document.createElement('section');
       sec.className = 'panel';
@@ -576,7 +596,7 @@
      Phase-noise view
      ================================================================== */
   function renderPn(res, budget) {
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'];
+    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
     function pnPanel(mountId, curveKey, noteId, noteHtml, yMin, yMax) {
       var mount = document.getElementById(mountId);
       mount.textContent = '';
@@ -1027,7 +1047,7 @@
   function renderSweeps(res, budget) {
     var cc = document.getElementById('sweepCharts');
     cc.textContent = '';
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'];
+    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
 
     function panel(title, note, chart, legendItems) {
       var sec = document.createElement('section');

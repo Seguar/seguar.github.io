@@ -217,6 +217,36 @@
     t.push('The noise-figure argument usually made for active combining is nearly vacuous here: with ' +
       n(g.rficGainDb, 0) + ' dB of RFIC gain ahead of it, even the passive network costs only `' +
       n(b1.nfPenaltyDb, 2) + ' dB`. Do not lead with it.');
+
+    var b4 = res.bb['current-mode'], b5 = res.bb['digital-tile'];
+    if (b4 && b5) {
+      t.push('**Two options outside the original three, and they matter for different reasons.** B4 is not another ' +
+        'topology inside the same impedance regime — it is the impedance regime, which this tool\'s own method ' +
+        'note says is worth more decibels than the choice among B1–B3. Every channel drives current into one ' +
+        'virtual ground: B1\'s `' + n(20 * Math.log10(Math.max(g.chPerTile, 2)), 1) + ' dB` of voltage division ' +
+        'disappears, and so does the H-tree\'s cascade — one stage instead of `' +
+        Math.ceil(Math.log2(Math.max(g.chPerTile, 2))) + '`, so `' + n(b4.skewIntraPs) + ' ps` of intra-tile skew ' +
+        'against `' + n(b3.skewIntraPs) + ' ps`, no cascaded IIP3 penalty against `' + n(b3.iip3PenaltyDb, 1) +
+        ' dB`, and `' + n(b4.nfPenaltyDb, 2) + ' dB` of noise penalty. It costs `' +
+        n(b4.powerTotalMw / 1000, 2) + ' W` against the H-tree\'s `' + n(b3.powerTotalMw / 1000, 2) +
+        ' W` and gives up bandwidth (`' + n(b4.bwGHz, 1) + '` against `' + n(b3.bwGHz, 1) + ' GHz`) because the ' +
+        'summing node has to hold ' + Math.round(g.chPerTile) + ' channels\' worth of capacitance. It is a live ' +
+        'alternative to B3, not a curiosity.');
+      t.push('B5 deletes the analog inter-tile tier outright: combine in the tile, digitise there, send bits. It ' +
+        'is what a modern massive-MIMO array actually builds, so its absence would have been the most exposed ' +
+        'gap in this comparison — and now that it is priced, the answer is unambiguous. The skew story is far ' +
+        'better (`' + n(b5.skewRmsPs) + ' ps` against `' + n(b3.skewRmsPs) + ' ps`, because inter-tile alignment ' +
+        'becomes deterministic-latency rather than a routed path length), the loss and noise-figure penalties go ' +
+        'to zero, and then the converters cost `' + n(b5.powerTotalMw / 1000, 1) + ' W` — `' +
+        n(b5.powerFracOfArray, 0) + '%` of the entire array budget, against `' +
+        n(b3.powerFracOfArray, 1) + '%` for the H-tree. At `' + n(g.adcFomFjConv, 0) + ' fJ/conv-step`, `' +
+        g.adcBits + ' bits` and `' + n(g.adcGspsPerRail, 1) + ' GS/s` per rail that is ' +
+        Math.round(4 * 49) + ' converters the tile process cannot host anyway. **The right way to say this in ' +
+        'the thesis is not "we did not consider digital" but "we costed it: it is ' +
+        n(b5.powerTotalMw / Math.max(b3.powerTotalMw, 1), 0) + '× the analog network\'s power and the converters ' +
+        'do not fit the 65 nm LP tile."** Move the converter FOM parameter and watch where the crossover lands — ' +
+        'that is the number that will change with the process, not the architecture.');
+    }
     t.push('Two constraints deserve to be stated explicitly because they are easy to get wrong. A baseband delay is a ' +
       '**group-delay** error at the ' + n(g.bbEdgeGHz) + ' GHz rail edge, not a phase error at ' + g.fLoGHz +
       ' GHz: `' + n(bpick.r.skewRmsPs) + ' ps` of skew is `' + n(bpick.r.skewEdgeDeg) + '°` at the band edge, not `' +
@@ -247,6 +277,30 @@
         'aperiodic, and that ordering has to be stated before the floor is quoted. Making it aperiodic costs no ' +
         'gain but forces non-identical tiles and mandatory per-element calibration, which raises the requirement on ' +
         'this very distribution network. See the Beam view.');
+    }
+    var a5 = res.lo['stabilised-link'], a6 = res.lo['inj-lock'];
+    if (a5) {
+      t.push('- **Whether the round-trip link\'s reciprocity beats what BIST achieves (A5).** A5 is A4\'s tree with ' +
+        'a return path: the master mixes outgoing against returned, reads twice the one-way path phase and ' +
+        'pre-corrects it at `' + n(g.linkLoopBwHz, 0) + ' Hz` — so line drift cancels itself instead of being ' +
+        'tracked between BIST updates. On these numbers it does **not** win: `' + n(a5.interTileResidualDeg) +
+        '°` against A4\'s `' + n(pick.r.interTileResidualDeg) + '°`, because the assumed reciprocity floor of `' +
+        n(g.reciprocityErrDeg) + '°` is larger than the drift residual BIST already leaves. That single number is ' +
+        'the whole decision, it is an *engineering guess*, and it is measurable on a two-tile bench long before ' +
+        'anything is committed. If it comes in below `' + n(pick.r.driftResidDeg) + '°`, A5 wins and it wins ' +
+        'without needing the OTA loop closed at all — which would also decouple the calibration burden from the ' +
+        'beam-coherence argument.');
+    }
+    if (a6) {
+      t.push('- **Whether the free-running spread of 49 tile oscillators can be trimmed (A6).** An ' +
+        'injection-locked tile oscillator has no PFD, no charge pump and no divider, and its lock corner is `' +
+        n(g.lockBwMHz, 0) + ' MHz` against the few a PLL can close — so it suppresses the line\'s additive noise ' +
+        'over a far wider band than A4, at lower power (`' + n(a6.powerTotalMw / 1000, 2) + ' W` against `' +
+        n(pick.r.powerTotalMw / 1000, 2) + ' W`). What sinks it here is the term with no analogue in A1–A4: a ' +
+        'locked oscillator sits at `arcsin(Δf/f_lock)` from the injection, so `' + n(g.freeRunSpreadPct) +
+        '%` of untrimmed spread becomes `' + n(a6.lockOffsetDeg) + '°` of deterministic inter-tile offset, and ' +
+        'the part of it that moves with temperature is `' + n(a6.lockOffsetDriftDeg) + '°` that calibration ' +
+        'cannot hold. Trim the tanks, or widen the lock range, and A6 becomes the cheapest option on the board.');
     }
     t.push('- **The coarse TTD step, which is set by the quantisation lobe and not by the squint loss.** The ' +
       'quantisation residual is deterministic, exactly zero at broadside, and common to a whole tile column when ' +

@@ -36,6 +36,8 @@ E-Band Massive MIMO Arrays** (S. Efimov, adviser Prof. E. Cohen, Technion HFIC).
 | `hf-foldback` | High-frequency (near-E-band) LO distribution / foldback |
 | `daisy-chain` | Daisy-chained LO, tile to tile |
 | `mid-mult`    | Mid-frequency LO distribution + per-tile ×M multiplier |
+| `stabilised-link` | Mid-frequency tree **with a return path**: the master reads twice the one-way path phase and pre-corrects it, so the line cancels its own drift |
+| `inj-lock`    | Injection-locked tile oscillator — no PFD, no charge pump, no divider, and a lock corner hundreds of MHz wide |
 
 **Family B — baseband split/combine**
 
@@ -44,6 +46,16 @@ E-Band Massive MIMO Arrays** (S. Efimov, adviser Prof. E. Cohen, Technion HFIC).
 | `passive-50`    | Passive 50 Ω corporate network (Wilkinson / resistive) |
 | `bb-daisy`      | Baseband daisy chain |
 | `h-tree-active` | H-tree with active splitter/combiner cells |
+| `current-mode`  | Virtual-ground current summing — one node, one TIA per rail, the impedance regime rather than another topology |
+| `digital-tile`  | Digitise at the tile and send bits: no analog inter-tile tier at all |
+
+A1–A4 and B1–B3 are the candidates from the proposal. A5, A6, B4 and B5 were
+added after a deliberate sweep of the wider design space; the Method tab lists
+what else was considered — photonic LO, space-fed illumination, radial feeds,
+coupled oscillators, per-tile DDS, fully-digital-per-element and others — and
+why each is *not* a column. "We costed it and it lost" is a different statement
+from "we did not think of it," and only the first is worth anything in a
+defence.
 
 ## What it reports
 
@@ -113,7 +125,7 @@ enforced explicitly and are visible in the Method tab:
   Below: the intra-tile baseband network drawn for one tile's 32 channels, a
   live cost strip, and a hardware bill of materials with block counts and
   per-block power taken from the drawn topology.
-- **Compare** — the full metric tables, M1–M6, for all seven options.
+- **Compare** — the full metric tables, M1–M6, for all eleven options.
 - **Phase noise** — three L(f) overlays: absolute per tile, inter-tile
   differential (the curve that decides the architecture), and array-output
   (where uncorrelated noise has averaged down by 10log10 N).
