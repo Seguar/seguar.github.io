@@ -2968,7 +2968,7 @@ footer.foot a { color: var(--ink-2); }
        is electrically short. All the cost moves into the tile die.        */
     'local-pll': function (g, grid) {
       var refHz = g.fRefMHz * 1e6;
-      var alpha = window.K.lineAlphaDbCm(g.refMedium, refHz);
+      var alpha = window.K.lineAlphaDbCm(g.refMediumKey, refHz);
       var net = corporate(grid, {
         freqHz: refHz, sourceLabel: g.refName || 'REF',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 0.5
@@ -3006,7 +3006,7 @@ footer.foot a { color: var(--ink-2); }
        driver. This is the option whose cost is on the board, not the die. */
     'hf-foldback': function (g, grid) {
       var fHz = g.fLoGHz * 1e9;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = corporate(grid, {
         freqHz: fHz, sourceLabel: 'E-band source',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.81
@@ -3042,7 +3042,7 @@ footer.foot a { color: var(--ink-2); }
        each hop. The simplest board layout; the errors accumulate.         */
     'daisy-chain': function (g, grid) {
       var fHz = (g.chainFreqGHz || g.fLoGHz) * 1e9;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = daisy(grid, {
         freqHz: fHz, sourceLabel: 'chain source', branches: g.chainBranches,
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, tapLossDb: 1.2
@@ -3077,7 +3077,7 @@ footer.foot a { color: var(--ink-2); }
     'mid-mult': function (g, grid) {
       var M = Math.max(2, Math.round(g.midM));
       var fHz = g.fLoGHz * 1e9 / M;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = corporate(grid, {
         freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz source',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.31
@@ -3124,7 +3124,7 @@ footer.foot a { color: var(--ink-2); }
     'stabilised-link': function (g, grid) {
       var M = Math.max(2, Math.round(g.midM));
       var fHz = g.fLoGHz * 1e9 / M;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = corporate(grid, {
         freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz stabilised source',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.31
@@ -3138,6 +3138,21 @@ footer.foot a { color: var(--ink-2); }
           { type: 'amp', label: 'LO buf' }
         ];
       });
+      /* Drawn, A5 is A4 plus a return. The return travels the SAME trace it
+         came out on — that reciprocity is the entire mechanism — so it adds
+         no routed length and no link geometry, and marking the forward links
+         `bidir` is the honest way to say so: the map draws a companion stroke
+         alongside them rather than inventing a second trunk that no layout
+         would build. What is genuinely extra hardware is the coupler at each
+         tile and the comparison at the master, and those are nodes. */
+      net.links.forEach(function (L) { L.bidir = true; });
+      net.nodes.push({
+        type: 'phasedet', x: net.source.x + grid.tileCm * 0.55, y: net.source.y,
+        label: 'Δφ round-trip', freqHz: fHz
+      });
+      net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
+        return { type: 'coupler', x: t.cx - grid.tileCm * 0.22, y: t.cy, label: 'return coupler', freqHz: fHz, tile: t.i };
+      }));
       net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
         return { type: 'mult', x: t.cx, y: t.cy, label: '×' + M, freqHz: g.fLoGHz * 1e9, tile: t.i };
       }));
@@ -3171,7 +3186,7 @@ footer.foot a { color: var(--ink-2); }
     'inj-lock': function (g, grid) {
       var M = Math.max(2, Math.round(g.midM));
       var fHz = g.fLoGHz * 1e9 / M;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = corporate(grid, {
         freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz injection source',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.31
@@ -3214,7 +3229,13 @@ footer.foot a { color: var(--ink-2); }
      nDies RFIC dies, combined to the tile output that feeds the RFSoC.
      Everything here is PER RAIL, and there are two rails (I and Q).
      ================================================================== */
+  var BB_KINDS = ['passive-50', 'bb-daisy', 'h-tree-active', 'current-mode', 'digital-tile'];
+
   function buildBb(id, g) {
+    if (BB_KINDS.indexOf(id) < 0) {
+      throw new Error('Topo.buildBb: unknown baseband option id ' + JSON.stringify(id) +
+        ' (expected one of ' + BB_KINDS.join(', ') + ')');
+    }
     var nCh = Math.max(2, Math.round(g.chPerTile));
     var levels = Math.ceil(Math.log2(nCh));
     var W = 100, H = 62;                       /* abstract tile-zoom canvas */
@@ -3357,8 +3378,8 @@ footer.foot a { color: var(--ink-2); }
      BASEBAND INTER-TILE NETWORK — tiles to the RFSoC backend.
 
      This is the second tier of the two-stage architecture and it is drawn on
-     the same aperture as the LO network. The three options give genuinely
-     different inter-tile wiring, for a physical reason:
+     the same aperture as the LO network. The options give different
+     inter-tile wiring, for a physical reason:
 
        B1 passive resistive -> a FLAT STAR. An N-way resistive combiner is N
           arms meeting at one summing node; hierarchy buys it nothing, so the
@@ -3367,11 +3388,21 @@ footer.foot a { color: var(--ink-2); }
        B2 daisy chain -> a SERPENTINE BUS, tapped and passed at every tile.
        B3 H-tree active -> a HIERARCHICAL H-TREE. Active cells must be staged
           2:1, so the layout is recursive with a cell at every junction.
+       B4 current-mode -> the SAME FLAT STAR as B1, deliberately. Its claim
+          is about the impedance at the node, not the routing, so the arms
+          are identical and only the node and the arm terminations change.
+          Drawing it differently would be inventing a distinction.
+       B5 digitise-at-tile -> LANES. There is no analog inter-tile network
+          to draw at all; each tile owns a serial link to the backend.
 
      The backend sits above the aperture, opposite the LO source below it.
      ================================================================== */
   function bbNet(grid, g) {
-    var id = g.bbOptionId || 'h-tree-active';
+    var id = g.bbOptionId;
+    if (BB_KINDS.indexOf(id) < 0) {
+      throw new Error('Topo.bbNet: unknown baseband option id ' + JSON.stringify(id) +
+        ' (expected one of ' + BB_KINDS.join(', ') + ')');
+    }
     var apCm = grid.cols * grid.tileCm;
     var root = { x: apCm / 2, y: -2.6 };
     var links = [], nodes = [];
@@ -3501,11 +3532,20 @@ footer.foot a { color: var(--ink-2); }
         pathMinCm: Math.min.apply(null, lens), pathRmsSpreadCm: spread,
         totalRoutedCm: total,
         cellCount: nodes.filter(function (n) { return n.type === 'cell'; }).length,
+        /* B1 and B4 route identically — both are a flat star into one node,
+           and the map draws the same arms for each. That is not the drawing
+           losing the distinction: the difference between them is the
+           impedance at the node, not the geometry, and the note is where it
+           has to be said. */
         note: kind === 'star'
-          ? grid.nTiles + ' arms meeting at one summing node. Hierarchy buys a resistive combiner nothing, so the natural layout is a flat star — at the cost of long unequal arms and one large driver.'
+          ? (id === 'current-mode'
+              ? grid.nTiles + ' arms meeting at one virtual ground. The routing is the same flat star the resistive network uses — what differs is the node: each arm delivers current into a held-at-zero summing point, so arm impedance and arm mismatch stop dividing the signal and one TIA per rail replaces the whole staged combine.'
+              : grid.nTiles + ' arms meeting at one summing node. Hierarchy buys a resistive combiner nothing, so the natural layout is a flat star — at the cost of long unequal arms and one large driver.')
           : kind === 'bus'
-            ? 'One bus tapped and passed at all ' + grid.nTiles + ' tiles. Shortest total wire of the three, but the delay accumulates monotonically along it.'
-            : depth + ' levels of 2:1 active cells. Nominally equal path lengths, so the inter-tile skew comes from cell mismatch rather than geometry.'
+            ? 'One bus tapped and passed at all ' + grid.nTiles + ' tiles. Shortest total wire of any of the options, but the delay accumulates monotonically along it.'
+            : kind === 'lanes'
+              ? 'No analog inter-tile network at all: ' + grid.nTiles + ' independent serial lanes to the backend. The arms drawn are digital links, so their length sets a latency to be de-skewed, not a phase to be budgeted.'
+              : depth + ' levels of 2:1 active cells. Nominally equal path lengths, so the inter-tile skew comes from cell mismatch rather than geometry.'
       };
     }
   }
@@ -3513,9 +3553,25 @@ footer.foot a { color: var(--ink-2); }
   /* ======================================================================
      Public entry point.
      ================================================================== */
+  /* OPTS is keyed by the STRING option id. `g.loOption` is the raw numeric
+     slider index and `g.loOptionId` the resolved id; Model.evalLo hands us a
+     copy of g whose loOptionId it has overwritten with the option under test.
+     Read the id, and refuse an unknown one — indexing this table with the
+     numeric field silently returned undefined, and the `|| OPTS['mid-mult']`
+     that used to catch it made the hardware map draw A4 for every one of the
+     six architectures without any visible sign that it had. */
+  function loBuilder(g) {
+    var id = g.loOptionId;
+    if (!OPTS[id]) {
+      throw new Error('Topo.build: unknown LO option id ' + JSON.stringify(id) +
+        ' (expected one of ' + Object.keys(OPTS).join(', ') + ')');
+    }
+    return OPTS[id];
+  }
+
   function build(g) {
     var grid = makeGrid(g);
-    var fn = OPTS[g.loOption] || OPTS['mid-mult'];
+    var fn = loBuilder(g);
     var lo = fn(g, grid);
     lo.grid = grid;
 
@@ -3535,7 +3591,7 @@ footer.foot a { color: var(--ink-2); }
 
     return {
       lo: lo,
-      bb: buildBb(g.bbOptionId || g.bbOption, g),   /* intra-tile, 32 channels */
+      bb: buildBb(g.bbOptionId, g),                 /* intra-tile, 32 channels */
       bbInter: bbNet(grid, g),                      /* inter-tile, tiles → RFSoC */
       grid: grid
     };
@@ -4401,9 +4457,18 @@ footer.foot a { color: var(--ink-2); }
     var trL = traitsOf(id);
     var gg = {};
     for (var k in g) gg[k] = g[k];
-    gg.loOption = id;
-    gg.refMedium = gg.refMediumKey;
-    gg.loMedium = gg.loMediumKey;
+    /* Topo.build reads loOptionId, so overwrite BOTH fields: leaving the
+       numeric one pointing at the user's selection while the id points at
+       the option under test is exactly the kind of split that let the map
+       draw one architecture while the tables described another. */
+    gg.loOptionId = id;
+    gg.loOption = LO_IDS.indexOf(id);
+    /* `gg.refMedium = gg.refMediumKey` and its loMedium twin used to live
+       here, because topology.js read the numeric slider fields and needed
+       them substituted. It now reads the resolved *Key fields directly, so
+       there is one convention instead of two — and the map, which is built
+       from an unpatched g, no longer silently gets a null line loss and
+       draws a network with no repeaters in it. */
     var topo = window.Topo.build(gg);
     var grid = topo.grid, lo = topo.lo;
     var nT = grid.nTiles;
@@ -4689,7 +4754,7 @@ footer.foot a { color: var(--ink-2); }
     var trB = bbTraitsOf(id);
     var gg = {};
     for (var k in g) gg[k] = g[k];
-    gg.bbOption = id;
+    gg.bbOption = BB_IDS.indexOf(id);
     gg.bbOptionId = id;
     var bb = window.Topo.buildBb(id, gg);
     var nCh = bb.nCh, levels = bb.levels;
@@ -6572,6 +6637,44 @@ footer.foot a { color: var(--ink-2); }
         g.appendChild(el('rect', { x: -14, y: -9, width: 28, height: 18, rx: 3, fill: 'var(--bg-panel)', stroke: 'var(--s5)', 'stroke-width': 1.6 }));
         g.appendChild(el('text', { y: 3.6, 'text-anchor': 'middle', fill: 'var(--s5)', 'font-size': 9.5 }, label || '×M'));
         break;
+      /* A6: an injection-locked tank. Drawn as an oscillator (the circle
+         with a sine) rather than as a box, because that is the whole
+         claim — it is a free-running oscillator that happens to be
+         pulled into lock, not a synthesiser. */
+      case 'ilo':
+        g.appendChild(el('circle', { r: 8.5, fill: 'var(--bg-panel)', stroke: 'var(--s4)', 'stroke-width': 1.6 }));
+        g.appendChild(el('path', { d: 'M-5 0 q2.5 -4.5 5 0 t5 0', fill: 'none', stroke: 'var(--s4)', 'stroke-width': 1.5 }));
+        g.appendChild(el('path', { d: 'M-12.5 0 L-8.5 0 M-10.8 -2.6 L-8.4 0 L-10.8 2.6', fill: 'none', stroke: 'var(--s4)', 'stroke-width': 1.2 }));
+        break;
+      /* A5: the directional coupler that taps the tone back toward the
+         master. Two coupled lines with the return arrow on the lower one. */
+      case 'coupler':
+        g.appendChild(el('line', { x1: -7, y1: -2.6, x2: 7, y2: -2.6, stroke: 'var(--s2)', 'stroke-width': 1.5 }));
+        g.appendChild(el('line', { x1: -7, y1: 2.6, x2: 7, y2: 2.6, stroke: 'var(--s2)', 'stroke-width': 1.5 }));
+        g.appendChild(el('path', { d: 'M-2.4 5.0 L-6.2 2.6 L-2.4 0.2', fill: 'none', stroke: 'var(--s2)', 'stroke-width': 1.2 }));
+        break;
+      /* A5: the master's mixer and correction servo, where outgoing and
+         returned are compared. */
+      case 'phasedet':
+        g.appendChild(el('rect', { x: -12, y: -9, width: 24, height: 18, rx: 3, fill: 'var(--bg-panel)', stroke: 'var(--s2)', 'stroke-width': 1.6 }));
+        g.appendChild(el('text', { y: 3.8, 'text-anchor': 'middle', fill: 'var(--s2)', 'font-size': 10 }, 'Δφ'));
+        break;
+      /* B4: a channel driving current into the virtual ground — the
+         standard current-source symbol, deliberately NOT the resistor of
+         B1, because the difference between the two is the option. */
+      case 'src':
+        g.appendChild(el('circle', { r: 5, fill: 'var(--bg-panel)', stroke: 'var(--s4)', 'stroke-width': 1.4 }));
+        g.appendChild(el('path', { d: 'M0 3.2 L0 -3.2 M-2 -1 L0 -3.4 L2 -1', fill: 'none', stroke: 'var(--s4)', 'stroke-width': 1.3 }));
+        break;
+      /* B5: the converter and its serial lane. The ADC keeps the usual
+         trapezoid so it reads as a converter and not as an amplifier. */
+      case 'adc':
+        g.appendChild(el('path', { d: 'M-7 -6 L7 -3.2 L7 3.2 L-7 6 Z', fill: 'var(--bg-panel)', stroke: 'var(--s1)', 'stroke-width': 1.4 }));
+        break;
+      case 'serdes':
+        g.appendChild(el('rect', { x: -8, y: -6, width: 16, height: 12, rx: 2, fill: 'var(--bg-panel)', stroke: 'var(--s1)', 'stroke-width': 1.4 }));
+        g.appendChild(el('path', { d: 'M-4.5 2.6 L-1 2.6 L-1 -2.6 L2.5 -2.6 L2.5 2.6 L5 2.6', fill: 'none', stroke: 'var(--s1)', 'stroke-width': 1.2 }));
+        break;
       case 'term':
         g.appendChild(el('rect', { x: -7, y: -4, width: 14, height: 8, fill: 'var(--bg-panel)', stroke: 'var(--ink-3)', 'stroke-width': 1.2 }));
         g.appendChild(el('line', { x1: 0, y1: 4, x2: 0, y2: 9, stroke: 'var(--ink-3)', 'stroke-width': 1.2 }));
@@ -6843,6 +6946,22 @@ footer.foot a { color: var(--ink-2); }
           stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
           'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
         })));
+        /* A round-trip-stabilised line carries the return on the same
+           trace. Drawn as a dashed companion stroke offset by a couple of
+           screen pixels: the line is one line, and the second stroke says
+           it is used in both directions without pretending there is a
+           second route on the board. Offset in SCREEN space, since the
+           strokes are non-scaling. */
+        if (L.bidir) {
+          var vert = Math.abs(L.x2 - L.x1) < 1e-9;
+          var dx = vert ? (st.w + 1.4) / Z : 0;
+          var dy = vert ? 0 : (st.w + 1.4) / Z;
+          linkG.appendChild(nss(el('line', {
+            x1: X(L.x1) + dx, y1: Y(L.y1) + dy, x2: X(L.x2) + dx, y2: Y(L.y2) + dy,
+            stroke: st.stroke, 'stroke-width': Math.max(0.9, st.w * 0.55),
+            'stroke-dasharray': '3 2.6', 'stroke-opacity': 0.75, 'stroke-linecap': 'butt'
+          })));
+        }
       });
       svg.appendChild(linkG);
 
@@ -7019,6 +7138,15 @@ footer.foot a { color: var(--ink-2); }
       wrap.appendChild(li);
     });
 
+    if (built.lo.net.links.some(function (L) { return L.bidir; })) {
+      var rl = document.createElement('span');
+      rl.className = 'li';
+      rl.innerHTML = '<span class="sw dash" style="border-top-color:' +
+        BAND_STYLE[bandOf(built.lo.distFreqHz)].stroke + '"></span>' +
+        'return path — the same trace, read back at the master';
+      wrap.appendChild(rl);
+    }
+
     var bl = document.createElement('span');
     bl.className = 'li';
     bl.innerHTML = '<span class="sw dash" style="border-top-color:' + BB_STYLE.stroke + '"></span>' + BB_STYLE.name;
@@ -7035,13 +7163,22 @@ footer.foot a { color: var(--ink-2); }
     }
 
     var seen = {};
-    var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'term',
-                 'backend', 'sum', 'res', 'cell', 'drv'];
+    /* Every node type a topology can emit needs a row here. A type that is
+       missing falls through glyph()'s default to an unlabelled dot and then
+       never appears in the legend at all, which is how four of the newer
+       blocks — the coupler, the injection-locked tank, the current source
+       and the serialiser — were being drawn as anonymous specks. */
+    var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'ilo',
+                 'coupler', 'phasedet', 'term',
+                 'backend', 'sum', 'res', 'src', 'cell', 'drv', 'adc', 'serdes'];
     var names = {
       source: 'LO source', split: 'splitter', amp: 'repeater amp', buftap: 'buffer + tap',
-      tap: 'tap', pll: 'per-tile PLL', mult: 'per-tile multiplier', term: 'termination',
+      tap: 'tap', pll: 'per-tile PLL', mult: 'per-tile multiplier',
+      ilo: 'injection-locked tile oscillator', coupler: 'return-path coupler',
+      phasedet: 'round-trip phase detector', term: 'termination',
       backend: 'RFSoC backend', sum: 'resistive summing node', res: 'resistive arm',
-      cell: 'active combine cell', drv: 'baseband driver'
+      src: 'channel current source', cell: 'active combine cell', drv: 'baseband driver',
+      adc: 'per-tile converter', serdes: 'serial lane to the backend'
     };
     built.lo.net.nodes.forEach(function (n) { seen[n.type] = true; });
     if (built.bbInter) built.bbInter.nodes.forEach(function (n) { seen[n.type] = true; });
@@ -7406,7 +7543,27 @@ footer.foot a { color: var(--ink-2); }
     'naive Friis overstates a 6-level tree threefold. Its power is set by total load capacitance and target ' +
     'bandwidth, not by a fixed mW per cell, so fewer stronger buffers beat many weak ones — add levels only for ' +
     'isolation, skew control or wire-capacitance shielding. Cascaded IIP3 for n unity-gain stages is ' +
-    '`−10log10(n)`, not `−20log10(n)`.'
+    '`−10log10(n)`, not `−20log10(n)`.',
+
+    '### What the hardware map draws, and what it will not invent',
+    'The map is generated from the same topology builder the metrics are, so the trunks, branches, repeater ' +
+    'positions and tile counts on the picture are the ones the loss, skew and power figures were computed from. ' +
+    'Changing the LO option changes the drawn frequency (line weight and colour), the tree or chain form, the ' +
+    'number and position of repeaters, and the block at each tile — a PLL for A1, nothing for A2, a buffer-tap ' +
+    'for A3, a ×M for A4 and A5, an oscillator for A6. Changing the baseband option changes the inter-tile ' +
+    'wiring form: a flat star, a serpentine bus, an H-tree, or independent serial lanes.',
+    'Two pairs deliberately share a routing, and it would be dishonest to draw them apart. **A5 is A4\'s tree.** ' +
+    'Its return travels the same trace the forward tone came out on — that reciprocity *is* the mechanism, and ' +
+    'inventing a second trunk would imply a board nobody would build. The map says so with a dashed companion ' +
+    'stroke on every line, a coupler at each tile and the comparison at the master. **B4 is B1\'s flat star.** ' +
+    'Its claim is about the impedance at the summing node, not about where the wires go, so the arms are ' +
+    'identical and only the node and the arm terminations differ: current sources into a virtual ground and one ' +
+    'TIA, instead of resistive arms into a matched node and one large driver.',
+    'If two options ever look the same and nothing above explains it, the drawing is wrong, not subtle. That ' +
+    'failure has happened once already: the builder was selected by the numeric slider index against a table ' +
+    'keyed by option name, so the lookup missed and every architecture drew A4 — and, because the same call ' +
+    'passed the medium the same way, drew it with no line loss and therefore no repeaters at all. Both lookups ' +
+    'now throw on an unknown key instead of falling back to a default.'
   ].join('\n');
 
   var HONESTY = [

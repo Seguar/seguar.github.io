@@ -88,6 +88,44 @@
         g.appendChild(el('rect', { x: -14, y: -9, width: 28, height: 18, rx: 3, fill: 'var(--bg-panel)', stroke: 'var(--s5)', 'stroke-width': 1.6 }));
         g.appendChild(el('text', { y: 3.6, 'text-anchor': 'middle', fill: 'var(--s5)', 'font-size': 9.5 }, label || '×M'));
         break;
+      /* A6: an injection-locked tank. Drawn as an oscillator (the circle
+         with a sine) rather than as a box, because that is the whole
+         claim — it is a free-running oscillator that happens to be
+         pulled into lock, not a synthesiser. */
+      case 'ilo':
+        g.appendChild(el('circle', { r: 8.5, fill: 'var(--bg-panel)', stroke: 'var(--s4)', 'stroke-width': 1.6 }));
+        g.appendChild(el('path', { d: 'M-5 0 q2.5 -4.5 5 0 t5 0', fill: 'none', stroke: 'var(--s4)', 'stroke-width': 1.5 }));
+        g.appendChild(el('path', { d: 'M-12.5 0 L-8.5 0 M-10.8 -2.6 L-8.4 0 L-10.8 2.6', fill: 'none', stroke: 'var(--s4)', 'stroke-width': 1.2 }));
+        break;
+      /* A5: the directional coupler that taps the tone back toward the
+         master. Two coupled lines with the return arrow on the lower one. */
+      case 'coupler':
+        g.appendChild(el('line', { x1: -7, y1: -2.6, x2: 7, y2: -2.6, stroke: 'var(--s2)', 'stroke-width': 1.5 }));
+        g.appendChild(el('line', { x1: -7, y1: 2.6, x2: 7, y2: 2.6, stroke: 'var(--s2)', 'stroke-width': 1.5 }));
+        g.appendChild(el('path', { d: 'M-2.4 5.0 L-6.2 2.6 L-2.4 0.2', fill: 'none', stroke: 'var(--s2)', 'stroke-width': 1.2 }));
+        break;
+      /* A5: the master's mixer and correction servo, where outgoing and
+         returned are compared. */
+      case 'phasedet':
+        g.appendChild(el('rect', { x: -12, y: -9, width: 24, height: 18, rx: 3, fill: 'var(--bg-panel)', stroke: 'var(--s2)', 'stroke-width': 1.6 }));
+        g.appendChild(el('text', { y: 3.8, 'text-anchor': 'middle', fill: 'var(--s2)', 'font-size': 10 }, 'Δφ'));
+        break;
+      /* B4: a channel driving current into the virtual ground — the
+         standard current-source symbol, deliberately NOT the resistor of
+         B1, because the difference between the two is the option. */
+      case 'src':
+        g.appendChild(el('circle', { r: 5, fill: 'var(--bg-panel)', stroke: 'var(--s4)', 'stroke-width': 1.4 }));
+        g.appendChild(el('path', { d: 'M0 3.2 L0 -3.2 M-2 -1 L0 -3.4 L2 -1', fill: 'none', stroke: 'var(--s4)', 'stroke-width': 1.3 }));
+        break;
+      /* B5: the converter and its serial lane. The ADC keeps the usual
+         trapezoid so it reads as a converter and not as an amplifier. */
+      case 'adc':
+        g.appendChild(el('path', { d: 'M-7 -6 L7 -3.2 L7 3.2 L-7 6 Z', fill: 'var(--bg-panel)', stroke: 'var(--s1)', 'stroke-width': 1.4 }));
+        break;
+      case 'serdes':
+        g.appendChild(el('rect', { x: -8, y: -6, width: 16, height: 12, rx: 2, fill: 'var(--bg-panel)', stroke: 'var(--s1)', 'stroke-width': 1.4 }));
+        g.appendChild(el('path', { d: 'M-4.5 2.6 L-1 2.6 L-1 -2.6 L2.5 -2.6 L2.5 2.6 L5 2.6', fill: 'none', stroke: 'var(--s1)', 'stroke-width': 1.2 }));
+        break;
       case 'term':
         g.appendChild(el('rect', { x: -7, y: -4, width: 14, height: 8, fill: 'var(--bg-panel)', stroke: 'var(--ink-3)', 'stroke-width': 1.2 }));
         g.appendChild(el('line', { x1: 0, y1: 4, x2: 0, y2: 9, stroke: 'var(--ink-3)', 'stroke-width': 1.2 }));
@@ -359,6 +397,22 @@
           stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
           'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
         })));
+        /* A round-trip-stabilised line carries the return on the same
+           trace. Drawn as a dashed companion stroke offset by a couple of
+           screen pixels: the line is one line, and the second stroke says
+           it is used in both directions without pretending there is a
+           second route on the board. Offset in SCREEN space, since the
+           strokes are non-scaling. */
+        if (L.bidir) {
+          var vert = Math.abs(L.x2 - L.x1) < 1e-9;
+          var dx = vert ? (st.w + 1.4) / Z : 0;
+          var dy = vert ? 0 : (st.w + 1.4) / Z;
+          linkG.appendChild(nss(el('line', {
+            x1: X(L.x1) + dx, y1: Y(L.y1) + dy, x2: X(L.x2) + dx, y2: Y(L.y2) + dy,
+            stroke: st.stroke, 'stroke-width': Math.max(0.9, st.w * 0.55),
+            'stroke-dasharray': '3 2.6', 'stroke-opacity': 0.75, 'stroke-linecap': 'butt'
+          })));
+        }
       });
       svg.appendChild(linkG);
 
@@ -535,6 +589,15 @@
       wrap.appendChild(li);
     });
 
+    if (built.lo.net.links.some(function (L) { return L.bidir; })) {
+      var rl = document.createElement('span');
+      rl.className = 'li';
+      rl.innerHTML = '<span class="sw dash" style="border-top-color:' +
+        BAND_STYLE[bandOf(built.lo.distFreqHz)].stroke + '"></span>' +
+        'return path — the same trace, read back at the master';
+      wrap.appendChild(rl);
+    }
+
     var bl = document.createElement('span');
     bl.className = 'li';
     bl.innerHTML = '<span class="sw dash" style="border-top-color:' + BB_STYLE.stroke + '"></span>' + BB_STYLE.name;
@@ -551,13 +614,22 @@
     }
 
     var seen = {};
-    var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'term',
-                 'backend', 'sum', 'res', 'cell', 'drv'];
+    /* Every node type a topology can emit needs a row here. A type that is
+       missing falls through glyph()'s default to an unlabelled dot and then
+       never appears in the legend at all, which is how four of the newer
+       blocks — the coupler, the injection-locked tank, the current source
+       and the serialiser — were being drawn as anonymous specks. */
+    var order = ['source', 'split', 'amp', 'buftap', 'tap', 'pll', 'mult', 'ilo',
+                 'coupler', 'phasedet', 'term',
+                 'backend', 'sum', 'res', 'src', 'cell', 'drv', 'adc', 'serdes'];
     var names = {
       source: 'LO source', split: 'splitter', amp: 'repeater amp', buftap: 'buffer + tap',
-      tap: 'tap', pll: 'per-tile PLL', mult: 'per-tile multiplier', term: 'termination',
+      tap: 'tap', pll: 'per-tile PLL', mult: 'per-tile multiplier',
+      ilo: 'injection-locked tile oscillator', coupler: 'return-path coupler',
+      phasedet: 'round-trip phase detector', term: 'termination',
       backend: 'RFSoC backend', sum: 'resistive summing node', res: 'resistive arm',
-      cell: 'active combine cell', drv: 'baseband driver'
+      src: 'channel current source', cell: 'active combine cell', drv: 'baseband driver',
+      adc: 'per-tile converter', serdes: 'serial lane to the backend'
     };
     built.lo.net.nodes.forEach(function (n) { seen[n.type] = true; });
     if (built.bbInter) built.bbInter.nodes.forEach(function (n) { seen[n.type] = true; });

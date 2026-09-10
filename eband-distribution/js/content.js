@@ -155,7 +155,27 @@
     'naive Friis overstates a 6-level tree threefold. Its power is set by total load capacitance and target ' +
     'bandwidth, not by a fixed mW per cell, so fewer stronger buffers beat many weak ones — add levels only for ' +
     'isolation, skew control or wire-capacitance shielding. Cascaded IIP3 for n unity-gain stages is ' +
-    '`−10log10(n)`, not `−20log10(n)`.'
+    '`−10log10(n)`, not `−20log10(n)`.',
+
+    '### What the hardware map draws, and what it will not invent',
+    'The map is generated from the same topology builder the metrics are, so the trunks, branches, repeater ' +
+    'positions and tile counts on the picture are the ones the loss, skew and power figures were computed from. ' +
+    'Changing the LO option changes the drawn frequency (line weight and colour), the tree or chain form, the ' +
+    'number and position of repeaters, and the block at each tile — a PLL for A1, nothing for A2, a buffer-tap ' +
+    'for A3, a ×M for A4 and A5, an oscillator for A6. Changing the baseband option changes the inter-tile ' +
+    'wiring form: a flat star, a serpentine bus, an H-tree, or independent serial lanes.',
+    'Two pairs deliberately share a routing, and it would be dishonest to draw them apart. **A5 is A4\'s tree.** ' +
+    'Its return travels the same trace the forward tone came out on — that reciprocity *is* the mechanism, and ' +
+    'inventing a second trunk would imply a board nobody would build. The map says so with a dashed companion ' +
+    'stroke on every line, a coupler at each tile and the comparison at the master. **B4 is B1\'s flat star.** ' +
+    'Its claim is about the impedance at the summing node, not about where the wires go, so the arms are ' +
+    'identical and only the node and the arm terminations differ: current sources into a virtual ground and one ' +
+    'TIA, instead of resistive arms into a matched node and one large driver.',
+    'If two options ever look the same and nothing above explains it, the drawing is wrong, not subtle. That ' +
+    'failure has happened once already: the builder was selected by the numeric slider index against a table ' +
+    'keyed by option name, so the lookup missed and every architecture drew A4 — and, because the same call ' +
+    'passed the medium the same way, drew it with no line loss and therefore no repeaters at all. Both lookups ' +
+    'now throw on an unknown key instead of falling back to a default.'
   ].join('\n');
 
   var HONESTY = [
