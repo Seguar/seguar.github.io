@@ -311,7 +311,7 @@
        is electrically short. All the cost moves into the tile die.        */
     'local-pll': function (g, grid) {
       var refHz = g.fRefMHz * 1e6;
-      var alpha = window.K.lineAlphaDbCm(g.refMedium, refHz);
+      var alpha = window.K.lineAlphaDbCm(g.refMediumKey, refHz);
       var net = corporate(grid, {
         freqHz: refHz, sourceLabel: g.refName || 'REF',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 0.5
@@ -349,7 +349,7 @@
        driver. This is the option whose cost is on the board, not the die. */
     'hf-foldback': function (g, grid) {
       var fHz = g.fLoGHz * 1e9;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = corporate(grid, {
         freqHz: fHz, sourceLabel: 'E-band source',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.81
@@ -385,7 +385,7 @@
        each hop. The simplest board layout; the errors accumulate.         */
     'daisy-chain': function (g, grid) {
       var fHz = (g.chainFreqGHz || g.fLoGHz) * 1e9;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = daisy(grid, {
         freqHz: fHz, sourceLabel: 'chain source', branches: g.chainBranches,
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, tapLossDb: 1.2
@@ -420,7 +420,7 @@
     'mid-mult': function (g, grid) {
       var M = Math.max(2, Math.round(g.midM));
       var fHz = g.fLoGHz * 1e9 / M;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = corporate(grid, {
         freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz source',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.31
@@ -467,7 +467,7 @@
     'stabilised-link': function (g, grid) {
       var M = Math.max(2, Math.round(g.midM));
       var fHz = g.fLoGHz * 1e9 / M;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = corporate(grid, {
         freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz stabilised source',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.31
@@ -481,6 +481,21 @@
           { type: 'amp', label: 'LO buf' }
         ];
       });
+      /* Drawn, A5 is A4 plus a return. The return travels the SAME trace it
+         came out on — that reciprocity is the entire mechanism — so it adds
+         no routed length and no link geometry, and marking the forward links
+         `bidir` is the honest way to say so: the map draws a companion stroke
+         alongside them rather than inventing a second trunk that no layout
+         would build. What is genuinely extra hardware is the coupler at each
+         tile and the comparison at the master, and those are nodes. */
+      net.links.forEach(function (L) { L.bidir = true; });
+      net.nodes.push({
+        type: 'phasedet', x: net.source.x + grid.tileCm * 0.55, y: net.source.y,
+        label: 'Δφ round-trip', freqHz: fHz
+      });
+      net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
+        return { type: 'coupler', x: t.cx - grid.tileCm * 0.22, y: t.cy, label: 'return coupler', freqHz: fHz, tile: t.i };
+      }));
       net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
         return { type: 'mult', x: t.cx, y: t.cy, label: '×' + M, freqHz: g.fLoGHz * 1e9, tile: t.i };
       }));
@@ -514,7 +529,7 @@
     'inj-lock': function (g, grid) {
       var M = Math.max(2, Math.round(g.midM));
       var fHz = g.fLoGHz * 1e9 / M;
-      var alpha = window.K.lineAlphaDbCm(g.loMedium, fHz);
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
       var net = corporate(grid, {
         freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz injection source',
         alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb, splitLossDb: 3.31
@@ -557,7 +572,13 @@
      nDies RFIC dies, combined to the tile output that feeds the RFSoC.
      Everything here is PER RAIL, and there are two rails (I and Q).
      ================================================================== */
+  var BB_KINDS = ['passive-50', 'bb-daisy', 'h-tree-active', 'current-mode', 'digital-tile'];
+
   function buildBb(id, g) {
+    if (BB_KINDS.indexOf(id) < 0) {
+      throw new Error('Topo.buildBb: unknown baseband option id ' + JSON.stringify(id) +
+        ' (expected one of ' + BB_KINDS.join(', ') + ')');
+    }
     var nCh = Math.max(2, Math.round(g.chPerTile));
     var levels = Math.ceil(Math.log2(nCh));
     var W = 100, H = 62;                       /* abstract tile-zoom canvas */
@@ -700,8 +721,8 @@
      BASEBAND INTER-TILE NETWORK — tiles to the RFSoC backend.
 
      This is the second tier of the two-stage architecture and it is drawn on
-     the same aperture as the LO network. The three options give genuinely
-     different inter-tile wiring, for a physical reason:
+     the same aperture as the LO network. The options give different
+     inter-tile wiring, for a physical reason:
 
        B1 passive resistive -> a FLAT STAR. An N-way resistive combiner is N
           arms meeting at one summing node; hierarchy buys it nothing, so the
@@ -710,11 +731,21 @@
        B2 daisy chain -> a SERPENTINE BUS, tapped and passed at every tile.
        B3 H-tree active -> a HIERARCHICAL H-TREE. Active cells must be staged
           2:1, so the layout is recursive with a cell at every junction.
+       B4 current-mode -> the SAME FLAT STAR as B1, deliberately. Its claim
+          is about the impedance at the node, not the routing, so the arms
+          are identical and only the node and the arm terminations change.
+          Drawing it differently would be inventing a distinction.
+       B5 digitise-at-tile -> LANES. There is no analog inter-tile network
+          to draw at all; each tile owns a serial link to the backend.
 
      The backend sits above the aperture, opposite the LO source below it.
      ================================================================== */
   function bbNet(grid, g) {
-    var id = g.bbOptionId || 'h-tree-active';
+    var id = g.bbOptionId;
+    if (BB_KINDS.indexOf(id) < 0) {
+      throw new Error('Topo.bbNet: unknown baseband option id ' + JSON.stringify(id) +
+        ' (expected one of ' + BB_KINDS.join(', ') + ')');
+    }
     var apCm = grid.cols * grid.tileCm;
     var root = { x: apCm / 2, y: -2.6 };
     var links = [], nodes = [];
@@ -844,11 +875,20 @@
         pathMinCm: Math.min.apply(null, lens), pathRmsSpreadCm: spread,
         totalRoutedCm: total,
         cellCount: nodes.filter(function (n) { return n.type === 'cell'; }).length,
+        /* B1 and B4 route identically — both are a flat star into one node,
+           and the map draws the same arms for each. That is not the drawing
+           losing the distinction: the difference between them is the
+           impedance at the node, not the geometry, and the note is where it
+           has to be said. */
         note: kind === 'star'
-          ? grid.nTiles + ' arms meeting at one summing node. Hierarchy buys a resistive combiner nothing, so the natural layout is a flat star — at the cost of long unequal arms and one large driver.'
+          ? (id === 'current-mode'
+              ? grid.nTiles + ' arms meeting at one virtual ground. The routing is the same flat star the resistive network uses — what differs is the node: each arm delivers current into a held-at-zero summing point, so arm impedance and arm mismatch stop dividing the signal and one TIA per rail replaces the whole staged combine.'
+              : grid.nTiles + ' arms meeting at one summing node. Hierarchy buys a resistive combiner nothing, so the natural layout is a flat star — at the cost of long unequal arms and one large driver.')
           : kind === 'bus'
-            ? 'One bus tapped and passed at all ' + grid.nTiles + ' tiles. Shortest total wire of the three, but the delay accumulates monotonically along it.'
-            : depth + ' levels of 2:1 active cells. Nominally equal path lengths, so the inter-tile skew comes from cell mismatch rather than geometry.'
+            ? 'One bus tapped and passed at all ' + grid.nTiles + ' tiles. Shortest total wire of any of the options, but the delay accumulates monotonically along it.'
+            : kind === 'lanes'
+              ? 'No analog inter-tile network at all: ' + grid.nTiles + ' independent serial lanes to the backend. The arms drawn are digital links, so their length sets a latency to be de-skewed, not a phase to be budgeted.'
+              : depth + ' levels of 2:1 active cells. Nominally equal path lengths, so the inter-tile skew comes from cell mismatch rather than geometry.'
       };
     }
   }
@@ -856,9 +896,25 @@
   /* ======================================================================
      Public entry point.
      ================================================================== */
+  /* OPTS is keyed by the STRING option id. `g.loOption` is the raw numeric
+     slider index and `g.loOptionId` the resolved id; Model.evalLo hands us a
+     copy of g whose loOptionId it has overwritten with the option under test.
+     Read the id, and refuse an unknown one — indexing this table with the
+     numeric field silently returned undefined, and the `|| OPTS['mid-mult']`
+     that used to catch it made the hardware map draw A4 for every one of the
+     six architectures without any visible sign that it had. */
+  function loBuilder(g) {
+    var id = g.loOptionId;
+    if (!OPTS[id]) {
+      throw new Error('Topo.build: unknown LO option id ' + JSON.stringify(id) +
+        ' (expected one of ' + Object.keys(OPTS).join(', ') + ')');
+    }
+    return OPTS[id];
+  }
+
   function build(g) {
     var grid = makeGrid(g);
-    var fn = OPTS[g.loOption] || OPTS['mid-mult'];
+    var fn = loBuilder(g);
     var lo = fn(g, grid);
     lo.grid = grid;
 
@@ -878,7 +934,7 @@
 
     return {
       lo: lo,
-      bb: buildBb(g.bbOptionId || g.bbOption, g),   /* intra-tile, 32 channels */
+      bb: buildBb(g.bbOptionId, g),                 /* intra-tile, 32 channels */
       bbInter: bbNet(grid, g),                      /* inter-tile, tiles → RFSoC */
       grid: grid
     };

@@ -851,9 +851,18 @@
     var trL = traitsOf(id);
     var gg = {};
     for (var k in g) gg[k] = g[k];
-    gg.loOption = id;
-    gg.refMedium = gg.refMediumKey;
-    gg.loMedium = gg.loMediumKey;
+    /* Topo.build reads loOptionId, so overwrite BOTH fields: leaving the
+       numeric one pointing at the user's selection while the id points at
+       the option under test is exactly the kind of split that let the map
+       draw one architecture while the tables described another. */
+    gg.loOptionId = id;
+    gg.loOption = LO_IDS.indexOf(id);
+    /* `gg.refMedium = gg.refMediumKey` and its loMedium twin used to live
+       here, because topology.js read the numeric slider fields and needed
+       them substituted. It now reads the resolved *Key fields directly, so
+       there is one convention instead of two — and the map, which is built
+       from an unpatched g, no longer silently gets a null line loss and
+       draws a network with no repeaters in it. */
     var topo = window.Topo.build(gg);
     var grid = topo.grid, lo = topo.lo;
     var nT = grid.nTiles;
@@ -1139,7 +1148,7 @@
     var trB = bbTraitsOf(id);
     var gg = {};
     for (var k in g) gg[k] = g[k];
-    gg.bbOption = id;
+    gg.bbOption = BB_IDS.indexOf(id);
     gg.bbOptionId = id;
     var bb = window.Topo.buildBb(id, gg);
     var nCh = bb.nCh, levels = bb.levels;
