@@ -97,7 +97,12 @@
     if (cfg.mask && cfg.mask.length) svg.appendChild(el('path', { class: 'mask', d: path(cfg.mask) }));
     (cfg.series || []).forEach(function (s) {
       var p = el('path', { class: 'ser', d: path(s.points), stroke: s.color });
-      if (s.dashed) p.setAttribute('stroke-dasharray', '4 3');
+      /* A series may carry its own stroke pattern, so six overlapping curves
+         are separated by dash as well as hue — hue alone is unreadable
+         printed, projected, or with deuteranopia. dashed:true is the old
+         boolean and still means the default 4 3. */
+      if (s.dash) p.setAttribute('stroke-dasharray', s.dash);
+      else if (s.dashed) p.setAttribute('stroke-dasharray', '4 3');
       svg.appendChild(p);
       p.appendChild(el('title', null, s.name));
     });
@@ -164,7 +169,8 @@
         d += (d === '' ? 'M' : 'L') + X(p.x).toFixed(2) + ' ' + Y(yc).toFixed(2);
       });
       var pe = el('path', { class: 'ser', d: d, stroke: s.color });
-      if (s.dashed) pe.setAttribute('stroke-dasharray', '4 3');
+      if (s.dash) pe.setAttribute('stroke-dasharray', s.dash);
+      else if (s.dashed) pe.setAttribute('stroke-dasharray', '4 3');
       svg.appendChild(pe);
       pe.appendChild(el('title', null, s.name));
       if (s.markers) (s.points || []).forEach(function (p) {
@@ -316,10 +322,24 @@
     items.forEach(function (it) {
       var li = document.createElement('span');
       li.className = 'li';
-      var sw = document.createElement('span');
-      sw.className = 'sw' + (it.dashed ? ' dash' : '');
-      if (!it.dashed) sw.style.background = it.color;
-      li.appendChild(sw);
+      /* When a series carries a dash pattern the swatch has to carry the SAME
+         pattern, or the legend cannot be matched to the curve — which is the
+         whole point of adding a second channel. A 22x8 SVG draws the real
+         stroke; the plain div swatch stays for solid and legacy-dashed. */
+      if (it.dash) {
+        var s = el('svg', { width: 22, height: 8, viewBox: '0 0 22 8', 'aria-hidden': 'true' });
+        s.style.flex = 'none';
+        s.appendChild(el('line', {
+          x1: 0, y1: 4, x2: 22, y2: 4, stroke: it.color,
+          'stroke-width': 2.4, 'stroke-dasharray': it.dash, 'stroke-linecap': 'butt'
+        }));
+        li.appendChild(s);
+      } else {
+        var sw = document.createElement('span');
+        sw.className = 'sw' + (it.dashed ? ' dash' : '');
+        if (!it.dashed) sw.style.background = it.color;
+        li.appendChild(sw);
+      }
       li.appendChild(document.createTextNode(it.name));
       d.appendChild(li);
     });

@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
@@ -45,6 +45,19 @@
       <button id="themeBtn" type="button" title="Toggle light / dark">&#9788;</button>
     </nav>
   </div>
+  <!-- Context bar. The architecture picker only shows on the Hardware map, so
+       on five of nine views nothing above the fold said which of A1-A6 and
+       B1-B5 was selected, and the tool's own conclusion was painted only
+       inside Compare and Decision. One strip answers "what am I looking at"
+       and "what did this conclude" everywhere, and gives the picker a
+       one-click return path. Filled by renderContextBar() in js/app.js. -->
+  <div class="ctxbar" id="ctxBar">
+    <a href="#" class="ctxchip" id="ctxLo" title="Change the LO / reference architecture"></a>
+    <a href="#" class="ctxchip" id="ctxBb" title="Change the baseband split / combine architecture"></a>
+    <span class="ctxsep"></span>
+    <a href="#" class="ctxchip verdict-chip" id="ctxVerdict" title="Read the full rationale"></a>
+    <span class="ctxgrow" id="ctxScope"></span>
+  </div>
 </header>
 
 <div class="wrap">
@@ -73,6 +86,20 @@
     <aside class="params">
       <section class="panel">
         <h2>Parameters <span class="grow" id="dirtyCount"></span></h2>
+        <!-- Seventy controls in eight collapsible groups had no search: to
+             change the length tolerance you had to guess it lived under
+             "Interconnect & packaging" and open groups one at a time. The box
+             matches label, group and parameter KEY, so a key read off the
+             ledger or a Systems row can be typed straight in. -->
+        <div class="pfilter">
+          <input type="search" id="paramFilter" placeholder="Find a parameter&hellip;"
+                 aria-label="Filter parameters by name, group or key" autocomplete="off">
+          <button class="pchip" id="chipHot" type="button" aria-pressed="false"
+                  title="Only the parameters that move the answer: the ones with their own sweep, the inputs to the derived requirement, and the terms that dominate the residual">Key</button>
+          <button class="pchip" id="chipChanged" type="button" aria-pressed="false"
+                  title="Only parameters you have changed from their default">Changed</button>
+          <span class="pcount" id="paramCount"></span>
+        </div>
         <div class="body flush" id="paramMount"></div>
         <div class="rowbtns">
           <button class="btn" id="resetBtn" type="button">Reset defaults</button>
@@ -92,6 +119,7 @@
 
       <!-- ---- HARDWARE MAP ---- -->
       <div class="view" id="view-map">
+        <p class="viewintro"><span class="scope one">this build</span><span>The board this build actually is: where the source sits, how the trunks and branches route, what lands at each tile and what it costs. Click any tile to inspect both tiers for it.</span></p>
         <section class="panel">
           <h2 id="mapTitle">Hardware map</h2>
           <div class="toolbar" id="mapToolbar"></div>
@@ -130,15 +158,26 @@
 
       <!-- ---- COMPARE ---- -->
       <div class="view hidden" id="view-compare">
+        <p class="viewintro"><span class="scope all">all options</span><span>Every LO and baseband option against the same metrics, M1 to M6. The tinted column is what the model recommends; the underlined one is the build you have selected.</span></p>
         <section class="panel">
           <h2>Recommendation <span class="tag">live, from current parameters</span></h2>
           <div id="verdictMount"></div>
         </section>
 
+        <!-- 54 rows across 8 sections is the right depth for defending a
+             choice and the wrong depth for understanding one, so the key view
+             is the default and the full table is one click away. -->
+        <div class="toolbar" id="cmpToolbar">
+          <button class="btn pchip" id="cmpKeyToggle" type="button" aria-pressed="true"></button>
+          <span class="pcount" id="cmpKeyNote" style="font-size:11.5px;color:var(--ink-3)"></span>
+          <span class="sp"></span>
+          <span style="font-size:11.5px;color:var(--ink-3)">tinted = model pick &middot; underlined = your build &middot; &#9664; best in row</span>
+        </div>
+
         <section class="panel">
           <h2>LO / reference distribution <span class="tag">family A</span>
             <span class="grow">6 options &times; required metrics</span></h2>
-          <div class="tscroll"><table class="grid" id="loTable"></table></div>
+          <div class="tscroll tall"><table class="grid sticky1" id="loTable"></table></div>
           <div class="toolbar">
             <button class="btn" data-copy="lo-md" type="button">Copy as Markdown</button>
             <button class="btn" data-copy="lo-csv" type="button">Copy as CSV</button>
@@ -150,7 +189,7 @@
         <section class="panel">
           <h2>Baseband split / combine <span class="tag">family B</span>
             <span class="grow">5 options &times; required metrics</span></h2>
-          <div class="tscroll"><table class="grid" id="bbTable"></table></div>
+          <div class="tscroll tall"><table class="grid sticky1" id="bbTable"></table></div>
           <div class="toolbar">
             <button class="btn" data-copy="bb-md" type="button">Copy as Markdown</button>
             <button class="btn" data-copy="bb-csv" type="button">Copy as CSV</button>
@@ -169,6 +208,7 @@
 
       <!-- ---- PHASE NOISE ---- -->
       <div class="view hidden" id="view-phasenoise">
+        <p class="viewintro"><span class="scope all">all options</span><span>Three L(f) overlays for all six LO options: absolute per tile, the inter-tile differential that decides the architecture, and the array output after uncorrelated noise averages down.</span></p>
         <section class="panel">
           <h2>Absolute L(f) at the E-band carrier <span class="tag">M1</span>
             <span class="grow">what one tile's LO looks like</span></h2>
@@ -189,12 +229,13 @@
         </section>
         <section class="panel">
           <h2>Integrated phase error &amp; jitter <span class="tag">M2</span></h2>
-          <div class="tscroll"><table class="grid" id="jitterTable"></table></div>
+          <div class="tscroll tall"><table class="grid sticky1" id="jitterTable"></table></div>
         </section>
       </div>
 
       <!-- ---- BEAM ---- -->
       <div class="view hidden" id="view-beam">
+        <p class="viewintro"><span class="scope one">this build</span><span>What the selected build does to the beam: pattern, grating lobes, the in-tile lattice, and squint across the signal band.</span></p>
         <section class="panel">
           <h2>Beam pattern <span class="tag">from the selected architecture</span>
             <span class="grow" id="beamHdr"></span></h2>
@@ -243,6 +284,7 @@
 
       <!-- ---- SWEEPS ---- -->
       <div class="view hidden" id="view-sweeps">
+        <p class="viewintro"><span class="scope all">all options</span><span>How the answer moves when one parameter does. Each curve recomputes the full model at every point, for all six options.</span></p>
         <section class="panel">
           <h2>Design sweeps <span class="grow">each curve recomputes from the current parameter set</span></h2>
           <div class="body">
@@ -253,6 +295,7 @@
 
       <!-- ---- DECISION ---- -->
       <div class="view hidden" id="view-decision">
+        <p class="viewintro"><span class="scope all">all options</span><span>The written recommendation, regenerated from the live numbers, with the scoring weights shown as the editable judgement they are.</span></p>
         <section class="panel">
           <h2>Decision &amp; rationale <span class="tag">deliverable</span></h2>
           <div class="body"><div class="prose" id="decisionMount"></div></div>
@@ -268,6 +311,7 @@
 
       <!-- ---- ASSUMPTIONS ---- -->
       <div class="view hidden" id="view-assumptions">
+        <p class="viewintro"><span class="scope all">all options</span><span>Where every default came from and how far to trust it, plus the honesty ledger: what the model does not capture, and what to measure first.</span></p>
         <section class="panel">
           <h2>Parameter provenance <span class="tag">confidence ledger</span>
             <span class="grow" id="confSummary"></span></h2>
@@ -289,6 +333,7 @@
 
       <!-- ---- SYSTEMS ---- -->
       <div class="view hidden" id="view-systems">
+        <p class="viewintro"><span class="scope all">all options</span><span>Whole parameter sets side by side. Each column carries its own derived requirement, so pass/fail is judged per system rather than against one shared threshold.</span></p>
         <section class="panel">
           <h2>Saved systems <span class="tag">snapshots of the whole parameter set</span>
             <span class="grow" id="sysHdr"></span></h2>
@@ -315,7 +360,7 @@
           <div class="body hidden" id="sysKindWrap" style="padding-bottom:0">
             <p class="note hidden" id="sysKindNote"></p>
           </div>
-          <div class="tscroll" id="sysMetricMount"></div>
+          <div class="tscroll tall" id="sysMetricMount"></div>
           <div class="toolbar">
             <button class="btn" data-copy="sys-md" type="button">Copy as Markdown</button>
             <button class="btn" data-copy="sys-csv" type="button">Copy as CSV</button>
@@ -344,6 +389,7 @@
 
       <!-- ---- METHOD ---- -->
       <div class="view hidden" id="view-method">
+        <p class="viewintro"><span class="scope all">all options</span><span>The equations, the three rules the model enforces, and the design space that was considered and deliberately left out.</span></p>
         <section class="panel">
           <h2>Model &amp; equations</h2>
           <div class="body"><div class="prose" id="methodMount"></div></div>
@@ -358,6 +404,7 @@
   </footer>
 </div>
 
+<script src="js/glossary.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/export.js"></script>
 <script src="js/ui.js"></script>

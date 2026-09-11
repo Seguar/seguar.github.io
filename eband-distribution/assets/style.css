@@ -35,6 +35,11 @@
   --s3: #6b4d9b;
   --s4: #1c7a6b;
   --s5: #9b2226;
+  /* A6 needs its own hue: the six-series palette used to end in --accent,
+     which is byte-identical to --s1 in both themes, so A1 and A6 drew in the
+     same colour in every chart - and A1 vs A6 is the comparison the phase
+     noise view exists to make. */
+  --s6: #7a6300;
   --grid: #e6e4de;
 }
 
@@ -63,6 +68,7 @@
     --s3: #b39ae0;
     --s4: #5fc9b6;
     --s5: #e9797d;
+    --s6: #c9a227;
     --grid: #262b33;
   }
 }
@@ -91,6 +97,7 @@
   --s3: #b39ae0;
   --s4: #5fc9b6;
   --s5: #e9797d;
+  --s6: #c9a227;
   --grid: #262b33;
 }
 
@@ -137,9 +144,73 @@ header.top nav a, header.top nav button {
 header.top nav a:hover, header.top nav button:hover { background: var(--bg-hover); color: var(--ink); }
 header.top nav a.on { background: var(--accent-soft); color: var(--accent); border-color: var(--rule); }
 
-.cols { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 22px; align-items: start; }
-@media (max-width: 1080px) { .cols { grid-template-columns: 1fr; } }
+/* ---------- glossary ----------
+   A term the tool has defined. Underlined, not coloured: these sit inside
+   dense tables and prose, and a page of blue links would be worse than the
+   problem. */
+button.gterm {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0;
+  cursor: help; text-decoration: underline dotted;
+  text-underline-offset: 2px; text-decoration-thickness: 1px;
+  text-decoration-color: var(--ink-3);
+}
+button.gterm:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.gpop {
+  position: absolute; z-index: 80; max-width: 320px;
+  background: var(--bg-panel); border: 1px solid var(--rule-strong);
+  border-radius: 7px; padding: 10px 12px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.18);
+}
+.gpop-h { font: 600 12.5px var(--sans); color: var(--ink); }
+.gpop-s { font: 11.5px var(--mono); color: var(--accent); margin: 2px 0 6px; }
+.gpop-l { font-size: 12px; line-height: 1.45; color: var(--ink-2); }
 
+/* ---------- context bar ----------
+   Says which architecture is selected and what the model concluded, on every
+   view. Lives inside the sticky header so it never scrolls away. */
+.ctxbar {
+  max-width: 1560px; margin: 0 auto; padding: 0 20px 8px;
+  display: flex; gap: 7px; align-items: center; flex-wrap: wrap;
+  font-size: 11.5px;
+}
+.ctxchip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 2px 8px; border-radius: 20px; text-decoration: none;
+  border: 1px solid var(--rule-strong); color: var(--ink-2);
+  background: var(--bg-panel); white-space: nowrap;
+}
+.ctxchip:hover { background: var(--bg-hover); color: var(--ink); border-color: var(--accent); }
+.ctxchip .ck { color: var(--ink-3); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.ctxchip .cv { font-weight: 600; color: var(--ink); }
+.ctxchip.verdict-chip { background: var(--pass-soft); border-color: transparent; }
+.ctxchip.verdict-chip .ck { color: var(--pass); }
+.ctxsep { width: 1px; height: 15px; background: var(--rule); }
+.ctxgrow { margin-left: auto; color: var(--ink-3); }
+@media (max-width: 720px) { .ctxgrow { margin-left: 0; flex-basis: 100%; } }
+
+/* One line under each view's heading saying what the view is FOR and whether
+   it shows ALL options or only the selected build. The nine views silently
+   split into those two kinds, and a reader who changed the picker, opened
+   Phase noise and saw six unchanged curves concluded the control was broken. */
+.viewintro {
+  margin: 16px 0 -4px; font-size: 12.5px; color: var(--ink-2);
+  display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+}
+.viewintro .scope {
+  font: 10px var(--mono); text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 6px; border-radius: 3px; flex: none;
+  background: var(--bg-sunken); color: var(--ink-3); border: 1px solid var(--rule);
+}
+.viewintro .scope.all { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.viewintro .scope.one { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+
+.cols { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 22px; align-items: start; }
+/* minmax(0,1fr), not 1fr: a bare 1fr floors at min-content, so the whole
+   document went 714 px wide at a 375 px viewport and the header and half of
+   every panel panned off-screen. */
+@media (max-width: 1080px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+main { min-width: 0; }
 aside.params { position: sticky; top: 60px; max-height: calc(100vh - 76px); overflow-y: auto; padding-right: 3px; }
 @media (max-width: 1080px) { aside.params { position: static; max-height: none; } }
 
@@ -178,7 +249,31 @@ aside.params { position: sticky; top: 60px; max-height: calc(100vh - 76px); over
 .pgroup > summary .cnt { margin-left: auto; font: 10.5px var(--mono); color: var(--ink-3); font-weight: 400; }
 .pgroup .fields { padding: 2px 13px 12px; }
 
-.field { display: grid; grid-template-columns: 1fr 92px; gap: 5px 8px; align-items: center; margin: 7px 0; }
+/* 1fr for the label, a fixed field, and a hair for the per-parameter undo */
+.field { display: grid; grid-template-columns: 1fr 92px 16px; gap: 5px 6px; align-items: center; margin: 7px 0; }
+.field .hint { grid-column: 1 / -1; }
+button.pundo {
+  border: 0; background: none; cursor: pointer; padding: 0; line-height: 1;
+  font-size: 12px; color: var(--ink-3); border-radius: 3px;
+}
+button.pundo:hover { color: var(--accent); background: var(--bg-hover); }
+button.pundo:disabled { opacity: 0; cursor: default; pointer-events: none; }
+.field > label .conf { margin-left: 4px; vertical-align: 1px; }
+
+/* parameter search + chips */
+.pfilter { display: flex; gap: 6px; padding: 9px 13px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; align-items: center; }
+.pfilter input[type=search] {
+  flex: 1 1 120px; min-width: 0; font: 12px var(--sans);
+  padding: 4px 7px; border: 1px solid var(--rule-strong); border-radius: 4px;
+  background: var(--bg-panel); color: var(--ink);
+}
+.pchip {
+  font: 11px var(--sans); padding: 3px 8px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--rule-strong); background: var(--bg-panel); color: var(--ink-2);
+}
+.pchip:hover { background: var(--bg-hover); }
+.pchip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.pfilter .pcount { flex-basis: 100%; font-size: 11px; color: var(--ink-3); }
 .field > label { font-size: 12px; color: var(--ink-2); line-height: 1.3; }
 .field > label .u { color: var(--ink-3); font: 10.5px var(--mono); }
 .field input[type=number], .field select, .field input[type=text] {
@@ -209,11 +304,28 @@ button.btn:disabled { opacity: .5; cursor: default; }
    a 14-column systems comparison is 4200 px wide. max-width plus min-width:0
    pins it to the panel and lets the internal scrollbar do the work. */
 .tscroll { overflow-x: auto; max-width: 100%; min-width: 0; }
+/* thead's `position: sticky` was dead: .tscroll never scrolls vertically, so
+   the header simply left with the page and by row 40 of 54 the reader had six
+   columns of numbers and nothing saying whose. Capping the height gives the
+   sticky header something to stick inside. Short viewports opt out — a 300 px
+   scroll box is worse than no box. */
+.tscroll.tall { max-height: calc(100vh - 148px); overflow-y: auto; }
+@media (max-height: 620px) { .tscroll.tall { max-height: none; } }
 table.grid { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 table.grid th, table.grid td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
 table.grid th { font-weight: 600; font-size: 11.5px; color: var(--ink-2); background: var(--bg-sunken); }
-table.grid thead th { position: sticky; top: 0; z-index: 2; }
+table.grid thead th { position: sticky; top: -1px; z-index: 2; }
 table.grid th:first-child, table.grid td:first-child { text-align: left; white-space: normal; min-width: 200px; }
+/* Cells holding a SENTENCE, not a number. Without this the blanket
+   `white-space: nowrap` above made the Feasibility and Risk rows set the
+   column width for the whole table: the LO comparison was ~2600 px wide
+   inside a ~1030 px panel, so six numbers that fit on one screen needed two
+   and a half screens of sideways scrolling. */
+table.grid td.vw {
+  white-space: normal; min-width: 150px; max-width: 210px;
+  font: 11.5px/1.35 var(--sans); text-align: left;
+  font-variant-numeric: normal;
+}
 /* Systems comparison: with up to twelve columns the table scrolls sideways
    and the metric name is the first thing to leave the screen, which makes
    the numbers unreadable. Pin it. The explicit background matters — a
@@ -240,12 +352,26 @@ table.grid .mn { font-weight: 500; }
 table.grid .mn small { display: block; font-weight: 400; color: var(--ink-3); font-size: 11px; }
 table.grid th.rec { color: var(--accent); }
 table.grid td.rec, table.grid th.rec { background: var(--accent-soft); }
+/* The column the reader has actually selected in the picker. An underline,
+   deliberately, so it never competes with the accent-soft tint that marks the
+   model's recommendation — the two are different claims and used to be
+   conflated into one badge reading "selected". */
+table.grid th.cur, table.grid td.cur { box-shadow: inset 0 -2px 0 var(--warn); }
 table.grid td.best { font-weight: 650; }
-table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--pass); vertical-align: 2px; }
+/* Neutral, not green: only four of ~54 rows carry a requirement at all, so a
+   green marker on the other fifty read as "meets spec" when it means nothing
+   of the kind. */
+table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--ink-2); vertical-align: 2px; }
 
+/* Verdicts carried a colour and nothing else — invisible printed, projected,
+   or with red-green deficiency. The glyph is the primary channel now. */
 .v.pass { color: var(--pass); }
 .v.warn { color: var(--warn); }
 .v.fail { color: var(--fail); }
+.v.pass::after, .v.warn::after, .v.fail::after { font-size: 9px; vertical-align: 1px; opacity: .85; }
+.v.pass::after { content: " \2713"; }
+.v.warn::after { content: " !"; }
+.v.fail::after { content: " \2717"; }
 .badge {
   display: inline-block; font: 10px var(--mono); padding: 1px 5px; border-radius: 3px;
   border: 1px solid var(--rule-strong); color: var(--ink-3); vertical-align: 1px;
@@ -286,7 +412,12 @@ svg.chart.map {
   /* min-height wins over max-height in CSS, so the map cannot collapse in an
      embedding context where vh resolves to zero during layout */
   min-height: 320px;
-  margin: 0 auto; touch-action: none;   /* the map handles its own gestures */
+  margin: 0 auto;
+  /* pan-y, not none: with `none` the map swallowed one-finger vertical swipes,
+     so on a phone the landing view could not be scrolled past at all. The
+     browser keeps vertical gestures; horizontal drags still pan the map, and
+     an in-flight pan gets a pointercancel that endDrag already handles. */
+  touch-action: pan-y;
 }
 svg.chart text { font: 10.5px var(--sans); fill: var(--ink-3); }
 svg.chart text.axlabel { font-size: 11px; fill: var(--ink-2); }

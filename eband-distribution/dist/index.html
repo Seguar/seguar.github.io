@@ -62,6 +62,11 @@
   --s3: #6b4d9b;
   --s4: #1c7a6b;
   --s5: #9b2226;
+  /* A6 needs its own hue: the six-series palette used to end in --accent,
+     which is byte-identical to --s1 in both themes, so A1 and A6 drew in the
+     same colour in every chart - and A1 vs A6 is the comparison the phase
+     noise view exists to make. */
+  --s6: #7a6300;
   --grid: #e6e4de;
 }
 
@@ -90,6 +95,7 @@
     --s3: #b39ae0;
     --s4: #5fc9b6;
     --s5: #e9797d;
+    --s6: #c9a227;
     --grid: #262b33;
   }
 }
@@ -118,6 +124,7 @@
   --s3: #b39ae0;
   --s4: #5fc9b6;
   --s5: #e9797d;
+  --s6: #c9a227;
   --grid: #262b33;
 }
 
@@ -164,9 +171,73 @@ header.top nav a, header.top nav button {
 header.top nav a:hover, header.top nav button:hover { background: var(--bg-hover); color: var(--ink); }
 header.top nav a.on { background: var(--accent-soft); color: var(--accent); border-color: var(--rule); }
 
-.cols { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 22px; align-items: start; }
-@media (max-width: 1080px) { .cols { grid-template-columns: 1fr; } }
+/* ---------- glossary ----------
+   A term the tool has defined. Underlined, not coloured: these sit inside
+   dense tables and prose, and a page of blue links would be worse than the
+   problem. */
+button.gterm {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0;
+  cursor: help; text-decoration: underline dotted;
+  text-underline-offset: 2px; text-decoration-thickness: 1px;
+  text-decoration-color: var(--ink-3);
+}
+button.gterm:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.gpop {
+  position: absolute; z-index: 80; max-width: 320px;
+  background: var(--bg-panel); border: 1px solid var(--rule-strong);
+  border-radius: 7px; padding: 10px 12px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.18);
+}
+.gpop-h { font: 600 12.5px var(--sans); color: var(--ink); }
+.gpop-s { font: 11.5px var(--mono); color: var(--accent); margin: 2px 0 6px; }
+.gpop-l { font-size: 12px; line-height: 1.45; color: var(--ink-2); }
 
+/* ---------- context bar ----------
+   Says which architecture is selected and what the model concluded, on every
+   view. Lives inside the sticky header so it never scrolls away. */
+.ctxbar {
+  max-width: 1560px; margin: 0 auto; padding: 0 20px 8px;
+  display: flex; gap: 7px; align-items: center; flex-wrap: wrap;
+  font-size: 11.5px;
+}
+.ctxchip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 2px 8px; border-radius: 20px; text-decoration: none;
+  border: 1px solid var(--rule-strong); color: var(--ink-2);
+  background: var(--bg-panel); white-space: nowrap;
+}
+.ctxchip:hover { background: var(--bg-hover); color: var(--ink); border-color: var(--accent); }
+.ctxchip .ck { color: var(--ink-3); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.ctxchip .cv { font-weight: 600; color: var(--ink); }
+.ctxchip.verdict-chip { background: var(--pass-soft); border-color: transparent; }
+.ctxchip.verdict-chip .ck { color: var(--pass); }
+.ctxsep { width: 1px; height: 15px; background: var(--rule); }
+.ctxgrow { margin-left: auto; color: var(--ink-3); }
+@media (max-width: 720px) { .ctxgrow { margin-left: 0; flex-basis: 100%; } }
+
+/* One line under each view's heading saying what the view is FOR and whether
+   it shows ALL options or only the selected build. The nine views silently
+   split into those two kinds, and a reader who changed the picker, opened
+   Phase noise and saw six unchanged curves concluded the control was broken. */
+.viewintro {
+  margin: 16px 0 -4px; font-size: 12.5px; color: var(--ink-2);
+  display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+}
+.viewintro .scope {
+  font: 10px var(--mono); text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 6px; border-radius: 3px; flex: none;
+  background: var(--bg-sunken); color: var(--ink-3); border: 1px solid var(--rule);
+}
+.viewintro .scope.all { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.viewintro .scope.one { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+
+.cols { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 22px; align-items: start; }
+/* minmax(0,1fr), not 1fr: a bare 1fr floors at min-content, so the whole
+   document went 714 px wide at a 375 px viewport and the header and half of
+   every panel panned off-screen. */
+@media (max-width: 1080px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+main { min-width: 0; }
 aside.params { position: sticky; top: 60px; max-height: calc(100vh - 76px); overflow-y: auto; padding-right: 3px; }
 @media (max-width: 1080px) { aside.params { position: static; max-height: none; } }
 
@@ -205,7 +276,31 @@ aside.params { position: sticky; top: 60px; max-height: calc(100vh - 76px); over
 .pgroup > summary .cnt { margin-left: auto; font: 10.5px var(--mono); color: var(--ink-3); font-weight: 400; }
 .pgroup .fields { padding: 2px 13px 12px; }
 
-.field { display: grid; grid-template-columns: 1fr 92px; gap: 5px 8px; align-items: center; margin: 7px 0; }
+/* 1fr for the label, a fixed field, and a hair for the per-parameter undo */
+.field { display: grid; grid-template-columns: 1fr 92px 16px; gap: 5px 6px; align-items: center; margin: 7px 0; }
+.field .hint { grid-column: 1 / -1; }
+button.pundo {
+  border: 0; background: none; cursor: pointer; padding: 0; line-height: 1;
+  font-size: 12px; color: var(--ink-3); border-radius: 3px;
+}
+button.pundo:hover { color: var(--accent); background: var(--bg-hover); }
+button.pundo:disabled { opacity: 0; cursor: default; pointer-events: none; }
+.field > label .conf { margin-left: 4px; vertical-align: 1px; }
+
+/* parameter search + chips */
+.pfilter { display: flex; gap: 6px; padding: 9px 13px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; align-items: center; }
+.pfilter input[type=search] {
+  flex: 1 1 120px; min-width: 0; font: 12px var(--sans);
+  padding: 4px 7px; border: 1px solid var(--rule-strong); border-radius: 4px;
+  background: var(--bg-panel); color: var(--ink);
+}
+.pchip {
+  font: 11px var(--sans); padding: 3px 8px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--rule-strong); background: var(--bg-panel); color: var(--ink-2);
+}
+.pchip:hover { background: var(--bg-hover); }
+.pchip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.pfilter .pcount { flex-basis: 100%; font-size: 11px; color: var(--ink-3); }
 .field > label { font-size: 12px; color: var(--ink-2); line-height: 1.3; }
 .field > label .u { color: var(--ink-3); font: 10.5px var(--mono); }
 .field input[type=number], .field select, .field input[type=text] {
@@ -236,11 +331,28 @@ button.btn:disabled { opacity: .5; cursor: default; }
    a 14-column systems comparison is 4200 px wide. max-width plus min-width:0
    pins it to the panel and lets the internal scrollbar do the work. */
 .tscroll { overflow-x: auto; max-width: 100%; min-width: 0; }
+/* thead's `position: sticky` was dead: .tscroll never scrolls vertically, so
+   the header simply left with the page and by row 40 of 54 the reader had six
+   columns of numbers and nothing saying whose. Capping the height gives the
+   sticky header something to stick inside. Short viewports opt out — a 300 px
+   scroll box is worse than no box. */
+.tscroll.tall { max-height: calc(100vh - 148px); overflow-y: auto; }
+@media (max-height: 620px) { .tscroll.tall { max-height: none; } }
 table.grid { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 table.grid th, table.grid td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
 table.grid th { font-weight: 600; font-size: 11.5px; color: var(--ink-2); background: var(--bg-sunken); }
-table.grid thead th { position: sticky; top: 0; z-index: 2; }
+table.grid thead th { position: sticky; top: -1px; z-index: 2; }
 table.grid th:first-child, table.grid td:first-child { text-align: left; white-space: normal; min-width: 200px; }
+/* Cells holding a SENTENCE, not a number. Without this the blanket
+   `white-space: nowrap` above made the Feasibility and Risk rows set the
+   column width for the whole table: the LO comparison was ~2600 px wide
+   inside a ~1030 px panel, so six numbers that fit on one screen needed two
+   and a half screens of sideways scrolling. */
+table.grid td.vw {
+  white-space: normal; min-width: 150px; max-width: 210px;
+  font: 11.5px/1.35 var(--sans); text-align: left;
+  font-variant-numeric: normal;
+}
 /* Systems comparison: with up to twelve columns the table scrolls sideways
    and the metric name is the first thing to leave the screen, which makes
    the numbers unreadable. Pin it. The explicit background matters — a
@@ -267,12 +379,26 @@ table.grid .mn { font-weight: 500; }
 table.grid .mn small { display: block; font-weight: 400; color: var(--ink-3); font-size: 11px; }
 table.grid th.rec { color: var(--accent); }
 table.grid td.rec, table.grid th.rec { background: var(--accent-soft); }
+/* The column the reader has actually selected in the picker. An underline,
+   deliberately, so it never competes with the accent-soft tint that marks the
+   model's recommendation — the two are different claims and used to be
+   conflated into one badge reading "selected". */
+table.grid th.cur, table.grid td.cur { box-shadow: inset 0 -2px 0 var(--warn); }
 table.grid td.best { font-weight: 650; }
-table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--pass); vertical-align: 2px; }
+/* Neutral, not green: only four of ~54 rows carry a requirement at all, so a
+   green marker on the other fifty read as "meets spec" when it means nothing
+   of the kind. */
+table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--ink-2); vertical-align: 2px; }
 
+/* Verdicts carried a colour and nothing else — invisible printed, projected,
+   or with red-green deficiency. The glyph is the primary channel now. */
 .v.pass { color: var(--pass); }
 .v.warn { color: var(--warn); }
 .v.fail { color: var(--fail); }
+.v.pass::after, .v.warn::after, .v.fail::after { font-size: 9px; vertical-align: 1px; opacity: .85; }
+.v.pass::after { content: " \2713"; }
+.v.warn::after { content: " !"; }
+.v.fail::after { content: " \2717"; }
 .badge {
   display: inline-block; font: 10px var(--mono); padding: 1px 5px; border-radius: 3px;
   border: 1px solid var(--rule-strong); color: var(--ink-3); vertical-align: 1px;
@@ -313,7 +439,12 @@ svg.chart.map {
   /* min-height wins over max-height in CSS, so the map cannot collapse in an
      embedding context where vh resolves to zero during layout */
   min-height: 320px;
-  margin: 0 auto; touch-action: none;   /* the map handles its own gestures */
+  margin: 0 auto;
+  /* pan-y, not none: with `none` the map swallowed one-finger vertical swipes,
+     so on a phone the landing view could not be scrolled past at all. The
+     browser keeps vertical gestures; horizontal drags still pan the map, and
+     an in-flight pan gets a pointercancel that endDrag already handles. */
+  touch-action: pan-y;
 }
 svg.chart text { font: 10.5px var(--sans); fill: var(--ink-3); }
 svg.chart text.axlabel { font-size: 11px; fill: var(--ink-2); }
@@ -397,6 +528,19 @@ footer.foot a { color: var(--ink-2); }
       <button id="themeBtn" type="button" title="Toggle light / dark">&#9788;</button>
     </nav>
   </div>
+  <!-- Context bar. The architecture picker only shows on the Hardware map, so
+       on five of nine views nothing above the fold said which of A1-A6 and
+       B1-B5 was selected, and the tool's own conclusion was painted only
+       inside Compare and Decision. One strip answers "what am I looking at"
+       and "what did this conclude" everywhere, and gives the picker a
+       one-click return path. Filled by renderContextBar() in js/app.js. -->
+  <div class="ctxbar" id="ctxBar">
+    <a href="#" class="ctxchip" id="ctxLo" title="Change the LO / reference architecture"></a>
+    <a href="#" class="ctxchip" id="ctxBb" title="Change the baseband split / combine architecture"></a>
+    <span class="ctxsep"></span>
+    <a href="#" class="ctxchip verdict-chip" id="ctxVerdict" title="Read the full rationale"></a>
+    <span class="ctxgrow" id="ctxScope"></span>
+  </div>
 </header>
 
 <div class="wrap">
@@ -425,6 +569,20 @@ footer.foot a { color: var(--ink-2); }
     <aside class="params">
       <section class="panel">
         <h2>Parameters <span class="grow" id="dirtyCount"></span></h2>
+        <!-- Seventy controls in eight collapsible groups had no search: to
+             change the length tolerance you had to guess it lived under
+             "Interconnect & packaging" and open groups one at a time. The box
+             matches label, group and parameter KEY, so a key read off the
+             ledger or a Systems row can be typed straight in. -->
+        <div class="pfilter">
+          <input type="search" id="paramFilter" placeholder="Find a parameter&hellip;"
+                 aria-label="Filter parameters by name, group or key" autocomplete="off">
+          <button class="pchip" id="chipHot" type="button" aria-pressed="false"
+                  title="Only the parameters that move the answer: the ones with their own sweep, the inputs to the derived requirement, and the terms that dominate the residual">Key</button>
+          <button class="pchip" id="chipChanged" type="button" aria-pressed="false"
+                  title="Only parameters you have changed from their default">Changed</button>
+          <span class="pcount" id="paramCount"></span>
+        </div>
         <div class="body flush" id="paramMount"></div>
         <div class="rowbtns">
           <button class="btn" id="resetBtn" type="button">Reset defaults</button>
@@ -444,6 +602,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- HARDWARE MAP ---- -->
       <div class="view" id="view-map">
+        <p class="viewintro"><span class="scope one">this build</span><span>The board this build actually is: where the source sits, how the trunks and branches route, what lands at each tile and what it costs. Click any tile to inspect both tiers for it.</span></p>
         <section class="panel">
           <h2 id="mapTitle">Hardware map</h2>
           <div class="toolbar" id="mapToolbar"></div>
@@ -482,15 +641,26 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- COMPARE ---- -->
       <div class="view hidden" id="view-compare">
+        <p class="viewintro"><span class="scope all">all options</span><span>Every LO and baseband option against the same metrics, M1 to M6. The tinted column is what the model recommends; the underlined one is the build you have selected.</span></p>
         <section class="panel">
           <h2>Recommendation <span class="tag">live, from current parameters</span></h2>
           <div id="verdictMount"></div>
         </section>
 
+        <!-- 54 rows across 8 sections is the right depth for defending a
+             choice and the wrong depth for understanding one, so the key view
+             is the default and the full table is one click away. -->
+        <div class="toolbar" id="cmpToolbar">
+          <button class="btn pchip" id="cmpKeyToggle" type="button" aria-pressed="true"></button>
+          <span class="pcount" id="cmpKeyNote" style="font-size:11.5px;color:var(--ink-3)"></span>
+          <span class="sp"></span>
+          <span style="font-size:11.5px;color:var(--ink-3)">tinted = model pick &middot; underlined = your build &middot; &#9664; best in row</span>
+        </div>
+
         <section class="panel">
           <h2>LO / reference distribution <span class="tag">family A</span>
             <span class="grow">6 options &times; required metrics</span></h2>
-          <div class="tscroll"><table class="grid" id="loTable"></table></div>
+          <div class="tscroll tall"><table class="grid sticky1" id="loTable"></table></div>
           <div class="toolbar">
             <button class="btn" data-copy="lo-md" type="button">Copy as Markdown</button>
             <button class="btn" data-copy="lo-csv" type="button">Copy as CSV</button>
@@ -502,7 +672,7 @@ footer.foot a { color: var(--ink-2); }
         <section class="panel">
           <h2>Baseband split / combine <span class="tag">family B</span>
             <span class="grow">5 options &times; required metrics</span></h2>
-          <div class="tscroll"><table class="grid" id="bbTable"></table></div>
+          <div class="tscroll tall"><table class="grid sticky1" id="bbTable"></table></div>
           <div class="toolbar">
             <button class="btn" data-copy="bb-md" type="button">Copy as Markdown</button>
             <button class="btn" data-copy="bb-csv" type="button">Copy as CSV</button>
@@ -521,6 +691,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- PHASE NOISE ---- -->
       <div class="view hidden" id="view-phasenoise">
+        <p class="viewintro"><span class="scope all">all options</span><span>Three L(f) overlays for all six LO options: absolute per tile, the inter-tile differential that decides the architecture, and the array output after uncorrelated noise averages down.</span></p>
         <section class="panel">
           <h2>Absolute L(f) at the E-band carrier <span class="tag">M1</span>
             <span class="grow">what one tile's LO looks like</span></h2>
@@ -541,12 +712,13 @@ footer.foot a { color: var(--ink-2); }
         </section>
         <section class="panel">
           <h2>Integrated phase error &amp; jitter <span class="tag">M2</span></h2>
-          <div class="tscroll"><table class="grid" id="jitterTable"></table></div>
+          <div class="tscroll tall"><table class="grid sticky1" id="jitterTable"></table></div>
         </section>
       </div>
 
       <!-- ---- BEAM ---- -->
       <div class="view hidden" id="view-beam">
+        <p class="viewintro"><span class="scope one">this build</span><span>What the selected build does to the beam: pattern, grating lobes, the in-tile lattice, and squint across the signal band.</span></p>
         <section class="panel">
           <h2>Beam pattern <span class="tag">from the selected architecture</span>
             <span class="grow" id="beamHdr"></span></h2>
@@ -595,6 +767,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- SWEEPS ---- -->
       <div class="view hidden" id="view-sweeps">
+        <p class="viewintro"><span class="scope all">all options</span><span>How the answer moves when one parameter does. Each curve recomputes the full model at every point, for all six options.</span></p>
         <section class="panel">
           <h2>Design sweeps <span class="grow">each curve recomputes from the current parameter set</span></h2>
           <div class="body">
@@ -605,6 +778,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- DECISION ---- -->
       <div class="view hidden" id="view-decision">
+        <p class="viewintro"><span class="scope all">all options</span><span>The written recommendation, regenerated from the live numbers, with the scoring weights shown as the editable judgement they are.</span></p>
         <section class="panel">
           <h2>Decision &amp; rationale <span class="tag">deliverable</span></h2>
           <div class="body"><div class="prose" id="decisionMount"></div></div>
@@ -620,6 +794,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- ASSUMPTIONS ---- -->
       <div class="view hidden" id="view-assumptions">
+        <p class="viewintro"><span class="scope all">all options</span><span>Where every default came from and how far to trust it, plus the honesty ledger: what the model does not capture, and what to measure first.</span></p>
         <section class="panel">
           <h2>Parameter provenance <span class="tag">confidence ledger</span>
             <span class="grow" id="confSummary"></span></h2>
@@ -641,6 +816,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- SYSTEMS ---- -->
       <div class="view hidden" id="view-systems">
+        <p class="viewintro"><span class="scope all">all options</span><span>Whole parameter sets side by side. Each column carries its own derived requirement, so pass/fail is judged per system rather than against one shared threshold.</span></p>
         <section class="panel">
           <h2>Saved systems <span class="tag">snapshots of the whole parameter set</span>
             <span class="grow" id="sysHdr"></span></h2>
@@ -667,7 +843,7 @@ footer.foot a { color: var(--ink-2); }
           <div class="body hidden" id="sysKindWrap" style="padding-bottom:0">
             <p class="note hidden" id="sysKindNote"></p>
           </div>
-          <div class="tscroll" id="sysMetricMount"></div>
+          <div class="tscroll tall" id="sysMetricMount"></div>
           <div class="toolbar">
             <button class="btn" data-copy="sys-md" type="button">Copy as Markdown</button>
             <button class="btn" data-copy="sys-csv" type="button">Copy as CSV</button>
@@ -696,6 +872,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- METHOD ---- -->
       <div class="view hidden" id="view-method">
+        <p class="viewintro"><span class="scope all">all options</span><span>The equations, the three rules the model enforces, and the design space that was considered and deliberately left out.</span></p>
         <section class="panel">
           <h2>Model &amp; equations</h2>
           <div class="body"><div class="prose" id="methodMount"></div></div>
@@ -724,7 +901,215 @@ footer.foot a { color: var(--ink-2); }
 
 
 
+
 <script>
+/* ===== js/glossary.js ===== */
+/* ============================================================================
+   glossary.js — the tool's own vocabulary, defined once and reachable from
+   wherever a term appears.
+
+   The tool never defined its terms. L(f) appears in a panel title, a
+   parameter label and six row names and was never once expanded to
+   "single-sideband phase noise"; "wraps" and "foldback" are house terms
+   nobody can guess; TTD, BIST, Ruze, squint, IIP3, ENOB, Dk, GCPW, HPBW and
+   "null-depth floor" appeared with no definition anywhere on the page. The
+   only definition of A1-A6 and B1-B5 was a title attribute on a table header,
+   reachable by hovering and waiting.
+
+   One definition table, one affordance. G.mark(el) walks a text node and
+   wraps the first occurrence of any known term in a <button class="gterm">;
+   clicking it opens a popover with the definition. Marking is done ONCE per
+   element, first occurrence only, so a table does not turn into a field of
+   dotted underlines.
+
+   Exposes window.Glossary.
+   ========================================================================= */
+(function () {
+  'use strict';
+
+  /* term -> { short, long }. `short` is what a reader needs mid-sentence;
+     `long` is the sentence that makes it usable. Keys are matched
+     case-sensitively for the ones that are symbols (L(f), sigma) and
+     case-insensitively for words. */
+  var TERMS = {
+    'L(f)': {
+      short: 'single-sideband phase noise, dBc/Hz',
+      long: 'Power in a 1 Hz bandwidth at an offset f from the carrier, relative to the carrier power. The whole M1/M2 chain is an integral of this curve, so every phase-noise number in the tool traces back to it.'
+    },
+    'M1': { short: 'phase noise L(f) at the carrier', long: 'The first of the six required metrics: the L(f) curve at 78 GHz plus its value at named offsets from 1 kHz to 100 MHz.' },
+    'M2': { short: 'integrated RMS phase error and jitter', long: 'L(f) integrated over a stated band, in degrees RMS and in femtoseconds. The band is a parameter, not a constant: carrier-recovery bandwidth for an EVM number, calibration rate for a beam number.' },
+    'M3': { short: 'inter-tile phase error', long: 'The differential phase error between tiles at 78 GHz, reported raw (open loop) and residual (what survives calibration). This is the metric the architecture choice turns on.' },
+    'M4': { short: 'inter-tile skew', long: 'Path delay mismatch between tiles, in picoseconds RMS and peak, split into the geometric part designed out in layout, the static part one calibration removes, and the thermal drift that survives.' },
+    'M5': { short: 'distribution loss', long: 'Total loss along the worst path, in dB, plus dB/cm at the distribution frequency and the gain the network must contain to make it up.' },
+    'M6': { short: 'distribution power', long: 'Total milliwatts, per tile, and as a fraction of the array power budget.' },
+    'BIST': {
+      short: 'built-in self test',
+      long: 'The on-chip measurement loop that estimates each tile\'s phase error so it can be corrected. Its update rate, its own measurement noise and its loop gain are all parameters here, because they trade against each other: too slow leaves drift, too fast injects the estimator\'s own noise.'
+    },
+    'TTD': {
+      short: 'true time delay',
+      long: 'A delay element, as opposed to a phase shifter. A phase shifter aligns one frequency; a delay aligns the whole band, which is what a wide-band array steered off boresight needs. The per-tile coarse TTD is what compensates inter-tile routing length.'
+    },
+    'wraps': {
+      short: 'whole cycles of 360 degrees at the LO',
+      long: 'A static offset of many wraps is not a large error, it is an unknown integer: a narrowband phase measurement resolves phase modulo one LO period (12.8 ps at 78 GHz), so the calibration has to resolve the integer as well as the fraction. The tool reports the correction RANGE in wraps rather than quoting thousands of degrees.'
+    },
+    'foldback': {
+      short: 'distributing at the LO frequency itself',
+      long: 'Option A2: the board carries 78 GHz to every tile rather than a sub-harmonic. No multiplier at the tile, but E-band loss, E-band amplifiers and E-band transitions everywhere.'
+    },
+    'squint': {
+      short: 'beam pointing that moves with frequency',
+      long: 'A phase-steered array is aligned at one frequency only, so the beam walks across the signal band. Only true time delay removes it. Reported here as the steer across the 2 GHz RF band against the beamwidth.'
+    },
+    'Ruze': {
+      short: 'gain loss from random phase error',
+      long: 'The classical result that random aperture phase error of sigma radians costs exp(-sigma^2) in gain. Negligible at the error levels here — the sidelobe and null-depth floor is what random error actually costs, not gain.'
+    },
+    'null-depth floor': {
+      short: 'the sidelobe level random error sets, 10log10(sigma^2/N)',
+      long: 'Random per-element phase error scatters power into a noise floor across the whole pattern. That floor, not gain loss, is what limits how deep a null can be steered — and therefore how many users the array can separate. It is the decisive metric for this comparison.'
+    },
+    'EVM': { short: 'error vector magnitude', long: 'How far the received constellation points sit from where they should, as a percentage or in dB. Sets the highest QAM order the link can carry.' },
+    'IIP3': { short: 'input third-order intercept', long: 'The linearity of a stage, referred to its input. Cascading n unity-gain stages costs 10log10(n), not 20log10(n).' },
+    'ENOB': { short: 'effective number of bits', long: 'A converter\'s real resolution after its own noise and distortion, always below its nominal bit count.' },
+    'Dk': { short: 'dielectric constant of the laminate', long: 'Sets propagation velocity, so its tolerance is a delay tolerance. Its variation over a path is the largest static term in the skew budget here.' },
+    'GCPW': { short: 'grounded coplanar waveguide', long: 'A planar transmission line with side ground and a ground plane beneath. One of the media the tool costs the distribution network in.' },
+    'HPBW': { short: 'half-power beamwidth', long: 'The angular width of the main beam between its -3 dB points.' },
+    'Adler': { short: 'the injection-locking relation', long: 'Adler\'s equation gives the locked phase offset of an oscillator pulled by an injected tone: arcsin(delta_f / f_lock). It is why option A6\'s tile-to-tile frequency spread becomes a deterministic phase error.' },
+    'sub-harmonic': { short: 'an integer fraction of the LO frequency', long: 'Distributing at 78/M GHz and multiplying by M at the tile. Buys loss, power and packaging tolerance — but not skew, because an ideal multiplier preserves time delay.' },
+    'corporate': { short: 'a balanced branching feed', long: 'The tree topology where each split feeds two nominally equal halves, so every leaf sees nominally the same path length.' },
+    'H-tree': { short: 'a corporate feed laid out as nested H shapes', long: 'The planar layout that makes a corporate feed\'s equal path lengths physically realisable on a board.' },
+    'reciprocity': { short: 'a path having the same electrical length both ways', long: 'What round-trip phase stabilisation depends on: the master can only cancel the drift it can measure, and it measures the round trip. Non-reciprocity is the floor option A5 cannot go below.' },
+    'mean-referred': { short: 'measured against the array mean, not against a neighbour', long: 'The differential of two independent identical sources is 3.01 dB above one of them; referred to the mean of N tiles it is (N-1)/N of the per-tile variance instead. Beamforming sees the mean-referred number, so that is the one reported.' }
+  };
+
+  var pop = null;
+
+  function closePop() {
+    if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+    pop = null;
+  }
+
+  function openPop(btn, term, def) {
+    closePop();
+    pop = document.createElement('div');
+    pop.className = 'gpop';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', term + ' — definition');
+    var h = document.createElement('div');
+    h.className = 'gpop-h';
+    h.textContent = term;
+    var s = document.createElement('div');
+    s.className = 'gpop-s';
+    s.textContent = def.short;
+    var l = document.createElement('div');
+    l.className = 'gpop-l';
+    l.textContent = def.long;
+    pop.appendChild(h);
+    pop.appendChild(s);
+    pop.appendChild(l);
+    document.body.appendChild(pop);
+
+    var r = btn.getBoundingClientRect();
+    var w = pop.offsetWidth, hh = pop.offsetHeight;
+    var x = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+    /* above if there is no room below */
+    var y = (r.bottom + hh + 10 > window.innerHeight && r.top - hh - 8 > 0)
+      ? r.top - hh - 8 : r.bottom + 6;
+    pop.style.left = Math.round(x + window.scrollX) + 'px';
+    pop.style.top = Math.round(y + window.scrollY) + 'px';
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    var b = t && t.closest ? t.closest('.gterm') : null;
+    if (b) {
+      e.preventDefault();
+      e.stopPropagation();
+      var term = b.getAttribute('data-term');
+      if (pop && pop.dataset.term === term) { closePop(); return; }
+      var def = TERMS[term];
+      if (def) { openPop(b, term, def); pop.dataset.term = term; }
+      return;
+    }
+    if (pop && !(t.closest && t.closest('.gpop'))) closePop();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePop(); });
+  window.addEventListener('resize', closePop);
+
+  /* Longest first, so "null-depth floor" is not eaten by a shorter key, and
+     symbol terms keep their exact case. */
+  var KEYS = Object.keys(TERMS).sort(function (a, b) { return b.length - a.length; });
+
+  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\</body>'); }
+
+  /* Wrap the FIRST occurrence of each known term inside `root`. Skips any
+     text already inside a .gterm, a script, an input or an existing popover.
+     Idempotent: an element carrying data-gmarked is left alone. */
+  function mark(root, only) {
+    if (!root) return;
+    /* "Already marked" has to be a question about the CONTENT, not a flag on
+       the container. A data-gmarked attribute survives the container being
+       emptied and rebuilt — which is exactly what renderTable does to the
+       same <table> element on every render — so the flag said "done" for a
+       table whose marks had just been thrown away. */
+    if (root.querySelector('.gterm')) return;
+    var wanted = only && only.length ? KEYS.filter(function (k) { return only.indexOf(k) >= 0; }) : KEYS;
+    var seen = {};
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        var p = n.parentNode;
+        while (p && p !== root) {
+          var tn = p.nodeName;
+          if (tn === 'SCRIPT' || tn === 'STYLE' || tn === 'INPUT' || tn === 'TEXTAREA' ||
+              tn === 'BUTTON' || tn === 'SELECT' ||
+              (p.classList && (p.classList.contains('gterm') || p.classList.contains('gpop')))) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          p = p.parentNode;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = [];
+    var n2;
+    while ((n2 = walker.nextNode())) nodes.push(n2);
+
+    nodes.forEach(function (node) {
+      for (var i = 0; i < wanted.length; i++) {
+        var key = wanted[i];
+        if (seen[key]) continue;
+        var symbol = /[^A-Za-z]/.test(key.charAt(key.length - 1)) || /\(/.test(key);
+        var re = symbol
+          ? new RegExp(escapeRe(key))
+          : new RegExp('\\b' + escapeRe(key) + '\\b', key === key.toLowerCase() ? 'i' : '');
+        var m = re.exec(node.nodeValue);
+        if (!m) continue;
+        var before = node.nodeValue.slice(0, m.index);
+        var after = node.nodeValue.slice(m.index + m[0].length);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gterm';
+        btn.setAttribute('data-term', key);
+        btn.setAttribute('aria-label', m[0] + ' — what this means');
+        btn.title = TERMS[key].short;
+        btn.textContent = m[0];
+        var parent = node.parentNode;
+        parent.insertBefore(document.createTextNode(before), node);
+        parent.insertBefore(btn, node);
+        node.nodeValue = after;
+        seen[key] = 1;
+        /* the tail is a fresh node for the remaining terms to match in */
+        break;
+      }
+    });
+  }
+
+  window.Glossary = { TERMS: TERMS, mark: mark, close: closePop };
+})();
+
 /* ===== js/charts.js ===== */
 /* ============================================================================
    charts.js — dependency-free inline-SVG plotting for the distribution tool.
@@ -825,7 +1210,12 @@ footer.foot a { color: var(--ink-2); }
     if (cfg.mask && cfg.mask.length) svg.appendChild(el('path', { class: 'mask', d: path(cfg.mask) }));
     (cfg.series || []).forEach(function (s) {
       var p = el('path', { class: 'ser', d: path(s.points), stroke: s.color });
-      if (s.dashed) p.setAttribute('stroke-dasharray', '4 3');
+      /* A series may carry its own stroke pattern, so six overlapping curves
+         are separated by dash as well as hue — hue alone is unreadable
+         printed, projected, or with deuteranopia. dashed:true is the old
+         boolean and still means the default 4 3. */
+      if (s.dash) p.setAttribute('stroke-dasharray', s.dash);
+      else if (s.dashed) p.setAttribute('stroke-dasharray', '4 3');
       svg.appendChild(p);
       p.appendChild(el('title', null, s.name));
     });
@@ -892,7 +1282,8 @@ footer.foot a { color: var(--ink-2); }
         d += (d === '' ? 'M' : 'L') + X(p.x).toFixed(2) + ' ' + Y(yc).toFixed(2);
       });
       var pe = el('path', { class: 'ser', d: d, stroke: s.color });
-      if (s.dashed) pe.setAttribute('stroke-dasharray', '4 3');
+      if (s.dash) pe.setAttribute('stroke-dasharray', s.dash);
+      else if (s.dashed) pe.setAttribute('stroke-dasharray', '4 3');
       svg.appendChild(pe);
       pe.appendChild(el('title', null, s.name));
       if (s.markers) (s.points || []).forEach(function (p) {
@@ -1044,10 +1435,24 @@ footer.foot a { color: var(--ink-2); }
     items.forEach(function (it) {
       var li = document.createElement('span');
       li.className = 'li';
-      var sw = document.createElement('span');
-      sw.className = 'sw' + (it.dashed ? ' dash' : '');
-      if (!it.dashed) sw.style.background = it.color;
-      li.appendChild(sw);
+      /* When a series carries a dash pattern the swatch has to carry the SAME
+         pattern, or the legend cannot be matched to the curve — which is the
+         whole point of adding a second channel. A 22x8 SVG draws the real
+         stroke; the plain div swatch stays for solid and legacy-dashed. */
+      if (it.dash) {
+        var s = el('svg', { width: 22, height: 8, viewBox: '0 0 22 8', 'aria-hidden': 'true' });
+        s.style.flex = 'none';
+        s.appendChild(el('line', {
+          x1: 0, y1: 4, x2: 22, y2: 4, stroke: it.color,
+          'stroke-width': 2.4, 'stroke-dasharray': it.dash, 'stroke-linecap': 'butt'
+        }));
+        li.appendChild(s);
+      } else {
+        var sw = document.createElement('span');
+        sw.className = 'sw' + (it.dashed ? ' dash' : '');
+        if (!it.dashed) sw.style.background = it.color;
+        li.appendChild(sw);
+      }
       li.appendChild(document.createTextNode(it.name));
       d.appendChild(li);
     });
@@ -1367,33 +1772,67 @@ footer.foot a { color: var(--ink-2); }
    *           justification,confidence}]
    * state:  {key: value}  (current, possibly overridden)
    * onChange(key, value)                                                   */
-  function renderParams(mount, params, state, defaults, onChange) {
+  /* The panel is BUILT ONCE and patched thereafter.
+
+     It used to start with `mount.textContent = ''` and be called from the top
+     of render(), which runs on every edit — so `if (gi < 2) det.open = true`
+     re-ran and every group past the second snapped shut the instant you
+     changed anything inside it. Changing two parameters in the same group
+     meant re-opening it in between. document.activeElement went to BODY on
+     every keystroke-committed change too, so you could not tab down the panel
+     or arrow-key a number. Nothing else in the panel was worth improving
+     while that was true.
+
+     The cache is keyed to the mount element and invalidated only if the
+     parameter set itself changes shape, which it does not at runtime. */
+  var panelCache = null;
+
+  function renderParams(mount, params, state, defaults, onChange, opts) {
+    /* not `sig` — that is the significant-figures formatter at the top */
+    var shape = params.map(function (p) { return p.key; }).join('|');
+    if (!panelCache || panelCache.mount !== mount || panelCache.sig !== shape) {
+      panelCache = buildParams(mount, params, state, defaults, onChange);
+    }
+    patchParams(panelCache, params, state, defaults, opts || {});
+  }
+
+  function buildParams(mount, params, state, defaults, onChange) {
     mount.textContent = '';
-    var groups = [];
-    var byGroup = {};
+    var groups = [], byGroup = {};
     params.forEach(function (p) {
       if (!byGroup[p.group]) { byGroup[p.group] = []; groups.push(p.group); }
       byGroup[p.group].push(p);
     });
 
+    var cache = { mount: mount, sig: params.map(function (p) { return p.key; }).join('|'),
+                  fields: {}, groups: [] };
+
     groups.forEach(function (g, gi) {
       var det = elt('details', 'pgroup');
-      if (gi < 2) det.open = true;
+      if (gi < 2) det.open = true;              /* once, at build time only */
       var sum = elt('summary');
       sum.appendChild(document.createTextNode(g));
-      var dirty = byGroup[g].filter(function (p) { return state[p.key] !== defaults[p.key]; }).length;
-      var cnt = elt('span', 'cnt', dirty ? dirty + ' changed' : byGroup[g].length);
+      var cnt = elt('span', 'cnt', '');
       sum.appendChild(cnt);
       det.appendChild(sum);
 
       var fields = elt('div', 'fields');
       byGroup[g].forEach(function (p) {
-        var isDirty = state[p.key] !== defaults[p.key];
-        var f = elt('div', 'field' + (isDirty ? ' dirty' : ''));
+        var f = elt('div', 'field');
         var lab = elt('label');
         lab.setAttribute('for', 'p_' + p.key);
         lab.appendChild(document.createTextNode(p.label + ' '));
         if (p.units && p.units !== '-') lab.appendChild(elt('span', 'u', p.units));
+        /* Provenance belongs ON the control. It used to be reachable only by
+           hovering and waiting, or by opening the Assumptions tab — so the
+           reader editing a guess and the reader editing a datasheet number
+           had no way to tell them apart at the moment it mattered. */
+        if (p.confidence) {
+          var pip = elt('span', 'conf ' + confClass(p.confidence), confShort(p.confidence));
+          pip.title = p.justification || '';
+          lab.appendChild(document.createTextNode(' '));
+          lab.appendChild(pip);
+        }
         f.appendChild(lab);
 
         var input;
@@ -1403,7 +1842,6 @@ footer.foot a { color: var(--ink-2); }
             var o = document.createElement('option');
             o.value = String(c.value);
             o.textContent = c.label;
-            if (Number(c.value) === Number(state[p.key])) o.selected = true;
             input.appendChild(o);
           });
           input.addEventListener('change', function () { onChange(p.key, Number(input.value)); });
@@ -1413,7 +1851,6 @@ footer.foot a { color: var(--ink-2); }
           if (p.min !== undefined) input.min = p.min;
           if (p.max !== undefined) input.max = p.max;
           input.step = p.step !== undefined ? p.step : 'any';
-          input.value = String(state[p.key]);
           input.addEventListener('change', function () {
             var v = parseFloat(input.value);
             if (!isFinite(v)) { input.value = String(state[p.key]); return; }
@@ -1426,12 +1863,80 @@ footer.foot a { color: var(--ink-2); }
         input.id = 'p_' + p.key;
         input.title = (p.justification || '') + (p.confidence ? '  [' + confShort(p.confidence) + ']' : '');
         f.appendChild(input);
+
+        /* Per-parameter undo. The only way back used to be "Reset defaults",
+           which throws away every edit to recover one. */
+        var undo = document.createElement('button');
+        undo.type = 'button';
+        undo.className = 'pundo';
+        undo.textContent = '↺';
+        undo.title = 'Reset ' + p.label + ' to its default (' + defaults[p.key] + ')';
+        undo.addEventListener('click', function () { onChange(p.key, defaults[p.key]); });
+        f.appendChild(undo);
+
         if (p.hint) f.appendChild(elt('div', 'hint', p.hint));
         fields.appendChild(f);
+        cache.fields[p.key] = { row: f, input: input, undo: undo, group: gi };
       });
       det.appendChild(fields);
       mount.appendChild(det);
+      cache.groups.push({ det: det, cnt: cnt, name: g, keys: byGroup[g].map(function (p) { return p.key; }) });
     });
+    return cache;
+  }
+
+  /* Values, dirty marks, group counts and the filter — everything that can
+     change without rebuilding. Never touches the element the user is typing
+     in, and never touches a <details> open state. */
+  function patchParams(cache, params, state, defaults, opts) {
+    var q = (opts.filter || '').trim().toLowerCase();
+    var hot = opts.hot || null;
+    var onlyChanged = !!opts.onlyChanged;
+
+    var byKey = {};
+    params.forEach(function (p) { byKey[p.key] = p; });
+
+    var shownTotal = 0;
+    cache.groups.forEach(function (grp) {
+      var dirty = 0, shown = 0;
+      grp.keys.forEach(function (k) {
+        var fc = cache.fields[k], p = byKey[k];
+        if (!fc || !p) return;
+        var isDirty = state[k] !== defaults[k];
+        if (isDirty) dirty++;
+
+        /* Always sync the control to state. An earlier version skipped the
+           focused element to avoid fighting the typist, but render() only
+           runs on `change` (commit), never on `input` — so nothing is ever
+           overwritten mid-keystroke, while the guard DID swallow legitimate
+           external updates: pressing a field's own undo button left the old
+           text sitting in a row that was no longer marked dirty. */
+        var sv = String(state[k]);
+        if (fc.input.value !== sv) fc.input.value = sv;
+        fc.row.classList.toggle('dirty', isDirty);
+        fc.undo.disabled = !isDirty;
+
+        var match = !q ||
+          p.label.toLowerCase().indexOf(q) >= 0 ||
+          k.toLowerCase().indexOf(q) >= 0 ||
+          (p.group || '').toLowerCase().indexOf(q) >= 0;
+        if (hot && hot.indexOf(k) < 0) match = false;
+        if (onlyChanged && !isDirty) match = false;
+        fc.row.classList.toggle('hidden', !match);
+        if (match) shown++;
+      });
+      shownTotal += shown;
+      grp.cnt.textContent = dirty ? dirty + ' changed' : String(shown);
+      /* A group with nothing left after filtering is noise, not information */
+      grp.det.classList.toggle('hidden', shown === 0);
+      /* Filtering is a search: open what matched, so results are visible
+         without a second click. Restore nothing when the filter clears — the
+         reader's own open/closed state is theirs. */
+      if (q || hot || onlyChanged) {
+        if (grp.det.open !== (shown > 0)) grp.det.open = shown > 0;
+      }
+    });
+    return shownTotal;
   }
 
   /* ----------------------------- budget banner ----------------------------- */
@@ -1464,11 +1969,17 @@ footer.foot a { color: var(--ink-2); }
     options.forEach(function (o) {
       var th = elt('th', o.id === recommendedId ? 'rec' : null);
       th.appendChild(document.createTextNode(o.name));
+      /* This said "selected" for the RECOMMENDED column, which is a different
+         thing from the option the reader picked — so whenever the two differ
+         the header asserted the opposite of the truth, and the reader's own
+         build carried no mark at all. "recommended" is what this badge means;
+         the caller marks the current build separately via o.badge/o.cur. */
       if (o.badge || o.id === recommendedId) {
         th.appendChild(document.createElement('br'));
         th.appendChild(elt('span', 'badge ' + (o.badgeClass || 'acc'),
-          o.badge || cfg.recLabel || 'selected'));
+          o.badge || cfg.recLabel || 'recommended'));
       }
+      if (o.cur) th.className = (th.className ? th.className + ' ' : '') + 'cur';
       th.title = o.topology || '';
       htr.appendChild(th);
     });
@@ -1525,6 +2036,16 @@ footer.foot a { color: var(--ink-2); }
       }
       if (rankable && r.better === 'low' && finite.length) best = Math.min.apply(null, finite);
       if (rankable && r.better === 'high' && finite.length) best = Math.max.apply(null, finite);
+      /* A winner shared by several columns is not a winner, and neither is
+         one that beats the field by less than half a percent. Ten of the LO
+         table's rows used to carry four or more "best" marks — the
+         quantisation row marked all six identical values — which teaches the
+         reader to ignore the marker on the rows where it decides something. */
+      if (isFinite(best)) {
+        var nBest = finite.filter(function (v) { return v === best; }).length;
+        var span = Math.max.apply(null, finite) - Math.min.apply(null, finite);
+        if (nBest > 1 || !(Math.abs(span) > Math.abs(best) * 5e-3)) best = NaN;
+      }
 
       options.forEach(function (o, i) {
         var res = results[o.id] || {};
@@ -1556,6 +2077,7 @@ footer.foot a { color: var(--ink-2); }
           cls += ok ? (comfy ? ' pass' : ' warn') : ' fail';
         }
         var td = elt('td', cls + (o.id === recommendedId ? ' rec' : '') +
+          (o.cur ? ' cur' : '') + (r.wrap ? ' vw' : '') +
           (isFinite(best) && v === best && finite.length > 1 ? ' best' : ''));
         var txt = r.fmt ? r.fmt(v, res) : num(v, r.dec);
         td.appendChild(document.createTextNode(txt));
@@ -3731,6 +4253,25 @@ footer.foot a { color: var(--ink-2); }
   /* ===================================================================== *
    * Global parameters
    * =================================================================== */
+  /* The parameters that actually move the answer, so the panel can offer a
+     "key only" filter over seventy controls. The rule is auditable rather
+     than a matter of taste: a parameter is hot if it has its own sweep panel
+     in renderSweeps, if it is an input to the derived requirement in
+     budget.js, or if it is one of the terms that dominates the inter-tile
+     residual. Nothing here is a judgement about which parameter is
+     interesting — only about which one changes a number someone quotes. */
+  var HOT_PARAMS = [
+    /* swept in their own panel */
+    'midM', 'pllLoopBwMHz', 'fBistHz', 'tileCm', 'lenTolUm', 'apertureCm',
+    /* inputs to the derived requirement */
+    'fLoGHz', 'rfBwGHz', 'scanDegMax', 'evmShare', 'arrayPowerW', 'specPhaseDeg',
+    /* dominant terms in the residual, the loss and the drift */
+    'calLoopGain', 'bistNoiseDeg', 'phaseBits', 'dTTileK', 'tcPpmPerK',
+    'dkTolPct', 'loMedium', 'maxSegLossDb',
+    /* the two architecture selectors and the reference preset */
+    'loOption', 'bbOption', 'refSel'
+  ];
+
   var PARAMS = [
     /* --- array & band --- */
     { key: 'fLoGHz', label: 'LO frequency', units: 'GHz', value: 78, min: 60, max: 95, step: 0.5, group: 'Array & band',
@@ -3913,19 +4454,19 @@ footer.foot a { color: var(--ink-2); }
   var BB_IDS = ['passive-50', 'bb-daisy', 'h-tree-active', 'current-mode', 'digital-tile'];
 
   var LO_META = [
-    { id: 'local-pll', name: 'A1 Local PLL + reference', short: 'Local PLL' },
-    { id: 'hf-foldback', name: 'A2 High-frequency / foldback', short: 'HF foldback' },
-    { id: 'daisy-chain', name: 'A3 Daisy chain', short: 'Daisy chain' },
-    { id: 'mid-mult', name: 'A4 Mid-frequency + ×M', short: 'Mid + ×M' },
-    { id: 'stabilised-link', name: 'A5 Round-trip stabilised link', short: 'Stabilised link' },
-    { id: 'inj-lock', name: 'A6 Injection-locked tile oscillator', short: 'Injection lock' }
+    { id: 'local-pll', name: 'A1 Local PLL + reference', short: 'A1 Local PLL' },
+    { id: 'hf-foldback', name: 'A2 High-frequency / foldback', short: 'A2 HF foldback' },
+    { id: 'daisy-chain', name: 'A3 Daisy chain', short: 'A3 Daisy chain' },
+    { id: 'mid-mult', name: 'A4 Mid-frequency + ×M', short: 'A4 Mid + ×M' },
+    { id: 'stabilised-link', name: 'A5 Round-trip stabilised link', short: 'A5 Stabilised link' },
+    { id: 'inj-lock', name: 'A6 Injection-locked tile oscillator', short: 'A6 Injection lock' }
   ];
   var BB_META = [
-    { id: 'passive-50', name: 'B1 Passive resistive', short: 'Passive 50 Ω' },
-    { id: 'bb-daisy', name: 'B2 Baseband daisy chain', short: 'BB daisy' },
-    { id: 'h-tree-active', name: 'B3 H-tree active', short: 'H-tree active' },
-    { id: 'current-mode', name: 'B4 Current-mode summing', short: 'Current-mode' },
-    { id: 'digital-tile', name: 'B5 Digitise at the tile', short: 'Digital tile' }
+    { id: 'passive-50', name: 'B1 Passive resistive', short: 'B1 Passive 50 Ω' },
+    { id: 'bb-daisy', name: 'B2 Baseband daisy chain', short: 'B2 BB daisy' },
+    { id: 'h-tree-active', name: 'B3 H-tree active', short: 'B3 H-tree active' },
+    { id: 'current-mode', name: 'B4 Current-mode summing', short: 'B4 Current-mode' },
+    { id: 'digital-tile', name: 'B5 Digitise at the tile', short: 'B5 Digital tile' }
   ];
 
   /* ---------------------------------------------------------------------
@@ -5135,7 +5676,7 @@ footer.foot a { color: var(--ink-2); }
   }
 
   window.Model = {
-    PARAMS: PARAMS, BLOCKS: BLOCKS, REF_SOURCES: REF_SOURCES,
+    PARAMS: PARAMS, HOT_PARAMS: HOT_PARAMS, BLOCKS: BLOCKS, REF_SOURCES: REF_SOURCES,
     LO_IDS: LO_IDS, BB_IDS: BB_IDS, LO_META: LO_META, BB_META: BB_META,
     MEDIA_KEYS: MEDIA_KEYS,
     resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,
@@ -8017,6 +8558,20 @@ footer.foot a { color: var(--ink-2); }
     }
   };
 
+  /* ONE series palette, because it was duplicated at three call sites and all
+     three ended in var(--accent) — which resolves to exactly var(--s1) in
+     both themes, so A1 Local PLL and A6 Injection lock drew in the same
+     colour in every phase-noise overlay, every compare bar and every sweep,
+     with two identical legend swatches. A1 against A6 is the comparison the
+     phase-noise view exists to make.
+
+     The dash pattern is the second channel: six overlapping L(f) curves
+     separated by hue alone are unreadable printed, projected, or with
+     deuteranopia. Index i gets DASHES[i], so the pairs that are closest in
+     hue are never also closest in stroke. */
+  var SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
+  var DASHES = [null, '6 3', null, '2 3', '9 3 2 3', '4 2'];
+
   var TILE_METRICS = [
     { key: 'skewPs', label: 'skew vs array mean (ps)' },
     { key: 'wraps', label: 'static offset (wraps to resolve)' },
@@ -8030,7 +8585,12 @@ footer.foot a { color: var(--ink-2); }
     Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
     var over = X.decodeState(location.hash);
     Object.keys(over).forEach(function (k) {
-      if (k === '_v') { view.name = over[k]; return; }
+      /* A view name out of a URL is untrusted input like any other: an
+         unknown one would hide every panel and leave a blank page. */
+      if (k === '_v') {
+        if (document.getElementById('view-' + over[k])) view.name = over[k];
+        return;
+      }
       /* A comparison set carried in the link is decoded but NOT stored: it
          appears in the roster marked "from link" with an Import button. A
          URL is input from wherever it came, and it should not be able to
@@ -8075,7 +8635,14 @@ footer.foot a { color: var(--ink-2); }
     return o;
   }
   function syncHash() {
-    var s = X.encodeState(overrides());
+    /* Carry the view too. loadState has always decoded `_v`, but syncHash
+       encoded only the parameter overrides, so every link the student sent
+       opened on the Hardware map however carefully they had navigated to the
+       chart they wanted to show. The map is the default, so it is omitted and
+       links stay short. */
+    var o = overrides();
+    if (view.name && view.name !== 'map') o._v = view.name;
+    var s = X.encodeState(o);
     history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
   }
 
@@ -8222,8 +8789,8 @@ footer.foot a { color: var(--ink-2); }
     rows.push({ name: 'Splitters', field: 'splitCount', better: 'low', dec: 0 });
     rows.push({ name: 'Distribution area per tile', field: 'areaPerTileMm2', units: 'mm²', better: 'low' });
     rows.push({ name: 'LO measurements per array pass', field: 'calBurdenScore', better: 'low', dec: 0, noteField: 'calBurdenDetail' });
-    rows.push({ name: 'Feasibility', field: 'feasibility', fmt: function (v, r) { return str(r.feasibility); } });
-    rows.push({ name: 'Risk', field: 'riskLevel', fmt: function (v, r) { return str(r.riskLevel); } });
+    rows.push({ name: 'Feasibility', field: 'feasibility', wrap: true, fmt: function (v, r) { return str(r.feasibility); } });
+    rows.push({ name: 'Risk', field: 'riskLevel', wrap: true, fmt: function (v, r) { return str(r.riskLevel); } });
     return rows;
   }
 
@@ -8279,8 +8846,8 @@ footer.foot a { color: var(--ink-2); }
       { section: 'Stability & burden' },
       { name: 'Delay drift', field: 'driftDegPerK', units: '°/K', better: 'low', dec: 3 },
       { name: 'Channels to calibrate per rail', field: 'calBurdenScore', better: 'low', dec: 0, noteField: 'calBurdenDetail' },
-      { name: 'Feasibility', field: 'feasibility', fmt: function (v, r) { return str(r.feasibility); } },
-      { name: 'Risk', field: 'riskLevel', fmt: function (v, r) { return str(r.riskLevel); } }
+      { name: 'Feasibility', field: 'feasibility', wrap: true, fmt: function (v, r) { return str(r.feasibility); } },
+      { name: 'Risk', field: 'riskLevel', wrap: true, fmt: function (v, r) { return str(r.riskLevel); } }
     ];
   }
 
@@ -8551,12 +9118,75 @@ footer.foot a { color: var(--ink-2); }
   /* =====================================================================
      Compare view
      ================================================================== */
-  function renderCompare(res, budget, dec) {
-    var loOpts = M.LO_META.map(function (m) { return { id: m.id, name: m.name, topology: res.lo[m.id].note }; });
-    var bbOpts = M.BB_META.map(function (m) { return { id: m.id, name: m.name, topology: res.bb[m.id].note }; });
+  /* The rows that decide the answer, for the "key metrics" filter. The rule
+     is the same one the Decision view already applies: a row is key if it
+     carries a requirement, if decision.js weights it, or if it is the
+     headline of its own metric family. 54 rows across 8 sections is the right
+     depth for defending a choice and the wrong depth for understanding one,
+     and the Systems view three tabs away already had a "differences only"
+     toggle — this is the same idea for Compare. */
+  var KEY_LO_FIELDS = [
+    'interTileResidualDeg', 'sllDb', 'lossTotalDb', 'powerFracOfArray',
+    'powerTotalMw', 'evmDb', 'maxQam', 'skewDriftPs', 'correctionRangeDeg',
+    'calBurdenScore', 'feasibility', 'riskLevel', 'distFreqGHz'
+  ];
+  var KEY_BB_FIELDS = [
+    'interTileResidualDeg', 'skewRmsPs', 'lossTotalDb', 'nfPenaltyDb',
+    'powerTotalMw', 'bwGHz', 'squintLossDb', 'feasibility', 'riskLevel'
+  ];
 
-    UI.renderTable(document.getElementById('loTable'), loOpts, res.lo, loRows(budget), dec.loPick.id);
-    UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb, bbRows(budget), dec.bbPick.id);
+  /* Keep a section only if a row under it survived; a bare heading with
+     nothing beneath it reads as a rendering fault. */
+  function keyOnly(rows, fields) {
+    var out = [];
+    rows.forEach(function (r) {
+      if (r.section) { out.push(r); return; }
+      if (fields.indexOf(r.field) >= 0) out.push(r);
+    });
+    return out.filter(function (r, i) {
+      if (!r.section) return true;
+      var nxt = out[i + 1];
+      return !!(nxt && !nxt.section);
+    });
+  }
+
+  function renderCompare(res, budget, dec) {
+    /* Two different claims, kept apart. The tinted column is what the MODEL
+       recommends; the underlined one is what the READER has selected in the
+       picker. They were previously merged into a single badge on the
+       recommended column reading "selected", so whenever the two differed the
+       header asserted the opposite of the truth. */
+    function opt(m, results, curId, pickId) {
+      var o = { id: m.id, name: m.name, topology: results[m.id].note };
+      if (m.id === curId) {
+        o.cur = true;
+        o.badge = m.id === pickId ? 'your build · model pick' : 'your build';
+        o.badgeClass = m.id === pickId ? 'acc' : 'warn';
+      }
+      return o;
+    }
+    var loOpts = M.LO_META.map(function (m) { return opt(m, res.lo, res.g.loOptionId, dec.loPick.id); });
+    var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id); });
+
+    var cfg = { recLabel: 'model pick' };
+    var lr = loRows(budget), br = bbRows(budget);
+    var keyMode = view.compareKeyOnly !== false;   /* key metrics by default */
+    UI.renderTable(document.getElementById('loTable'), loOpts, res.lo,
+      keyMode ? keyOnly(lr, KEY_LO_FIELDS) : lr, dec.loPick.id, cfg);
+    UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb,
+      keyMode ? keyOnly(br, KEY_BB_FIELDS) : br, dec.bbPick.id, cfg);
+    (function () {
+      var b = document.getElementById('cmpKeyToggle');
+      if (!b) return;
+      var shownLo = (keyMode ? keyOnly(lr, KEY_LO_FIELDS) : lr).filter(function (r) { return !r.section; }).length;
+      var totalLo = lr.filter(function (r) { return !r.section; }).length;
+      b.textContent = keyMode ? 'Show all ' + totalLo + ' metrics' : 'Key metrics only';
+      b.setAttribute('aria-pressed', keyMode ? 'true' : 'false');
+      var note = document.getElementById('cmpKeyNote');
+      if (note) note.textContent = keyMode
+        ? 'Showing the ' + shownLo + ' rows that carry a requirement or a scoring weight.'
+        : 'Showing every row. The ones that decide the answer are in the key view.';
+    })();
 
     /* verdict strip */
     var vm = document.getElementById('verdictMount');
@@ -8593,7 +9223,7 @@ footer.foot a { color: var(--ink-2); }
     /* charts */
     var cc = document.getElementById('compareCharts');
     cc.textContent = '';
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
     /* zeroBase must be false for any decibel quantity. A dB value is a
        difference from an arbitrary reference, so barChart's default origin
        of Math.min(0, value) puts the bar's start AND end at the same place
@@ -8632,14 +9262,14 @@ footer.foot a { color: var(--ink-2); }
      Phase-noise view
      ================================================================== */
   function renderPn(res, budget) {
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
     function pnPanel(mountId, curveKey, noteId, noteHtml, yMin, yMax) {
       var mount = document.getElementById(mountId);
       mount.textContent = '';
       var series = M.LO_META.map(function (m, i) {
         var c = res.lo[m.id][curveKey];
         return {
-          name: m.short, color: colors[i],
+          name: m.short, color: colors[i], dash: DASHES[i],
           points: (c || []).map(function (p) { return { x: p.fOffsetHz, y: p.dBcPerHz }; })
         };
       });
@@ -8650,7 +9280,7 @@ footer.foot a { color: var(--ink-2); }
         height: 330, yMin: yMin, yMax: yMax, xMin: 1e2, xMax: 1e9
       }));
       mount.appendChild(box);
-      mount.appendChild(C.legend(M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; })));
+      mount.appendChild(C.legend(M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; })));
       if (noteId) document.getElementById(noteId).innerHTML = noteHtml;
     }
 
@@ -9083,7 +9713,7 @@ footer.foot a { color: var(--ink-2); }
   function renderSweeps(res, budget) {
     var cc = document.getElementById('sweepCharts');
     cc.textContent = '';
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
 
     function panel(title, note, chart, legendItems) {
       var sec = document.createElement('section');
@@ -9160,13 +9790,13 @@ footer.foot a { color: var(--ink-2); }
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: rates.map(function (r) { return { x: Math.log10(r), y: sweepEval(m.id, { fBistHz: r }).interTileResidualDeg }; })
           };
         }),
         xLabel: 'log10(BIST update rate / Hz)', yLabel: 'residual inter-tile φ (°)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 4 — tile count */
     var tiles = [2, 3, 4, 5, 6, 8, 10];
@@ -9177,7 +9807,7 @@ footer.foot a { color: var(--ink-2); }
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: tiles.map(function (k) {
               var r = sweepEval(m.id, { tileCm: state.apertureCm / k });
               return { x: k * k, y: r.interTileResidualDeg };
@@ -9186,7 +9816,7 @@ footer.foot a { color: var(--ink-2); }
         }),
         xLabel: 'number of tiles', yLabel: 'residual inter-tile φ (°)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 5 — length tolerance */
     var tols = [2, 5, 10, 25, 50, 100];
@@ -9201,7 +9831,7 @@ footer.foot a { color: var(--ink-2); }
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             /* This plotted skewDeg78, which is skewDriftPs x degPs and has
                NO dependence on lenTolUm at all — six exactly flat lines
                under a panel titled "vs mechanical length tolerance". The
@@ -9212,7 +9842,7 @@ footer.foot a { color: var(--ink-2); }
           };
         }),
         xLabel: 'per-segment length tolerance (µm, 1σ)', yLabel: 'correction range (wraps at the LO)', height: 260
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 6 — aperture */
     var aps = [10, 15, 20, 30, 40, 50];
@@ -9222,12 +9852,12 @@ footer.foot a { color: var(--ink-2); }
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: aps.map(function (a) { return { x: a, y: sweepEval(m.id, { apertureCm: a }).powerTotalMw / 1000 }; })
           };
         }),
         xLabel: 'aperture side (cm)', yLabel: 'distribution power (W)', height: 260
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
   }
 
   /* =====================================================================
@@ -9360,6 +9990,57 @@ footer.foot a { color: var(--ink-2); }
     return { res: res, g: g, budget: budget, dec: dec, beam: beam };
   }
 
+  /* How many of the seventy are showing, and a way back when the answer is
+     "none" — a filter that silently matches nothing looks like a broken
+     panel. */
+  function updateParamCount() {
+    var el2 = document.getElementById('paramCount');
+    if (!el2) return;
+    var shown = document.querySelectorAll('#paramMount .field:not(.hidden)').length;
+    var total = M.PARAMS.length;
+    var filtered = view.paramFilter || view.paramHot || view.paramChanged;
+    el2.textContent = !filtered ? ''
+      : shown === 0 ? 'no parameter matches — clear the filter to see all ' + total
+      : 'showing ' + shown + ' of ' + total;
+  }
+
+  /* The context bar in the sticky header. Three jobs, all of them things the
+     page could not previously answer without navigating:
+       - which architecture is selected (the picker shows only on the map)
+       - what the model concluded (painted only inside Compare and Decision)
+       - whether the view you are on shows ALL options or only your build
+     The two selection chips scroll to the picker; the verdict chip opens the
+     rationale. */
+  function renderContextBar(res, budget, dec) {
+    var lm = M.LO_META.filter(function (m) { return m.id === res.g.loOptionId; })[0];
+    var bm = M.BB_META.filter(function (m) { return m.id === res.g.bbOptionId; })[0];
+
+    function chip(el2, kind, value) {
+      if (!el2) return;
+      el2.textContent = '';
+      el2.appendChild(UI.elt('span', 'ck', kind));
+      el2.appendChild(UI.elt('span', 'cv', value));
+    }
+    chip(document.getElementById('ctxLo'), 'LO', lm ? lm.short : '—');
+    chip(document.getElementById('ctxBb'), 'BB', bm ? bm.short : '—');
+
+    var vpick = dec && dec.loPick && dec.bbPick
+      ? dec.loPick.short + ' + ' + dec.bbPick.short : '—';
+    chip(document.getElementById('ctxVerdict'), 'model picks', vpick);
+
+    /* whether THIS view is showing every option or only the current build */
+    var oneBuild = { map: 1, beam: 1 };
+    var scope = document.getElementById('ctxScope');
+    if (scope) {
+      var sel = res.lo[res.g.loOptionId];
+      scope.textContent = oneBuild[view.name]
+        ? 'showing your build only · inter-tile residual ' + n(sel.interTileResidualDeg, 3) +
+          '° against a ' + n(budget.sigSpecDeg) + '° spec'
+        : 'showing all options · judged against ' + n(budget.sigSpecDeg) +
+          '° inter-tile, set by ' + budget.bindingName;
+    }
+  }
+
   function render() {
     var res = M.evaluate(state);
     var budget = window.Budget.derive(res.g, '64QAM');
@@ -9370,6 +10051,7 @@ footer.foot a { color: var(--ink-2); }
     if (view.selected >= res.selected.grid.nTiles) view.selected = 0;
 
     renderPicker(res, budget);
+    renderContextBar(res, budget, dec);
     UI.renderBudget(document.getElementById('budgetGrid'), document.getElementById('budgetNote'),
       document.getElementById('bindingNote'), budget);
 
@@ -9378,10 +10060,26 @@ footer.foot a { color: var(--ink-2); }
         key: p.key, label: p.label, units: p.units, group: p.group, min: p.min, max: p.max,
         step: p.step, choices: p.choices, justification: p.why, confidence: p.conf
       };
-    }), state, DEFAULTS, setParam);
+    }), state, DEFAULTS, setParam, {
+      filter: view.paramFilter || '',
+      hot: view.paramHot ? M.HOT_PARAMS : null,
+      onlyChanged: !!view.paramChanged
+    });
+    updateParamCount();
 
     var nd = Object.keys(overrides()).length;
     document.getElementById('dirtyCount').textContent = nd ? nd + ' changed from defaults' : 'all at defaults';
+
+    /* Mark the tool's own vocabulary wherever it appears. Done after the
+       view renders, first occurrence only per container, so a table does not
+       become a field of dotted underlines. Glossary.mark is idempotent —
+       re-rendering the same container is a no-op. */
+    function glossify() {
+      if (!window.Glossary) return;
+      var v = document.getElementById('view-' + view.name);
+      if (v) [].slice.call(v.querySelectorAll('.prose, .note, .viewintro, .budget, table.grid'))
+        .forEach(function (el2) { window.Glossary.mark(el2); });
+    }
 
     if (view.name === 'map') renderMapView(res, budget);
     if (view.name === 'compare') renderCompare(res, budget, dec);
@@ -9392,6 +10090,7 @@ footer.foot a { color: var(--ink-2); }
     if (view.name === 'assumptions') renderAssumptions(res);
     if (view.name === 'systems') renderSystems();
     if (view.name === 'method') UI.renderProse(document.getElementById('methodMount'), window.Content.METHOD);
+    glossify();
     /* the nav badge is visible from every view, so it updates outside the
        systems branch */
     var navc = document.getElementById('navSysCount');
@@ -9747,9 +10446,9 @@ footer.foot a { color: var(--ink-2); }
       { name: 'Squint without inter-tile TTD', field: 'bm_squintBeamwidths', units: 'beamwidths', better: 'low', dec: 2 },
 
       { section: 'Judgement' },
-      { name: 'LO feasibility', field: 'lo_feasibility', fmt: function (v, r) { return str(r.lo_feasibility); } },
-      { name: 'LO risk', field: 'lo_riskLevel', fmt: function (v, r) { return str(r.lo_riskLevel); } },
-      { name: 'Baseband feasibility', field: 'bb_feasibility', fmt: function (v, r) { return str(r.bb_feasibility); } },
+      { name: 'LO feasibility', field: 'lo_feasibility', wrap: true, fmt: function (v, r) { return str(r.lo_feasibility); } },
+      { name: 'LO risk', field: 'lo_riskLevel', wrap: true, fmt: function (v, r) { return str(r.lo_riskLevel); } },
+      { name: 'Baseband feasibility', field: 'bb_feasibility', wrap: true, fmt: function (v, r) { return str(r.bb_feasibility); } },
       { name: 'LO measurements per array pass', field: 'lo_calBurdenScore', better: 'low', dec: 0 }
     ];
   }
@@ -10591,7 +11290,11 @@ footer.foot a { color: var(--ink-2); }
   function setView(name) {
     view.name = name;
     document.querySelectorAll('.navlink').forEach(function (a) {
-      a.classList.toggle('on', a.getAttribute('data-view') === name);
+      var on = a.getAttribute('data-view') === name;
+      a.classList.toggle('on', on);
+      /* the class is decoration; aria-current is what tells a screen reader
+         which of nine tabs is the one being shown */
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.querySelectorAll('.view').forEach(function (v) {
       v.classList.toggle('hidden', v.id !== 'view-' + name);
@@ -10691,7 +11394,9 @@ footer.foot a { color: var(--ink-2); }
   document.addEventListener('click', function (e) {
     var t = e.target;
     var a = t.closest ? t.closest('.navlink') : null;
-    if (a) { e.preventDefault(); setView(a.getAttribute('data-view')); return; }
+    /* syncHash so the address bar always names the view you are looking at —
+       otherwise a link copied from Phase noise reopens on the Hardware map. */
+    if (a) { e.preventDefault(); setView(a.getAttribute('data-view')); syncHash(); return; }
     var btn = t.closest ? t.closest('button[data-copy],button[data-dl]') : null;
     if (!btn) return;
     if (btn.dataset.copy) {
@@ -10728,6 +11433,56 @@ footer.foot a { color: var(--ink-2); }
     b.setAttribute('aria-label', b.title);
     b.textContent = cur === 'dark' ? '☽' : cur === 'light' ? '☀' : '◑';
   }
+  (function () {
+    var b = document.getElementById('cmpKeyToggle');
+    if (b) b.addEventListener('click', function () {
+      view.compareKeyOnly = view.compareKeyOnly === false;
+      render();
+    });
+  })();
+
+  /* Parameter filter. Kept in `view`, not in `state`, so it never reaches the
+     permalink or a saved system — it is how you are looking, not what you
+     are modelling. */
+  (function () {
+    var box = document.getElementById('paramFilter');
+    if (box) box.addEventListener('input', function () {
+      view.paramFilter = box.value;
+      render();
+    });
+    function chip(id, key) {
+      var b = document.getElementById(id);
+      if (!b) return;
+      b.addEventListener('click', function () {
+        view[key] = !view[key];
+        b.setAttribute('aria-pressed', view[key] ? 'true' : 'false');
+        render();
+      });
+    }
+    chip('chipHot', 'paramHot');
+    chip('chipChanged', 'paramChanged');
+  })();
+
+  /* Context-bar chips. The two selection chips take you to the picker — which
+     lives on the Hardware map, so they switch view first when you are
+     elsewhere; the verdict chip opens the rationale. */
+  function goToPicker() {
+    if (view.name !== 'map') { setView('map'); render(); syncHash(); }
+    var p = document.getElementById('pickerPanel');
+    if (p) p.scrollIntoView({ block: 'start' });
+  }
+  ['ctxLo', 'ctxBb'].forEach(function (id) {
+    var el2 = document.getElementById(id);
+    if (el2) el2.addEventListener('click', function (e) { e.preventDefault(); goToPicker(); });
+  });
+  (function () {
+    var v = document.getElementById('ctxVerdict');
+    if (v) v.addEventListener('click', function (e) {
+      e.preventDefault(); setView('decision'); render(); syncHash();
+      window.scrollTo(0, 0);
+    });
+  })();
+
   document.getElementById('themeBtn').addEventListener('click', function () {
     var cur = document.documentElement.getAttribute('data-theme') || '';
     var next = THEME_CYCLE[cur] !== undefined ? THEME_CYCLE[cur] : 'light';

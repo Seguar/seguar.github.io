@@ -26,6 +26,20 @@
     }
   };
 
+  /* ONE series palette, because it was duplicated at three call sites and all
+     three ended in var(--accent) — which resolves to exactly var(--s1) in
+     both themes, so A1 Local PLL and A6 Injection lock drew in the same
+     colour in every phase-noise overlay, every compare bar and every sweep,
+     with two identical legend swatches. A1 against A6 is the comparison the
+     phase-noise view exists to make.
+
+     The dash pattern is the second channel: six overlapping L(f) curves
+     separated by hue alone are unreadable printed, projected, or with
+     deuteranopia. Index i gets DASHES[i], so the pairs that are closest in
+     hue are never also closest in stroke. */
+  var SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
+  var DASHES = [null, '6 3', null, '2 3', '9 3 2 3', '4 2'];
+
   var TILE_METRICS = [
     { key: 'skewPs', label: 'skew vs array mean (ps)' },
     { key: 'wraps', label: 'static offset (wraps to resolve)' },
@@ -39,7 +53,12 @@
     Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
     var over = X.decodeState(location.hash);
     Object.keys(over).forEach(function (k) {
-      if (k === '_v') { view.name = over[k]; return; }
+      /* A view name out of a URL is untrusted input like any other: an
+         unknown one would hide every panel and leave a blank page. */
+      if (k === '_v') {
+        if (document.getElementById('view-' + over[k])) view.name = over[k];
+        return;
+      }
       /* A comparison set carried in the link is decoded but NOT stored: it
          appears in the roster marked "from link" with an Import button. A
          URL is input from wherever it came, and it should not be able to
@@ -84,7 +103,14 @@
     return o;
   }
   function syncHash() {
-    var s = X.encodeState(overrides());
+    /* Carry the view too. loadState has always decoded `_v`, but syncHash
+       encoded only the parameter overrides, so every link the student sent
+       opened on the Hardware map however carefully they had navigated to the
+       chart they wanted to show. The map is the default, so it is omitted and
+       links stay short. */
+    var o = overrides();
+    if (view.name && view.name !== 'map') o._v = view.name;
+    var s = X.encodeState(o);
     history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
   }
 
@@ -231,8 +257,8 @@
     rows.push({ name: 'Splitters', field: 'splitCount', better: 'low', dec: 0 });
     rows.push({ name: 'Distribution area per tile', field: 'areaPerTileMm2', units: 'mm²', better: 'low' });
     rows.push({ name: 'LO measurements per array pass', field: 'calBurdenScore', better: 'low', dec: 0, noteField: 'calBurdenDetail' });
-    rows.push({ name: 'Feasibility', field: 'feasibility', fmt: function (v, r) { return str(r.feasibility); } });
-    rows.push({ name: 'Risk', field: 'riskLevel', fmt: function (v, r) { return str(r.riskLevel); } });
+    rows.push({ name: 'Feasibility', field: 'feasibility', wrap: true, fmt: function (v, r) { return str(r.feasibility); } });
+    rows.push({ name: 'Risk', field: 'riskLevel', wrap: true, fmt: function (v, r) { return str(r.riskLevel); } });
     return rows;
   }
 
@@ -288,8 +314,8 @@
       { section: 'Stability & burden' },
       { name: 'Delay drift', field: 'driftDegPerK', units: '°/K', better: 'low', dec: 3 },
       { name: 'Channels to calibrate per rail', field: 'calBurdenScore', better: 'low', dec: 0, noteField: 'calBurdenDetail' },
-      { name: 'Feasibility', field: 'feasibility', fmt: function (v, r) { return str(r.feasibility); } },
-      { name: 'Risk', field: 'riskLevel', fmt: function (v, r) { return str(r.riskLevel); } }
+      { name: 'Feasibility', field: 'feasibility', wrap: true, fmt: function (v, r) { return str(r.feasibility); } },
+      { name: 'Risk', field: 'riskLevel', wrap: true, fmt: function (v, r) { return str(r.riskLevel); } }
     ];
   }
 
@@ -560,12 +586,75 @@
   /* =====================================================================
      Compare view
      ================================================================== */
-  function renderCompare(res, budget, dec) {
-    var loOpts = M.LO_META.map(function (m) { return { id: m.id, name: m.name, topology: res.lo[m.id].note }; });
-    var bbOpts = M.BB_META.map(function (m) { return { id: m.id, name: m.name, topology: res.bb[m.id].note }; });
+  /* The rows that decide the answer, for the "key metrics" filter. The rule
+     is the same one the Decision view already applies: a row is key if it
+     carries a requirement, if decision.js weights it, or if it is the
+     headline of its own metric family. 54 rows across 8 sections is the right
+     depth for defending a choice and the wrong depth for understanding one,
+     and the Systems view three tabs away already had a "differences only"
+     toggle — this is the same idea for Compare. */
+  var KEY_LO_FIELDS = [
+    'interTileResidualDeg', 'sllDb', 'lossTotalDb', 'powerFracOfArray',
+    'powerTotalMw', 'evmDb', 'maxQam', 'skewDriftPs', 'correctionRangeDeg',
+    'calBurdenScore', 'feasibility', 'riskLevel', 'distFreqGHz'
+  ];
+  var KEY_BB_FIELDS = [
+    'interTileResidualDeg', 'skewRmsPs', 'lossTotalDb', 'nfPenaltyDb',
+    'powerTotalMw', 'bwGHz', 'squintLossDb', 'feasibility', 'riskLevel'
+  ];
 
-    UI.renderTable(document.getElementById('loTable'), loOpts, res.lo, loRows(budget), dec.loPick.id);
-    UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb, bbRows(budget), dec.bbPick.id);
+  /* Keep a section only if a row under it survived; a bare heading with
+     nothing beneath it reads as a rendering fault. */
+  function keyOnly(rows, fields) {
+    var out = [];
+    rows.forEach(function (r) {
+      if (r.section) { out.push(r); return; }
+      if (fields.indexOf(r.field) >= 0) out.push(r);
+    });
+    return out.filter(function (r, i) {
+      if (!r.section) return true;
+      var nxt = out[i + 1];
+      return !!(nxt && !nxt.section);
+    });
+  }
+
+  function renderCompare(res, budget, dec) {
+    /* Two different claims, kept apart. The tinted column is what the MODEL
+       recommends; the underlined one is what the READER has selected in the
+       picker. They were previously merged into a single badge on the
+       recommended column reading "selected", so whenever the two differed the
+       header asserted the opposite of the truth. */
+    function opt(m, results, curId, pickId) {
+      var o = { id: m.id, name: m.name, topology: results[m.id].note };
+      if (m.id === curId) {
+        o.cur = true;
+        o.badge = m.id === pickId ? 'your build · model pick' : 'your build';
+        o.badgeClass = m.id === pickId ? 'acc' : 'warn';
+      }
+      return o;
+    }
+    var loOpts = M.LO_META.map(function (m) { return opt(m, res.lo, res.g.loOptionId, dec.loPick.id); });
+    var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id); });
+
+    var cfg = { recLabel: 'model pick' };
+    var lr = loRows(budget), br = bbRows(budget);
+    var keyMode = view.compareKeyOnly !== false;   /* key metrics by default */
+    UI.renderTable(document.getElementById('loTable'), loOpts, res.lo,
+      keyMode ? keyOnly(lr, KEY_LO_FIELDS) : lr, dec.loPick.id, cfg);
+    UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb,
+      keyMode ? keyOnly(br, KEY_BB_FIELDS) : br, dec.bbPick.id, cfg);
+    (function () {
+      var b = document.getElementById('cmpKeyToggle');
+      if (!b) return;
+      var shownLo = (keyMode ? keyOnly(lr, KEY_LO_FIELDS) : lr).filter(function (r) { return !r.section; }).length;
+      var totalLo = lr.filter(function (r) { return !r.section; }).length;
+      b.textContent = keyMode ? 'Show all ' + totalLo + ' metrics' : 'Key metrics only';
+      b.setAttribute('aria-pressed', keyMode ? 'true' : 'false');
+      var note = document.getElementById('cmpKeyNote');
+      if (note) note.textContent = keyMode
+        ? 'Showing the ' + shownLo + ' rows that carry a requirement or a scoring weight.'
+        : 'Showing every row. The ones that decide the answer are in the key view.';
+    })();
 
     /* verdict strip */
     var vm = document.getElementById('verdictMount');
@@ -602,7 +691,7 @@
     /* charts */
     var cc = document.getElementById('compareCharts');
     cc.textContent = '';
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
     /* zeroBase must be false for any decibel quantity. A dB value is a
        difference from an arbitrary reference, so barChart's default origin
        of Math.min(0, value) puts the bar's start AND end at the same place
@@ -641,14 +730,14 @@
      Phase-noise view
      ================================================================== */
   function renderPn(res, budget) {
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
     function pnPanel(mountId, curveKey, noteId, noteHtml, yMin, yMax) {
       var mount = document.getElementById(mountId);
       mount.textContent = '';
       var series = M.LO_META.map(function (m, i) {
         var c = res.lo[m.id][curveKey];
         return {
-          name: m.short, color: colors[i],
+          name: m.short, color: colors[i], dash: DASHES[i],
           points: (c || []).map(function (p) { return { x: p.fOffsetHz, y: p.dBcPerHz }; })
         };
       });
@@ -659,7 +748,7 @@
         height: 330, yMin: yMin, yMax: yMax, xMin: 1e2, xMax: 1e9
       }));
       mount.appendChild(box);
-      mount.appendChild(C.legend(M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; })));
+      mount.appendChild(C.legend(M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; })));
       if (noteId) document.getElementById(noteId).innerHTML = noteHtml;
     }
 
@@ -1092,7 +1181,7 @@
   function renderSweeps(res, budget) {
     var cc = document.getElementById('sweepCharts');
     cc.textContent = '';
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
 
     function panel(title, note, chart, legendItems) {
       var sec = document.createElement('section');
@@ -1169,13 +1258,13 @@
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: rates.map(function (r) { return { x: Math.log10(r), y: sweepEval(m.id, { fBistHz: r }).interTileResidualDeg }; })
           };
         }),
         xLabel: 'log10(BIST update rate / Hz)', yLabel: 'residual inter-tile φ (°)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 4 — tile count */
     var tiles = [2, 3, 4, 5, 6, 8, 10];
@@ -1186,7 +1275,7 @@
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: tiles.map(function (k) {
               var r = sweepEval(m.id, { tileCm: state.apertureCm / k });
               return { x: k * k, y: r.interTileResidualDeg };
@@ -1195,7 +1284,7 @@
         }),
         xLabel: 'number of tiles', yLabel: 'residual inter-tile φ (°)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 5 — length tolerance */
     var tols = [2, 5, 10, 25, 50, 100];
@@ -1210,7 +1299,7 @@
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             /* This plotted skewDeg78, which is skewDriftPs x degPs and has
                NO dependence on lenTolUm at all — six exactly flat lines
                under a panel titled "vs mechanical length tolerance". The
@@ -1221,7 +1310,7 @@
           };
         }),
         xLabel: 'per-segment length tolerance (µm, 1σ)', yLabel: 'correction range (wraps at the LO)', height: 260
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 6 — aperture */
     var aps = [10, 15, 20, 30, 40, 50];
@@ -1231,12 +1320,12 @@
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: aps.map(function (a) { return { x: a, y: sweepEval(m.id, { apertureCm: a }).powerTotalMw / 1000 }; })
           };
         }),
         xLabel: 'aperture side (cm)', yLabel: 'distribution power (W)', height: 260
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
   }
 
   /* =====================================================================
@@ -1369,6 +1458,57 @@
     return { res: res, g: g, budget: budget, dec: dec, beam: beam };
   }
 
+  /* How many of the seventy are showing, and a way back when the answer is
+     "none" — a filter that silently matches nothing looks like a broken
+     panel. */
+  function updateParamCount() {
+    var el2 = document.getElementById('paramCount');
+    if (!el2) return;
+    var shown = document.querySelectorAll('#paramMount .field:not(.hidden)').length;
+    var total = M.PARAMS.length;
+    var filtered = view.paramFilter || view.paramHot || view.paramChanged;
+    el2.textContent = !filtered ? ''
+      : shown === 0 ? 'no parameter matches — clear the filter to see all ' + total
+      : 'showing ' + shown + ' of ' + total;
+  }
+
+  /* The context bar in the sticky header. Three jobs, all of them things the
+     page could not previously answer without navigating:
+       - which architecture is selected (the picker shows only on the map)
+       - what the model concluded (painted only inside Compare and Decision)
+       - whether the view you are on shows ALL options or only your build
+     The two selection chips scroll to the picker; the verdict chip opens the
+     rationale. */
+  function renderContextBar(res, budget, dec) {
+    var lm = M.LO_META.filter(function (m) { return m.id === res.g.loOptionId; })[0];
+    var bm = M.BB_META.filter(function (m) { return m.id === res.g.bbOptionId; })[0];
+
+    function chip(el2, kind, value) {
+      if (!el2) return;
+      el2.textContent = '';
+      el2.appendChild(UI.elt('span', 'ck', kind));
+      el2.appendChild(UI.elt('span', 'cv', value));
+    }
+    chip(document.getElementById('ctxLo'), 'LO', lm ? lm.short : '—');
+    chip(document.getElementById('ctxBb'), 'BB', bm ? bm.short : '—');
+
+    var vpick = dec && dec.loPick && dec.bbPick
+      ? dec.loPick.short + ' + ' + dec.bbPick.short : '—';
+    chip(document.getElementById('ctxVerdict'), 'model picks', vpick);
+
+    /* whether THIS view is showing every option or only the current build */
+    var oneBuild = { map: 1, beam: 1 };
+    var scope = document.getElementById('ctxScope');
+    if (scope) {
+      var sel = res.lo[res.g.loOptionId];
+      scope.textContent = oneBuild[view.name]
+        ? 'showing your build only · inter-tile residual ' + n(sel.interTileResidualDeg, 3) +
+          '° against a ' + n(budget.sigSpecDeg) + '° spec'
+        : 'showing all options · judged against ' + n(budget.sigSpecDeg) +
+          '° inter-tile, set by ' + budget.bindingName;
+    }
+  }
+
   function render() {
     var res = M.evaluate(state);
     var budget = window.Budget.derive(res.g, '64QAM');
@@ -1379,6 +1519,7 @@
     if (view.selected >= res.selected.grid.nTiles) view.selected = 0;
 
     renderPicker(res, budget);
+    renderContextBar(res, budget, dec);
     UI.renderBudget(document.getElementById('budgetGrid'), document.getElementById('budgetNote'),
       document.getElementById('bindingNote'), budget);
 
@@ -1387,10 +1528,26 @@
         key: p.key, label: p.label, units: p.units, group: p.group, min: p.min, max: p.max,
         step: p.step, choices: p.choices, justification: p.why, confidence: p.conf
       };
-    }), state, DEFAULTS, setParam);
+    }), state, DEFAULTS, setParam, {
+      filter: view.paramFilter || '',
+      hot: view.paramHot ? M.HOT_PARAMS : null,
+      onlyChanged: !!view.paramChanged
+    });
+    updateParamCount();
 
     var nd = Object.keys(overrides()).length;
     document.getElementById('dirtyCount').textContent = nd ? nd + ' changed from defaults' : 'all at defaults';
+
+    /* Mark the tool's own vocabulary wherever it appears. Done after the
+       view renders, first occurrence only per container, so a table does not
+       become a field of dotted underlines. Glossary.mark is idempotent —
+       re-rendering the same container is a no-op. */
+    function glossify() {
+      if (!window.Glossary) return;
+      var v = document.getElementById('view-' + view.name);
+      if (v) [].slice.call(v.querySelectorAll('.prose, .note, .viewintro, .budget, table.grid'))
+        .forEach(function (el2) { window.Glossary.mark(el2); });
+    }
 
     if (view.name === 'map') renderMapView(res, budget);
     if (view.name === 'compare') renderCompare(res, budget, dec);
@@ -1401,6 +1558,7 @@
     if (view.name === 'assumptions') renderAssumptions(res);
     if (view.name === 'systems') renderSystems();
     if (view.name === 'method') UI.renderProse(document.getElementById('methodMount'), window.Content.METHOD);
+    glossify();
     /* the nav badge is visible from every view, so it updates outside the
        systems branch */
     var navc = document.getElementById('navSysCount');
@@ -1756,9 +1914,9 @@
       { name: 'Squint without inter-tile TTD', field: 'bm_squintBeamwidths', units: 'beamwidths', better: 'low', dec: 2 },
 
       { section: 'Judgement' },
-      { name: 'LO feasibility', field: 'lo_feasibility', fmt: function (v, r) { return str(r.lo_feasibility); } },
-      { name: 'LO risk', field: 'lo_riskLevel', fmt: function (v, r) { return str(r.lo_riskLevel); } },
-      { name: 'Baseband feasibility', field: 'bb_feasibility', fmt: function (v, r) { return str(r.bb_feasibility); } },
+      { name: 'LO feasibility', field: 'lo_feasibility', wrap: true, fmt: function (v, r) { return str(r.lo_feasibility); } },
+      { name: 'LO risk', field: 'lo_riskLevel', wrap: true, fmt: function (v, r) { return str(r.lo_riskLevel); } },
+      { name: 'Baseband feasibility', field: 'bb_feasibility', wrap: true, fmt: function (v, r) { return str(r.bb_feasibility); } },
       { name: 'LO measurements per array pass', field: 'lo_calBurdenScore', better: 'low', dec: 0 }
     ];
   }
@@ -2600,7 +2758,11 @@
   function setView(name) {
     view.name = name;
     document.querySelectorAll('.navlink').forEach(function (a) {
-      a.classList.toggle('on', a.getAttribute('data-view') === name);
+      var on = a.getAttribute('data-view') === name;
+      a.classList.toggle('on', on);
+      /* the class is decoration; aria-current is what tells a screen reader
+         which of nine tabs is the one being shown */
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.querySelectorAll('.view').forEach(function (v) {
       v.classList.toggle('hidden', v.id !== 'view-' + name);
@@ -2700,7 +2862,9 @@
   document.addEventListener('click', function (e) {
     var t = e.target;
     var a = t.closest ? t.closest('.navlink') : null;
-    if (a) { e.preventDefault(); setView(a.getAttribute('data-view')); return; }
+    /* syncHash so the address bar always names the view you are looking at —
+       otherwise a link copied from Phase noise reopens on the Hardware map. */
+    if (a) { e.preventDefault(); setView(a.getAttribute('data-view')); syncHash(); return; }
     var btn = t.closest ? t.closest('button[data-copy],button[data-dl]') : null;
     if (!btn) return;
     if (btn.dataset.copy) {
@@ -2737,6 +2901,56 @@
     b.setAttribute('aria-label', b.title);
     b.textContent = cur === 'dark' ? '☽' : cur === 'light' ? '☀' : '◑';
   }
+  (function () {
+    var b = document.getElementById('cmpKeyToggle');
+    if (b) b.addEventListener('click', function () {
+      view.compareKeyOnly = view.compareKeyOnly === false;
+      render();
+    });
+  })();
+
+  /* Parameter filter. Kept in `view`, not in `state`, so it never reaches the
+     permalink or a saved system — it is how you are looking, not what you
+     are modelling. */
+  (function () {
+    var box = document.getElementById('paramFilter');
+    if (box) box.addEventListener('input', function () {
+      view.paramFilter = box.value;
+      render();
+    });
+    function chip(id, key) {
+      var b = document.getElementById(id);
+      if (!b) return;
+      b.addEventListener('click', function () {
+        view[key] = !view[key];
+        b.setAttribute('aria-pressed', view[key] ? 'true' : 'false');
+        render();
+      });
+    }
+    chip('chipHot', 'paramHot');
+    chip('chipChanged', 'paramChanged');
+  })();
+
+  /* Context-bar chips. The two selection chips take you to the picker — which
+     lives on the Hardware map, so they switch view first when you are
+     elsewhere; the verdict chip opens the rationale. */
+  function goToPicker() {
+    if (view.name !== 'map') { setView('map'); render(); syncHash(); }
+    var p = document.getElementById('pickerPanel');
+    if (p) p.scrollIntoView({ block: 'start' });
+  }
+  ['ctxLo', 'ctxBb'].forEach(function (id) {
+    var el2 = document.getElementById(id);
+    if (el2) el2.addEventListener('click', function (e) { e.preventDefault(); goToPicker(); });
+  });
+  (function () {
+    var v = document.getElementById('ctxVerdict');
+    if (v) v.addEventListener('click', function (e) {
+      e.preventDefault(); setView('decision'); render(); syncHash();
+      window.scrollTo(0, 0);
+    });
+  })();
+
   document.getElementById('themeBtn').addEventListener('click', function () {
     var cur = document.documentElement.getAttribute('data-theme') || '';
     var next = THEME_CYCLE[cur] !== undefined ? THEME_CYCLE[cur] : 'light';
