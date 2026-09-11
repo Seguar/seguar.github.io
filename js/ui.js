@@ -154,11 +154,17 @@
     options.forEach(function (o) {
       var th = elt('th', o.id === recommendedId ? 'rec' : null);
       th.appendChild(document.createTextNode(o.name));
+      /* This said "selected" for the RECOMMENDED column, which is a different
+         thing from the option the reader picked — so whenever the two differ
+         the header asserted the opposite of the truth, and the reader's own
+         build carried no mark at all. "recommended" is what this badge means;
+         the caller marks the current build separately via o.badge/o.cur. */
       if (o.badge || o.id === recommendedId) {
         th.appendChild(document.createElement('br'));
         th.appendChild(elt('span', 'badge ' + (o.badgeClass || 'acc'),
-          o.badge || cfg.recLabel || 'selected'));
+          o.badge || cfg.recLabel || 'recommended'));
       }
+      if (o.cur) th.className = (th.className ? th.className + ' ' : '') + 'cur';
       th.title = o.topology || '';
       htr.appendChild(th);
     });
@@ -215,6 +221,16 @@
       }
       if (rankable && r.better === 'low' && finite.length) best = Math.min.apply(null, finite);
       if (rankable && r.better === 'high' && finite.length) best = Math.max.apply(null, finite);
+      /* A winner shared by several columns is not a winner, and neither is
+         one that beats the field by less than half a percent. Ten of the LO
+         table's rows used to carry four or more "best" marks — the
+         quantisation row marked all six identical values — which teaches the
+         reader to ignore the marker on the rows where it decides something. */
+      if (isFinite(best)) {
+        var nBest = finite.filter(function (v) { return v === best; }).length;
+        var span = Math.max.apply(null, finite) - Math.min.apply(null, finite);
+        if (nBest > 1 || !(Math.abs(span) > Math.abs(best) * 5e-3)) best = NaN;
+      }
 
       options.forEach(function (o, i) {
         var res = results[o.id] || {};
@@ -246,6 +262,7 @@
           cls += ok ? (comfy ? ' pass' : ' warn') : ' fail';
         }
         var td = elt('td', cls + (o.id === recommendedId ? ' rec' : '') +
+          (o.cur ? ' cur' : '') + (r.wrap ? ' vw' : '') +
           (isFinite(best) && v === best && finite.length > 1 ? ' best' : ''));
         var txt = r.fmt ? r.fmt(v, res) : num(v, r.dec);
         td.appendChild(document.createTextNode(txt));

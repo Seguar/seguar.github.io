@@ -281,19 +281,19 @@
   var BB_IDS = ['passive-50', 'bb-daisy', 'h-tree-active', 'current-mode', 'digital-tile'];
 
   var LO_META = [
-    { id: 'local-pll', name: 'A1 Local PLL + reference', short: 'Local PLL' },
-    { id: 'hf-foldback', name: 'A2 High-frequency / foldback', short: 'HF foldback' },
-    { id: 'daisy-chain', name: 'A3 Daisy chain', short: 'Daisy chain' },
-    { id: 'mid-mult', name: 'A4 Mid-frequency + ×M', short: 'Mid + ×M' },
-    { id: 'stabilised-link', name: 'A5 Round-trip stabilised link', short: 'Stabilised link' },
-    { id: 'inj-lock', name: 'A6 Injection-locked tile oscillator', short: 'Injection lock' }
+    { id: 'local-pll', name: 'A1 Local PLL + reference', short: 'A1 Local PLL' },
+    { id: 'hf-foldback', name: 'A2 High-frequency / foldback', short: 'A2 HF foldback' },
+    { id: 'daisy-chain', name: 'A3 Daisy chain', short: 'A3 Daisy chain' },
+    { id: 'mid-mult', name: 'A4 Mid-frequency + ×M', short: 'A4 Mid + ×M' },
+    { id: 'stabilised-link', name: 'A5 Round-trip stabilised link', short: 'A5 Stabilised link' },
+    { id: 'inj-lock', name: 'A6 Injection-locked tile oscillator', short: 'A6 Injection lock' }
   ];
   var BB_META = [
-    { id: 'passive-50', name: 'B1 Passive resistive', short: 'Passive 50 Ω' },
-    { id: 'bb-daisy', name: 'B2 Baseband daisy chain', short: 'BB daisy' },
-    { id: 'h-tree-active', name: 'B3 H-tree active', short: 'H-tree active' },
-    { id: 'current-mode', name: 'B4 Current-mode summing', short: 'Current-mode' },
-    { id: 'digital-tile', name: 'B5 Digitise at the tile', short: 'Digital tile' }
+    { id: 'passive-50', name: 'B1 Passive resistive', short: 'B1 Passive 50 Ω' },
+    { id: 'bb-daisy', name: 'B2 Baseband daisy chain', short: 'B2 BB daisy' },
+    { id: 'h-tree-active', name: 'B3 H-tree active', short: 'B3 H-tree active' },
+    { id: 'current-mode', name: 'B4 Current-mode summing', short: 'B4 Current-mode' },
+    { id: 'digital-tile', name: 'B5 Digitise at the tile', short: 'B5 Digital tile' }
   ];
 
   /* ---------------------------------------------------------------------

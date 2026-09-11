@@ -26,6 +26,20 @@
     }
   };
 
+  /* ONE series palette, because it was duplicated at three call sites and all
+     three ended in var(--accent) — which resolves to exactly var(--s1) in
+     both themes, so A1 Local PLL and A6 Injection lock drew in the same
+     colour in every phase-noise overlay, every compare bar and every sweep,
+     with two identical legend swatches. A1 against A6 is the comparison the
+     phase-noise view exists to make.
+
+     The dash pattern is the second channel: six overlapping L(f) curves
+     separated by hue alone are unreadable printed, projected, or with
+     deuteranopia. Index i gets DASHES[i], so the pairs that are closest in
+     hue are never also closest in stroke. */
+  var SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
+  var DASHES = [null, '6 3', null, '2 3', '9 3 2 3', '4 2'];
+
   var TILE_METRICS = [
     { key: 'skewPs', label: 'skew vs array mean (ps)' },
     { key: 'wraps', label: 'static offset (wraps to resolve)' },
@@ -231,8 +245,8 @@
     rows.push({ name: 'Splitters', field: 'splitCount', better: 'low', dec: 0 });
     rows.push({ name: 'Distribution area per tile', field: 'areaPerTileMm2', units: 'mm²', better: 'low' });
     rows.push({ name: 'LO measurements per array pass', field: 'calBurdenScore', better: 'low', dec: 0, noteField: 'calBurdenDetail' });
-    rows.push({ name: 'Feasibility', field: 'feasibility', fmt: function (v, r) { return str(r.feasibility); } });
-    rows.push({ name: 'Risk', field: 'riskLevel', fmt: function (v, r) { return str(r.riskLevel); } });
+    rows.push({ name: 'Feasibility', field: 'feasibility', wrap: true, fmt: function (v, r) { return str(r.feasibility); } });
+    rows.push({ name: 'Risk', field: 'riskLevel', wrap: true, fmt: function (v, r) { return str(r.riskLevel); } });
     return rows;
   }
 
@@ -288,8 +302,8 @@
       { section: 'Stability & burden' },
       { name: 'Delay drift', field: 'driftDegPerK', units: '°/K', better: 'low', dec: 3 },
       { name: 'Channels to calibrate per rail', field: 'calBurdenScore', better: 'low', dec: 0, noteField: 'calBurdenDetail' },
-      { name: 'Feasibility', field: 'feasibility', fmt: function (v, r) { return str(r.feasibility); } },
-      { name: 'Risk', field: 'riskLevel', fmt: function (v, r) { return str(r.riskLevel); } }
+      { name: 'Feasibility', field: 'feasibility', wrap: true, fmt: function (v, r) { return str(r.feasibility); } },
+      { name: 'Risk', field: 'riskLevel', wrap: true, fmt: function (v, r) { return str(r.riskLevel); } }
     ];
   }
 
@@ -561,11 +575,26 @@
      Compare view
      ================================================================== */
   function renderCompare(res, budget, dec) {
-    var loOpts = M.LO_META.map(function (m) { return { id: m.id, name: m.name, topology: res.lo[m.id].note }; });
-    var bbOpts = M.BB_META.map(function (m) { return { id: m.id, name: m.name, topology: res.bb[m.id].note }; });
+    /* Two different claims, kept apart. The tinted column is what the MODEL
+       recommends; the underlined one is what the READER has selected in the
+       picker. They were previously merged into a single badge on the
+       recommended column reading "selected", so whenever the two differed the
+       header asserted the opposite of the truth. */
+    function opt(m, results, curId, pickId) {
+      var o = { id: m.id, name: m.name, topology: results[m.id].note };
+      if (m.id === curId) {
+        o.cur = true;
+        o.badge = m.id === pickId ? 'your build · model pick' : 'your build';
+        o.badgeClass = m.id === pickId ? 'acc' : 'warn';
+      }
+      return o;
+    }
+    var loOpts = M.LO_META.map(function (m) { return opt(m, res.lo, res.g.loOptionId, dec.loPick.id); });
+    var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id); });
 
-    UI.renderTable(document.getElementById('loTable'), loOpts, res.lo, loRows(budget), dec.loPick.id);
-    UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb, bbRows(budget), dec.bbPick.id);
+    var cfg = { recLabel: 'model pick' };
+    UI.renderTable(document.getElementById('loTable'), loOpts, res.lo, loRows(budget), dec.loPick.id, cfg);
+    UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb, bbRows(budget), dec.bbPick.id, cfg);
 
     /* verdict strip */
     var vm = document.getElementById('verdictMount');
@@ -602,7 +631,7 @@
     /* charts */
     var cc = document.getElementById('compareCharts');
     cc.textContent = '';
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
     /* zeroBase must be false for any decibel quantity. A dB value is a
        difference from an arbitrary reference, so barChart's default origin
        of Math.min(0, value) puts the bar's start AND end at the same place
@@ -641,14 +670,14 @@
      Phase-noise view
      ================================================================== */
   function renderPn(res, budget) {
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
     function pnPanel(mountId, curveKey, noteId, noteHtml, yMin, yMax) {
       var mount = document.getElementById(mountId);
       mount.textContent = '';
       var series = M.LO_META.map(function (m, i) {
         var c = res.lo[m.id][curveKey];
         return {
-          name: m.short, color: colors[i],
+          name: m.short, color: colors[i], dash: DASHES[i],
           points: (c || []).map(function (p) { return { x: p.fOffsetHz, y: p.dBcPerHz }; })
         };
       });
@@ -659,7 +688,7 @@
         height: 330, yMin: yMin, yMax: yMax, xMin: 1e2, xMax: 1e9
       }));
       mount.appendChild(box);
-      mount.appendChild(C.legend(M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; })));
+      mount.appendChild(C.legend(M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; })));
       if (noteId) document.getElementById(noteId).innerHTML = noteHtml;
     }
 
@@ -1092,7 +1121,7 @@
   function renderSweeps(res, budget) {
     var cc = document.getElementById('sweepCharts');
     cc.textContent = '';
-    var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    var colors = SERIES;
 
     function panel(title, note, chart, legendItems) {
       var sec = document.createElement('section');
@@ -1169,13 +1198,13 @@
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: rates.map(function (r) { return { x: Math.log10(r), y: sweepEval(m.id, { fBistHz: r }).interTileResidualDeg }; })
           };
         }),
         xLabel: 'log10(BIST update rate / Hz)', yLabel: 'residual inter-tile φ (°)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 4 — tile count */
     var tiles = [2, 3, 4, 5, 6, 8, 10];
@@ -1186,7 +1215,7 @@
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: tiles.map(function (k) {
               var r = sweepEval(m.id, { tileCm: state.apertureCm / k });
               return { x: k * k, y: r.interTileResidualDeg };
@@ -1195,7 +1224,7 @@
         }),
         xLabel: 'number of tiles', yLabel: 'residual inter-tile φ (°)', height: 260,
         hLine: budget.sigSpecDeg, hLabel: 'spec'
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 5 — length tolerance */
     var tols = [2, 5, 10, 25, 50, 100];
@@ -1210,7 +1239,7 @@
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             /* This plotted skewDeg78, which is skewDriftPs x degPs and has
                NO dependence on lenTolUm at all — six exactly flat lines
                under a panel titled "vs mechanical length tolerance". The
@@ -1221,7 +1250,7 @@
           };
         }),
         xLabel: 'per-segment length tolerance (µm, 1σ)', yLabel: 'correction range (wraps at the LO)', height: 260
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
 
     /* 6 — aperture */
     var aps = [10, 15, 20, 30, 40, 50];
@@ -1231,12 +1260,12 @@
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
-            name: m.short, color: colors[i], markers: true,
+            name: m.short, color: colors[i], dash: DASHES[i], markers: true,
             points: aps.map(function (a) { return { x: a, y: sweepEval(m.id, { apertureCm: a }).powerTotalMw / 1000 }; })
           };
         }),
         xLabel: 'aperture side (cm)', yLabel: 'distribution power (W)', height: 260
-      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
+      }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i], dash: DASHES[i] }; }));
   }
 
   /* =====================================================================
@@ -1756,9 +1785,9 @@
       { name: 'Squint without inter-tile TTD', field: 'bm_squintBeamwidths', units: 'beamwidths', better: 'low', dec: 2 },
 
       { section: 'Judgement' },
-      { name: 'LO feasibility', field: 'lo_feasibility', fmt: function (v, r) { return str(r.lo_feasibility); } },
-      { name: 'LO risk', field: 'lo_riskLevel', fmt: function (v, r) { return str(r.lo_riskLevel); } },
-      { name: 'Baseband feasibility', field: 'bb_feasibility', fmt: function (v, r) { return str(r.bb_feasibility); } },
+      { name: 'LO feasibility', field: 'lo_feasibility', wrap: true, fmt: function (v, r) { return str(r.lo_feasibility); } },
+      { name: 'LO risk', field: 'lo_riskLevel', wrap: true, fmt: function (v, r) { return str(r.lo_riskLevel); } },
+      { name: 'Baseband feasibility', field: 'bb_feasibility', wrap: true, fmt: function (v, r) { return str(r.bb_feasibility); } },
       { name: 'LO measurements per array pass', field: 'lo_calBurdenScore', better: 'low', dec: 0 }
     ];
   }
