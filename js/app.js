@@ -586,6 +586,38 @@
   /* =====================================================================
      Compare view
      ================================================================== */
+  /* The rows that decide the answer, for the "key metrics" filter. The rule
+     is the same one the Decision view already applies: a row is key if it
+     carries a requirement, if decision.js weights it, or if it is the
+     headline of its own metric family. 54 rows across 8 sections is the right
+     depth for defending a choice and the wrong depth for understanding one,
+     and the Systems view three tabs away already had a "differences only"
+     toggle — this is the same idea for Compare. */
+  var KEY_LO_FIELDS = [
+    'interTileResidualDeg', 'sllDb', 'lossTotalDb', 'powerFracOfArray',
+    'powerTotalMw', 'evmDb', 'maxQam', 'skewDriftPs', 'correctionRangeDeg',
+    'calBurdenScore', 'feasibility', 'riskLevel', 'distFreqGHz'
+  ];
+  var KEY_BB_FIELDS = [
+    'interTileResidualDeg', 'skewRmsPs', 'lossTotalDb', 'nfPenaltyDb',
+    'powerTotalMw', 'bwGHz', 'squintLossDb', 'feasibility', 'riskLevel'
+  ];
+
+  /* Keep a section only if a row under it survived; a bare heading with
+     nothing beneath it reads as a rendering fault. */
+  function keyOnly(rows, fields) {
+    var out = [];
+    rows.forEach(function (r) {
+      if (r.section) { out.push(r); return; }
+      if (fields.indexOf(r.field) >= 0) out.push(r);
+    });
+    return out.filter(function (r, i) {
+      if (!r.section) return true;
+      var nxt = out[i + 1];
+      return !!(nxt && !nxt.section);
+    });
+  }
+
   function renderCompare(res, budget, dec) {
     /* Two different claims, kept apart. The tinted column is what the MODEL
        recommends; the underlined one is what the READER has selected in the
@@ -605,8 +637,24 @@
     var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id); });
 
     var cfg = { recLabel: 'model pick' };
-    UI.renderTable(document.getElementById('loTable'), loOpts, res.lo, loRows(budget), dec.loPick.id, cfg);
-    UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb, bbRows(budget), dec.bbPick.id, cfg);
+    var lr = loRows(budget), br = bbRows(budget);
+    var keyMode = view.compareKeyOnly !== false;   /* key metrics by default */
+    UI.renderTable(document.getElementById('loTable'), loOpts, res.lo,
+      keyMode ? keyOnly(lr, KEY_LO_FIELDS) : lr, dec.loPick.id, cfg);
+    UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb,
+      keyMode ? keyOnly(br, KEY_BB_FIELDS) : br, dec.bbPick.id, cfg);
+    (function () {
+      var b = document.getElementById('cmpKeyToggle');
+      if (!b) return;
+      var shownLo = (keyMode ? keyOnly(lr, KEY_LO_FIELDS) : lr).filter(function (r) { return !r.section; }).length;
+      var totalLo = lr.filter(function (r) { return !r.section; }).length;
+      b.textContent = keyMode ? 'Show all ' + totalLo + ' metrics' : 'Key metrics only';
+      b.setAttribute('aria-pressed', keyMode ? 'true' : 'false');
+      var note = document.getElementById('cmpKeyNote');
+      if (note) note.textContent = keyMode
+        ? 'Showing the ' + shownLo + ' rows that carry a requirement or a scoring weight.'
+        : 'Showing every row. The ones that decide the answer are in the key view.';
+    })();
 
     /* verdict strip */
     var vm = document.getElementById('verdictMount');
@@ -2853,6 +2901,14 @@
     b.setAttribute('aria-label', b.title);
     b.textContent = cur === 'dark' ? '☽' : cur === 'light' ? '☀' : '◑';
   }
+  (function () {
+    var b = document.getElementById('cmpKeyToggle');
+    if (b) b.addEventListener('click', function () {
+      view.compareKeyOnly = view.compareKeyOnly === false;
+      render();
+    });
+  })();
+
   /* Parameter filter. Kept in `view`, not in `state`, so it never reaches the
      permalink or a saved system — it is how you are looking, not what you
      are modelling. */

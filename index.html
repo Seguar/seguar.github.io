@@ -164,6 +164,16 @@
           <div id="verdictMount"></div>
         </section>
 
+        <!-- 54 rows across 8 sections is the right depth for defending a
+             choice and the wrong depth for understanding one, so the key view
+             is the default and the full table is one click away. -->
+        <div class="toolbar" id="cmpToolbar">
+          <button class="btn pchip" id="cmpKeyToggle" type="button" aria-pressed="true"></button>
+          <span class="pcount" id="cmpKeyNote" style="font-size:11.5px;color:var(--ink-3)"></span>
+          <span class="sp"></span>
+          <span style="font-size:11.5px;color:var(--ink-3)">tinted = model pick &middot; underlined = your build &middot; &#9664; best in row</span>
+        </div>
+
         <section class="panel">
           <h2>LO / reference distribution <span class="tag">family A</span>
             <span class="grow">6 options &times; required metrics</span></h2>
