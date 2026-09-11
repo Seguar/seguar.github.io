@@ -56,19 +56,12 @@
     <a href="#" class="ctxchip" id="ctxBb" title="Change the baseband split / combine architecture"></a>
     <span class="ctxsep"></span>
     <a href="#" class="ctxchip verdict-chip" id="ctxVerdict" title="Read the full rationale"></a>
+    <a href="#" class="ctxchip warn-chip hidden" id="ctxWarn" title="A consistency problem makes this build's numbers untrustworthy - open the map to see it"></a>
     <span class="ctxgrow" id="ctxScope"></span>
   </div>
 </header>
 
 <div class="wrap">
-
-  <!-- ===================== architecture picker ===================== -->
-  <section class="panel" id="pickerPanel">
-    <h2>Architecture <span class="tag">pick a connection type and a reference clock</span>
-      <span class="grow" id="pickerNote"></span></h2>
-    <div class="body" id="pickerMount"></div>
-    <div class="body hidden" id="warnMount" style="padding-top:0"></div>
-  </section>
 
   <!-- ===================== spec budget banner ===================== -->
   <section class="panel" id="budgetPanel">
@@ -120,8 +113,15 @@
       <!-- ---- HARDWARE MAP ---- -->
       <div class="view" id="view-map">
         <p class="viewintro"><span class="scope one">this build</span><span>The board this build actually is: where the source sits, how the trunks and branches route, what lands at each tile and what it costs. Click any tile to inspect both tiers for it.</span></p>
+        <!-- The case selector lives INSIDE the map panel, directly above the
+             drawing it changes. It used to be a separate 1215 px panel above
+             the view, which together with the 722 px requirement panel put
+             the map nearly five screens down on the one view whose whole
+             point is the picture. -->
         <section class="panel">
           <h2 id="mapTitle">Hardware map</h2>
+          <div class="pk-bar" id="pickerMount"></div>
+          <div class="pk-bar hidden" id="warnMount"></div>
           <div class="toolbar" id="mapToolbar"></div>
           <div class="chartbox" id="mapMount"></div>
           <div id="mapLegend"></div>

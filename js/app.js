@@ -351,70 +351,170 @@
     container.appendChild(wrap);
   }
 
+  /* A row of compact chips for one parameter. */
+  function chipRow(container, label, paramKey, choices) {
+    var lab = UI.elt('span', 'pk-lab', label);
+    container.appendChild(lab);
+    var row = UI.elt('div', 'pk-chips');
+    choices.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      var on = Number(state[paramKey]) === Number(c.value);
+      b.className = 'pchip' + (on ? ' on' : '');
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = c.label;
+      if (c.title) b.title = c.title;
+      b.addEventListener('click', function () { setParam(paramKey, Number(c.value)); });
+      row.appendChild(b);
+    });
+    container.appendChild(row);
+  }
+
+  /* A labelled <select> for the parameters whose choices are long strings.
+     Five stacked button rows with a paragraph each is what made this panel
+     1215 px tall; a dropdown is two lines and loses nothing, because only the
+     chosen value matters once you have chosen. */
+  function pickerSelect(container, label, paramKey, choices, titleTxt) {
+    var wrap = UI.elt('label', 'pk-sel');
+    wrap.appendChild(UI.elt('span', 'pk-lab', label));
+    var s = document.createElement('select');
+    choices.forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = String(c.value);
+      o.textContent = c.label;
+      if (Number(c.value) === Number(state[paramKey])) o.selected = true;
+      s.appendChild(o);
+    });
+    s.addEventListener('change', function () { setParam(paramKey, Number(s.value)); });
+    if (titleTxt) wrap.title = titleTxt;
+    wrap.appendChild(s);
+    container.appendChild(wrap);
+  }
+
+  /* The case selector. It used to be five stacked groups of wide buttons, each
+     followed by its own paragraph of prose — 1215 px, which together with the
+     722 px requirement panel pushed the hardware map nearly five screens down
+     the page on the one view whose whole point is the picture.
+
+     Compact now: two chip rows for the two architecture families, the
+     remaining choices as dropdowns, and ONE line of context for the current
+     selection. The prose is not deleted — it moves into a disclosure, so the
+     reasoning is a click away instead of always occupying the top of the
+     screen. */
   function renderPicker(res, budget) {
     var mount = document.getElementById('pickerMount');
     mount.textContent = '';
     var loP = M.PARAMS.filter(function (p) { return p.key === 'loOption'; })[0];
+    var bbP = M.PARAMS.filter(function (p) { return p.key === 'bbOption'; })[0];
     var sel = res.lo[res.g.loOptionId];
+    var bsel = res.bb[res.g.bbOptionId];
+    var pick = UI.elt('div', 'pk');
 
-    seg(mount, 'LO / reference connection type', 'loOption', loP.choices.map(function (c, i) {
-      return { value: c.value, label: c.label, title: M.LO_META[i].id };
-    }), sel.note);
+    /* Both families on one wrapping row: at a desktop width they share a
+       line, and they break onto two only when the window is too narrow. */
+    var r1 = UI.elt('div', 'pk-row');
+    chipRow(r1, 'LO', 'loOption', loP.choices.map(function (c, i) {
+      return { value: c.value, label: M.LO_META[i].short, title: M.LO_META[i].name + ' — ' + res.lo[M.LO_META[i].id].note };
+    }));
+    chipRow(r1, 'Baseband', 'bbOption', bbP.choices.map(function (c, i) {
+      return { value: c.value, label: M.BB_META[i].short, title: M.BB_META[i].name + ' — ' + res.bb[M.BB_META[i].id].note };
+    }));
+    pick.appendChild(r1);
 
-    seg(mount, 'Reference clock', 'refSel', M.REF_SOURCES.map(function (r, i) {
-      return { value: i, label: r.name, title: r.note };
-    }), M.REF_SOURCES[Math.round(state.refSel)].note +
-      '  <em>N = f_LO/f_ref = ' + n(state.fLoGHz * 1e9 / (state.fRefMHz * 1e6), 0) +
-      ', so the reference is multiplied by ' + n(20 * Math.log10(state.fLoGHz * 1e9 / (state.fRefMHz * 1e6)), 1) + ' dB.</em>');
-
+    var r3 = UI.elt('div', 'pk-row pk-row-sel');
+    pickerSelect(r3, 'Reference', 'refSel', M.REF_SOURCES.map(function (r, i) {
+      return { value: i, label: r.name };
+    }), M.REF_SOURCES[Math.round(state.refSel)].note);
+    /* only the knobs that belong to the selected architecture */
     if (res.g.loOptionId === 'mid-mult') {
-      seg(mount, 'Multiplication factor', 'midM',
+      pickerSelect(r3, '×M', 'midM',
         M.PARAMS.filter(function (p) { return p.key === 'midM'; })[0].choices,
-        '×M adds exactly <span class="kv">' + n(20 * Math.log10(state.midM), 1) + ' dB</span> to L(f) and multiplies ' +
-        'distributed phase error by ' + Math.round(state.midM) + '. It buys loss and power, not skew.');
+        '×M adds exactly ' + n(20 * Math.log10(state.midM), 1) + ' dB to L(f) and multiplies distributed phase error by ' + Math.round(state.midM) + '. It buys loss and power, not skew.');
     }
     if (res.g.loOptionId === 'local-pll') {
-      seg(mount, 'Per-tile PLL output plan', 'pllMult',
+      pickerSelect(r3, 'PLL plan', 'pllMult',
         M.PARAMS.filter(function (p) { return p.key === 'pllMult'; })[0].choices,
-        'A PLL running directly at ' + n(state.fLoGHz, 0) + ' GHz in 65 nm LP CMOS is beyond the technology; ' +
-        'a lower-frequency PLL plus a multiplier is the realisable route.');
+        'A PLL running directly at ' + n(state.fLoGHz, 0) + ' GHz in 65 nm LP CMOS is beyond the technology; a lower-frequency PLL plus a multiplier is the realisable route.');
     }
     if (res.g.loOptionId === 'daisy-chain') {
-      seg(mount, 'Parallel chain branches', 'chainBranches',
+      pickerSelect(r3, 'Chains', 'chainBranches',
         [1, 2, 3, 5].map(function (v) { return { value: v, label: v === 1 ? '1 chain' : v + ' chains' }; }),
-        'More branches shorten the worst chain and shrink the blast radius of a dead buffer. Worst chain here is ' +
-        (sel.topo.lo.maxHop || 0) + ' hops.');
+        'More branches shorten the worst chain and shrink the blast radius of a dead buffer. Worst chain here is ' + (sel.topo.lo.maxHop || 0) + ' hops.');
     }
-
-    seg(mount, 'LO line medium', 'loMedium',
+    pickerSelect(r3, 'Medium', 'loMedium',
       M.PARAMS.filter(function (p) { return p.key === 'loMedium'; })[0].choices,
-      'Loss at ' + n(sel.distFreqGHz, 2) + ' GHz in this medium: <span class="kv">' + n(sel.lossPerCmDb, 3) +
-      ' dB/cm</span>. One degree at ' + n(state.fLoGHz, 0) + ' GHz is <span class="kv">' +
-      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length.');
+      'Loss at ' + n(sel.distFreqGHz, 2) + ' GHz in this medium: ' + n(sel.lossPerCmDb, 3) + ' dB/cm.');
+    pick.appendChild(r3);
 
-    seg(mount, 'Baseband split / combine', 'bbOption',
-      M.PARAMS.filter(function (p) { return p.key === 'bbOption'; })[0].choices,
-      res.bb[res.g.bbOptionId].note);
+    var det = document.createElement('details');
+    det.className = 'pk-why';
+    if (view.pickerWhyOpen) det.open = true;
+    det.addEventListener('toggle', function () { view.pickerWhyOpen = det.open; });
+    var sm = document.createElement('summary');
+    sm.textContent = 'Why these, and what each choice costs';
+    det.appendChild(sm);
+    var body = UI.elt('div', 'pk-why-body');
+    body.innerHTML =
+      '<p class="note"><strong>' + M.LO_META[Math.round(state.loOption)].name + '.</strong> ' + sel.note + '</p>' +
+      '<p class="note"><strong>' + M.BB_META[Math.round(state.bbOption)].name + '.</strong> ' + bsel.note + '</p>' +
+      '<p class="note"><strong>Reference.</strong> ' + M.REF_SOURCES[Math.round(state.refSel)].note +
+      ' <em>N = f_LO/f_ref = ' + n(state.fLoGHz * 1e9 / (state.fRefMHz * 1e6), 0) +
+      ', so the reference is multiplied by ' + n(20 * Math.log10(state.fLoGHz * 1e9 / (state.fRefMHz * 1e6)), 1) + ' dB.</em></p>' +
+      '<p class="note"><strong>Medium.</strong> One degree at ' + n(state.fLoGHz, 0) + ' GHz is <span class="kv">' +
+      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length in this medium.</p>';
+    det.appendChild(body);
+    mount.appendChild(pick);
 
+    /* One line carrying what this build IS, the geometry it implies, and the
+       one number it is judged on — sharing its row with the disclosure so the
+       strip costs a line rather than three. */
     var g2 = res.g;
-    document.getElementById('pickerNote').innerHTML =
-      g2.tileCols + '×' + g2.tileCols + ' = ' + g2.nTilesTotal + ' tiles at ' + n(g2.tileCm, 1) + ' cm pitch · ' +
-      'populated aperture <strong>' + n(g2.effApertureCm, 1) + ' cm</strong>' +
-      (g2.aperturePitchExact ? '' : ' (requested ' + n(g2.apertureCm, 0) + ')') + ' · ' +
-      n(g2.loTapsTotal, 0) + ' LO taps · ' + n(state.chPerTile * g2.nTilesTotal, 0) + ' BB channels per rail';
+    var geo = UI.elt('span', 'pk-geo');
+    geo.innerHTML =
+      '<span class="kv">' + n(sel.distFreqGHz, 2) + ' GHz</span> on the board' +
+      (sel.tileMultiplier > 1 ? ', ×' + sel.tileMultiplier + ' per tile' : '') + ' · ' +
+      g2.tileCols + '×' + g2.tileCols + ' = ' + g2.nTilesTotal + ' tiles at ' + n(g2.tileCm, 1) + ' cm · ' +
+      'aperture <strong>' + n(g2.effApertureCm, 1) + ' cm</strong>' +
+      (g2.aperturePitchExact ? '' : ' of ' + n(g2.apertureCm, 0)) + ' · ' +
+      n(g2.loTapsTotal, 0) + ' LO taps · residual <span class="kv">' +
+      n(sel.interTileResidualDeg, 3) + '°</span> of ' + n(budget.sigSpecDeg) + '°';
+    var foot = UI.elt('div', 'pk-row pk-foot');
+    foot.appendChild(geo);
+    foot.appendChild(det);
+    pick.appendChild(foot);
 
-    /* consistency banner — a mismatch that changes the answer should not be
-       discoverable only by doing the arithmetic yourself */
+    /* Consistency banner. A mismatch that changes the answer must not be
+       discoverable only by doing the arithmetic yourself — but at the
+       defaults there are two perfectly reasonable geometry notes, and as
+       full paragraphs they took 145 px above the map on every single load.
+       Warnings collapse to one line; a `fail` is a real inconsistency and
+       stays open. */
     var wm = document.getElementById('warnMount');
     wm.textContent = '';
-    (res.warnings || []).forEach(function (w) {
-      var d = document.createElement('div');
-      d.className = 'callout ' + (w.severity === 'fail' ? 'failc' : 'warnc');
-      d.style.margin = '0 0 8px';
-      d.innerHTML = '<strong>' + (w.severity === 'fail' ? 'Inconsistent: ' : 'Check: ') + '</strong>' + w.message;
-      wm.appendChild(d);
-    });
-    wm.classList.toggle('hidden', !(res.warnings || []).length);
+    var warns = res.warnings || [];
+    var hard = warns.filter(function (w) { return w.severity === 'fail'; });
+    if (warns.length) {
+      var box = document.createElement('details');
+      box.className = 'pk-warn' + (hard.length ? ' hard' : '');
+      if (hard.length || view.warnOpen) box.open = true;
+      box.addEventListener('toggle', function () { view.warnOpen = box.open; });
+      var sm2 = document.createElement('summary');
+      sm2.innerHTML = hard.length
+        ? '<strong>' + hard.length + ' inconsistency' + (hard.length > 1 ? ' issues' : '') +
+          '</strong> — this build’s numbers cannot be trusted until it is resolved'
+        : warns.length + ' geometry note' + (warns.length > 1 ? 's' : '') +
+          ' — the grid does not divide the panel exactly';
+      box.appendChild(sm2);
+      warns.forEach(function (w) {
+        var d = document.createElement('div');
+        d.className = 'callout ' + (w.severity === 'fail' ? 'failc' : 'warnc');
+        d.style.margin = '7px 0 0';
+        d.innerHTML = '<strong>' + (w.severity === 'fail' ? 'Inconsistent: ' : 'Check: ') + '</strong>' + w.message;
+        box.appendChild(d);
+      });
+      wm.appendChild(box);
+    }
+    wm.classList.toggle('hidden', !warns.length);
   }
 
   /* =====================================================================
@@ -432,18 +532,24 @@
     /* toolbar: tile colour metric + block visibility */
     var tb = document.getElementById('mapToolbar');
     tb.textContent = '';
-    var lbl = document.createElement('span');
-    lbl.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
-    lbl.textContent = 'colour tiles by';
-    tb.appendChild(lbl);
+    /* A dropdown, not five wide buttons. The five labels are long enough
+       ("static offset (wraps to resolve)") that as buttons they filled a
+       whole row on their own and pushed the drawing further down — and only
+       one can be active, which is exactly what a select is for. The layer
+       toggles stay buttons because several are on at once. */
+    var mlab = UI.elt('label', 'pk-sel');
+    mlab.appendChild(UI.elt('span', 'pk-lab', 'colour tiles by'));
+    var msel = document.createElement('select');
     TILE_METRICS.forEach(function (m) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn' + (view.tileMetric === m.key ? ' pri' : '');
-      b.textContent = m.label;
-      b.addEventListener('click', function () { view.tileMetric = m.key; render(); });
-      tb.appendChild(b);
+      var o = document.createElement('option');
+      o.value = m.key;
+      o.textContent = m.label;
+      if (view.tileMetric === m.key) o.selected = true;
+      msel.appendChild(o);
     });
+    msel.addEventListener('change', function () { view.tileMetric = msel.value; render(); });
+    mlab.appendChild(msel);
+    tb.appendChild(mlab);
     var sp = document.createElement('span');
     sp.className = 'sp';
     tb.appendChild(sp);
@@ -1495,6 +1601,16 @@
     var vpick = dec && dec.loPick && dec.bbPick
       ? dec.loPick.short + ' + ' + dec.bbPick.short : '—';
     chip(document.getElementById('ctxVerdict'), 'model picks', vpick);
+
+    /* A hard inconsistency now lives in a banner inside the map panel, so it
+       would be invisible from the eight other views. The chip is not the
+       message — it is the fact that there IS one, and a way back to it. */
+    var wc = document.getElementById('ctxWarn');
+    var hard = (res.warnings || []).filter(function (w) { return w.severity === 'fail'; });
+    if (wc) {
+      wc.classList.toggle('hidden', !hard.length);
+      if (hard.length) chip(wc, 'inconsistent', hard.length + ' to resolve');
+    }
 
     /* whether THIS view is showing every option or only the current build */
     var oneBuild = { map: 1, beam: 1 };
@@ -2757,6 +2873,8 @@
   /* ------------------------------- routing ------------------------------- */
   function setView(name) {
     view.name = name;
+    /* drives the per-view panel ordering in the stylesheet */
+    document.body.setAttribute('data-view', name);
     document.querySelectorAll('.navlink').forEach(function (a) {
       var on = a.getAttribute('data-view') === name;
       a.classList.toggle('on', on);
@@ -2767,12 +2885,11 @@
     document.querySelectorAll('.view').forEach(function (v) {
       v.classList.toggle('hidden', v.id !== 'view-' + name);
     });
-    /* the picker and budget banner only make sense on the map/compare views.
-       On the Systems view the single banner would be actively wrong — each
-       system has its own derived requirement, and that comparison has its
-       own panel inside the view. */
-    var showPick = name === 'map';
-    document.getElementById('pickerPanel').classList.toggle('hidden', !showPick);
+    /* The case selector is now inside the map panel, so there is no separate
+       picker panel to show or hide. The budget banner still does not belong
+       on every view: on Systems a single banner would be actively wrong,
+       because each system has its own derived requirement and that comparison
+       has its own panel inside the view. */
     document.getElementById('budgetPanel').classList.toggle('hidden',
       name === 'assumptions' || name === 'method' || name === 'systems');
     /* clear the two-step confirmations when leaving, so returning to the
@@ -2936,10 +3053,11 @@
      elsewhere; the verdict chip opens the rationale. */
   function goToPicker() {
     if (view.name !== 'map') { setView('map'); render(); syncHash(); }
-    var p = document.getElementById('pickerPanel');
+    var p = document.getElementById('pickerMount');
+    if (p && p.closest) p = p.closest('.panel') || p;
     if (p) p.scrollIntoView({ block: 'start' });
   }
-  ['ctxLo', 'ctxBb'].forEach(function (id) {
+  ['ctxLo', 'ctxBb', 'ctxWarn'].forEach(function (id) {
     var el2 = document.getElementById(id);
     if (el2) el2.addEventListener('click', function (e) { e.preventDefault(); goToPicker(); });
   });

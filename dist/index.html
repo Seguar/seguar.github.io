@@ -149,7 +149,28 @@ body {
 }
 
 /* ---------- layout ---------- */
-.wrap { max-width: 1560px; margin: 0 auto; padding: 0 20px 80px; }
+/* A flex column so the panels above the views can be REORDERED per view.
+   On the Hardware map the picture is the point, and it used to sit below a
+   1215 px case selector and a 722 px requirement panel — nearly five screens
+   down. There, the selector stays on top (it is what changes the drawing, so
+   it has to be reachable) but compact, and the requirement panel moves below
+   the map, where it belongs as reference. Everywhere else the requirement is
+   the thing the numbers are judged against, so it stays first. */
+.wrap {
+  max-width: 1560px; margin: 0 auto; padding: 0 20px 80px;
+  display: flex; flex-direction: column;
+}
+/* Every child needs an explicit order once .wrap is a flex container: the
+   default is 0, which sent the footer to the TOP of the page. */
+.wrap > * { order: 5; }
+.wrap > #budgetPanel { order: 1; }
+.wrap > .cols { order: 2; }
+.wrap > footer.foot { order: 9; }
+/* On the map the requirement panel is reference material, so it goes after
+   the map; on every other view it is the thing the numbers are judged
+   against, so it stays first. */
+body[data-view="map"] .wrap > .cols { order: 1; }
+body[data-view="map"] .wrap > #budgetPanel { order: 2; }
 
 header.top {
   border-bottom: 1px solid var(--rule);
@@ -170,6 +191,53 @@ header.top nav a, header.top nav button {
 }
 header.top nav a:hover, header.top nav button:hover { background: var(--bg-hover); color: var(--ink); }
 header.top nav a.on { background: var(--accent-soft); color: var(--accent); border-color: var(--rule); }
+
+/* ---------- compact case selector ----------
+   A control strip inside the map panel, not a panel of its own. */
+.pk-bar { padding: 9px 14px; border-bottom: 1px solid var(--rule); background: var(--bg-panel); }
+.pk-bar.hidden { display: none !important; }
+.pk-geo { font-size: 11.5px; color: var(--ink-3); }
+.pk-warn > summary {
+  cursor: pointer; list-style: none; font-size: 11.5px; color: var(--warn);
+  display: inline-flex; align-items: center; gap: 5px; width: fit-content;
+}
+.pk-warn.hard > summary { color: var(--fail); }
+.pk-warn > summary::-webkit-details-marker { display: none; }
+.pk-warn > summary::before { content: "\25B8"; font-size: 9px; transition: transform .12s; }
+.pk-warn[open] > summary::before { transform: rotate(90deg); }
+
+.pk { display: flex; flex-direction: column; gap: 7px; }
+.pk-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pk-row-sel { gap: 12px; }
+.pk-lab {
+  font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-3); flex: none; min-width: 58px;
+}
+.pk-chips { display: flex; gap: 4px; flex-wrap: wrap; min-width: 0; }
+.pk-chips .pchip { white-space: nowrap; }
+.pk-chips .pchip.on {
+  background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600;
+}
+.pk-sel { display: flex; align-items: center; gap: 5px; }
+.pk-sel .pk-lab { min-width: 0; }
+.pk-sel select {
+  font: 11.5px var(--sans); padding: 3px 5px; max-width: 200px;
+  border: 1px solid var(--rule-strong); border-radius: 4px;
+  background: var(--bg-panel); color: var(--ink);
+}
+.pk-foot { gap: 14px; }
+.pk-foot .pk-geo { flex: 1 1 340px; min-width: 0; }
+.pk-foot .pk-why { flex: none; }
+.pk-why > summary {
+  cursor: pointer; list-style: none; font-size: 11.5px; color: var(--accent);
+  display: inline-flex; align-items: center; gap: 5px; width: fit-content;
+}
+.pk-why > summary::-webkit-details-marker { display: none; }
+.pk-why > summary::before { content: "\25B8"; font-size: 9px; transition: transform .12s; }
+.pk-why[open] > summary::before { transform: rotate(90deg); }
+.pk-why-body { padding-top: 6px; max-width: 78ch; }
+.pk-why-body .note { margin: 0 0 7px; font-size: 12px; }
+.pk-why-body .note:last-child { margin-bottom: 0; }
 
 /* ---------- glossary ----------
    A term the tool has defined. Underlined, not coloured: these sit inside
@@ -211,6 +279,9 @@ button.gterm:hover { text-decoration-color: var(--accent); color: var(--accent);
 .ctxchip .cv { font-weight: 600; color: var(--ink); }
 .ctxchip.verdict-chip { background: var(--pass-soft); border-color: transparent; }
 .ctxchip.verdict-chip .ck { color: var(--pass); }
+.ctxchip.warn-chip { background: var(--fail-soft); border-color: transparent; }
+.ctxchip.warn-chip .ck { color: var(--fail); font-weight: 700; }
+.ctxchip.hidden { display: none !important; }
 .ctxsep { width: 1px; height: 15px; background: var(--rule); }
 .ctxgrow { margin-left: auto; color: var(--ink-3); }
 @media (max-width: 720px) { .ctxgrow { margin-left: 0; flex-basis: 100%; } }
@@ -235,7 +306,16 @@ button.gterm:hover { text-decoration-color: var(--accent); color: var(--accent);
 /* minmax(0,1fr), not 1fr: a bare 1fr floors at min-content, so the whole
    document went 714 px wide at a 375 px viewport and the header and half of
    every panel panned off-screen. */
-@media (max-width: 1080px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+/* Collapsed to one column, the RESULTS go first. The source order puts the
+   parameter column first because that is where it belongs beside the results
+   on a wide screen — but stacked it meant seventy inputs between the reader
+   and any number at all: the map SVG started 1912 px down at a 900 px width,
+   and about 4000 px down on a phone. */
+@media (max-width: 1080px) {
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  .cols > main { order: 1; }
+  .cols > aside.params { order: 2; }
+}
 
 main { min-width: 0; }
 aside.params { position: sticky; top: 60px; max-height: calc(100vh - 76px); overflow-y: auto; padding-right: 3px; }
@@ -539,19 +619,12 @@ footer.foot a { color: var(--ink-2); }
     <a href="#" class="ctxchip" id="ctxBb" title="Change the baseband split / combine architecture"></a>
     <span class="ctxsep"></span>
     <a href="#" class="ctxchip verdict-chip" id="ctxVerdict" title="Read the full rationale"></a>
+    <a href="#" class="ctxchip warn-chip hidden" id="ctxWarn" title="A consistency problem makes this build's numbers untrustworthy - open the map to see it"></a>
     <span class="ctxgrow" id="ctxScope"></span>
   </div>
 </header>
 
 <div class="wrap">
-
-  <!-- ===================== architecture picker ===================== -->
-  <section class="panel" id="pickerPanel">
-    <h2>Architecture <span class="tag">pick a connection type and a reference clock</span>
-      <span class="grow" id="pickerNote"></span></h2>
-    <div class="body" id="pickerMount"></div>
-    <div class="body hidden" id="warnMount" style="padding-top:0"></div>
-  </section>
 
   <!-- ===================== spec budget banner ===================== -->
   <section class="panel" id="budgetPanel">
@@ -603,8 +676,15 @@ footer.foot a { color: var(--ink-2); }
       <!-- ---- HARDWARE MAP ---- -->
       <div class="view" id="view-map">
         <p class="viewintro"><span class="scope one">this build</span><span>The board this build actually is: where the source sits, how the trunks and branches route, what lands at each tile and what it costs. Click any tile to inspect both tiers for it.</span></p>
+        <!-- The case selector lives INSIDE the map panel, directly above the
+             drawing it changes. It used to be a separate 1215 px panel above
+             the view, which together with the 722 px requirement panel put
+             the map nearly five screens down on the one view whose whole
+             point is the picture. -->
         <section class="panel">
           <h2 id="mapTitle">Hardware map</h2>
+          <div class="pk-bar" id="pickerMount"></div>
+          <div class="pk-bar hidden" id="warnMount"></div>
           <div class="toolbar" id="mapToolbar"></div>
           <div class="chartbox" id="mapMount"></div>
           <div id="mapLegend"></div>
@@ -8883,70 +8963,170 @@ footer.foot a { color: var(--ink-2); }
     container.appendChild(wrap);
   }
 
+  /* A row of compact chips for one parameter. */
+  function chipRow(container, label, paramKey, choices) {
+    var lab = UI.elt('span', 'pk-lab', label);
+    container.appendChild(lab);
+    var row = UI.elt('div', 'pk-chips');
+    choices.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      var on = Number(state[paramKey]) === Number(c.value);
+      b.className = 'pchip' + (on ? ' on' : '');
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = c.label;
+      if (c.title) b.title = c.title;
+      b.addEventListener('click', function () { setParam(paramKey, Number(c.value)); });
+      row.appendChild(b);
+    });
+    container.appendChild(row);
+  }
+
+  /* A labelled <select> for the parameters whose choices are long strings.
+     Five stacked button rows with a paragraph each is what made this panel
+     1215 px tall; a dropdown is two lines and loses nothing, because only the
+     chosen value matters once you have chosen. */
+  function pickerSelect(container, label, paramKey, choices, titleTxt) {
+    var wrap = UI.elt('label', 'pk-sel');
+    wrap.appendChild(UI.elt('span', 'pk-lab', label));
+    var s = document.createElement('select');
+    choices.forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = String(c.value);
+      o.textContent = c.label;
+      if (Number(c.value) === Number(state[paramKey])) o.selected = true;
+      s.appendChild(o);
+    });
+    s.addEventListener('change', function () { setParam(paramKey, Number(s.value)); });
+    if (titleTxt) wrap.title = titleTxt;
+    wrap.appendChild(s);
+    container.appendChild(wrap);
+  }
+
+  /* The case selector. It used to be five stacked groups of wide buttons, each
+     followed by its own paragraph of prose — 1215 px, which together with the
+     722 px requirement panel pushed the hardware map nearly five screens down
+     the page on the one view whose whole point is the picture.
+
+     Compact now: two chip rows for the two architecture families, the
+     remaining choices as dropdowns, and ONE line of context for the current
+     selection. The prose is not deleted — it moves into a disclosure, so the
+     reasoning is a click away instead of always occupying the top of the
+     screen. */
   function renderPicker(res, budget) {
     var mount = document.getElementById('pickerMount');
     mount.textContent = '';
     var loP = M.PARAMS.filter(function (p) { return p.key === 'loOption'; })[0];
+    var bbP = M.PARAMS.filter(function (p) { return p.key === 'bbOption'; })[0];
     var sel = res.lo[res.g.loOptionId];
+    var bsel = res.bb[res.g.bbOptionId];
+    var pick = UI.elt('div', 'pk');
 
-    seg(mount, 'LO / reference connection type', 'loOption', loP.choices.map(function (c, i) {
-      return { value: c.value, label: c.label, title: M.LO_META[i].id };
-    }), sel.note);
+    /* Both families on one wrapping row: at a desktop width they share a
+       line, and they break onto two only when the window is too narrow. */
+    var r1 = UI.elt('div', 'pk-row');
+    chipRow(r1, 'LO', 'loOption', loP.choices.map(function (c, i) {
+      return { value: c.value, label: M.LO_META[i].short, title: M.LO_META[i].name + ' — ' + res.lo[M.LO_META[i].id].note };
+    }));
+    chipRow(r1, 'Baseband', 'bbOption', bbP.choices.map(function (c, i) {
+      return { value: c.value, label: M.BB_META[i].short, title: M.BB_META[i].name + ' — ' + res.bb[M.BB_META[i].id].note };
+    }));
+    pick.appendChild(r1);
 
-    seg(mount, 'Reference clock', 'refSel', M.REF_SOURCES.map(function (r, i) {
-      return { value: i, label: r.name, title: r.note };
-    }), M.REF_SOURCES[Math.round(state.refSel)].note +
-      '  <em>N = f_LO/f_ref = ' + n(state.fLoGHz * 1e9 / (state.fRefMHz * 1e6), 0) +
-      ', so the reference is multiplied by ' + n(20 * Math.log10(state.fLoGHz * 1e9 / (state.fRefMHz * 1e6)), 1) + ' dB.</em>');
-
+    var r3 = UI.elt('div', 'pk-row pk-row-sel');
+    pickerSelect(r3, 'Reference', 'refSel', M.REF_SOURCES.map(function (r, i) {
+      return { value: i, label: r.name };
+    }), M.REF_SOURCES[Math.round(state.refSel)].note);
+    /* only the knobs that belong to the selected architecture */
     if (res.g.loOptionId === 'mid-mult') {
-      seg(mount, 'Multiplication factor', 'midM',
+      pickerSelect(r3, '×M', 'midM',
         M.PARAMS.filter(function (p) { return p.key === 'midM'; })[0].choices,
-        '×M adds exactly <span class="kv">' + n(20 * Math.log10(state.midM), 1) + ' dB</span> to L(f) and multiplies ' +
-        'distributed phase error by ' + Math.round(state.midM) + '. It buys loss and power, not skew.');
+        '×M adds exactly ' + n(20 * Math.log10(state.midM), 1) + ' dB to L(f) and multiplies distributed phase error by ' + Math.round(state.midM) + '. It buys loss and power, not skew.');
     }
     if (res.g.loOptionId === 'local-pll') {
-      seg(mount, 'Per-tile PLL output plan', 'pllMult',
+      pickerSelect(r3, 'PLL plan', 'pllMult',
         M.PARAMS.filter(function (p) { return p.key === 'pllMult'; })[0].choices,
-        'A PLL running directly at ' + n(state.fLoGHz, 0) + ' GHz in 65 nm LP CMOS is beyond the technology; ' +
-        'a lower-frequency PLL plus a multiplier is the realisable route.');
+        'A PLL running directly at ' + n(state.fLoGHz, 0) + ' GHz in 65 nm LP CMOS is beyond the technology; a lower-frequency PLL plus a multiplier is the realisable route.');
     }
     if (res.g.loOptionId === 'daisy-chain') {
-      seg(mount, 'Parallel chain branches', 'chainBranches',
+      pickerSelect(r3, 'Chains', 'chainBranches',
         [1, 2, 3, 5].map(function (v) { return { value: v, label: v === 1 ? '1 chain' : v + ' chains' }; }),
-        'More branches shorten the worst chain and shrink the blast radius of a dead buffer. Worst chain here is ' +
-        (sel.topo.lo.maxHop || 0) + ' hops.');
+        'More branches shorten the worst chain and shrink the blast radius of a dead buffer. Worst chain here is ' + (sel.topo.lo.maxHop || 0) + ' hops.');
     }
-
-    seg(mount, 'LO line medium', 'loMedium',
+    pickerSelect(r3, 'Medium', 'loMedium',
       M.PARAMS.filter(function (p) { return p.key === 'loMedium'; })[0].choices,
-      'Loss at ' + n(sel.distFreqGHz, 2) + ' GHz in this medium: <span class="kv">' + n(sel.lossPerCmDb, 3) +
-      ' dB/cm</span>. One degree at ' + n(state.fLoGHz, 0) + ' GHz is <span class="kv">' +
-      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length.');
+      'Loss at ' + n(sel.distFreqGHz, 2) + ' GHz in this medium: ' + n(sel.lossPerCmDb, 3) + ' dB/cm.');
+    pick.appendChild(r3);
 
-    seg(mount, 'Baseband split / combine', 'bbOption',
-      M.PARAMS.filter(function (p) { return p.key === 'bbOption'; })[0].choices,
-      res.bb[res.g.bbOptionId].note);
+    var det = document.createElement('details');
+    det.className = 'pk-why';
+    if (view.pickerWhyOpen) det.open = true;
+    det.addEventListener('toggle', function () { view.pickerWhyOpen = det.open; });
+    var sm = document.createElement('summary');
+    sm.textContent = 'Why these, and what each choice costs';
+    det.appendChild(sm);
+    var body = UI.elt('div', 'pk-why-body');
+    body.innerHTML =
+      '<p class="note"><strong>' + M.LO_META[Math.round(state.loOption)].name + '.</strong> ' + sel.note + '</p>' +
+      '<p class="note"><strong>' + M.BB_META[Math.round(state.bbOption)].name + '.</strong> ' + bsel.note + '</p>' +
+      '<p class="note"><strong>Reference.</strong> ' + M.REF_SOURCES[Math.round(state.refSel)].note +
+      ' <em>N = f_LO/f_ref = ' + n(state.fLoGHz * 1e9 / (state.fRefMHz * 1e6), 0) +
+      ', so the reference is multiplied by ' + n(20 * Math.log10(state.fLoGHz * 1e9 / (state.fRefMHz * 1e6)), 1) + ' dB.</em></p>' +
+      '<p class="note"><strong>Medium.</strong> One degree at ' + n(state.fLoGHz, 0) + ' GHz is <span class="kv">' +
+      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length in this medium.</p>';
+    det.appendChild(body);
+    mount.appendChild(pick);
 
+    /* One line carrying what this build IS, the geometry it implies, and the
+       one number it is judged on — sharing its row with the disclosure so the
+       strip costs a line rather than three. */
     var g2 = res.g;
-    document.getElementById('pickerNote').innerHTML =
-      g2.tileCols + '×' + g2.tileCols + ' = ' + g2.nTilesTotal + ' tiles at ' + n(g2.tileCm, 1) + ' cm pitch · ' +
-      'populated aperture <strong>' + n(g2.effApertureCm, 1) + ' cm</strong>' +
-      (g2.aperturePitchExact ? '' : ' (requested ' + n(g2.apertureCm, 0) + ')') + ' · ' +
-      n(g2.loTapsTotal, 0) + ' LO taps · ' + n(state.chPerTile * g2.nTilesTotal, 0) + ' BB channels per rail';
+    var geo = UI.elt('span', 'pk-geo');
+    geo.innerHTML =
+      '<span class="kv">' + n(sel.distFreqGHz, 2) + ' GHz</span> on the board' +
+      (sel.tileMultiplier > 1 ? ', ×' + sel.tileMultiplier + ' per tile' : '') + ' · ' +
+      g2.tileCols + '×' + g2.tileCols + ' = ' + g2.nTilesTotal + ' tiles at ' + n(g2.tileCm, 1) + ' cm · ' +
+      'aperture <strong>' + n(g2.effApertureCm, 1) + ' cm</strong>' +
+      (g2.aperturePitchExact ? '' : ' of ' + n(g2.apertureCm, 0)) + ' · ' +
+      n(g2.loTapsTotal, 0) + ' LO taps · residual <span class="kv">' +
+      n(sel.interTileResidualDeg, 3) + '°</span> of ' + n(budget.sigSpecDeg) + '°';
+    var foot = UI.elt('div', 'pk-row pk-foot');
+    foot.appendChild(geo);
+    foot.appendChild(det);
+    pick.appendChild(foot);
 
-    /* consistency banner — a mismatch that changes the answer should not be
-       discoverable only by doing the arithmetic yourself */
+    /* Consistency banner. A mismatch that changes the answer must not be
+       discoverable only by doing the arithmetic yourself — but at the
+       defaults there are two perfectly reasonable geometry notes, and as
+       full paragraphs they took 145 px above the map on every single load.
+       Warnings collapse to one line; a `fail` is a real inconsistency and
+       stays open. */
     var wm = document.getElementById('warnMount');
     wm.textContent = '';
-    (res.warnings || []).forEach(function (w) {
-      var d = document.createElement('div');
-      d.className = 'callout ' + (w.severity === 'fail' ? 'failc' : 'warnc');
-      d.style.margin = '0 0 8px';
-      d.innerHTML = '<strong>' + (w.severity === 'fail' ? 'Inconsistent: ' : 'Check: ') + '</strong>' + w.message;
-      wm.appendChild(d);
-    });
-    wm.classList.toggle('hidden', !(res.warnings || []).length);
+    var warns = res.warnings || [];
+    var hard = warns.filter(function (w) { return w.severity === 'fail'; });
+    if (warns.length) {
+      var box = document.createElement('details');
+      box.className = 'pk-warn' + (hard.length ? ' hard' : '');
+      if (hard.length || view.warnOpen) box.open = true;
+      box.addEventListener('toggle', function () { view.warnOpen = box.open; });
+      var sm2 = document.createElement('summary');
+      sm2.innerHTML = hard.length
+        ? '<strong>' + hard.length + ' inconsistency' + (hard.length > 1 ? ' issues' : '') +
+          '</strong> — this build’s numbers cannot be trusted until it is resolved'
+        : warns.length + ' geometry note' + (warns.length > 1 ? 's' : '') +
+          ' — the grid does not divide the panel exactly';
+      box.appendChild(sm2);
+      warns.forEach(function (w) {
+        var d = document.createElement('div');
+        d.className = 'callout ' + (w.severity === 'fail' ? 'failc' : 'warnc');
+        d.style.margin = '7px 0 0';
+        d.innerHTML = '<strong>' + (w.severity === 'fail' ? 'Inconsistent: ' : 'Check: ') + '</strong>' + w.message;
+        box.appendChild(d);
+      });
+      wm.appendChild(box);
+    }
+    wm.classList.toggle('hidden', !warns.length);
   }
 
   /* =====================================================================
@@ -8964,18 +9144,24 @@ footer.foot a { color: var(--ink-2); }
     /* toolbar: tile colour metric + block visibility */
     var tb = document.getElementById('mapToolbar');
     tb.textContent = '';
-    var lbl = document.createElement('span');
-    lbl.style.cssText = 'font-size:11.5px;color:var(--ink-3)';
-    lbl.textContent = 'colour tiles by';
-    tb.appendChild(lbl);
+    /* A dropdown, not five wide buttons. The five labels are long enough
+       ("static offset (wraps to resolve)") that as buttons they filled a
+       whole row on their own and pushed the drawing further down — and only
+       one can be active, which is exactly what a select is for. The layer
+       toggles stay buttons because several are on at once. */
+    var mlab = UI.elt('label', 'pk-sel');
+    mlab.appendChild(UI.elt('span', 'pk-lab', 'colour tiles by'));
+    var msel = document.createElement('select');
     TILE_METRICS.forEach(function (m) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn' + (view.tileMetric === m.key ? ' pri' : '');
-      b.textContent = m.label;
-      b.addEventListener('click', function () { view.tileMetric = m.key; render(); });
-      tb.appendChild(b);
+      var o = document.createElement('option');
+      o.value = m.key;
+      o.textContent = m.label;
+      if (view.tileMetric === m.key) o.selected = true;
+      msel.appendChild(o);
     });
+    msel.addEventListener('change', function () { view.tileMetric = msel.value; render(); });
+    mlab.appendChild(msel);
+    tb.appendChild(mlab);
     var sp = document.createElement('span');
     sp.className = 'sp';
     tb.appendChild(sp);
@@ -10027,6 +10213,16 @@ footer.foot a { color: var(--ink-2); }
     var vpick = dec && dec.loPick && dec.bbPick
       ? dec.loPick.short + ' + ' + dec.bbPick.short : '—';
     chip(document.getElementById('ctxVerdict'), 'model picks', vpick);
+
+    /* A hard inconsistency now lives in a banner inside the map panel, so it
+       would be invisible from the eight other views. The chip is not the
+       message — it is the fact that there IS one, and a way back to it. */
+    var wc = document.getElementById('ctxWarn');
+    var hard = (res.warnings || []).filter(function (w) { return w.severity === 'fail'; });
+    if (wc) {
+      wc.classList.toggle('hidden', !hard.length);
+      if (hard.length) chip(wc, 'inconsistent', hard.length + ' to resolve');
+    }
 
     /* whether THIS view is showing every option or only the current build */
     var oneBuild = { map: 1, beam: 1 };
@@ -11289,6 +11485,8 @@ footer.foot a { color: var(--ink-2); }
   /* ------------------------------- routing ------------------------------- */
   function setView(name) {
     view.name = name;
+    /* drives the per-view panel ordering in the stylesheet */
+    document.body.setAttribute('data-view', name);
     document.querySelectorAll('.navlink').forEach(function (a) {
       var on = a.getAttribute('data-view') === name;
       a.classList.toggle('on', on);
@@ -11299,12 +11497,11 @@ footer.foot a { color: var(--ink-2); }
     document.querySelectorAll('.view').forEach(function (v) {
       v.classList.toggle('hidden', v.id !== 'view-' + name);
     });
-    /* the picker and budget banner only make sense on the map/compare views.
-       On the Systems view the single banner would be actively wrong — each
-       system has its own derived requirement, and that comparison has its
-       own panel inside the view. */
-    var showPick = name === 'map';
-    document.getElementById('pickerPanel').classList.toggle('hidden', !showPick);
+    /* The case selector is now inside the map panel, so there is no separate
+       picker panel to show or hide. The budget banner still does not belong
+       on every view: on Systems a single banner would be actively wrong,
+       because each system has its own derived requirement and that comparison
+       has its own panel inside the view. */
     document.getElementById('budgetPanel').classList.toggle('hidden',
       name === 'assumptions' || name === 'method' || name === 'systems');
     /* clear the two-step confirmations when leaving, so returning to the
@@ -11468,10 +11665,11 @@ footer.foot a { color: var(--ink-2); }
      elsewhere; the verdict chip opens the rationale. */
   function goToPicker() {
     if (view.name !== 'map') { setView('map'); render(); syncHash(); }
-    var p = document.getElementById('pickerPanel');
+    var p = document.getElementById('pickerMount');
+    if (p && p.closest) p = p.closest('.panel') || p;
     if (p) p.scrollIntoView({ block: 'start' });
   }
-  ['ctxLo', 'ctxBb'].forEach(function (id) {
+  ['ctxLo', 'ctxBb', 'ctxWarn'].forEach(function (id) {
     var el2 = document.getElementById(id);
     if (el2) el2.addEventListener('click', function (e) { e.preventDefault(); goToPicker(); });
   });
