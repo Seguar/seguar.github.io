@@ -464,16 +464,42 @@
                       n = T*fMeas measurements averaged per update, giving a
                       genuine optimum update period.
      Fast noise    -> irreducible; integrate L(f) above the loop bandwidth. */
-  function driftResidualDeg(rateDegPerS, tUpdateS, measNoiseDeg1, fMeasHz) {
-    var nAvg = Math.max(1, tUpdateS * (fMeasHz || 1));
-    var meas = measNoiseDeg1 / Math.sqrt(nAvg);
-    var drift = rateDegPerS * tUpdateS / Math.sqrt(3);
-    return Math.sqrt(drift * drift + meas * meas);
+  /* Drift left by a first-order corrector of gain mu updating every T.
+     Two things this used to get wrong.
+
+     (1) It had no mu. The drift term was rate*T/sqrt(3), which is the RMS of
+     a sawtooth reset to ZERO at every update — the deadbeat mu = 1 case —
+     while the rest of the calibration model runs at mu = 0.3. A real loop
+     e[k+1] = (1-mu)(e[k] + rate*T) settles to a standing lag of
+     (1-mu)*rate*T/mu just after an update, ramping to rate*T/mu just before
+     the next, so the interval RMS is rate*T*sqrt(a^2 + a + 1/3) with
+     a = (1-mu)/mu. At mu = 0.3 that is 2.848*rate*T, 4.93x the old value; at
+     mu = 1 it collapses to 1/sqrt(3) and the documented case is unchanged.
+     Without it, mu appeared in the residual only through terms mu makes
+     worse, so the model's optimum was always the smallest allowed mu.
+
+     (2) It also carried the BIST measurement noise, sigma/sqrt(nAvg), which
+     the caller ALREADY adds as injDeg with the correct closed-loop transfer
+     sigma*sqrt(mu/(2-mu)/nAvg) — and with the xM referral this copy never
+     got. The same noise was RSS'd into one number twice, and at defaults it
+     was 80% of what the row labelled "drift residual" reported (0.0335 deg
+     of measurement noise against 0.0167 deg of actual drift). It belongs to
+     injDeg alone; this kernel now returns drift only. */
+  function driftResidualDeg(rateDegPerS, tUpdateS, mu) {
+    var m = (mu > 0 && mu <= 1) ? mu : 1;
+    var a = (1 - m) / m;
+    return rateDegPerS * tUpdateS * Math.sqrt(a * a + a + 1 / 3);
   }
-  /* T that minimises the above:  T^3 = 3*sigma1^2 / (2*rate^2*fMeas) */
-  function optimalUpdatePeriodS(rateDegPerS, measNoiseDeg1, fMeasHz) {
+  /* T that minimises drift-plus-noise for a loop of gain mu:
+       T^3 = sigma1^2 / (2*c(mu)*rate^2*fMeas),  c(mu) = a^2 + a + 1/3
+     which is the old 3*sigma^2/(2*rate^2*fMeas) at mu = 1. */
+  function optimalUpdatePeriodS(rateDegPerS, measNoiseDeg1, fMeasHz, mu) {
     if (!(rateDegPerS > 0)) return Infinity;
-    return Math.cbrt(3 * measNoiseDeg1 * measNoiseDeg1 / (2 * rateDegPerS * rateDegPerS * Math.max(fMeasHz, 1e-9)));
+    var m = (mu > 0 && mu <= 1) ? mu : 1;
+    var a = (1 - m) / m;
+    var c = a * a + a + 1 / 3;
+    return Math.cbrt(measNoiseDeg1 * measNoiseDeg1 /
+      (2 * c * rateDegPerS * rateDegPerS * Math.max(fMeasHz, 1e-9)));
   }
   /* b-bit phase shifter over 360 deg: uniform LSB -> LSB/sqrt(12) */
   function quantResidualDeg(bits) { return (360 / Math.pow(2, bits)) / Math.sqrt(12); }
