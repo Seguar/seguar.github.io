@@ -53,7 +53,12 @@
     Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
     var over = X.decodeState(location.hash);
     Object.keys(over).forEach(function (k) {
-      if (k === '_v') { view.name = over[k]; return; }
+      /* A view name out of a URL is untrusted input like any other: an
+         unknown one would hide every panel and leave a blank page. */
+      if (k === '_v') {
+        if (document.getElementById('view-' + over[k])) view.name = over[k];
+        return;
+      }
       /* A comparison set carried in the link is decoded but NOT stored: it
          appears in the roster marked "from link" with an Import button. A
          URL is input from wherever it came, and it should not be able to
@@ -98,7 +103,14 @@
     return o;
   }
   function syncHash() {
-    var s = X.encodeState(overrides());
+    /* Carry the view too. loadState has always decoded `_v`, but syncHash
+       encoded only the parameter overrides, so every link the student sent
+       opened on the Hardware map however carefully they had navigated to the
+       chart they wanted to show. The map is the default, so it is omitted and
+       links stay short. */
+    var o = overrides();
+    if (view.name && view.name !== 'map') o._v = view.name;
+    var s = X.encodeState(o);
     history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
   }
 
@@ -1398,6 +1410,43 @@
     return { res: res, g: g, budget: budget, dec: dec, beam: beam };
   }
 
+  /* The context bar in the sticky header. Three jobs, all of them things the
+     page could not previously answer without navigating:
+       - which architecture is selected (the picker shows only on the map)
+       - what the model concluded (painted only inside Compare and Decision)
+       - whether the view you are on shows ALL options or only your build
+     The two selection chips scroll to the picker; the verdict chip opens the
+     rationale. */
+  function renderContextBar(res, budget, dec) {
+    var lm = M.LO_META.filter(function (m) { return m.id === res.g.loOptionId; })[0];
+    var bm = M.BB_META.filter(function (m) { return m.id === res.g.bbOptionId; })[0];
+
+    function chip(el2, kind, value) {
+      if (!el2) return;
+      el2.textContent = '';
+      el2.appendChild(UI.elt('span', 'ck', kind));
+      el2.appendChild(UI.elt('span', 'cv', value));
+    }
+    chip(document.getElementById('ctxLo'), 'LO', lm ? lm.short : '—');
+    chip(document.getElementById('ctxBb'), 'BB', bm ? bm.short : '—');
+
+    var vpick = dec && dec.loPick && dec.bbPick
+      ? dec.loPick.short + ' + ' + dec.bbPick.short : '—';
+    chip(document.getElementById('ctxVerdict'), 'model picks', vpick);
+
+    /* whether THIS view is showing every option or only the current build */
+    var oneBuild = { map: 1, beam: 1 };
+    var scope = document.getElementById('ctxScope');
+    if (scope) {
+      var sel = res.lo[res.g.loOptionId];
+      scope.textContent = oneBuild[view.name]
+        ? 'showing your build only · inter-tile residual ' + n(sel.interTileResidualDeg, 3) +
+          '° against a ' + n(budget.sigSpecDeg) + '° spec'
+        : 'showing all options · judged against ' + n(budget.sigSpecDeg) +
+          '° inter-tile, set by ' + budget.bindingName;
+    }
+  }
+
   function render() {
     var res = M.evaluate(state);
     var budget = window.Budget.derive(res.g, '64QAM');
@@ -1408,6 +1457,7 @@
     if (view.selected >= res.selected.grid.nTiles) view.selected = 0;
 
     renderPicker(res, budget);
+    renderContextBar(res, budget, dec);
     UI.renderBudget(document.getElementById('budgetGrid'), document.getElementById('budgetNote'),
       document.getElementById('bindingNote'), budget);
 
@@ -2629,7 +2679,11 @@
   function setView(name) {
     view.name = name;
     document.querySelectorAll('.navlink').forEach(function (a) {
-      a.classList.toggle('on', a.getAttribute('data-view') === name);
+      var on = a.getAttribute('data-view') === name;
+      a.classList.toggle('on', on);
+      /* the class is decoration; aria-current is what tells a screen reader
+         which of nine tabs is the one being shown */
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.querySelectorAll('.view').forEach(function (v) {
       v.classList.toggle('hidden', v.id !== 'view-' + name);
@@ -2729,7 +2783,9 @@
   document.addEventListener('click', function (e) {
     var t = e.target;
     var a = t.closest ? t.closest('.navlink') : null;
-    if (a) { e.preventDefault(); setView(a.getAttribute('data-view')); return; }
+    /* syncHash so the address bar always names the view you are looking at —
+       otherwise a link copied from Phase noise reopens on the Hardware map. */
+    if (a) { e.preventDefault(); setView(a.getAttribute('data-view')); syncHash(); return; }
     var btn = t.closest ? t.closest('button[data-copy],button[data-dl]') : null;
     if (!btn) return;
     if (btn.dataset.copy) {
@@ -2766,6 +2822,26 @@
     b.setAttribute('aria-label', b.title);
     b.textContent = cur === 'dark' ? '☽' : cur === 'light' ? '☀' : '◑';
   }
+  /* Context-bar chips. The two selection chips take you to the picker — which
+     lives on the Hardware map, so they switch view first when you are
+     elsewhere; the verdict chip opens the rationale. */
+  function goToPicker() {
+    if (view.name !== 'map') { setView('map'); render(); syncHash(); }
+    var p = document.getElementById('pickerPanel');
+    if (p) p.scrollIntoView({ block: 'start' });
+  }
+  ['ctxLo', 'ctxBb'].forEach(function (id) {
+    var el2 = document.getElementById(id);
+    if (el2) el2.addEventListener('click', function (e) { e.preventDefault(); goToPicker(); });
+  });
+  (function () {
+    var v = document.getElementById('ctxVerdict');
+    if (v) v.addEventListener('click', function (e) {
+      e.preventDefault(); setView('decision'); render(); syncHash();
+      window.scrollTo(0, 0);
+    });
+  })();
+
   document.getElementById('themeBtn').addEventListener('click', function () {
     var cur = document.documentElement.getAttribute('data-theme') || '';
     var next = THEME_CYCLE[cur] !== undefined ? THEME_CYCLE[cur] : 'light';
