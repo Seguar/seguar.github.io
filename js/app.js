@@ -1410,6 +1410,20 @@
     return { res: res, g: g, budget: budget, dec: dec, beam: beam };
   }
 
+  /* How many of the seventy are showing, and a way back when the answer is
+     "none" — a filter that silently matches nothing looks like a broken
+     panel. */
+  function updateParamCount() {
+    var el2 = document.getElementById('paramCount');
+    if (!el2) return;
+    var shown = document.querySelectorAll('#paramMount .field:not(.hidden)').length;
+    var total = M.PARAMS.length;
+    var filtered = view.paramFilter || view.paramHot || view.paramChanged;
+    el2.textContent = !filtered ? ''
+      : shown === 0 ? 'no parameter matches — clear the filter to see all ' + total
+      : 'showing ' + shown + ' of ' + total;
+  }
+
   /* The context bar in the sticky header. Three jobs, all of them things the
      page could not previously answer without navigating:
        - which architecture is selected (the picker shows only on the map)
@@ -1466,7 +1480,12 @@
         key: p.key, label: p.label, units: p.units, group: p.group, min: p.min, max: p.max,
         step: p.step, choices: p.choices, justification: p.why, confidence: p.conf
       };
-    }), state, DEFAULTS, setParam);
+    }), state, DEFAULTS, setParam, {
+      filter: view.paramFilter || '',
+      hot: view.paramHot ? M.HOT_PARAMS : null,
+      onlyChanged: !!view.paramChanged
+    });
+    updateParamCount();
 
     var nd = Object.keys(overrides()).length;
     document.getElementById('dirtyCount').textContent = nd ? nd + ' changed from defaults' : 'all at defaults';
@@ -2822,6 +2841,28 @@
     b.setAttribute('aria-label', b.title);
     b.textContent = cur === 'dark' ? '☽' : cur === 'light' ? '☀' : '◑';
   }
+  /* Parameter filter. Kept in `view`, not in `state`, so it never reaches the
+     permalink or a saved system — it is how you are looking, not what you
+     are modelling. */
+  (function () {
+    var box = document.getElementById('paramFilter');
+    if (box) box.addEventListener('input', function () {
+      view.paramFilter = box.value;
+      render();
+    });
+    function chip(id, key) {
+      var b = document.getElementById(id);
+      if (!b) return;
+      b.addEventListener('click', function () {
+        view[key] = !view[key];
+        b.setAttribute('aria-pressed', view[key] ? 'true' : 'false');
+        render();
+      });
+    }
+    chip('chipHot', 'paramHot');
+    chip('chipChanged', 'paramChanged');
+  })();
+
   /* Context-bar chips. The two selection chips take you to the picker — which
      lives on the Hardware map, so they switch view first when you are
      elsewhere; the verdict chip opens the rationale. */

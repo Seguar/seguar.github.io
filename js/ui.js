@@ -57,33 +57,67 @@
    *           justification,confidence}]
    * state:  {key: value}  (current, possibly overridden)
    * onChange(key, value)                                                   */
-  function renderParams(mount, params, state, defaults, onChange) {
+  /* The panel is BUILT ONCE and patched thereafter.
+
+     It used to start with `mount.textContent = ''` and be called from the top
+     of render(), which runs on every edit — so `if (gi < 2) det.open = true`
+     re-ran and every group past the second snapped shut the instant you
+     changed anything inside it. Changing two parameters in the same group
+     meant re-opening it in between. document.activeElement went to BODY on
+     every keystroke-committed change too, so you could not tab down the panel
+     or arrow-key a number. Nothing else in the panel was worth improving
+     while that was true.
+
+     The cache is keyed to the mount element and invalidated only if the
+     parameter set itself changes shape, which it does not at runtime. */
+  var panelCache = null;
+
+  function renderParams(mount, params, state, defaults, onChange, opts) {
+    /* not `sig` — that is the significant-figures formatter at the top */
+    var shape = params.map(function (p) { return p.key; }).join('|');
+    if (!panelCache || panelCache.mount !== mount || panelCache.sig !== shape) {
+      panelCache = buildParams(mount, params, state, defaults, onChange);
+    }
+    patchParams(panelCache, params, state, defaults, opts || {});
+  }
+
+  function buildParams(mount, params, state, defaults, onChange) {
     mount.textContent = '';
-    var groups = [];
-    var byGroup = {};
+    var groups = [], byGroup = {};
     params.forEach(function (p) {
       if (!byGroup[p.group]) { byGroup[p.group] = []; groups.push(p.group); }
       byGroup[p.group].push(p);
     });
 
+    var cache = { mount: mount, sig: params.map(function (p) { return p.key; }).join('|'),
+                  fields: {}, groups: [] };
+
     groups.forEach(function (g, gi) {
       var det = elt('details', 'pgroup');
-      if (gi < 2) det.open = true;
+      if (gi < 2) det.open = true;              /* once, at build time only */
       var sum = elt('summary');
       sum.appendChild(document.createTextNode(g));
-      var dirty = byGroup[g].filter(function (p) { return state[p.key] !== defaults[p.key]; }).length;
-      var cnt = elt('span', 'cnt', dirty ? dirty + ' changed' : byGroup[g].length);
+      var cnt = elt('span', 'cnt', '');
       sum.appendChild(cnt);
       det.appendChild(sum);
 
       var fields = elt('div', 'fields');
       byGroup[g].forEach(function (p) {
-        var isDirty = state[p.key] !== defaults[p.key];
-        var f = elt('div', 'field' + (isDirty ? ' dirty' : ''));
+        var f = elt('div', 'field');
         var lab = elt('label');
         lab.setAttribute('for', 'p_' + p.key);
         lab.appendChild(document.createTextNode(p.label + ' '));
         if (p.units && p.units !== '-') lab.appendChild(elt('span', 'u', p.units));
+        /* Provenance belongs ON the control. It used to be reachable only by
+           hovering and waiting, or by opening the Assumptions tab — so the
+           reader editing a guess and the reader editing a datasheet number
+           had no way to tell them apart at the moment it mattered. */
+        if (p.confidence) {
+          var pip = elt('span', 'conf ' + confClass(p.confidence), confShort(p.confidence));
+          pip.title = p.justification || '';
+          lab.appendChild(document.createTextNode(' '));
+          lab.appendChild(pip);
+        }
         f.appendChild(lab);
 
         var input;
@@ -93,7 +127,6 @@
             var o = document.createElement('option');
             o.value = String(c.value);
             o.textContent = c.label;
-            if (Number(c.value) === Number(state[p.key])) o.selected = true;
             input.appendChild(o);
           });
           input.addEventListener('change', function () { onChange(p.key, Number(input.value)); });
@@ -103,7 +136,6 @@
           if (p.min !== undefined) input.min = p.min;
           if (p.max !== undefined) input.max = p.max;
           input.step = p.step !== undefined ? p.step : 'any';
-          input.value = String(state[p.key]);
           input.addEventListener('change', function () {
             var v = parseFloat(input.value);
             if (!isFinite(v)) { input.value = String(state[p.key]); return; }
@@ -116,12 +148,80 @@
         input.id = 'p_' + p.key;
         input.title = (p.justification || '') + (p.confidence ? '  [' + confShort(p.confidence) + ']' : '');
         f.appendChild(input);
+
+        /* Per-parameter undo. The only way back used to be "Reset defaults",
+           which throws away every edit to recover one. */
+        var undo = document.createElement('button');
+        undo.type = 'button';
+        undo.className = 'pundo';
+        undo.textContent = '↺';
+        undo.title = 'Reset ' + p.label + ' to its default (' + defaults[p.key] + ')';
+        undo.addEventListener('click', function () { onChange(p.key, defaults[p.key]); });
+        f.appendChild(undo);
+
         if (p.hint) f.appendChild(elt('div', 'hint', p.hint));
         fields.appendChild(f);
+        cache.fields[p.key] = { row: f, input: input, undo: undo, group: gi };
       });
       det.appendChild(fields);
       mount.appendChild(det);
+      cache.groups.push({ det: det, cnt: cnt, name: g, keys: byGroup[g].map(function (p) { return p.key; }) });
     });
+    return cache;
+  }
+
+  /* Values, dirty marks, group counts and the filter — everything that can
+     change without rebuilding. Never touches the element the user is typing
+     in, and never touches a <details> open state. */
+  function patchParams(cache, params, state, defaults, opts) {
+    var q = (opts.filter || '').trim().toLowerCase();
+    var hot = opts.hot || null;
+    var onlyChanged = !!opts.onlyChanged;
+
+    var byKey = {};
+    params.forEach(function (p) { byKey[p.key] = p; });
+
+    var shownTotal = 0;
+    cache.groups.forEach(function (grp) {
+      var dirty = 0, shown = 0;
+      grp.keys.forEach(function (k) {
+        var fc = cache.fields[k], p = byKey[k];
+        if (!fc || !p) return;
+        var isDirty = state[k] !== defaults[k];
+        if (isDirty) dirty++;
+
+        /* Always sync the control to state. An earlier version skipped the
+           focused element to avoid fighting the typist, but render() only
+           runs on `change` (commit), never on `input` — so nothing is ever
+           overwritten mid-keystroke, while the guard DID swallow legitimate
+           external updates: pressing a field's own undo button left the old
+           text sitting in a row that was no longer marked dirty. */
+        var sv = String(state[k]);
+        if (fc.input.value !== sv) fc.input.value = sv;
+        fc.row.classList.toggle('dirty', isDirty);
+        fc.undo.disabled = !isDirty;
+
+        var match = !q ||
+          p.label.toLowerCase().indexOf(q) >= 0 ||
+          k.toLowerCase().indexOf(q) >= 0 ||
+          (p.group || '').toLowerCase().indexOf(q) >= 0;
+        if (hot && hot.indexOf(k) < 0) match = false;
+        if (onlyChanged && !isDirty) match = false;
+        fc.row.classList.toggle('hidden', !match);
+        if (match) shown++;
+      });
+      shownTotal += shown;
+      grp.cnt.textContent = dirty ? dirty + ' changed' : String(shown);
+      /* A group with nothing left after filtering is noise, not information */
+      grp.det.classList.toggle('hidden', shown === 0);
+      /* Filtering is a search: open what matched, so results are visible
+         without a second click. Restore nothing when the filter clears — the
+         reader's own open/closed state is theirs. */
+      if (q || hot || onlyChanged) {
+        if (grp.det.open !== (shown > 0)) grp.det.open = shown > 0;
+      }
+    });
+    return shownTotal;
   }
 
   /* ----------------------------- budget banner ----------------------------- */

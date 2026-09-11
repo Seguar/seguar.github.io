@@ -99,6 +99,25 @@
   /* ===================================================================== *
    * Global parameters
    * =================================================================== */
+  /* The parameters that actually move the answer, so the panel can offer a
+     "key only" filter over seventy controls. The rule is auditable rather
+     than a matter of taste: a parameter is hot if it has its own sweep panel
+     in renderSweeps, if it is an input to the derived requirement in
+     budget.js, or if it is one of the terms that dominates the inter-tile
+     residual. Nothing here is a judgement about which parameter is
+     interesting — only about which one changes a number someone quotes. */
+  var HOT_PARAMS = [
+    /* swept in their own panel */
+    'midM', 'pllLoopBwMHz', 'fBistHz', 'tileCm', 'lenTolUm', 'apertureCm',
+    /* inputs to the derived requirement */
+    'fLoGHz', 'rfBwGHz', 'scanDegMax', 'evmShare', 'arrayPowerW', 'specPhaseDeg',
+    /* dominant terms in the residual, the loss and the drift */
+    'calLoopGain', 'bistNoiseDeg', 'phaseBits', 'dTTileK', 'tcPpmPerK',
+    'dkTolPct', 'loMedium', 'maxSegLossDb',
+    /* the two architecture selectors and the reference preset */
+    'loOption', 'bbOption', 'refSel'
+  ];
+
   var PARAMS = [
     /* --- array & band --- */
     { key: 'fLoGHz', label: 'LO frequency', units: 'GHz', value: 78, min: 60, max: 95, step: 0.5, group: 'Array & band',
@@ -1503,7 +1522,7 @@
   }
 
   window.Model = {
-    PARAMS: PARAMS, BLOCKS: BLOCKS, REF_SOURCES: REF_SOURCES,
+    PARAMS: PARAMS, HOT_PARAMS: HOT_PARAMS, BLOCKS: BLOCKS, REF_SOURCES: REF_SOURCES,
     LO_IDS: LO_IDS, BB_IDS: BB_IDS, LO_META: LO_META, BB_META: BB_META,
     MEDIA_KEYS: MEDIA_KEYS,
     resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,

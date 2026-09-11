@@ -228,7 +228,31 @@ aside.params { position: sticky; top: 60px; max-height: calc(100vh - 76px); over
 .pgroup > summary .cnt { margin-left: auto; font: 10.5px var(--mono); color: var(--ink-3); font-weight: 400; }
 .pgroup .fields { padding: 2px 13px 12px; }
 
-.field { display: grid; grid-template-columns: 1fr 92px; gap: 5px 8px; align-items: center; margin: 7px 0; }
+/* 1fr for the label, a fixed field, and a hair for the per-parameter undo */
+.field { display: grid; grid-template-columns: 1fr 92px 16px; gap: 5px 6px; align-items: center; margin: 7px 0; }
+.field .hint { grid-column: 1 / -1; }
+button.pundo {
+  border: 0; background: none; cursor: pointer; padding: 0; line-height: 1;
+  font-size: 12px; color: var(--ink-3); border-radius: 3px;
+}
+button.pundo:hover { color: var(--accent); background: var(--bg-hover); }
+button.pundo:disabled { opacity: 0; cursor: default; pointer-events: none; }
+.field > label .conf { margin-left: 4px; vertical-align: 1px; }
+
+/* parameter search + chips */
+.pfilter { display: flex; gap: 6px; padding: 9px 13px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; align-items: center; }
+.pfilter input[type=search] {
+  flex: 1 1 120px; min-width: 0; font: 12px var(--sans);
+  padding: 4px 7px; border: 1px solid var(--rule-strong); border-radius: 4px;
+  background: var(--bg-panel); color: var(--ink);
+}
+.pchip {
+  font: 11px var(--sans); padding: 3px 8px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--rule-strong); background: var(--bg-panel); color: var(--ink-2);
+}
+.pchip:hover { background: var(--bg-hover); }
+.pchip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.pfilter .pcount { flex-basis: 100%; font-size: 11px; color: var(--ink-3); }
 .field > label { font-size: 12px; color: var(--ink-2); line-height: 1.3; }
 .field > label .u { color: var(--ink-3); font: 10.5px var(--mono); }
 .field input[type=number], .field select, .field input[type=text] {

@@ -86,6 +86,20 @@
     <aside class="params">
       <section class="panel">
         <h2>Parameters <span class="grow" id="dirtyCount"></span></h2>
+        <!-- Seventy controls in eight collapsible groups had no search: to
+             change the length tolerance you had to guess it lived under
+             "Interconnect & packaging" and open groups one at a time. The box
+             matches label, group and parameter KEY, so a key read off the
+             ledger or a Systems row can be typed straight in. -->
+        <div class="pfilter">
+          <input type="search" id="paramFilter" placeholder="Find a parameter&hellip;"
+                 aria-label="Filter parameters by name, group or key" autocomplete="off">
+          <button class="pchip" id="chipHot" type="button" aria-pressed="false"
+                  title="Only the parameters that move the answer: the ones with their own sweep, the inputs to the derived requirement, and the terms that dominate the residual">Key</button>
+          <button class="pchip" id="chipChanged" type="button" aria-pressed="false"
+                  title="Only parameters you have changed from their default">Changed</button>
+          <span class="pcount" id="paramCount"></span>
+        </div>
         <div class="body flush" id="paramMount"></div>
         <div class="rowbtns">
           <button class="btn" id="resetBtn" type="button">Reset defaults</button>
