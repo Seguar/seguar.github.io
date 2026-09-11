@@ -1490,6 +1490,17 @@
     var nd = Object.keys(overrides()).length;
     document.getElementById('dirtyCount').textContent = nd ? nd + ' changed from defaults' : 'all at defaults';
 
+    /* Mark the tool's own vocabulary wherever it appears. Done after the
+       view renders, first occurrence only per container, so a table does not
+       become a field of dotted underlines. Glossary.mark is idempotent —
+       re-rendering the same container is a no-op. */
+    function glossify() {
+      if (!window.Glossary) return;
+      var v = document.getElementById('view-' + view.name);
+      if (v) [].slice.call(v.querySelectorAll('.prose, .note, .viewintro, .budget, table.grid'))
+        .forEach(function (el2) { window.Glossary.mark(el2); });
+    }
+
     if (view.name === 'map') renderMapView(res, budget);
     if (view.name === 'compare') renderCompare(res, budget, dec);
     if (view.name === 'phasenoise') renderPn(res, budget);
@@ -1499,6 +1510,7 @@
     if (view.name === 'assumptions') renderAssumptions(res);
     if (view.name === 'systems') renderSystems();
     if (view.name === 'method') UI.renderProse(document.getElementById('methodMount'), window.Content.METHOD);
+    glossify();
     /* the nav badge is visible from every view, so it updates outside the
        systems branch */
     var navc = document.getElementById('navSysCount');

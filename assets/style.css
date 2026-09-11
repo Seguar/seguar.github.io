@@ -144,6 +144,27 @@ header.top nav a, header.top nav button {
 header.top nav a:hover, header.top nav button:hover { background: var(--bg-hover); color: var(--ink); }
 header.top nav a.on { background: var(--accent-soft); color: var(--accent); border-color: var(--rule); }
 
+/* ---------- glossary ----------
+   A term the tool has defined. Underlined, not coloured: these sit inside
+   dense tables and prose, and a page of blue links would be worse than the
+   problem. */
+button.gterm {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0;
+  cursor: help; text-decoration: underline dotted;
+  text-underline-offset: 2px; text-decoration-thickness: 1px;
+  text-decoration-color: var(--ink-3);
+}
+button.gterm:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.gpop {
+  position: absolute; z-index: 80; max-width: 320px;
+  background: var(--bg-panel); border: 1px solid var(--rule-strong);
+  border-radius: 7px; padding: 10px 12px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.18);
+}
+.gpop-h { font: 600 12.5px var(--sans); color: var(--ink); }
+.gpop-s { font: 11.5px var(--mono); color: var(--accent); margin: 2px 0 6px; }
+.gpop-l { font-size: 12px; line-height: 1.45; color: var(--ink-2); }
+
 /* ---------- context bar ----------
    Says which architecture is selected and what the model concluded, on every
    view. Lives inside the sticky header so it never scrolls away. */
