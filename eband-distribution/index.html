@@ -54,6 +54,7 @@
   <div class="ctxbar" id="ctxBar">
     <a href="#" class="ctxchip" id="ctxLo" title="Change the LO / reference architecture"></a>
     <a href="#" class="ctxchip" id="ctxBb" title="Change the baseband split / combine architecture"></a>
+    <a href="#" class="ctxchip" id="ctxAnt" title="Change the antenna arrangement behind each RF port"></a>
     <span class="ctxsep"></span>
     <a href="#" class="ctxchip verdict-chip" id="ctxVerdict" title="Read the full rationale"></a>
     <a href="#" class="ctxchip warn-chip hidden" id="ctxWarn" title="A consistency problem makes this build's numbers untrustworthy - open the map to see it"></a>
@@ -195,6 +196,22 @@
             <button class="btn" data-copy="bb-csv" type="button">Copy as CSV</button>
             <span class="sp"></span>
             <button class="btn" data-dl="bb-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Antenna arrangement <span class="tag">family C</span>
+            <span class="grow">4 options &times; required metrics</span></h2>
+          <p class="viewintro">What sits behind ONE fixed RF port. The die is taped out with 4 real RF
+            channels per direction, so this family cannot change the port count, the port lattice or the
+            grating lobes &mdash; it changes the element pattern, its directivity and how much of each
+            225&nbsp;mm&sup2; cell actually radiates.</p>
+          <div class="tscroll tall"><table class="grid sticky1" id="antTable"></table></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="ant-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-copy="ant-csv" type="button">Copy as CSV</button>
+            <span class="sp"></span>
+            <button class="btn" data-dl="ant-csv" type="button">Download CSV</button>
           </div>
         </section>
 

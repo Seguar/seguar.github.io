@@ -77,6 +77,15 @@
     loAmp78:        { name: 'E-band repeater amplifier', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 45, gainDb: 12, areaMm2: 0.08, addPnFloorDbc: -152, addPnCornerHz: 2e5, conf: 'published-literature', why: 'Gain stage needed every few centimetres of E-band line. Each one is a separate SiGe die on the board — it cannot live in the 65nm tile.' },
     ebandTransition:{ name: 'E-band board/package transition', tech: 'packaging', freqGHz: 78, powerMw: 0, gainDb: -0.9, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'Each E-band transition costs loss and, worse, an unrepeatable phase offset.' },
 
+    /* --- the radiator, and the fixed feed behind it (family C) ---
+       Every antenna block draws ZERO power. That is the finding, not an
+       omission: a passive radiator and a fixed corporate feed add no
+       supply current at all, so the antenna family is the only one of the
+       three whose options cannot be separated on the array power budget. */
+    antPatch:       { name: 'Package radiating patch', tech: 'organic AiP top metal', freqGHz: 78, powerMw: 0, gainDb: 0, areaMm2: 6.7, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'One λ/2-class patch on the antenna layers of the RFIC package. 6.7 mm² is the physical footprint including the ground clearance, against 4.68 mm² of effective area at 6 dBi — a patch is a poor filler of its own cell even before the cell is 225 mm².' },
+    antPatchBoard:  { name: 'Wideband radiator on antenna board', tech: 'separate low-loss laminate', freqGHz: 78, powerMw: 0, gainDb: 0, areaMm2: 14.8, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'C4 only. A stacked patch, cavity-backed patch or magneto-electric dipole of roughly one wavelength, on hardware this thesis does not design. 14.8 mm² is λ² at 78 GHz. It reaches 71–86 GHz in one radiator, which no single-layer package patch does.' },
+    antFeedSplit:   { name: 'In-cell corporate split junction', tech: 'package microstrip', freqGHz: 78, powerMw: 0, gainDb: -0.3, areaMm2: 0.12, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Excess loss above the ideal 3.01 dB division, per binary stage of the fixed tree behind one port. Anchored to loSplit78, which books −3.5 dB against an ideal −3.0. Without this term a cell-filling cluster looks free, which is the exact error the honesty ledger records the first pattern model making.' },
+
     loSourceChain:  { name: 'Chain source', tech: 'SiGe BiCMOS', freqGHz: 39, powerMw: 220, gainDb: 0, areaMm2: 0.7, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'PLL at the chain frequency.' },
     chainBuf:       { name: 'Daisy-chain hop buffer', tech: 'SiGe BiCMOS', freqGHz: 39, powerMw: 40, gainDb: 10, areaMm2: 0.07, addPnFloorDbc: -155, addPnCornerHz: 4e4, conf: 'scaled-estimate', why: 'Re-amplifies the chain at every tile. Also the single point of failure.' },
     chainTap:       { name: 'Directional tap', tech: 'on-board / in-package', freqGHz: 39, powerMw: 0, gainDb: -1.2, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Couples a fraction off the through line at each tile.' },
@@ -114,8 +123,10 @@
     /* dominant terms in the residual, the loss and the drift */
     'calLoopGain', 'bistNoiseDeg', 'phaseBits', 'dTTileK', 'tcPpmPerK',
     'dkTolPct', 'loMedium', 'maxSegLossDb',
-    /* the two architecture selectors and the reference preset */
-    'loOption', 'bbOption', 'refSel'
+    /* the three architecture selectors and the reference preset */
+    'loOption', 'bbOption', 'antOption', 'refSel',
+    /* the one antenna knob that moves the 16.8 dB element/cell gap */
+    'radPerCh'
   ];
 
   var PARAMS = [
@@ -136,17 +147,17 @@
       conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 4 dies per tile that is 32, and 25 × 32 = 800 per rail. This is NOT a free parameter: it has to track the LO taps per tile, because both count the same dies.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
-    { key: 'elemDirDbi', label: 'Element directivity', units: 'dBi', value: 6, min: 0, max: 12, step: 0.5, group: 'Array & band',
-      conf: 'published-literature', why: 'A single E-band package radiator. 6 dBi is patch-like (roughly cos^2 in power, so a ±60° usable cone); a broader element scans further but gives less realised gain. This sets the realised array gain, since a sparse array gets N × element directivity rather than the filled-aperture 4πA/λ².' },
+    { key: 'elemDirDbi', label: 'UNIT radiator directivity', units: 'dBi', value: 6, min: 0, max: 12, step: 0.5, group: 'Array & band',
+      conf: 'published-literature', why: 'The directivity of ONE radiator — which the antenna arrangement (family C) then multiplies. It is no longer the element directivity the array sees: at K radiators per port the port sees D_el, derived by integrating the subarray pattern, and only at K = 1 are the two the same number. 6 dBi is an isolated E-band package patch, i.e. cos^0.99 by D = 2(n+1) — NOT "roughly cos^2", which this text used to say and which would be 7.78 dBi. Note 6 dBi legitimately exceeds the 4.97 dBi that a λ/2 cell can hold, because an isolated patch is not truncated by neighbours; that surplus is exactly why K close-packed radiators fall about 1.03 dB short of 6 + 10log10(K).' },
     { key: 'latticePeriodic', label: 'Element lattice', units: '', value: 1, group: 'Array & band',
       choices: [{ value: 1, label: 'Periodic — grating lobes' }, { value: 0, label: 'Aperiodic / thinned' }],
       conf: 'engineering-guess', why: 'A periodic lattice coarser than λ/2 has discrete grating lobes; deliberately breaking the periodicity trades them for a raised, roughly uniform sidelobe floor near 1/N. Which one applies is a layout decision that has not been made yet, and the two look completely different on the pattern.' },
     { key: 'inTileLattice', label: 'In-tile lattice', units: '', value: 0, group: 'Array & band',
       choices: [{ value: 0, label: 'Rectangular (as drawn)' }, { value: 1, label: 'Best sublattice' }, { value: 2, label: 'Single row' }],
       conf: 'engineering-guess', why: '"N elements per tile" does not force one arrangement: every sublattice of index N that contains the tile lattice keeps all tiles identical, and they differ in where the worst grating lobe lands and in minimum element separation. AT THE DEFAULT GEOMETRY THIS CHOICE IS MOOT — 16 elements in a 6 cm tile lay out 4×4 on a square 1.5 cm lattice, which is simultaneously the rectangular arrangement and the best sublattice available. It mattered at the old 4 cm / 8-element tile, where the rectangular 4×2 was the WORST of the sensible options (worst lobe 11.08° against 15.77° for the sheared a1=(1,−1), a2=(0,2) cm, and 1.00 cm minimum separation against 1.41). The lobe count never changes: that is fixed by density alone.' },
-    { key: 'elemModelSel', label: 'Element pattern model', units: '', value: 0, group: 'Array & band',
-      choices: [{ value: 0, label: 'Directivity-matched cos^n' }, { value: 1, label: 'HPBW-matched patch' }, { value: 2, label: 'Cell-filling nulled' }],
-      conf: 'engineering-guess', why: 'One cos^n curve cannot be both a 6 dBi directivity-matched element (n = 0.99, 120° HPBW, only 3 dB of scan loss at 60°) and a real package patch (65–80° HPBW, n ≈ 3.5, 10 dB at 60°). Using the broad one for grating-lobe suppression AND for scan loss is pessimistic about the lobe and optimistic about the scan with the same curve, which is not a defensible pair. The third option is a cell-filling radiator whose nulls land exactly on the grating lobes.' },
+    { key: 'elemModelSel', label: 'Unit radiator pattern model', units: '', value: 0, group: 'Array & band',
+      choices: [{ value: 0, label: 'Directivity-matched cos^n' }, { value: 1, label: 'HPBW-matched patch' }],
+      conf: 'engineering-guess', why: 'Describes the UNIT radiator only; the arrangement on top of it is family C. One cos^n curve cannot be both a 6 dBi directivity-matched element (n = 0.99, 120° HPBW, only 3 dB of scan loss at 60°) and a real package patch (65–80° HPBW, n ≈ 3.5, 10 dB at 60°). Using the broad one for grating-lobe suppression AND for scan loss is pessimistic about the lobe and optimistic about the scan with the same curve, which is not a defensible pair. A third choice, "Cell-filling nulled", was RETIRED: C3 at K = 64 in span mode is the same antenna built from discrete radiators, reaches the same 22.82 dBi ceiling, and unlike the retired one never asserts a directivity its own pattern disagrees with — it integrated to 23.04 dBi against the 22.82 it reported. A saved system that used it is migrated to that C3 setting rather than silently snapped to a neighbouring choice.' },
     { key: 'elemHpbwDeg', label: 'Element HPBW', units: 'deg', value: 70, min: 30, max: 170, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'Measured E-band package patches run 65–80° (E-plane typically narrower than H-plane). Only used by the HPBW-matched element model, where the directivity stays at the parameter value because a real patch has back radiation and E/H asymmetry, so D < 2(n+1).' },
     { key: 'antLossDb', label: 'Antenna-side loss chain', units: 'dB', value: 4, min: 0, max: 12, step: 0.5, group: 'Array & band',
@@ -272,6 +283,40 @@
     { key: 'ttdStepPs', label: 'Coarse TTD step', units: 'ps', value: 75, min: 10, max: 400, step: 5, group: 'Baseband',
       conf: 'published-literature', why: '50–100 ps class per the proposal. Note the binding constraint is RANGE (866 ps at 60° over 30 cm), not resolution.' },
 
+    /* --- antenna (family C) ---
+       What sits behind ONE fixed RF port. The die is taped out with 4 real
+       RF channels per direction, so the PORT count is not a choice and this
+       whole family moves only the element pattern, its directivity and the
+       cell fill. It cannot move the grating lobes: lobe-free scan to 60°
+       needs 0.536λ = 2.06 mm of PORT pitch against the actual 15 mm, and
+       only more dies do that. */
+    { key: 'antOption', label: 'Antenna arrangement per channel', units: '', value: 0, group: 'Antenna',
+      choices: [{ value: 0, label: 'C1 · 1× patch per channel' }, { value: 1, label: 'C2 · 1×K cross-scan column' },
+                { value: 2, label: 'C3 · Kx×Ky cluster' }, { value: 3, label: 'C4 · Wideband board radiator' }],
+      conf: 'engineering-guess', why: 'Which radiator, and how many of them, sit behind one fixed RF port. Neither source document specifies the radiator: "patch" appears once in the proposal, describing how other people package RFICs, and never in the deck — so the 4-per-die baseline is the RFIC channel count, not a stated antenna count. The deck DOES propose the hierarchy this family implements ("RFIC → subarray → full aperture … 100 IC instead of 1000-10000, in tradeoff of beamwidth"), and until now the tool collapsed the subarray layer to one radiator per port. Selecting an option changes the element pattern and nothing else.' },
+    { key: 'radPerCh', label: 'Radiators per RF channel (K)', units: '-', value: 1, group: 'Antenna',
+      choices: [{ value: 1, label: '1' }, { value: 2, label: '2' }, { value: 4, label: '4' }, { value: 8, label: '8' },
+                { value: 9, label: '9' }, { value: 16, label: '16' }, { value: 64, label: '64' }],
+      conf: 'engineering-guess', why: 'K radiators fed from ONE phase shifter through a fixed corporate tree. This is the user-facing lever on the 16.8 dB element/cell gap: K raises element directivity toward the cell ceiling and adds ZERO controllable state, because the beamformer cannot see inside a cell. It never changes the port count, the lattice, the lobe positions or the lobe count. Enumerated rather than a free integer so Kx and Ky stay integral by construction; each option declares its own legal set and clamps to it, and the clamp is reported rather than silent. C1 and C4 pin K = 1.' },
+    { key: 'radPitchLam', label: 'Radiator pitch inside the cell', units: 'λ', value: 0.5, min: 0.35, max: 0.99, step: 0.01, group: 'Antenna',
+      conf: 'scaled-estimate', why: 'Centre-to-centre spacing of the K radiators behind one port (λ/2 = 1.92 mm). At 0.5λ you pack the most radiators per unit length, but the pattern integral saturates about 1.03 dB below the naive 6 + 10log10(K) because an isolated 6 dBi patch claims 4.68 mm² against a λ/2 cell of 3.69 mm². The 0.99 ceiling is DERIVED, not chosen: a fixed broadside subarray puts its own grating lobe into visible space at |u| = λ/p ≤ 1, i.e. at p ≥ 1.0λ, which the beam metrics would mis-report as the taper sidelobe.' },
+    { key: 'radSpanPitch', label: 'Pitch mode', units: '', value: 0, group: 'Antenna',
+      choices: [{ value: 0, label: 'Fixed pitch (above)' }, { value: 1, label: 'Span the cell (nulls on the lobes)' }],
+      conf: 'published-literature', why: 'Span mode derives the pitch as cell/K instead of reading the pitch above, which puts the subarray nulls exactly on the reciprocal port lattice by the a_i·b_j = δ_ij duality already proved in lattice.js — so every grating lobe on that axis is nulled at broadside. It is legal only for K per axis ≥ cell/λ = 15/3.84 = 3.90, i.e. K ≥ 4: at K = 2 the derived pitch is 1.95λ and the subarray\'s own full-strength lobe lands at u = 0.51, on a grating-lobe row. The consistency check FAILS on that rather than letting it through, and the same 3.90 that names the lattice\'s coarseness is what sets the threshold.' },
+    { key: 'radApEff', label: 'Radiator aperture efficiency', units: '-', value: 0.70, min: 0.40, max: 0.90, step: 0.05, group: 'Antenna',
+      conf: 'engineering-guess', why: 'Used by C4 only, to DERIVE directivity from footprint instead of asserting it: D = 10log10(4π·η·(a/λ)²). The round trip is the check — at η = 0.70 the 6 dBi C1 baseline implies a 0.67λ footprint, which is a real patch. Inert for C1–C3.' },
+    { key: 'radApertureLam', label: 'C4 radiator footprint', units: 'λ', value: 1.0, min: 0.6, max: 1.4, step: 0.05, group: 'Antenna',
+      conf: 'engineering-guess', why: 'C4\'s one free geometric choice. D_unit = 10log10(4π·η·a²) = 9.44 dBi at the defaults. Inert for every other option.' },
+    { key: 'feedSplitLossDb', label: 'Excess loss per corporate split stage', units: 'dB', value: 0.30, min: 0, max: 1.5, step: 0.05, group: 'Antenna',
+      conf: 'scaled-estimate', why: 'Above the ideal 3.01 dB power division, per binary stage, for an in-package T or Wilkinson junction at 78 GHz. Anchored to the loSplit78 block, which books −3.5 dB against an ideal −3.0. A 1×4 column charges 2 stages, an 8×8 charges 6.' },
+    { key: 'feedLossPerCmDb', label: 'In-cell feed line loss', units: 'dB/cm', value: 1.0, min: 0.3, max: 3.0, step: 0.1, group: 'Antenna',
+      conf: 'scaled-estimate', why: 'Package microstrip or stripline at 78 GHz on low-loss organic (0.10–0.20 dB/mm; FR4-class is above 0.5 dB/mm and rules the whole family out). Multiplied by the mean corporate-tree path, DERIVED as 0.5·((Kx−1)·px + (Ky−1)·py) rather than assumed, so a larger subarray pays for its own routing. This is what stops the family concluding that bigger K always wins.' },
+    { key: 'antBandReqGHz', label: 'Band the radiator must cover', units: 'GHz', value: 15, min: 2, max: 15, step: 0.5, group: 'Antenna',
+      conf: 'measured/datasheet', why: '71–86 GHz is 15 GHz, 19.4% at a 78 GHz centre, and it is a hard spec in both source documents. A single-layer package patch is about 4%, i.e. 3.1 GHz. Set this to the 2 GHz instantaneous RF bandwidth instead if the link is fixed-frequency — the tool must not decide that for the reader, so it is a declared requirement rather than a hidden gate.' },
+    { key: 'antTrShare', label: 'TX / RX aperture sharing', units: '', value: 0, group: 'Antenna',
+      choices: [{ value: 0, label: 'Shared radiators + T/R switch per port' }, { value: 1, label: 'Separate TX and RX radiator groups' }],
+      conf: 'engineering-guess', why: 'The die carries 4 RX AND 4 TX real RF channels, so the port count counts ONE direction while the baseband channel count counts both. Shared means one radiator group serves both directions through a T/R switch — which is already what the antenna-loss chain itemises, and therefore the defensible default. Separate means each direction gets half the cell, so the per-direction cell ceiling falls by 10log10(2) = 3.01 dB and the legal K halves. Nothing in this tool asked this question before, and leaving it unstated makes every element directivity 3 dB optimistic in the case nobody chose.' },
+
     /* --- calibration --- */
     { key: 'fBistHz', label: 'BIST update rate', units: 'Hz', value: 1, min: 0.01, max: 1000, step: 0.01, group: 'Calibration',
       conf: 'scaled-estimate', why: 'Calibration-state update rate. Note this need NOT equal the ~100 Hz beam-update rate — drift bandwidth is ~0.3–3 Hz.' },
@@ -314,6 +359,70 @@
     { id: 'current-mode', name: 'B4 Current-mode summing', short: 'B4 Current-mode' },
     { id: 'digital-tile', name: 'B5 Digitise at the tile', short: 'B5 Digital tile' }
   ];
+  var ANT_IDS = ['single-patch', 'cross-column', 'square-cluster', 'board-radiator'];
+  var ANT_META = [
+    { id: 'single-patch', name: 'C1 One patch per RF channel', short: 'C1 1× patch' },
+    { id: 'cross-column', name: 'C2 1×K cross-scan patch column', short: 'C2 1×K column' },
+    { id: 'square-cluster', name: 'C3 Kx×Ky cluster, both axes', short: 'C3 Kx×Ky cluster' },
+    { id: 'board-radiator', name: 'C4 Wideband radiator on its own board', short: 'C4 board WB' }
+  ];
+
+  /* Per-option antenna constants, in ONE table for the same reason LO_TRAITS
+     and BB_TRAITS exist: so no antenna number appears inline in evalAnt.
+
+       kAllowed     legal radiators-per-channel; the state is clamped to this
+                    and the clamp is REPORTED, never silent
+       shapeOf(K)   how K lays out as kx (in the scan plane) by ky (across it)
+       pitchMode    'none'  K = 1, no in-cell geometry at all
+                    'lam'   pitch read from radPitchLam, span mode allowed
+       dUnitMode    'param'    the unit radiator is elemDirDbi
+                    'aperture' derive it from footprint x aperture efficiency
+       fracBwPct    unit radiator fractional bandwidth before the feed
+       feedBwNarrow how much a resonant corporate tree costs, per split stage
+       ifaceBlockKeys  extra BLOCKS the signal passes through, cited not invented
+  */
+  var ANT_TRAITS = {
+    'single-patch': {
+      kAllowed: [1], kDefault: 1, pitchMode: 'none', dUnitMode: 'param',
+      fracBwPct: 4.0, feedBwNarrow: 0.0, metalLayers: 2, radBlockKey: 'antPatch',
+      ifaceBlockKeys: [], extraTransLossDb: 0,
+      shapeOf: function () { return { kx: 1, ky: 1 }; },
+      note: 'One package patch per real RF channel — 4 per die, 16 per tile, 400 across the panel, each alone in the middle of a 225 mm² cell. This is the tool\'s original assumption, and the only option that is byte-for-byte back-compatible with every number published before the antenna family existed.'
+    },
+    'cross-column': {
+      kAllowed: [2, 4, 8], kDefault: 4, pitchMode: 'lam', dUnitMode: 'param',
+      fracBwPct: 4.0, feedBwNarrow: 0.15, metalLayers: 2, radBlockKey: 'antPatch',
+      ifaceBlockKeys: [], extraTransLossDb: 0,
+      /* kx = 1 ALWAYS: the column runs across the scan plane, which is the
+         whole idea. Its array factor is identically 1 along u, so the scan
+         plane pattern is bit-identical to C1 at every K. */
+      shapeOf: function (K) { return { kx: 1, ky: K }; },
+      note: 'K patches stacked ACROSS the plane the array steers in, fed from one RF channel through a fixed corporate tree. Because the column\'s array factor is identically 1 along the scan axis, it buys element directivity and cross-scan lobe suppression at zero scan-plane cost — and it cannot touch the in-scan grating lobe, which stays exactly where it was.'
+    },
+    'square-cluster': {
+      kAllowed: [4, 9, 16, 64], kDefault: 4, pitchMode: 'lam', dUnitMode: 'param',
+      fracBwPct: 4.0, feedBwNarrow: 0.15, metalLayers: 2, radBlockKey: 'antPatch',
+      ifaceBlockKeys: [], extraTransLossDb: 0,
+      shapeOf: function (K) { var s = Math.round(Math.sqrt(K)); return { kx: s, ky: Math.round(K / s) }; },
+      note: 'K patches in a near-square block behind one port. The pitch sweeps it from compact λ/2 packing through to spanning the whole cell, where the nulls land on the reciprocal port lattice and suppress every grating lobe at broadside — at the cost of the scan cone in BOTH planes. At K = 64 spanning, this is the cell-filling radiator the retired "nulled" element used to approximate, built out of discrete metal.'
+    },
+    'board-radiator': {
+      kAllowed: [1], kDefault: 1, pitchMode: 'none', dUnitMode: 'aperture',
+      fracBwPct: 20.0, feedBwNarrow: 0.0, metalLayers: 3, radBlockKey: 'antPatchBoard',
+      ifaceBlockKeys: ['ebandTransition'], extraTransLossDb: 0.16,
+      shapeOf: function () { return { kx: 1, ky: 1 }; },
+      note: 'One radiator per channel again, so the scan cone is untouched — but a bigger, far wider-band one, and it leaves the RFIC package. Roughly a wavelength across on its own low-loss laminate, reached through an E-band board/package transition. It is the only architecturally different member: it moves the radiator onto hardware this thesis does not design, which is what the proposal\'s own scope note permits.'
+    }
+  };
+
+  function antTraitsOf(id) {
+    var t = ANT_TRAITS[id];
+    if (!t) {
+      throw new Error('antTraitsOf: unknown antenna option id ' + JSON.stringify(id) +
+        ' (expected one of ' + Object.keys(ANT_TRAITS).join(', ') + ')');
+    }
+    return t;
+  }
 
   /* ---------------------------------------------------------------------
      Per-option constants, in ONE table rather than scattered through
@@ -518,6 +627,7 @@
     PARAMS.forEach(function (p) { g[p.key] = state[p.key]; });
     g.loOptionId = LO_IDS[Math.round(g.loOption)] || LO_IDS[3];
     g.bbOptionId = BB_IDS[Math.round(g.bbOption)] || BB_IDS[2];
+    g.antOptionId = ANT_IDS[Math.round(g.antOption)] || ANT_IDS[0];
     g.loMediumKey = MEDIA_KEYS[Math.round(g.loMedium)] || MEDIA_KEYS[0];
     g.refMediumKey = 'stripline';
     g.refName = REF_SOURCES[Math.round(g.refSel)] ? REF_SOURCES[Math.round(g.refSel)].name : 'reference';
@@ -573,11 +683,43 @@
      * wavelengths coarse, so the array keeps the BEAMWIDTH of the full
      * aperture but only the GAIN of its element count, and the difference
      * goes into grating lobes.
+     *
+     * THERE ARE TWO LATTICES HERE AND THEY MUST NEVER BE CONFLATED.
+     *
+     *   The PORT lattice — 16 controllable ports per tile, 400 over the
+     *   panel, on a 1.5 cm pitch. NOT a free choice: the die is taped out
+     *   with 4 real RF channels per direction. This is what the beamformer
+     *   controls, what sets the array factor, and what fixes the 44 grating
+     *   lobes and their positions. Nothing in family C may move it, and
+     *   that is exactly what keeps the antenna family orthogonal to the LO
+     *   and baseband families.
+     *
+     *   The RADIATOR lattice — the K radiators sitting INSIDE one port's
+     *   cell, fed in fixed phase. Free, and invisible to the beamformer.
+     *   It sets the ELEMENT PATTERN and the cell fill, and nothing else.
+     *
+     * elemPerTile and nElem are PORT counts. They keep those names because
+     * every existing reader uses them, and gain nPorts/portsPerTile as the
+     * unambiguous aliases.
      * ---------------------------------------------------------------- */
     g.diesPerTile = Math.max(1, Math.round(g.tapsPerTile));
-    g.chPerDiePerDir = 4;                       /* 4 RX + 4 TX per die */
+    g.chPerDiePerDir = 4;                       /* 4 real RF channels per direction */
     g.elemPerTile = g.diesPerTile * g.chPerDiePerDir;
     g.nElem = g.nTilesTotal * g.elemPerTile;
+    g.portsPerTile = g.elemPerTile;
+    g.nPorts = g.nElem;
+
+    /* ---- the radiator lattice inside one port cell ---- */
+    var antTr = antTraitsOf(g.antOptionId);
+    g.antTraits = antTr;
+    var kWant = Math.round(g.radPerCh);
+    g.radPerCh = antTr.kAllowed.indexOf(kWant) >= 0 ? kWant : antTr.kDefault;
+    g.radPerChClamped = g.radPerCh !== kWant ? kWant : null;
+    var shape = antTr.shapeOf(g.radPerCh);
+    g.radKx = shape.kx;
+    g.radKy = shape.ky;
+    g.radPerTile = g.elemPerTile * g.radPerCh;
+    g.nRad = g.nTilesTotal * g.radPerTile;
 
     /* Arrangement inside a tile — CHOSEN, not assumed. An earlier version
        forced a rectangular factorisation (round(sqrt(N)) rounded to a
@@ -649,11 +791,34 @@
     g.sparsityFactor = g.elemSpacingM / (g.lambdaM / 2);
     g.nElemFilled = areaM2 / Math.pow(g.lambdaM / 2, 2);
 
-    /* ---- the element, which is where the missing 16 dB actually lives ---- */
+    /* ---- the element, which is where the missing 16 dB actually lives ----
+       The radiator pitch inside the cell. Span mode derives it from the
+       SELECTED lattice basis rather than assuming a square cell, so it
+       composes with the in-tile lattice choice instead of contradicting it. */
+    var cellXCm = Math.abs(g.lat.a1[0]) || g.elemDxCm;
+    var cellYCm = Math.abs(g.lat.a2[1]) || g.elemDyCm;
+    g.radSpanning = antTr.pitchMode === 'lam' && Math.round(g.radSpanPitch) === 1;
+    if (antTr.pitchMode === 'none') {
+      g.radPitchXCm = g.lamCm / 2;
+      g.radPitchYCm = g.lamCm / 2;
+    } else if (g.radSpanning) {
+      g.radPitchXCm = cellXCm / Math.max(g.radKx, 1);
+      g.radPitchYCm = cellYCm / Math.max(g.radKy, 1);
+    } else {
+      g.radPitchXCm = g.radPitchLam * g.lamCm;
+      g.radPitchYCm = g.radPitchLam * g.lamCm;
+    }
+    /* C4 derives its unit directivity from footprint instead of asserting it,
+       which turns elemDirDbi from a free slider into an auditable quantity. */
+    g.radUnitDbi = antTr.dUnitMode === 'aperture'
+      ? 10 * Math.log10(4 * Math.PI * g.radApEff * g.radApertureLam * g.radApertureLam)
+      : g.elemDirDbi;
+
     g.elem = window.Lat.element({
-      key: ['dir', 'hpbw', 'nulled'][Math.round(g.elemModelSel)] || 'dir',
+      key: (window.Lat.KIND_KEYS[Math.round(g.elemModelSel)] || 'dir'),
       lamCm: g.lamCm, a1: g.lat.a1, a2: g.lat.a2,
-      elemDirDbi: g.elemDirDbi, hpbwDeg: g.elemHpbwDeg
+      elemDirDbi: g.elemDirDbi, dUnitDbi: g.radUnitDbi, hpbwDeg: g.elemHpbwDeg,
+      kx: g.radKx, ky: g.radKy, pxCm: g.radPitchXCm, pyCm: g.radPitchYCm
     });
     g.elemPowExp = g.elem.n;
     g.aCellCm2 = g.elem.aCellCm2;
@@ -679,8 +844,46 @@
     g.aCellMm2 = g.aCellCm2 * 100;
     g.cellFillPct = 100 * g.aEffElMm2 / Math.max(g.aCellMm2, 1e-9);
     g.dElHeadroomDb = g.dCellDbi - g.dElDbi;
+    g.dPortDbi = g.dElDbi;                      /* unambiguous alias */
+    g.radGainOverUnitDb = g.elem.dGainOverUnitDb || 0;
+    /* Under separate TX and RX radiator groups each direction gets half the
+       cell, so the ceiling each one is judged against drops by 3.01 dB. */
+    g.antTrSeparate = Math.round(g.antTrShare) === 1;
+    g.dCellPerDirDbi = g.dCellDbi - (g.antTrSeparate ? 10 * Math.log10(2) : 0);
+
+    /* ---- the fixed feed behind the port, and what it costs twice ----
+       The corporate tree inside the cell, plus any board transition, sits in
+       FRONT of the LNA — the LNA is inside the RFIC, the feed is not. So on
+       receive the same loss costs its dB in gain AND its dB in noise figure:
+       G/T moves by twice it. This is the strongest honest argument against
+       cell-filling, and it is why the family must never report a gain delta
+       on its own. */
+    g.antFeedStages = g.radPerCh > 1 ? Math.ceil(Math.log(g.radPerCh) / Math.log(2)) : 0;
+    g.antFeedRouteCm = 0.5 * ((g.radKx - 1) * g.radPitchXCm + (g.radKy - 1) * g.radPitchYCm);
+    g.antIfaceLossDb = (antTr.ifaceBlockKeys || []).reduce(function (a, k) {
+      return a + Math.abs((BLOCKS[k] || {}).gainDb || 0);
+    }, 0);
+    g.antFeedLossDb = g.antFeedStages * g.feedSplitLossDb +
+      g.antFeedRouteCm * g.feedLossPerCmDb +
+      (antTr.extraTransLossDb || 0) + g.antIfaceLossDb;
+    g.antNfPenaltyDb = g.antFeedLossDb;
+    g.antGtDeltaDb = g.radGainOverUnitDb - 2 * g.antFeedLossDb;
+    g.antLossTotalDb = g.antLossDb + g.antFeedLossDb;
+    /* unobservable junctions per port: BIST cannot see inside the cell */
+    g.antBlindJunctions = Math.max(0, g.radPerCh - 1) + (antTr.ifaceBlockKeys || []).length;
+    /* fractional bandwidth, narrowed by each resonant split stage */
+    g.antFracBwPct = antTr.fracBwPct * Math.pow(1 - (antTr.feedBwNarrow || 0), g.antFeedStages);
+    g.antBwGHz = g.antFracBwPct / 100 * g.fLoGHz;
+    g.antBandOk = g.antBwGHz >= g.antBandReqGHz;
+    g.radAreaPctOfCell = 100 * g.radPerCh *
+      ((BLOCKS[antTr.radBlockKey] || BLOCKS.antPatch).areaMm2) / Math.max(g.aCellMm2, 1e-9);
+    /* worst-plane -3 dB half-cone, which is what the scan spec meets or does not */
+    g.antConeXDeg = (g.elem.hpbwXDeg || g.elem.hpbwDeg) / 2;
+    g.antConeYDeg = (g.elem.hpbwYDeg || g.elem.hpbwDeg) / 2;
+    g.antConeMinDeg = Math.min(g.antConeXDeg, g.antConeYDeg);
+
     /* directivity is not gain */
-    g.realisedGainDbi = g.dArrayDbi - g.antLossDb;
+    g.realisedGainDbi = g.dArrayDbi - g.antLossTotalDb;
     /* far-field distance of the populated aperture */
     g.farFieldM = 2 * g.effApertureM * g.effApertureM / g.lambdaM;
 
@@ -1240,6 +1443,167 @@
    * Deliberately does NOT populate M1/M2: the baseband network sits after
    * the mixer and contributes zero phase noise at the carrier.
    * =================================================================== */
+  /* ---------------------------------------------------------------------
+     THE ANTENNA FAMILY.
+
+     evalAnt is deliberately the SMALLEST of the three eval functions,
+     because the antenna option genuinely touches less than the other two:
+     it rebuilds the element and everything the element feeds, and it is
+     forbidden to touch anything upstream of the port lattice. If this
+     function ever changes nElem, elemPerTile, lat or aCellCm2, the 44
+     grating lobes move and every number in the tool becomes wrong with
+     nothing complaining — so it recomputes from a patched copy and asserts
+     the invariants rather than trusting itself.
+     ------------------------------------------------------------------- */
+  function evalAnt(id, g) {
+    var tr = antTraitsOf(id);
+    var gg = {};
+    for (var k in g) gg[k] = g[k];
+    /* overwrite BOTH fields: leaving the numeric one stale is the defect
+       class already recorded for the LO family */
+    gg.antOption = ANT_IDS.indexOf(id);
+    gg.antOptionId = id;
+
+    var kWant = Math.round(g.radPerCh);
+    var K_ = tr.kAllowed.indexOf(kWant) >= 0 ? kWant : tr.kDefault;
+    var shape = tr.shapeOf(K_);
+    var cellXCm = Math.abs(g.lat.a1[0]) || g.elemDxCm;
+    var cellYCm = Math.abs(g.lat.a2[1]) || g.elemDyCm;
+    var spanning = tr.pitchMode === 'lam' && Math.round(g.radSpanPitch) === 1;
+    var pxCm, pyCm;
+    if (tr.pitchMode === 'none') { pxCm = g.lamCm / 2; pyCm = g.lamCm / 2; }
+    else if (spanning) { pxCm = cellXCm / Math.max(shape.kx, 1); pyCm = cellYCm / Math.max(shape.ky, 1); }
+    else { pxCm = g.radPitchLam * g.lamCm; pyCm = g.radPitchLam * g.lamCm; }
+
+    var dUnit = tr.dUnitMode === 'aperture'
+      ? 10 * Math.log10(4 * Math.PI * g.radApEff * g.radApertureLam * g.radApertureLam)
+      : g.elemDirDbi;
+
+    var elem = window.Lat.element({
+      key: (window.Lat.KIND_KEYS[Math.round(g.elemModelSel)] || 'dir'),
+      lamCm: g.lamCm, a1: g.lat.a1, a2: g.lat.a2,
+      elemDirDbi: g.elemDirDbi, dUnitDbi: dUnit, hpbwDeg: g.elemHpbwDeg,
+      kx: shape.kx, ky: shape.ky, pxCm: pxCm, pyCm: pyCm
+    });
+
+    var lamMm = g.lambdaM * 1000;
+    var dArrayRawDbi = 10 * Math.log10(Math.max(g.nElem, 1)) + elem.dElDbi;
+    var dArrayDbi = Math.min(dArrayRawDbi, g.dFilledDbi);
+    var thinningLossDb = g.dFilledDbi - dArrayRawDbi;
+    var aEffElMm2 = Math.pow(10, elem.dElDbi / 10) * lamMm * lamMm / (4 * Math.PI);
+    var cellFillPct = 100 * aEffElMm2 / Math.max(g.aCellMm2, 1e-9);
+
+    var stages = K_ > 1 ? Math.ceil(Math.log(K_) / Math.log(2)) : 0;
+    var routeCm = 0.5 * ((shape.kx - 1) * pxCm + (shape.ky - 1) * pyCm);
+    var ifaceDb = (tr.ifaceBlockKeys || []).reduce(function (a, kk) {
+      return a + Math.abs((BLOCKS[kk] || {}).gainDb || 0);
+    }, 0);
+    var feedLossDb = stages * g.feedSplitLossDb + routeCm * g.feedLossPerCmDb +
+      (tr.extraTransLossDb || 0) + ifaceDb;
+
+    /* Lat.withLevels MUTATES the list it is handed. Every option must get a
+       FRESH list, or the shared one ends up carrying the last option's
+       levels and the map, the beam and the tables describe different arrays. */
+    var u0 = Math.sin(K.deg2rad(g.beamScanDeg)), v0 = 0;
+    var lobesAtScan = window.Lat.withLevels(
+      window.Lat.lobes(g.lat.b1, g.lat.b2, g.lamCm, u0, v0), elem, u0, v0);
+    var lobesBroad = window.Lat.withLevels(
+      window.Lat.lobes(g.lat.b1, g.lat.b2, g.lamCm, 0, 0), elem, 0, 0);
+    var worstAtScan = lobesAtScan.length ? lobesAtScan[0] : null;
+    var worstBroad = lobesBroad.length ? lobesBroad[0] : null;
+    var within3 = lobesAtScan.filter(function (l) { return l.relDb > -3; }).length;
+
+    /* A fixed broadside subarray can be steered INTO ITS OWN NULL: a 4-wide
+       column at λ/2 has an exact pattern null at u = 0.5, i.e. at exactly
+       30° of scan. The arithmetic then divides by ~0 and every grating lobe
+       reports as tens of dB "above" a beam that is not there. That is
+       literally true and completely useless as a number, so it is flagged
+       and named rather than printed as a spurious 90.00 dB. */
+    var pScan = elem.powAt(u0, v0), pBore = elem.powAt(0, 0);
+    var scanInNull = pBore > 0 && pScan < 1e-6 * pBore;
+    var scanLossDb = -10 * Math.log10(Math.max(pScan, 1e-9));
+    var coneXDeg = (elem.hpbwXDeg || elem.hpbwDeg) / 2;
+    var coneYDeg = (elem.hpbwYDeg || elem.hpbwDeg) / 2;
+    var fracBwPct = tr.fracBwPct * Math.pow(1 - (tr.feedBwNarrow || 0), stages);
+    var bwGHz = fracBwPct / 100 * g.fLoGHz;
+    var radBlock = BLOCKS[tr.radBlockKey] || BLOCKS.antPatch;
+
+    /* INVARIANTS. These are the only two ways this family can silently
+       destroy the tool: moving the port lattice, or regressing C1. */
+    if (elem.kTotal !== K_ || shape.kx * shape.ky !== K_) {
+      throw new Error('evalAnt: radiator shape ' + shape.kx + 'x' + shape.ky +
+        ' does not multiply to K=' + K_ + ' for option ' + id);
+    }
+
+    return {
+      id: id, note: tr.note,
+      radPerCh: K_, radPerChClamped: K_ !== kWant ? kWant : null,
+      radKx: shape.kx, radKy: shape.ky,
+      radPitchXCm: pxCm, radPitchYCm: pyCm, radPitchLamEff: pxCm / g.lamCm,
+      spanning: spanning,
+      nPorts: g.nElem, portsPerTile: g.elemPerTile,
+      nRad: g.nTilesTotal * g.elemPerTile * K_, radPerTile: g.elemPerTile * K_,
+      dUnitDbi: dUnit, dElDbi: elem.dElDbi, dGainOverUnitDb: elem.dGainOverUnitDb || 0,
+      dCellDbi: elem.dCellDbi,
+      dCellPerDirDbi: elem.dCellDbi - (Math.round(g.antTrShare) === 1 ? 10 * Math.log10(2) : 0),
+      dArrayRawDbi: dArrayRawDbi, dArrayDbi: dArrayDbi,
+      thinningLossDb: thinningLossDb, cellFillPct: cellFillPct,
+      dElHeadroomDb: elem.dCellDbi - elem.dElDbi,
+      feedStages: stages, feedRouteCm: routeCm, feedLossDb: feedLossDb,
+      nfPenaltyDb: feedLossDb, gtDeltaDb: (elem.dGainOverUnitDb || 0) - 2 * feedLossDb,
+      antLossTotalDb: g.antLossDb + feedLossDb,
+      realisedGainDbi: dArrayDbi - (g.antLossDb + feedLossDb),
+      realisedAtScanDbi: dArrayDbi - (g.antLossDb + feedLossDb) - scanLossDb,
+      scanLossDb: scanLossDb, scanInNull: scanInNull,
+      coneXDeg: coneXDeg, coneYDeg: coneYDeg, coneMinDeg: Math.min(coneXDeg, coneYDeg),
+      scanConeOk: Math.min(coneXDeg, coneYDeg) >= g.scanDegMax,
+      lobeCount: lobesAtScan.length,
+      lobesWithin3Db: within3,
+      worstLobeDb: worstAtScan ? worstAtScan.relDb : NaN,
+      worstLobeDeg: worstAtScan ? worstAtScan.thetaDeg : NaN,
+      bindingBroadsideDb: worstBroad ? worstBroad.relDb : NaN,
+      bindingBroadsideDeg: worstBroad ? worstBroad.thetaDeg : NaN,
+      subLobeCount: (elem.subLobes || []).length,
+      fracBwPct: fracBwPct, bwGHz: bwGHz,
+      bandOk: bwGHz >= g.antBandReqGHz, bandReqGHz: g.antBandReqGHz,
+      blindJunctions: Math.max(0, K_ - 1) + (tr.ifaceBlockKeys || []).length,
+      metalLayers: tr.metalLayers,
+      radAreaPctOfCell: 100 * K_ * radBlock.areaMm2 / Math.max(g.aCellMm2, 1e-9),
+      powerPerTileMw: 0,           /* the finding, not an omission */
+      elemLabel: elem.label,
+      riskLevel: antRisk(id, K_, spanning, routeCm),
+      feasibility: antFeasibility(id, K_, shape, pxCm, pyCm, cellXCm, cellYCm, spanning, g)
+    };
+  }
+
+  function antRisk(id, K_, spanning, routeCm) {
+    if (id === 'single-patch') return 'low';
+    if (id === 'board-radiator') return 'medium';
+    if (K_ >= 36) return 'high';
+    if (K_ >= 16 || spanning) return 'medium';
+    return 'medium';
+  }
+
+  function antFeasibility(id, K_, shape, pxCm, pyCm, cellXCm, cellYCm, spanning, g) {
+    var spanXCm = shape.kx * pxCm, spanYCm = shape.ky * pyCm;
+    if (spanXCm > cellXCm + 1e-9 || spanYCm > cellYCm + 1e-9) {
+      return 'NOT REALISABLE as configured: ' + shape.kx + '×' + shape.ky + ' at ' +
+        (Math.round(100 * pxCm / g.lamCm) / 100) + 'λ spans ' +
+        (10 * Math.max(spanXCm, spanYCm)).toFixed(2) + ' mm against a ' +
+        (10 * Math.min(cellXCm, cellYCm)).toFixed(2) + ' mm cell';
+    }
+    if (spanning && Math.max(shape.kx, shape.ky) < cellXCm / g.lamCm) {
+      return 'NOT REALISABLE as configured: span mode needs K per axis ≥ cell/λ = ' +
+        (cellXCm / g.lamCm).toFixed(2) + ', below which the subarray puts its own ' +
+        'full-strength lobe inside visible space';
+    }
+    if (id === 'single-patch') return 'realisable; it is what the tool already assumed, and it needs no in-cell feed at all';
+    if (id === 'board-radiator') return 'realisable and routine at mm-wave; the risk is 400 board/package transitions whose phase offsets are BIST-invisible, not the radiator';
+    if (K_ >= 64) return 'research demonstrator: a six-stage tree per port, and the feed metal starts competing with the radiators for cell area';
+    if (K_ >= 16) return 'hard but realisable; a 1:16 corporate tree inside the cell at 78 GHz';
+    return 'realisable; a 1:' + K_ + ' corporate split in package substrate at 78 GHz is routine';
+  }
+
   function evalBb(id, g) {
     var trB = bbTraitsOf(id);
     var gg = {};
@@ -1489,6 +1853,88 @@
         '° against the ~200 ps target, so phase-only steering inside the tile will not hold across the band.'
     });
 
+    /* ---- the antenna arrangement inside one port cell ---- */
+    var cellXmm = 10 * (Math.abs(g.lat.a1[0]) || g.elemDxCm);
+    var cellYmm = 10 * (Math.abs(g.lat.a2[1]) || g.elemDyCm);
+    var spanXmm = 10 * g.radKx * g.radPitchXCm, spanYmm = 10 * g.radKy * g.radPitchYCm;
+    if (spanXmm > cellXmm + 1e-9 || spanYmm > cellYmm + 1e-9) out.push({
+      severity: 'fail',
+      message: g.radKx + '×' + g.radKy + ' radiators at ' + (g.radPitchXCm * 10).toFixed(2) +
+        ' mm span ' + Math.max(spanXmm, spanYmm).toFixed(2) + ' mm, against a ' +
+        Math.min(cellXmm, cellYmm).toFixed(2) + ' mm port cell. They do not fit. Reduce K, ' +
+        'reduce the pitch, or use span mode, which derives the pitch as cell/K.'
+    });
+    if (g.radSpanning && Math.max(g.radKx, g.radKy) < (cellXmm / 10) / g.lamCm) out.push({
+      severity: 'fail',
+      message: 'Span mode needs at least cell/λ = ' + ((cellXmm / 10) / g.lamCm).toFixed(2) +
+        ' radiators per axis, i.e. 4, and this has ' + Math.max(g.radKx, g.radKy) +
+        '. Below that the derived pitch exceeds one wavelength and the subarray puts its OWN ' +
+        'full-strength lobe at u = ' + (g.lamCm / g.radPitchXCm).toFixed(3) +
+        ', inside visible space and on a grating-lobe row.'
+    });
+    if (g.radPerChClamped != null) out.push({
+      severity: 'warn',
+      message: 'Radiators per channel was ' + g.radPerChClamped + ', which ' +
+        (ANT_META[Math.round(g.antOption)] || { short: 'this option' }).short +
+        ' does not allow; it has been clamped to ' + g.radPerCh + '. The clamp is reported ' +
+        'rather than silent because K changes the element directivity by 10log10(K).'
+    });
+    if (g.radPerCh > 1 && g.radPitchLam < 0.4 && !g.radSpanning) out.push({
+      severity: 'warn',
+      message: 'A ' + g.radPitchLam.toFixed(2) + 'λ radiator pitch is below λ/2. Crowding ' +
+        'radiators closer buys almost no directivity — the pattern integral saturates on ' +
+        'footprint, not on count — and it buys a great deal of mutual coupling, which this ' +
+        'model does not carry at all.'
+    });
+    if (g.elem && g.dElDbi > g.dCellDbi + 1e-6) out.push({
+      severity: 'info',
+      message: 'The element integrates to ' + g.dElDbi.toFixed(4) + ' dBi against a cell ceiling of ' +
+        g.dCellDbi.toFixed(4) + ' dBi. That is expected, not an error: 4πA/λ² is an obliquity-free ' +
+        'broadside bound and this pattern carries cos θ, so a cell-spanning subarray integrates a ' +
+        'few hundredths past it. It is reported rather than clamped, because clamping would break ' +
+        'the identity thinning = cell ceiling − element directivity.'
+    });
+    if (g.elem && g.radPerCh > 1) {
+      var uS = Math.sin(K.deg2rad(g.beamScanDeg));
+      var pS = g.elem.powAt(uS, 0), pB = g.elem.powAt(0, 0);
+      if (pB > 0 && pS < 1e-6 * pB) out.push({
+        severity: 'fail',
+        message: 'The beam is steered to ' + g.beamScanDeg + '°, which lands in the SUBARRAY\'S OWN ' +
+          'NULL. A ' + g.radKx + '-wide group at ' + g.radPitchXCm.toFixed(3) + ' cm nulls at ' +
+          'sin θ = λ/(K·p) multiples, and the steer angle is one of them, so the array radiates ' +
+          'essentially nothing in the direction it is pointed. This is the cost of a FIXED feed ' +
+          'behind a steered port, and it is why subarraying across the scan plane is the wrong axis.'
+      });
+    }
+    if (g.antConeMinDeg < g.scanDegMax) out.push({
+      severity: 'warn',
+      message: 'The element\'s worst-plane −3 dB half-cone is ' + g.antConeMinDeg.toFixed(1) +
+        '° against a ' + g.scanDegMax + '° scan requirement. The subarray feed is fixed at ' +
+        'broadside, so the array can still be steered there — it just arrives ' +
+        (g.elem ? (-10 * Math.log10(Math.max(g.elem.powAt(Math.sin(K.deg2rad(g.scanDegMax)), 0), 1e-9))).toFixed(1) : '?') +
+        ' dB down. This is the gain-for-scan trade the antenna family exists to show, not a fault.'
+    });
+    if (Math.round(g.latticePeriodic) === 0 && g.radAreaPctOfCell > 50) out.push({
+      severity: 'warn',
+      message: 'The radiators occupy ' + g.radAreaPctOfCell.toFixed(0) + '% of each cell, so there ' +
+        'is no room left to dither their positions. The aperiodic-lattice escape route needs ' +
+        'physical space to move elements into, and this arrangement has none.'
+    });
+    if (g.antTrSeparate) out.push({
+      severity: 'info',
+      message: 'Separate TX and RX radiator groups halve the cell available to each direction, so ' +
+        'the per-direction ceiling is ' + g.dCellPerDirDbi.toFixed(2) + ' dBi rather than ' +
+        g.dCellDbi.toFixed(2) + ' — 3.01 dB lower — and the legal radiator count per direction halves.'
+    });
+    if (!g.antBandOk) out.push({
+      severity: 'warn',
+      message: 'The radiator covers ' + g.antBwGHz.toFixed(1) + ' GHz (' + g.antFracBwPct.toFixed(1) +
+        '%) against a stated requirement of ' + g.antBandReqGHz.toFixed(1) + ' GHz. 71–86 GHz is ' +
+        '15 GHz; a single-layer package patch is about 4%. Either the link is fixed-frequency — in ' +
+        'which case set the requirement to the 2 GHz instantaneous bandwidth — or the radiator has ' +
+        'to be a wideband one.'
+    });
+
     return out;
   }
 
@@ -1503,13 +1949,15 @@
   function evaluate(state, opts) {
     var g = resolve(state);
     var only = !!(opts && opts.onlySelected);
-    var lo = {}, bb = {};
+    var lo = {}, bb = {}, ant = {};
     if (only) {
       lo[g.loOptionId] = evalLo(g.loOptionId, g);
       bb[g.bbOptionId] = evalBb(g.bbOptionId, g);
+      ant[g.antOptionId] = evalAnt(g.antOptionId, g);
     } else {
       LO_IDS.forEach(function (id) { lo[id] = evalLo(id, g); });
       BB_IDS.forEach(function (id) { bb[id] = evalBb(id, g); });
+      ANT_IDS.forEach(function (id) { ant[id] = evalAnt(id, g); });
     }
     var selected = null;
     if (!only) {
@@ -1523,7 +1971,7 @@
       });
     }
     return {
-      g: g, lo: lo, bb: bb, selected: selected, partial: only,
+      g: g, lo: lo, bb: bb, ant: ant, selected: selected, partial: only,
       blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g)
     };
   }
@@ -1531,8 +1979,49 @@
   window.Model = {
     PARAMS: PARAMS, HOT_PARAMS: HOT_PARAMS, BLOCKS: BLOCKS, REF_SOURCES: REF_SOURCES,
     LO_IDS: LO_IDS, BB_IDS: BB_IDS, LO_META: LO_META, BB_META: BB_META,
+    ANT_IDS: ANT_IDS, ANT_META: ANT_META, ANT_TRAITS: ANT_TRAITS,
     MEDIA_KEYS: MEDIA_KEYS,
     resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,
-    consistency: consistency
+    evalAnt: evalAnt, consistency: consistency,
+
+    /* SELF-TESTS, shipped as assertions rather than as a comment claiming
+       they passed once. There are exactly two ways the antenna family can
+       silently destroy this tool — conflating the port lattice with the
+       radiator lattice, and regressing C1 — so both are asserted. */
+    selfTest: function () {
+      var fails = [];
+      function eq(what, got, want, tol) {
+        if (!(Math.abs(got - want) <= (tol == null ? 1e-9 : tol))) {
+          fails.push(what + ': got ' + got + ', expected ' + want);
+        }
+      }
+      var st = {};
+      PARAMS.forEach(function (p) { st[p.key] = p.value; });
+      var res = evaluate(st);
+      /* (i) the port lattice is invariant across every antenna option */
+      ANT_IDS.forEach(function (id) {
+        var a = res.ant[id];
+        eq('ports/tile @' + id, a.portsPerTile, 16);
+        eq('nPorts @' + id, a.nPorts, 400);
+        eq('lobeCount @' + id, a.lobeCount, res.ant['single-patch'].lobeCount);
+      });
+      eq('aCellCm2', res.g.aCellCm2, 2.25, 1e-9);
+      /* (ii) C1 reproduces the pre-antenna-family numbers exactly */
+      var c1 = res.ant['single-patch'];
+      eq('C1 dElDbi', c1.dElDbi, 6, 1e-12);
+      eq('C1 thinning', c1.thinningLossDb, 16.8194, 5e-4);
+      eq('C1 feed loss', c1.feedLossDb, 0, 1e-12);
+      eq('C1 realised', c1.realisedGainDbi, 28.0206, 5e-4);
+      /* (iii) the quadrature ratio is exactly 1 at K=1 for BOTH unit kinds */
+      [0, 1].forEach(function (m) {
+        var e = window.Lat.element({
+          key: window.Lat.KIND_KEYS[m], lamCm: res.g.lamCm,
+          a1: res.g.lat.a1, a2: res.g.lat.a2, elemDirDbi: 6, dUnitDbi: 6,
+          hpbwDeg: 70, kx: 1, ky: 1
+        });
+        eq('K=1 exactness, kind ' + window.Lat.KIND_KEYS[m], e.dElDbi, 6, 1e-12);
+      });
+      return fails;
+    }
   };
 })();

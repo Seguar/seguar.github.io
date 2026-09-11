@@ -312,16 +312,35 @@
     t.push('- **Whether nulling is actually required.** The whole coherence argument rests on null depth and spatial ' +
       'multiplexing. If the demonstration only needs a single high-gain beam with sub-degree pointing, the gain-loss ' +
       'criterion applies instead, every option passes with margin, and A1 wins on modularity and board simplicity.');
+    /* This paragraph used to be gated on the lattice alone, with no guard on
+       the ELEMENT. With a cell-filling element it therefore printed "the
+       binding one is only 140.00 dB below the main beam" and then concluded
+       that the null-depth floor is not what limits the array — the opposite
+       of what its own number said. It now reads the selected antenna option
+       and says which of the two situations the reader is actually in. */
     if (Math.round(g.latticePeriodic) === 1 && g.lobeCount > 0) {
-      t.push('- **The antenna lattice, which decides whether any of this is the binding metric.** At the current ' +
-        'geometry the element lattice puts `' + g.lobeCount + '` grating lobes inside the horizon and the binding ' +
-        'one is only `' + n(-g.gratingSuppDb, 2) + ' dB` below the main beam, against the `' +
-        n(budget.nullFloorDb, 1) + ' dB` coherence floor this whole comparison is judged on. On a ' +
-        '**periodic** lattice the null-depth floor is therefore ' +
-        'not what limits the array — the coherence argument becomes decisive only once the lattice is made ' +
-        'aperiodic, and that ordering has to be stated before the floor is quoted. Making it aperiodic costs no ' +
-        'gain but forces non-identical tiles and mandatory per-element calibration, which raises the requirement on ' +
-        'this very distribution network. See the Beam view.');
+      var supp = -g.gratingSuppDb;
+      var antName = (window.Model.ANT_META[Math.round(g.antOption)] || {}).short || 'the selected antenna';
+      if (supp < 20) {
+        t.push('- **The antenna lattice, which decides whether any of this is the binding metric.** At the current ' +
+          'geometry the port lattice puts `' + g.lobeCount + '` grating lobes inside the horizon and the binding ' +
+          'one is only `' + n(supp, 2) + ' dB` below the main beam, against the `' +
+          n(budget.nullFloorDb, 1) + ' dB` coherence floor this whole comparison is judged on. On a ' +
+          '**periodic** lattice the null-depth floor is therefore ' +
+          'not what limits the array — the coherence argument becomes decisive only once the lattice is made ' +
+          'aperiodic, and that ordering has to be stated before the floor is quoted. Making it aperiodic costs no ' +
+          'gain but forces non-identical tiles and mandatory per-element calibration, which raises the requirement on ' +
+          'this very distribution network. See the Beam view.');
+      } else {
+        t.push('- **The antenna lattice, and what ' + antName + ' has done to it.** The `' + g.lobeCount +
+          '` grating lobes are still there — the antenna cannot move or remove them, because their positions come ' +
+          'from the 1.5 cm PORT pitch and lobe-free scanning to `' + n(g.scanDegMax, 0) + '°` would need `' +
+          n(g.lamCm * 10 / (1 + Math.sin(window.K.deg2rad(g.scanDegMax))), 2) + ' mm` of it. What this element does is ' +
+          'SUPPRESS them: the binding one is now `' + n(supp, 1) + ' dB` down, so the null-depth floor of `' +
+          n(budget.nullFloorDb, 1) + ' dB` genuinely is the binding metric again and the coherence argument stands ' +
+          'on its own. That suppression is bought with scan range, and the nulls sit on the lobes only at ' +
+          'broadside — see the antenna table for what it costs.');
+      }
     }
     var a5 = res.lo['stabilised-link'], a6 = res.lo['inj-lock'];
     if (a5) {

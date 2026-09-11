@@ -377,6 +377,38 @@
     'TTD range on its own arm mismatch against the H-tree\'s 12 %. Read the tie as "the score cannot decide this", ' +
     'not as "these options are the same".',
 
+    '### The antenna family, and the four things it cannot do',
+    '- **It cannot move or remove a single grating lobe.** Their positions come from the 1.5 cm PORT pitch, and ' +
+    'lobe-free scanning to 60° needs λ/(1+sin60°) = 2.06 mm of port pitch against the actual 15 mm. Only more dies ' +
+    'fix that. A bigger or denser radiator SUPPRESSES lobes by putting pattern nulls on them, and only at ' +
+    'broadside — steer away and the nulls walk off the lobes. Any reading of this family that ends in "so the ' +
+    'antenna solves the grating lobes" is wrong.',
+    '- **It cannot change the port count.** The die is taped out with 4 real RF channels per direction, so 16 ports ' +
+    'per tile and 400 across the panel are fixed in every option. That is what keeps this family orthogonal to the ' +
+    'LO and baseband ones — and it is asserted at load, not assumed, because conflating the port lattice with the ' +
+    'radiator lattice would move the 44 lobes and invalidate every number in the tool with nothing complaining.',
+    '- **It is not scored, and that is deliberate.** The LO and baseband families rank because their options trade ' +
+    'the same currencies. The antenna options trade gain against SCAN RANGE, and how much scan this array needs is ' +
+    'a system requirement the reader brings. Ranking them would manufacture an answer out of a weight nobody chose. ' +
+    'The table reports; it does not conclude.',
+    '- **Element directivity is integrated, never asserted.** D_el is the unit radiator plus 10log10 of the ratio of ' +
+    'two quadratures of the actual pattern, on the same grid, so at K = 1 it returns the unit value EXACTLY and the ' +
+    'identity thinning = cell ceiling − element directivity survives. It is never clamped: a cell-spanning subarray ' +
+    'integrates about 0.005 dB past 4πA/λ², because that bound is obliquity-free and this pattern carries cos θ, and ' +
+    'the tool reports that rather than hiding it.',
+    '- **What it does NOT model.** Mutual coupling between radiators, which at λ/2 in a real package is not small ' +
+    'and gets worse as K rises. Amplitude and phase imbalance in the fixed corporate feed, which is invisible to ' +
+    'BIST and radiates as element-pattern distortion. Frequency dependence of the element pattern — powAt has no ' +
+    'frequency argument, so bandwidth is carried as a scalar compared against a stated requirement rather than as a ' +
+    'pattern that changes across the band. The embedded (in-array) element pattern, which is what a real array ' +
+    'radiates and which differs from the isolated one this model uses. Each of these makes large-K options look ' +
+    'better than they are.',
+    '- **One number in the family is an engineering guess doing real work:** the 1.03 dB by which close-packed ' +
+    'radiators fall short of the naive 6 + 10log10(K). It comes out of the integral, not out of a table, but it ' +
+    'rests on the 6 dBi ISOLATED unit patch being the right anchor — and 6 dBi exceeds the 4.97 dBi a λ/2 cell can ' +
+    'hold, precisely because an isolated patch is not truncated by neighbours. Measure a real embedded patch before ' +
+    'quoting any subarray directivity from this tool.',
+
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
     'carrier phase noise; a number there would be fabricated.',

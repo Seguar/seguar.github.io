@@ -48,10 +48,33 @@
     { key: 'powerMw', label: 'distribution power (mW)' }
   ];
 
+  /* MIGRATION, which must run BEFORE any clamp sees the value.
+
+     elemModelSel used to have a third choice, 2 = "Cell-filling nulled".
+     It is retired, and C3 at K = 64 in span mode is the same antenna built
+     from discrete radiators. The hazard is clampParam: it snaps an
+     out-of-range choice to the NEAREST declared one, so a stored 2 would
+     become 1 — an HPBW-matched patch — before anything could notice, and a
+     16.8 dB change would be presented as a faithful restore. Migrating
+     first is the only way that stays honest. Returns the keys it moved so
+     the caller can say so. */
+  function migrateRawState(raw) {
+    var moved = [];
+    if (raw && Math.round(parseFloat(raw.elemModelSel)) === 2) {
+      raw.elemModelSel = 0;
+      raw.antOption = 2;          /* C3 Kx×Ky cluster */
+      raw.radPerCh = 64;
+      raw.radSpanPitch = 1;       /* spanning: nulls on the reciprocal lattice */
+      moved.push('elemModelSel=2 (retired "cell-filling nulled") → C3 cluster, K=64, spanning');
+    }
+    return moved;
+  }
+
   function loadState() {
     state = {};
     Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
     var over = X.decodeState(location.hash);
+    view.migrated = migrateRawState(over);
     Object.keys(over).forEach(function (k) {
       /* A view name out of a URL is untrusted input like any other: an
          unknown one would hide every panel and leave a blank page. */
@@ -364,7 +387,20 @@
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
       b.textContent = c.label;
       if (c.title) b.title = c.title;
-      b.addEventListener('click', function () { setParam(paramKey, Number(c.value)); });
+      b.addEventListener('click', function () {
+        /* Switching antenna option can strand the radiator count on a value
+           the new option does not allow. The model clamps and reports it, but
+           the clamp is the backstop, not the mechanism: move the state to the
+           new option's own default so the reader never meets a warning they
+           did not cause. */
+        if (paramKey === 'antOption') {
+          var tr = M.ANT_TRAITS[M.ANT_IDS[Math.round(Number(c.value))]];
+          if (tr && tr.kAllowed.indexOf(Math.round(state.radPerCh)) < 0) {
+            state.radPerCh = tr.kDefault;
+          }
+        }
+        setParam(paramKey, Number(c.value));
+      });
       row.appendChild(b);
     });
     container.appendChild(row);
@@ -419,6 +455,10 @@
     chipRow(r1, 'Baseband', 'bbOption', bbP.choices.map(function (c, i) {
       return { value: c.value, label: M.BB_META[i].short, title: M.BB_META[i].name + ' — ' + res.bb[M.BB_META[i].id].note };
     }));
+    var antP = M.PARAMS.filter(function (p) { return p.key === 'antOption'; })[0];
+    chipRow(r1, 'Antenna', 'antOption', antP.choices.map(function (c, i) {
+      return { value: c.value, label: M.ANT_META[i].short, title: M.ANT_META[i].name + ' — ' + res.ant[M.ANT_META[i].id].note };
+    }));
     pick.appendChild(r1);
 
     var r3 = UI.elt('div', 'pk-row pk-row-sel');
@@ -444,6 +484,31 @@
     pickerSelect(r3, 'Medium', 'loMedium',
       M.PARAMS.filter(function (p) { return p.key === 'loMedium'; })[0].choices,
       'Loss at ' + n(sel.distFreqGHz, 2) + ' GHz in this medium: ' + n(sel.lossPerCmDb, 3) + ' dB/cm.');
+
+    /* the antenna knobs, and only the ones the selected arrangement uses */
+    var asel = res.ant[res.g.antOptionId];
+    var atr = M.ANT_TRAITS[res.g.antOptionId];
+    if (atr && atr.kAllowed.length > 1) {
+      pickerSelect(r3, 'Radiators / ch', 'radPerCh',
+        atr.kAllowed.map(function (k) {
+          var sh = atr.shapeOf(k);
+          return { value: k, label: k + ' (' + sh.kx + '×' + sh.ky + ')' };
+        }),
+        'K radiators behind one phase shifter, fed in fixed phase. Adds ZERO controllable state — ' +
+        'the beamformer cannot see inside a cell — and buys ' + n(asel.dGainOverUnitDb, 2) +
+        ' dB of element directivity here, closing the element/cell gap to ' + n(asel.thinningLossDb, 2) + ' dB.');
+    }
+    if (atr && atr.pitchMode === 'lam') {
+      pickerSelect(r3, 'Pitch mode', 'radSpanPitch',
+        M.PARAMS.filter(function (p) { return p.key === 'radSpanPitch'; })[0].choices,
+        'Spanning the cell puts the subarray nulls exactly on the reciprocal port lattice, so every ' +
+        'grating lobe on that axis is nulled at broadside. Legal only at K ≥ 4 per axis.');
+    }
+    if (res.g.antOptionId === 'board-radiator') {
+      pickerSelect(r3, 'Footprint', 'radApertureLam',
+        [0.6, 0.8, 1.0, 1.2, 1.4].map(function (v) { return { value: v, label: v.toFixed(1) + 'λ' }; }),
+        'D_unit = 10log10(4π·η·a²) = ' + n(asel.dUnitDbi, 2) + ' dBi, derived from footprint rather than asserted.');
+    }
     pick.appendChild(r3);
 
     var det = document.createElement('details');
@@ -476,7 +541,12 @@
       g2.tileCols + '×' + g2.tileCols + ' = ' + g2.nTilesTotal + ' tiles at ' + n(g2.tileCm, 1) + ' cm · ' +
       'aperture <strong>' + n(g2.effApertureCm, 1) + ' cm</strong>' +
       (g2.aperturePitchExact ? '' : ' of ' + n(g2.apertureCm, 0)) + ' · ' +
-      n(g2.loTapsTotal, 0) + ' LO taps · residual <span class="kv">' +
+      n(g2.loTapsTotal, 0) + ' LO taps · ' +
+      /* All three counts, because this is the one line where the family's
+         central distinction is either readable or lost. */
+      '<span class="kv">' + n(g2.nPorts, 0) + '</span> ports · <span class="kv">' +
+      n(g2.nRad, 0) + '</span> radiators' +
+      (g2.radPerCh > 1 ? ' (' + g2.radKx + '×' + g2.radKy + ' per port)' : '') + ' · residual <span class="kv">' +
       n(sel.interTileResidualDeg, 3) + '°</span> of ' + n(budget.sigSpecDeg) + '°';
     var foot = UI.elt('div', 'pk-row pk-foot');
     foot.appendChild(geo);
@@ -708,6 +778,84 @@
     'interTileResidualDeg', 'skewRmsPs', 'lossTotalDb', 'nfPenaltyDb',
     'powerTotalMw', 'bwGHz', 'squintLossDb', 'feasibility', 'riskLevel'
   ];
+  var KEY_ANT_FIELDS = [
+    'radPerCh', 'dElDbi', 'cellFillPct', 'thinningLossDb', 'realisedAtScanDbi',
+    'coneMinDeg', 'gtDeltaDb', 'bwGHz', 'lobesWithin3Db', 'feasibility', 'riskLevel'
+  ];
+
+  /* The antenna family reports what the element IS, what it buys, what it
+     costs, and what it provably cannot touch — that last group matters most,
+     because the intuition a reader arrives with is that a better antenna
+     fixes the grating lobes, and it cannot. */
+  function antRows(budget) {
+    return [
+      { section: 'What sits behind one RF port' },
+      {
+        name: 'Radiators per RF channel', sub: 'ports per die stay 4 in every option — the beamformer cannot see inside a cell',
+        field: 'radPerCh', dec: 0,
+        fmt: function (v, r) { return v + (v > 1 ? ' · ' + r.radKx + '×' + r.radKy : ' (one patch)'); }
+      },
+      { name: 'Radiators across the array', field: 'nRad', dec: 0, better: 'none' },
+      {
+        name: 'Radiator pitch in the cell', field: 'radPitchLamEff', units: 'λ', dec: 2,
+        fmt: function (v, r) { return r.radPerCh > 1 ? n(v, 2) + 'λ' + (r.spanning ? ' · spans the cell' : '') : '—'; }
+      },
+      { name: 'Metal layers on the antenna side', field: 'metalLayers', dec: 0, better: 'low' },
+      { section: 'What it buys' },
+      {
+        name: 'Element directivity', sub: 'what ONE PORT radiates, derived by integrating the subarray pattern — not asserted',
+        field: 'dElDbi', units: 'dBi', better: 'high', dec: 2,
+        fmt: function (v, r) { return n(v, 2) + ' dBi' + (r.dGainOverUnitDb > 0.005 ? ' (+' + n(r.dGainOverUnitDb, 2) + ' over the unit radiator)' : ''); }
+      },
+      { name: 'Cell fill', sub: 'effective area of the element against its 225 mm² cell', field: 'cellFillPct', units: '%', better: 'high', dec: 2 },
+      {
+        name: 'Element/cell gap', sub: 'identically the cell ceiling minus the element — recoverable, not a thinning loss',
+        field: 'thinningLossDb', units: 'dB', better: 'low', dec: 2
+      },
+      { name: 'Array directivity', field: 'dArrayDbi', units: 'dBi', better: 'high', dec: 2 },
+      { section: 'What it costs' },
+      {
+        name: 'In-cell feed loss', sub: 'fixed corporate tree behind the port, plus any board transition',
+        field: 'feedLossDb', units: 'dB', better: 'low', dec: 2,
+        fmt: function (v, r) { return n(v, 2) + ' dB' + (r.feedStages ? ' · ' + r.feedStages + ' split stages, ' + n(r.feedRouteCm * 10, 1) + ' mm routed' : ''); }
+      },
+      {
+        name: 'Receive G/T change', sub: 'the feed is in FRONT of the LNA, so on receive its loss costs gain AND noise figure — twice over',
+        field: 'gtDeltaDb', units: 'dB', better: 'high', dec: 2
+      },
+      {
+        name: 'Scan loss at the steer angle', sub: 'a fixed broadside feed behind a steered port',
+        field: 'scanLossDb', units: 'dB', better: 'low', dec: 2,
+        fmt: function (v, r) { return r.scanInNull ? 'IN ITS OWN NULL' : n(v, 2) + ' dB'; }
+      },
+      {
+        name: 'Worst-plane −3 dB half-cone', sub: 'against the ' + n(state.scanDegMax, 0) + '° scan requirement',
+        field: 'coneMinDeg', units: '°', better: 'high', dec: 1,
+        fmt: function (v, r) { return n(v, 1) + '°' + (r.scanConeOk ? '' : ' — short of ' + n(state.scanDegMax, 0) + '°'); }
+      },
+      { name: 'Realised gain at the steer angle', field: 'realisedAtScanDbi', units: 'dBi', better: 'high', dec: 2 },
+      {
+        name: 'Radiator bandwidth', sub: 'against ' + n(state.antBandReqGHz, 1) + ' GHz required; 71–86 GHz is 15 GHz',
+        field: 'bwGHz', units: 'GHz', better: 'high', dec: 1,
+        fmt: function (v, r) { return n(v, 1) + ' GHz (' + n(r.fracBwPct, 1) + '%)' + (r.bandOk ? '' : ' — short'); }
+      },
+      { name: 'Junctions BIST cannot see', sub: 'per port; nothing inside the cell is observable', field: 'blindJunctions', dec: 0, better: 'low' },
+      { name: 'Added power', sub: 'a passive radiator and a fixed feed draw none — the finding, not an omission', field: 'powerPerTileMw', units: 'mW', better: 'low', dec: 0 },
+      { section: 'What it provably cannot touch' },
+      {
+        name: 'Grating lobes within 3 dB of the beam', sub: 'the antenna can suppress lobes; it cannot move or remove them',
+        field: 'lobesWithin3Db', dec: 0, better: 'low'
+      },
+      {
+        name: 'Worst lobe at the steer angle', field: 'worstLobeDb', units: 'dB', better: 'low', dec: 2,
+        fmt: function (v, r) { return r.scanInNull ? 'n/a — beam in a null' : n(v, 2) + ' dB at ' + n(r.worstLobeDeg, 1) + '°'; }
+      },
+      { name: 'Controllable ports', sub: 'invariant across the whole family, by construction', field: 'nPorts', dec: 0, better: 'none' },
+      { section: 'Verdict' },
+      { name: 'Feasibility', field: 'feasibility' },
+      { name: 'Risk', field: 'riskLevel' }
+    ];
+  }
 
   /* Keep a section only if a row under it survived; a bare heading with
      nothing beneath it reads as a rendering fault. */
@@ -747,6 +895,17 @@
     }
     var loOpts = M.LO_META.map(function (m) { return opt(m, res.lo, res.g.loOptionId, dec.loPick.id, dec.loTieIds); });
     var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id, dec.bbTieIds); });
+    /* The antenna family is deliberately NOT scored. The other two families
+       rank because their options trade the same currencies — phase error,
+       loss, power. The antenna options trade gain against SCAN RANGE, and
+       how much scan this array needs is a system requirement the reader
+       brings, not something the tool can weigh for them. Ranking them would
+       manufacture an answer out of a weight nobody chose. */
+    var antOpts = M.ANT_META.map(function (m) {
+      var o = { id: m.id, name: m.name, topology: res.ant[m.id].note };
+      if (m.id === res.g.antOptionId) { o.cur = true; o.badge = 'your build'; o.badgeClass = 'acc'; }
+      return o;
+    });
 
     var cfg = { recLabel: 'model pick' };
     var lr = loRows(budget), br = bbRows(budget);
@@ -755,6 +914,9 @@
       keyMode ? keyOnly(lr, KEY_LO_FIELDS) : lr, dec.loPick.id, cfg);
     UI.renderTable(document.getElementById('bbTable'), bbOpts, res.bb,
       keyMode ? keyOnly(br, KEY_BB_FIELDS) : br, dec.bbPick.id, cfg);
+    var ar = antRows(budget);
+    UI.renderTable(document.getElementById('antTable'), antOpts, res.ant,
+      keyMode ? keyOnly(ar, KEY_ANT_FIELDS) : ar, null, { recLabel: null });
     (function () {
       var b = document.getElementById('cmpKeyToggle');
       if (!b) return;
@@ -1632,6 +1794,10 @@
     }
     chip(document.getElementById('ctxLo'), 'LO', lm ? lm.short : '—');
     chip(document.getElementById('ctxBb'), 'BB', bm ? bm.short : '—');
+    var am = M.ANT_META[Math.round(state.antOption)];
+    var asel2 = res.ant && res.ant[res.g.antOptionId];
+    chip(document.getElementById('ctxAnt'), 'ANT',
+      (am ? am.short : '—') + (asel2 && asel2.radPerCh > 1 ? ' ×' + asel2.radPerCh : ''));
 
     /* A tie is shown as "X ≈ Y", not as a single winner: the chip is the
        one place the verdict is visible from every view, so it must not
@@ -2950,6 +3116,8 @@
   var EXPORTS = {
     lo:     { id: 'loTable',    title: 'LO / reference distribution comparison', file: 'lo-distribution.csv' },
     bb:     { id: 'bbTable',    title: 'Baseband split / combine comparison',    file: 'bb-distribution.csv' },
+    /* the slug must contain no hyphen: parseSpec splits on the LAST one */
+    ant:    { id: 'antTable',   title: 'Antenna arrangement comparison',         file: 'antenna-arrangement.csv' },
     assume: { id: 'assumeTable', title: 'Parameter provenance',                  file: 'assumptions.csv' },
     bom:    { id: 'bomMount',   title: 'Hardware bill of materials',             file: 'bom.csv' },
     sys:      { id: 'sysMetricMount', title: 'Saved systems — results',          file: 'systems-results.csv' },
