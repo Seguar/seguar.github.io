@@ -2210,16 +2210,42 @@ footer.foot a { color: var(--ink-2); }
                       n = T*fMeas measurements averaged per update, giving a
                       genuine optimum update period.
      Fast noise    -> irreducible; integrate L(f) above the loop bandwidth. */
-  function driftResidualDeg(rateDegPerS, tUpdateS, measNoiseDeg1, fMeasHz) {
-    var nAvg = Math.max(1, tUpdateS * (fMeasHz || 1));
-    var meas = measNoiseDeg1 / Math.sqrt(nAvg);
-    var drift = rateDegPerS * tUpdateS / Math.sqrt(3);
-    return Math.sqrt(drift * drift + meas * meas);
+  /* Drift left by a first-order corrector of gain mu updating every T.
+     Two things this used to get wrong.
+
+     (1) It had no mu. The drift term was rate*T/sqrt(3), which is the RMS of
+     a sawtooth reset to ZERO at every update — the deadbeat mu = 1 case —
+     while the rest of the calibration model runs at mu = 0.3. A real loop
+     e[k+1] = (1-mu)(e[k] + rate*T) settles to a standing lag of
+     (1-mu)*rate*T/mu just after an update, ramping to rate*T/mu just before
+     the next, so the interval RMS is rate*T*sqrt(a^2 + a + 1/3) with
+     a = (1-mu)/mu. At mu = 0.3 that is 2.848*rate*T, 4.93x the old value; at
+     mu = 1 it collapses to 1/sqrt(3) and the documented case is unchanged.
+     Without it, mu appeared in the residual only through terms mu makes
+     worse, so the model's optimum was always the smallest allowed mu.
+
+     (2) It also carried the BIST measurement noise, sigma/sqrt(nAvg), which
+     the caller ALREADY adds as injDeg with the correct closed-loop transfer
+     sigma*sqrt(mu/(2-mu)/nAvg) — and with the xM referral this copy never
+     got. The same noise was RSS'd into one number twice, and at defaults it
+     was 80% of what the row labelled "drift residual" reported (0.0335 deg
+     of measurement noise against 0.0167 deg of actual drift). It belongs to
+     injDeg alone; this kernel now returns drift only. */
+  function driftResidualDeg(rateDegPerS, tUpdateS, mu) {
+    var m = (mu > 0 && mu <= 1) ? mu : 1;
+    var a = (1 - m) / m;
+    return rateDegPerS * tUpdateS * Math.sqrt(a * a + a + 1 / 3);
   }
-  /* T that minimises the above:  T^3 = 3*sigma1^2 / (2*rate^2*fMeas) */
-  function optimalUpdatePeriodS(rateDegPerS, measNoiseDeg1, fMeasHz) {
+  /* T that minimises drift-plus-noise for a loop of gain mu:
+       T^3 = sigma1^2 / (2*c(mu)*rate^2*fMeas),  c(mu) = a^2 + a + 1/3
+     which is the old 3*sigma^2/(2*rate^2*fMeas) at mu = 1. */
+  function optimalUpdatePeriodS(rateDegPerS, measNoiseDeg1, fMeasHz, mu) {
     if (!(rateDegPerS > 0)) return Infinity;
-    return Math.cbrt(3 * measNoiseDeg1 * measNoiseDeg1 / (2 * rateDegPerS * rateDegPerS * Math.max(fMeasHz, 1e-9)));
+    var m = (mu > 0 && mu <= 1) ? mu : 1;
+    var a = (1 - m) / m;
+    var c = a * a + a + 1 / 3;
+    return Math.cbrt(measNoiseDeg1 * measNoiseDeg1 /
+      (2 * c * rateDegPerS * rateDegPerS * Math.max(fMeasHz, 1e-9)));
   }
   /* b-bit phase shifter over 360 deg: uniform LSB -> LSB/sqrt(12) */
   function quantResidualDeg(bits) { return (360 / Math.pow(2, bits)) / Math.sqrt(12); }
@@ -4582,7 +4608,7 @@ footer.foot a { color: var(--ink-2); }
     var driftTotalDeg = driftDegPerK * g.dTTileK;
     /* assume the differential thermal excursion plays out over ~10 min */
     var driftRateDegPerS = driftTotalDeg / 600;
-    var driftResidDeg = K.driftResidualDeg(driftRateDegPerS, tUpd, g.bistNoiseDeg, g.bistMeasRateHz);
+    var driftResidDeg = K.driftResidualDeg(driftRateDegPerS, tUpd, g.calLoopGain);
     var quantDeg = K.quantResidualDeg(g.phaseBits);
 
     /* A5: the line corrects ITSELF. A round-trip servo running at
@@ -4629,14 +4655,35 @@ footer.foot a { color: var(--ink-2); }
        unknown static Dk term. Residual = what survives calibration.        */
     /* Raw = open loop, including every static offset. Residual = what a
        working calibration leaves: differential phase noise above the
-       calibration corner, the estimator's own injected noise, the drift it
-       could not follow between updates, and phase-shifter quantisation.
-       No static term appears in the residual — that is what calibration IS. */
-    var interTileRawDeg = K.rss(phiDiffRawRad * K.DEG, correctionRangeDeg, driftTotalDeg, lockOffsetDeg);
-    var interTileResidualDeg = K.rss(phiDiffCalRad * K.DEG, injDeg, driftResidDeg, quantDeg);
+       calibration corner, the estimator's own injected noise, and the drift
+       it could not follow between updates. No static term appears in the
+       residual — that is what calibration IS.
 
-    /* ---------------- M5: loss ---------------- */
-    var lineLossDb = lo.pathMeanCm * alpha;
+       Phase-shifter quantisation is NOT in this list, and that is the fix,
+       not an omission. A phase shifter sits at the element; its LSB residual
+       has no tile-common part, and js/beam.js already puts
+       quantResidualDeg(phaseBits) into sigElem where it averages over 392
+       elements rather than 49 tiles. Carrying it here too counted the same
+       0.812 deg twice and at the wrong level — and because it depends only
+       on phaseBits it was IDENTICAL for all six options, so it drowned the
+       thing this metric exists to measure: A2/A3/A4 sat at 0.835/0.859/0.821
+       deg, within 4.6% of each other, where the distribution architectures
+       actually differ by 0.197/0.279/0.123. It is still reported on its own
+       row, and still reaches the beam through sigElem. */
+    var interTileRawDeg = K.rss(phiDiffRawRad * K.DEG, correctionRangeDeg, driftTotalDeg, lockOffsetDeg);
+    var interTileResidualDeg = K.rss(phiDiffCalRad * K.DEG, injDeg, driftResidDeg);
+
+    /* ---------------- M5: loss ----------------
+       A link budget and the gain that compensates it are set by the WORST
+       path, not the average one — the tile at the end of the longest run is
+       the one that has to close. The split and transition counts here were
+       already worst-case (net.maxLevel, nTrans), so pairing them with a MEAN
+       line length was mixing conventions inside one sum: on the daisy chain
+       the mean path is 43.6 cm against a worst of 76.2, and the reported
+       25.7 dB of line loss was 19.2 dB short of the 44.9 dB the last tile in
+       the chain actually sees. Both are kept and both are reported. */
+    var lineLossDb = lo.pathMaxCm * alpha;
+    var lineLossMeanDb = lo.pathMeanCm * alpha;
     var splitLossDb = 0;
     if (lo.kind === 'tree') {
       /* A low-frequency reference tree is fanned out with ACTIVE CML/LVDS
@@ -4651,8 +4698,26 @@ footer.foot a { color: var(--ink-2); }
     }
     var transLossDb = nTrans * trL.transLossDb;
     var lossTotalDb = lineLossDb + splitLossDb + transLossDb;
+    var lossMeanDb = lineLossMeanDb + splitLossDb + transLossDb;
     var lossPerCmDb = alpha;
+    /* requiredGainDb is lossTotalDb — the same number, because the gain the
+       network must CONTAIN is exactly the loss it has. That identity is fine;
+       what was not fine is presenting it as a second ranked row, where it
+       read as an independent metric and was scored as one. The table now
+       carries it as a caption on Total loss instead, and reports where that
+       gain already sits: gainInPlaceDb is what the repeaters and per-hop
+       buffers the topology has already drawn supply, so the reader can see
+       that A2's 64.3 dB is not 64.3 dB of missing amplifier.
+
+       Note the chain: daisy() resets its loss budget at every tile because
+       each tap is buffered, so its lossTotalDb is a CUMULATIVE figure no
+       single span ever sees. maxSpanLossDb is the honest per-span number and
+       is bounded by maxSegLossDb by construction. */
     var requiredGainDb = lossTotalDb;
+    var gainInPlaceDb = lo.kind === 'chain'
+      ? (lo.maxHop || 0) * 1.2 + (lo.maxRepeatersInPath || 0) * g.maxSegLossDb
+      : (lo.maxRepeatersInPath || 0) * g.maxSegLossDb;
+    var maxSpanLossDb = Math.min(lossTotalDb, g.maxSegLossDb);
 
     /* ---------------- M6: power ---------------- */
     var powerTotalMw = 0, areaPerTileMm2 = 0;
@@ -4695,14 +4760,43 @@ footer.foot a { color: var(--ink-2); }
        the aggregate metrics were corrected for. Instead: the offset expressed
        as the number of wraps calibration must resolve, and separately the
        thermal drift, which is the part that actually survives. */
+    /* Every per-tile value here has to be built from the SAME terms as the
+       aggregate it sits next to, or the map and the table describe different
+       builds. Three ways that went wrong and are fixed:
+
+         - the split term ignored trL.activeFanout, so A1 — whose aggregate
+           loss is 0.97 dB because a buffered reference tree pays no passive
+           split loss — was drawn at 17.0 to 20.3 dB per tile;
+         - the transition loss in the aggregate was missing here entirely;
+         - the repeater power was added on top of powerPerTileMw, which is
+           powerTotalMw/nT and already contains every repeater in the BOM.
+           The tiles summed to 21.6 W against a 16.7 W total on A4, and to
+           31.3 W against 16.2 W on A2.
+
+       Repeater power still has to VARY across tiles or the fill is flat, so
+       it is redistributed: each tile carries the array's repeater power in
+       proportion to the repeaters in its own path, and the total is
+       preserved by construction. */
+    var ampMw = (BLOCKS[trL.ampBlockKey] || BLOCKS.loAmpMid).powerMw;
+    var repsTotal = grid.tiles.reduce(function (a, t) { return a + (t.repeaters || 0); }, 0);
+    var repPoolMw = Math.min(lo.repeaters * ampMw, powerTotalMw);
+    var basePerTileMw = (powerTotalMw - repPoolMw) / nT;
     grid.tiles.forEach(function (t) {
       var dev = (t.pathCm - lo.pathMeanCm) * psPerCm;
+      var splitDb = lo.kind === 'tree'
+        ? (trL.activeFanout ? 0 : t.level * (3.01 + trL.splitExcessDb))
+        : t.hop * 1.2;
+      /* transitions in THIS tile's path: source and tile for a tree, one per
+         hop along a chain — the same convention nTrans uses for the total */
+      var transDb = (lo.kind === 'chain' ? Math.max(1, t.hop) : 2) * trL.transLossDb;
       t.m = {
-        lossDb: t.pathCm * alpha + (lo.kind === 'tree' ? t.level * (3.01 + trL.splitExcessDb) : t.hop * 1.2),
+        lossDb: t.pathCm * alpha + splitDb + transDb,
         skewPs: dev,
         wraps: Math.abs(dev) * degPs / 360,
         driftDeg: t.pathCm * psPerCm * g.tcPpmPerK * 1e-6 * g.dTTileK * degPs,
-        powerMw: powerPerTileMw + (t.repeaters * ((BLOCKS[trL.ampBlockKey] || BLOCKS.loAmpMid).powerMw))
+        powerMw: basePerTileMw + (repsTotal > 0
+          ? repPoolMw * (t.repeaters || 0) / repsTotal
+          : repPoolMw / nT)
       };
     });
 
@@ -4729,8 +4823,10 @@ footer.foot a { color: var(--ink-2); }
       staticUnknownPs: staticUnknownPs, skewDriftPs: skewDriftPs,
       correctionRangeDeg: correctionRangeDeg,
       correctionWraps: correctionRangeDeg / 360,
-      lossTotalDb: lossTotalDb, lossPerCmDb: lossPerCmDb, requiredGainDb: requiredGainDb,
-      lineLossDb: lineLossDb, splitLossDb: splitLossDb,
+      lossTotalDb: lossTotalDb, lossMeanDb: lossMeanDb,
+      lossPerCmDb: lossPerCmDb, requiredGainDb: requiredGainDb,
+      gainInPlaceDb: gainInPlaceDb, maxSpanLossDb: maxSpanLossDb,
+      lineLossDb: lineLossDb, lineLossMeanDb: lineLossMeanDb, splitLossDb: splitLossDb,
       powerTotalMw: powerTotalMw, powerPerTileMw: powerPerTileMw, powerFracOfArray: powerFracOfArray * 100,
       areaPerTileMm2: areaPerTileMm2,
       calBurdenScore: calBurdenScore, calBurdenDetail: calBurdenDetail,
@@ -7702,6 +7798,46 @@ footer.foot a { color: var(--ink-2); }
     '- **Frequency-division-multiplexed IF over one coax, delta-sigma bitstream distribution, transformer ' +
     'combining, TDM calibration receivers.** Each solves a narrower problem than the one this comparison is about.',
 
+    '### What the September skew / offset / drift / loss audit changed, and what it left open',
+    'Six defects were found by auditing those four quantities against the source and fixed. Each moved a number ' +
+    'a reader would have quoted, so they are recorded here rather than only in the commit log.',
+    '- **The phase-shifter LSB was counted twice.** It sat in the tile-level inter-tile residual *and* in the ' +
+    'per-element beam term. A phase shifter is per element, so the tile-level copy was both a duplicate and ' +
+    'averaged over 49 tiles instead of 392. Being a function of `phaseBits` alone it was identical for every ' +
+    'option and drowned what the metric exists to measure: A2/A3/A4 read 0.835/0.859/0.821° where they now read ' +
+    '0.210/0.288/0.143°, and A4\'s null floor moved from −53.8 dB to −68.9 dB.',
+    '- **The drift kernel had no loop gain.** `rate·T/√3` is the deadbeat µ = 1 case while the rest of the ' +
+    'calibration model runs at µ = 0.3. The residual therefore fell monotonically as µ fell and the model\'s ' +
+    'optimum was always the smallest allowed gain. With the standing lag included the drift term is 4.93× larger ' +
+    'at the default and there is a real minimum near µ = 0.5.',
+    '- **The BIST measurement noise was inside the drift residual and added again as the injected-noise term,** ' +
+    'with an ×M referral only the second copy received. What the "drift residual" row reported was 80% ' +
+    'measurement noise.',
+    '- **The per-tile map values disagreed with the aggregates beside them:** the split term ignored the ' +
+    'active-fanout exemption, so A1 was drawn at 17–20 dB against a 0.97 dB headline; transition loss was ' +
+    'missing; and repeater power was added on top of a per-tile figure that already contained it, so the tiles ' +
+    'summed to 21.6 W against a 16.7 W total.',
+    '- **Loss mixed a worst-case split count with a mean line length.** It is now the worst path, with the mean ' +
+    'reported alongside. "Compensating gain required" was the same variable as Total loss under another name and ' +
+    'is replaced by the gain the drawn topology already supplies.',
+    '- **Every bar of the null-depth chart was one pixel wide,** because a dB quantity needs `zeroBase:false` and ' +
+    'only the Systems charts passed it.',
+    'Open, and deliberately not changed without a measurement or a decision:',
+    '- **Is the Dk tolerance common-mode?** It is applied to the mean path, which treats the whole tolerance as ' +
+    'differential — 14.44 ps, 99.8% of the static term and therefore of the correction range. Traces on one ' +
+    'laminate see correlated Dk; if the differential is the tolerance acting on the path *spread* it is 0.352 ps, ' +
+    '41× smaller. The conservative choice is kept until someone measures a panel.',
+    '- **A5\'s coupler bias is not referred through the tile ×M, and the round-trip factor of two is not applied ' +
+    'either.** The two corrections push opposite ways and roughly halve against each other; getting it right ' +
+    'needs a decision about where the phase detector actually sits.',
+    '- **The baseband inter-tile resistive star is charged no combine loss** — only line loss. Net of array gain ' +
+    'that is 10log10(49) = 16.9 dB for B1, larger than everything B1 does report.',
+    '- **B2 saturates and says so in numbers rather than words:** 997.72° of "phase error" and a beam steer that ' +
+    'is exactly 90.0000° because the arcsine clipped.',
+    '- **The inter-tile geometric term is added to both the random and the systematic baseband totals,** and the ' +
+    'uncompensated part compares an RMS spread against a peak-to-peak range, so the flat star is declared inside ' +
+    'the TTD range when its arms span 2278 ps against 809 ps of range.',
+
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
     'carrier phase noise; a number there would be fabricated.',
@@ -8009,8 +8145,19 @@ footer.foot a { color: var(--ink-2); }
     });
     rows.push({ name: '· phase-shifter quantisation', field: 'quantDeg', units: '°', better: 'low' });
     rows.push({ section: 'M4 · inter-tile skew — static (calibratable) vs drifting (not)' });
-    rows.push({ name: 'Total RMS skew', field: 'skewRmsPs', units: 'ps', better: 'low' });
-    rows.push({ name: 'Peak skew', field: 'skewPeakPs', units: 'ps', better: 'low' });
+    /* rank:false, for the reason the Systems view already gives: this number
+       is 96.6% geometric path imbalance, which the block below labels "known
+       by construction — equalise it in layout". Crowning the option with the
+       least of it crowns a layout property, not an architecture. It is also
+       within 0.005 ps of the Systematic row underneath, because that row is
+       the same quantity: skewRmsPs = rss(skewStatic, skewDrift) and the
+       drift part is 0.6 ps against 56. The rows that decide anything are the
+       drift row and the residual. */
+    rows.push({
+      name: 'Total RMS skew', sub: 'almost all of it static and calibratable — see the drift row',
+      field: 'skewRmsPs', units: 'ps', better: 'low', rank: false
+    });
+    rows.push({ name: 'Peak skew', field: 'skewPeakPs', units: 'ps', better: 'low', rank: false });
     rows.push({
       name: 'Geometric path imbalance', sub: 'known by construction — equalise it in layout',
       field: 'pathImbalancePs', units: 'ps', better: 'low',
@@ -8036,11 +8183,22 @@ footer.foot a { color: var(--ink-2); }
     rows.push({ name: 'Delay per cm in this medium', field: 'psPerCm', units: 'ps/cm', dec: 1 });
     rows.push({ name: 'Thermal sensitivity', field: 'driftDegPerK', units: '°/K', better: 'low' });
     rows.push({ section: 'M5 · distribution loss' });
-    rows.push({ name: 'Total loss', field: 'lossTotalDb', units: 'dB', better: 'low', dec: 1 });
+    rows.push({
+      name: 'Total loss', sub: 'worst path — this is also the gain the network must contain',
+      field: 'lossTotalDb', units: 'dB', better: 'low', dec: 1
+    });
+    rows.push({ name: '· on the mean path', field: 'lossMeanDb', units: 'dB', better: 'low', dec: 1, rank: false });
     rows.push({ name: '· line loss', field: 'lineLossDb', units: 'dB', better: 'low', dec: 1 });
     rows.push({ name: '· split / tap loss', field: 'splitLossDb', units: 'dB', better: 'low', dec: 1 });
     rows.push({ name: 'Loss per cm', sub: 'at the distributed frequency', field: 'lossPerCmDb', units: 'dB/cm', better: 'low' });
-    rows.push({ name: 'Compensating gain required', field: 'requiredGainDb', units: 'dB', better: 'low', dec: 1 });
+    /* "Compensating gain required" used to be a second ranked row holding
+       lossTotalDb — literally the same variable, scored as if independent.
+       What is actually worth knowing is how much of that gain the drawn
+       topology already supplies. */
+    rows.push({
+      name: 'Gain already in the topology', sub: 'repeaters and per-hop buffers the map draws',
+      field: 'gainInPlaceDb', units: 'dB', better: 'high', dec: 1, rank: false
+    });
     rows.push({ section: 'M6 · power' });
     rows.push({ name: 'Total distribution power', field: 'powerTotalMw', units: 'W', better: 'low', fmt: function (v) { return n(v / 1000, 2); } });
     rows.push({ name: 'Per tile', field: 'powerPerTileMw', units: 'mW', better: 'low', dec: 0 });
@@ -8357,10 +8515,24 @@ footer.foot a { color: var(--ink-2); }
         { k: 'Inter-tile residual', n: n(sel.interTileResidualDeg), unit: '°', binding: !pass,
           d: (pass ? 'within' : 'OVER') + ' the ' + n(budget.sigSpecDeg) + '° spec. Irreducible part: ' + n(sel.pnDiffCalDeg) + '°.' },
         { k: 'Null-depth floor', n: n(sel.sllDb, 1), unit: 'dB', d: 'from 10log10(σ²/N) at ' + budget.nTiles + ' tiles' },
-        { k: 'Distribution loss', n: n(sel.lossTotalDb, 1), unit: 'dB', d: n(sel.lossPerCmDb, 3) + ' dB/cm × ' + n(sel.pathMeanCm, 1) + ' cm plus splits and transitions' },
+        { k: 'Distribution loss', n: n(sel.lossTotalDb, 1), unit: 'dB', d: n(sel.lossPerCmDb, 3) + ' dB/cm × ' + n(sel.pathMaxCm, 1) + ' cm worst path, plus splits and transitions · ' + n(sel.gainInPlaceDb, 0) + ' dB of gain already drawn' },
         { k: 'Distribution power', n: n(sel.powerTotalMw / 1000, 2), unit: 'W', d: n(sel.powerFracOfArray, 1) + '% of the ' + n(state.arrayPowerW, 0) + ' W array budget' },
         { k: 'Repeater amps', n: n(sel.repeaters, 0), unit: '', d: sel.splitCount + ' splitters, ' + n(sel.totalRoutedCm, 0) + ' cm routed' },
-        { k: 'RMS skew', n: n(sel.skewRmsPs), unit: 'ps', d: n(sel.skewDeg78) + '° at the LO · spec is ' + n(budget.skewSpecPs) + ' ps' },
+        /* This cell used to read "56.0 ps / 17.3° at the LO · spec is 0.178
+           ps", which is three different quantities read as one. 56.0 ps is
+           skewRmsPs, 96.6% of it the geometric imbalance the model says is
+           designed out, not an error; 17.3° is skewDeg78, the DRIFT part
+           alone (56.0 ps at 78 GHz would be 1573°); and the 0.178 ps spec is
+           the residual phase spec divided by 28.08°/ps, a threshold this
+           uncalibrated number was never meant to be judged against. Show the
+           surviving part against the spec that applies to it, and say what
+           the static part is for. */
+        {
+          k: 'Drift skew', n: n(sel.skewDriftPs), unit: 'ps',
+          d: n(sel.skewDeg78) + '° at the LO, tracked by BIST to ' + n(sel.driftResidDeg, 3) +
+             '° · ' + n(sel.skewSystematicPs) + ' ps more is static, calibrated once (' +
+             n(sel.correctionWraps, 1) + ' wraps of range)'
+        },
         {
           k: 'Array-output EVM', n: n(sel.evmDb, 1), unit: 'dB',
           binding: sel.evmDb > budget.evmLimitDb,
@@ -8422,7 +8594,15 @@ footer.foot a { color: var(--ink-2); }
     var cc = document.getElementById('compareCharts');
     cc.textContent = '';
     var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    /* zeroBase must be false for any decibel quantity. A dB value is a
+       difference from an arbitrary reference, so barChart's default origin
+       of Math.min(0, value) puts the bar's start AND end at the same place
+       when every value is negative: the null-depth panel — the one this tool
+       calls "the decisive metric" — was drawing all six bars exactly 1 pixel
+       wide. The Systems charts already pass zeroBase:false; this one never
+       did. */
     function barPanel(title, field, unit, spec, transform, logX) {
+      var isDb = /dB/.test(unit || '');
       var sec = document.createElement('section');
       sec.className = 'panel';
       var h = document.createElement('h2');
@@ -8436,7 +8616,8 @@ footer.foot a { color: var(--ink-2); }
           if (transform) v = transform(v);
           return { name: m.short, value: v, color: colors[i], label: n(v) + (unit ? ' ' + unit : '') };
         }),
-        xLabel: unit, hLine: spec, hLabel: 'spec', logX: logX
+        xLabel: unit, hLine: spec, hLabel: 'spec', logX: logX,
+        zeroBase: isDb ? false : undefined
       }));
       sec.appendChild(box);
       cc.appendChild(sec);
@@ -9009,20 +9190,28 @@ footer.foot a { color: var(--ink-2); }
 
     /* 5 — length tolerance */
     var tols = [2, 5, 10, 25, 50, 100];
-    panel('Skew vs mechanical length tolerance',
+    panel('Correction range vs mechanical length tolerance',
       'At ' + n(state.fLoGHz, 0) + ' GHz one degree is <span class="kv">' +
-      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length in this medium. This is ' +
-      'the same curve for every distribution frequency, because an ideal multiplier preserves time delay — the ' +
-      'reason mid-frequency distribution buys no skew relief.',
+      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length in this medium. Etch ' +
+      'tolerance is <em>static</em>: it does not survive calibration, so it never reaches the residual — what it ' +
+      'sets is how much range the corrector needs and how many whole wraps the BIST must resolve. The curve is ' +
+      'the same for every distribution frequency, because an ideal multiplier preserves time delay — the reason ' +
+      'mid-frequency distribution buys no skew relief. Note how little it moves: at these defaults the correction ' +
+      'range is dominated by the Dk tolerance over the path, not by etch.',
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
             name: m.short, color: colors[i], markers: true,
-            points: tols.map(function (t) { return { x: t, y: sweepEval(m.id, { lenTolUm: t }).skewDeg78 }; })
+            /* This plotted skewDeg78, which is skewDriftPs x degPs and has
+               NO dependence on lenTolUm at all — six exactly flat lines
+               under a panel titled "vs mechanical length tolerance". The
+               tolerance enters through etchPs into the static term, so what
+               it actually moves is the correction range the calibration has
+               to cover. */
+            points: tols.map(function (t) { return { x: t, y: sweepEval(m.id, { lenTolUm: t }).correctionWraps }; })
           };
         }),
-        xLabel: 'per-segment length tolerance (µm, 1σ)', yLabel: 'skew at LO (° RMS)', height: 260,
-        hLine: budget.sigSpecDeg, hLabel: 'spec'
+        xLabel: 'per-segment length tolerance (µm, 1σ)', yLabel: 'correction range (wraps at the LO)', height: 260
       }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
 
     /* 6 — aperture */

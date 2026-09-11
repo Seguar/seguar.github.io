@@ -976,7 +976,7 @@
     var driftTotalDeg = driftDegPerK * g.dTTileK;
     /* assume the differential thermal excursion plays out over ~10 min */
     var driftRateDegPerS = driftTotalDeg / 600;
-    var driftResidDeg = K.driftResidualDeg(driftRateDegPerS, tUpd, g.bistNoiseDeg, g.bistMeasRateHz);
+    var driftResidDeg = K.driftResidualDeg(driftRateDegPerS, tUpd, g.calLoopGain);
     var quantDeg = K.quantResidualDeg(g.phaseBits);
 
     /* A5: the line corrects ITSELF. A round-trip servo running at
@@ -1023,14 +1023,35 @@
        unknown static Dk term. Residual = what survives calibration.        */
     /* Raw = open loop, including every static offset. Residual = what a
        working calibration leaves: differential phase noise above the
-       calibration corner, the estimator's own injected noise, the drift it
-       could not follow between updates, and phase-shifter quantisation.
-       No static term appears in the residual — that is what calibration IS. */
-    var interTileRawDeg = K.rss(phiDiffRawRad * K.DEG, correctionRangeDeg, driftTotalDeg, lockOffsetDeg);
-    var interTileResidualDeg = K.rss(phiDiffCalRad * K.DEG, injDeg, driftResidDeg, quantDeg);
+       calibration corner, the estimator's own injected noise, and the drift
+       it could not follow between updates. No static term appears in the
+       residual — that is what calibration IS.
 
-    /* ---------------- M5: loss ---------------- */
-    var lineLossDb = lo.pathMeanCm * alpha;
+       Phase-shifter quantisation is NOT in this list, and that is the fix,
+       not an omission. A phase shifter sits at the element; its LSB residual
+       has no tile-common part, and js/beam.js already puts
+       quantResidualDeg(phaseBits) into sigElem where it averages over 392
+       elements rather than 49 tiles. Carrying it here too counted the same
+       0.812 deg twice and at the wrong level — and because it depends only
+       on phaseBits it was IDENTICAL for all six options, so it drowned the
+       thing this metric exists to measure: A2/A3/A4 sat at 0.835/0.859/0.821
+       deg, within 4.6% of each other, where the distribution architectures
+       actually differ by 0.197/0.279/0.123. It is still reported on its own
+       row, and still reaches the beam through sigElem. */
+    var interTileRawDeg = K.rss(phiDiffRawRad * K.DEG, correctionRangeDeg, driftTotalDeg, lockOffsetDeg);
+    var interTileResidualDeg = K.rss(phiDiffCalRad * K.DEG, injDeg, driftResidDeg);
+
+    /* ---------------- M5: loss ----------------
+       A link budget and the gain that compensates it are set by the WORST
+       path, not the average one — the tile at the end of the longest run is
+       the one that has to close. The split and transition counts here were
+       already worst-case (net.maxLevel, nTrans), so pairing them with a MEAN
+       line length was mixing conventions inside one sum: on the daisy chain
+       the mean path is 43.6 cm against a worst of 76.2, and the reported
+       25.7 dB of line loss was 19.2 dB short of the 44.9 dB the last tile in
+       the chain actually sees. Both are kept and both are reported. */
+    var lineLossDb = lo.pathMaxCm * alpha;
+    var lineLossMeanDb = lo.pathMeanCm * alpha;
     var splitLossDb = 0;
     if (lo.kind === 'tree') {
       /* A low-frequency reference tree is fanned out with ACTIVE CML/LVDS
@@ -1045,8 +1066,26 @@
     }
     var transLossDb = nTrans * trL.transLossDb;
     var lossTotalDb = lineLossDb + splitLossDb + transLossDb;
+    var lossMeanDb = lineLossMeanDb + splitLossDb + transLossDb;
     var lossPerCmDb = alpha;
+    /* requiredGainDb is lossTotalDb — the same number, because the gain the
+       network must CONTAIN is exactly the loss it has. That identity is fine;
+       what was not fine is presenting it as a second ranked row, where it
+       read as an independent metric and was scored as one. The table now
+       carries it as a caption on Total loss instead, and reports where that
+       gain already sits: gainInPlaceDb is what the repeaters and per-hop
+       buffers the topology has already drawn supply, so the reader can see
+       that A2's 64.3 dB is not 64.3 dB of missing amplifier.
+
+       Note the chain: daisy() resets its loss budget at every tile because
+       each tap is buffered, so its lossTotalDb is a CUMULATIVE figure no
+       single span ever sees. maxSpanLossDb is the honest per-span number and
+       is bounded by maxSegLossDb by construction. */
     var requiredGainDb = lossTotalDb;
+    var gainInPlaceDb = lo.kind === 'chain'
+      ? (lo.maxHop || 0) * 1.2 + (lo.maxRepeatersInPath || 0) * g.maxSegLossDb
+      : (lo.maxRepeatersInPath || 0) * g.maxSegLossDb;
+    var maxSpanLossDb = Math.min(lossTotalDb, g.maxSegLossDb);
 
     /* ---------------- M6: power ---------------- */
     var powerTotalMw = 0, areaPerTileMm2 = 0;
@@ -1089,14 +1128,43 @@
        the aggregate metrics were corrected for. Instead: the offset expressed
        as the number of wraps calibration must resolve, and separately the
        thermal drift, which is the part that actually survives. */
+    /* Every per-tile value here has to be built from the SAME terms as the
+       aggregate it sits next to, or the map and the table describe different
+       builds. Three ways that went wrong and are fixed:
+
+         - the split term ignored trL.activeFanout, so A1 — whose aggregate
+           loss is 0.97 dB because a buffered reference tree pays no passive
+           split loss — was drawn at 17.0 to 20.3 dB per tile;
+         - the transition loss in the aggregate was missing here entirely;
+         - the repeater power was added on top of powerPerTileMw, which is
+           powerTotalMw/nT and already contains every repeater in the BOM.
+           The tiles summed to 21.6 W against a 16.7 W total on A4, and to
+           31.3 W against 16.2 W on A2.
+
+       Repeater power still has to VARY across tiles or the fill is flat, so
+       it is redistributed: each tile carries the array's repeater power in
+       proportion to the repeaters in its own path, and the total is
+       preserved by construction. */
+    var ampMw = (BLOCKS[trL.ampBlockKey] || BLOCKS.loAmpMid).powerMw;
+    var repsTotal = grid.tiles.reduce(function (a, t) { return a + (t.repeaters || 0); }, 0);
+    var repPoolMw = Math.min(lo.repeaters * ampMw, powerTotalMw);
+    var basePerTileMw = (powerTotalMw - repPoolMw) / nT;
     grid.tiles.forEach(function (t) {
       var dev = (t.pathCm - lo.pathMeanCm) * psPerCm;
+      var splitDb = lo.kind === 'tree'
+        ? (trL.activeFanout ? 0 : t.level * (3.01 + trL.splitExcessDb))
+        : t.hop * 1.2;
+      /* transitions in THIS tile's path: source and tile for a tree, one per
+         hop along a chain — the same convention nTrans uses for the total */
+      var transDb = (lo.kind === 'chain' ? Math.max(1, t.hop) : 2) * trL.transLossDb;
       t.m = {
-        lossDb: t.pathCm * alpha + (lo.kind === 'tree' ? t.level * (3.01 + trL.splitExcessDb) : t.hop * 1.2),
+        lossDb: t.pathCm * alpha + splitDb + transDb,
         skewPs: dev,
         wraps: Math.abs(dev) * degPs / 360,
         driftDeg: t.pathCm * psPerCm * g.tcPpmPerK * 1e-6 * g.dTTileK * degPs,
-        powerMw: powerPerTileMw + (t.repeaters * ((BLOCKS[trL.ampBlockKey] || BLOCKS.loAmpMid).powerMw))
+        powerMw: basePerTileMw + (repsTotal > 0
+          ? repPoolMw * (t.repeaters || 0) / repsTotal
+          : repPoolMw / nT)
       };
     });
 
@@ -1123,8 +1191,10 @@
       staticUnknownPs: staticUnknownPs, skewDriftPs: skewDriftPs,
       correctionRangeDeg: correctionRangeDeg,
       correctionWraps: correctionRangeDeg / 360,
-      lossTotalDb: lossTotalDb, lossPerCmDb: lossPerCmDb, requiredGainDb: requiredGainDb,
-      lineLossDb: lineLossDb, splitLossDb: splitLossDb,
+      lossTotalDb: lossTotalDb, lossMeanDb: lossMeanDb,
+      lossPerCmDb: lossPerCmDb, requiredGainDb: requiredGainDb,
+      gainInPlaceDb: gainInPlaceDb, maxSpanLossDb: maxSpanLossDb,
+      lineLossDb: lineLossDb, lineLossMeanDb: lineLossMeanDb, splitLossDb: splitLossDb,
       powerTotalMw: powerTotalMw, powerPerTileMw: powerPerTileMw, powerFracOfArray: powerFracOfArray * 100,
       areaPerTileMm2: areaPerTileMm2,
       calBurdenScore: calBurdenScore, calBurdenDetail: calBurdenDetail,

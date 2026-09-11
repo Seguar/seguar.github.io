@@ -154,8 +154,19 @@
     });
     rows.push({ name: '· phase-shifter quantisation', field: 'quantDeg', units: '°', better: 'low' });
     rows.push({ section: 'M4 · inter-tile skew — static (calibratable) vs drifting (not)' });
-    rows.push({ name: 'Total RMS skew', field: 'skewRmsPs', units: 'ps', better: 'low' });
-    rows.push({ name: 'Peak skew', field: 'skewPeakPs', units: 'ps', better: 'low' });
+    /* rank:false, for the reason the Systems view already gives: this number
+       is 96.6% geometric path imbalance, which the block below labels "known
+       by construction — equalise it in layout". Crowning the option with the
+       least of it crowns a layout property, not an architecture. It is also
+       within 0.005 ps of the Systematic row underneath, because that row is
+       the same quantity: skewRmsPs = rss(skewStatic, skewDrift) and the
+       drift part is 0.6 ps against 56. The rows that decide anything are the
+       drift row and the residual. */
+    rows.push({
+      name: 'Total RMS skew', sub: 'almost all of it static and calibratable — see the drift row',
+      field: 'skewRmsPs', units: 'ps', better: 'low', rank: false
+    });
+    rows.push({ name: 'Peak skew', field: 'skewPeakPs', units: 'ps', better: 'low', rank: false });
     rows.push({
       name: 'Geometric path imbalance', sub: 'known by construction — equalise it in layout',
       field: 'pathImbalancePs', units: 'ps', better: 'low',
@@ -181,11 +192,22 @@
     rows.push({ name: 'Delay per cm in this medium', field: 'psPerCm', units: 'ps/cm', dec: 1 });
     rows.push({ name: 'Thermal sensitivity', field: 'driftDegPerK', units: '°/K', better: 'low' });
     rows.push({ section: 'M5 · distribution loss' });
-    rows.push({ name: 'Total loss', field: 'lossTotalDb', units: 'dB', better: 'low', dec: 1 });
+    rows.push({
+      name: 'Total loss', sub: 'worst path — this is also the gain the network must contain',
+      field: 'lossTotalDb', units: 'dB', better: 'low', dec: 1
+    });
+    rows.push({ name: '· on the mean path', field: 'lossMeanDb', units: 'dB', better: 'low', dec: 1, rank: false });
     rows.push({ name: '· line loss', field: 'lineLossDb', units: 'dB', better: 'low', dec: 1 });
     rows.push({ name: '· split / tap loss', field: 'splitLossDb', units: 'dB', better: 'low', dec: 1 });
     rows.push({ name: 'Loss per cm', sub: 'at the distributed frequency', field: 'lossPerCmDb', units: 'dB/cm', better: 'low' });
-    rows.push({ name: 'Compensating gain required', field: 'requiredGainDb', units: 'dB', better: 'low', dec: 1 });
+    /* "Compensating gain required" used to be a second ranked row holding
+       lossTotalDb — literally the same variable, scored as if independent.
+       What is actually worth knowing is how much of that gain the drawn
+       topology already supplies. */
+    rows.push({
+      name: 'Gain already in the topology', sub: 'repeaters and per-hop buffers the map draws',
+      field: 'gainInPlaceDb', units: 'dB', better: 'high', dec: 1, rank: false
+    });
     rows.push({ section: 'M6 · power' });
     rows.push({ name: 'Total distribution power', field: 'powerTotalMw', units: 'W', better: 'low', fmt: function (v) { return n(v / 1000, 2); } });
     rows.push({ name: 'Per tile', field: 'powerPerTileMw', units: 'mW', better: 'low', dec: 0 });
@@ -502,10 +524,24 @@
         { k: 'Inter-tile residual', n: n(sel.interTileResidualDeg), unit: '°', binding: !pass,
           d: (pass ? 'within' : 'OVER') + ' the ' + n(budget.sigSpecDeg) + '° spec. Irreducible part: ' + n(sel.pnDiffCalDeg) + '°.' },
         { k: 'Null-depth floor', n: n(sel.sllDb, 1), unit: 'dB', d: 'from 10log10(σ²/N) at ' + budget.nTiles + ' tiles' },
-        { k: 'Distribution loss', n: n(sel.lossTotalDb, 1), unit: 'dB', d: n(sel.lossPerCmDb, 3) + ' dB/cm × ' + n(sel.pathMeanCm, 1) + ' cm plus splits and transitions' },
+        { k: 'Distribution loss', n: n(sel.lossTotalDb, 1), unit: 'dB', d: n(sel.lossPerCmDb, 3) + ' dB/cm × ' + n(sel.pathMaxCm, 1) + ' cm worst path, plus splits and transitions · ' + n(sel.gainInPlaceDb, 0) + ' dB of gain already drawn' },
         { k: 'Distribution power', n: n(sel.powerTotalMw / 1000, 2), unit: 'W', d: n(sel.powerFracOfArray, 1) + '% of the ' + n(state.arrayPowerW, 0) + ' W array budget' },
         { k: 'Repeater amps', n: n(sel.repeaters, 0), unit: '', d: sel.splitCount + ' splitters, ' + n(sel.totalRoutedCm, 0) + ' cm routed' },
-        { k: 'RMS skew', n: n(sel.skewRmsPs), unit: 'ps', d: n(sel.skewDeg78) + '° at the LO · spec is ' + n(budget.skewSpecPs) + ' ps' },
+        /* This cell used to read "56.0 ps / 17.3° at the LO · spec is 0.178
+           ps", which is three different quantities read as one. 56.0 ps is
+           skewRmsPs, 96.6% of it the geometric imbalance the model says is
+           designed out, not an error; 17.3° is skewDeg78, the DRIFT part
+           alone (56.0 ps at 78 GHz would be 1573°); and the 0.178 ps spec is
+           the residual phase spec divided by 28.08°/ps, a threshold this
+           uncalibrated number was never meant to be judged against. Show the
+           surviving part against the spec that applies to it, and say what
+           the static part is for. */
+        {
+          k: 'Drift skew', n: n(sel.skewDriftPs), unit: 'ps',
+          d: n(sel.skewDeg78) + '° at the LO, tracked by BIST to ' + n(sel.driftResidDeg, 3) +
+             '° · ' + n(sel.skewSystematicPs) + ' ps more is static, calibrated once (' +
+             n(sel.correctionWraps, 1) + ' wraps of range)'
+        },
         {
           k: 'Array-output EVM', n: n(sel.evmDb, 1), unit: 'dB',
           binding: sel.evmDb > budget.evmLimitDb,
@@ -567,7 +603,15 @@
     var cc = document.getElementById('compareCharts');
     cc.textContent = '';
     var colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--accent)'];
+    /* zeroBase must be false for any decibel quantity. A dB value is a
+       difference from an arbitrary reference, so barChart's default origin
+       of Math.min(0, value) puts the bar's start AND end at the same place
+       when every value is negative: the null-depth panel — the one this tool
+       calls "the decisive metric" — was drawing all six bars exactly 1 pixel
+       wide. The Systems charts already pass zeroBase:false; this one never
+       did. */
     function barPanel(title, field, unit, spec, transform, logX) {
+      var isDb = /dB/.test(unit || '');
       var sec = document.createElement('section');
       sec.className = 'panel';
       var h = document.createElement('h2');
@@ -581,7 +625,8 @@
           if (transform) v = transform(v);
           return { name: m.short, value: v, color: colors[i], label: n(v) + (unit ? ' ' + unit : '') };
         }),
-        xLabel: unit, hLine: spec, hLabel: 'spec', logX: logX
+        xLabel: unit, hLine: spec, hLabel: 'spec', logX: logX,
+        zeroBase: isDb ? false : undefined
       }));
       sec.appendChild(box);
       cc.appendChild(sec);
@@ -1154,20 +1199,28 @@
 
     /* 5 — length tolerance */
     var tols = [2, 5, 10, 25, 50, 100];
-    panel('Skew vs mechanical length tolerance',
+    panel('Correction range vs mechanical length tolerance',
       'At ' + n(state.fLoGHz, 0) + ' GHz one degree is <span class="kv">' +
-      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length in this medium. This is ' +
-      'the same curve for every distribution frequency, because an ideal multiplier preserves time delay — the ' +
-      'reason mid-frequency distribution buys no skew relief.',
+      n(K.umPerDeg(state.fLoGHz * 1e9, res.g.epsEff), 1) + ' µm</span> of physical length in this medium. Etch ' +
+      'tolerance is <em>static</em>: it does not survive calibration, so it never reaches the residual — what it ' +
+      'sets is how much range the corrector needs and how many whole wraps the BIST must resolve. The curve is ' +
+      'the same for every distribution frequency, because an ideal multiplier preserves time delay — the reason ' +
+      'mid-frequency distribution buys no skew relief. Note how little it moves: at these defaults the correction ' +
+      'range is dominated by the Dk tolerance over the path, not by etch.',
       C.sweepChart({
         series: M.LO_META.map(function (m, i) {
           return {
             name: m.short, color: colors[i], markers: true,
-            points: tols.map(function (t) { return { x: t, y: sweepEval(m.id, { lenTolUm: t }).skewDeg78 }; })
+            /* This plotted skewDeg78, which is skewDriftPs x degPs and has
+               NO dependence on lenTolUm at all — six exactly flat lines
+               under a panel titled "vs mechanical length tolerance". The
+               tolerance enters through etchPs into the static term, so what
+               it actually moves is the correction range the calibration has
+               to cover. */
+            points: tols.map(function (t) { return { x: t, y: sweepEval(m.id, { lenTolUm: t }).correctionWraps }; })
           };
         }),
-        xLabel: 'per-segment length tolerance (µm, 1σ)', yLabel: 'skew at LO (° RMS)', height: 260,
-        hLine: budget.sigSpecDeg, hLabel: 'spec'
+        xLabel: 'per-segment length tolerance (µm, 1σ)', yLabel: 'correction range (wraps at the LO)', height: 260
       }), M.LO_META.map(function (m, i) { return { name: m.short, color: colors[i] }; }));
 
     /* 6 — aperture */

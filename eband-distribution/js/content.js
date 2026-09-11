@@ -314,6 +314,46 @@
     '- **Frequency-division-multiplexed IF over one coax, delta-sigma bitstream distribution, transformer ' +
     'combining, TDM calibration receivers.** Each solves a narrower problem than the one this comparison is about.',
 
+    '### What the September skew / offset / drift / loss audit changed, and what it left open',
+    'Six defects were found by auditing those four quantities against the source and fixed. Each moved a number ' +
+    'a reader would have quoted, so they are recorded here rather than only in the commit log.',
+    '- **The phase-shifter LSB was counted twice.** It sat in the tile-level inter-tile residual *and* in the ' +
+    'per-element beam term. A phase shifter is per element, so the tile-level copy was both a duplicate and ' +
+    'averaged over 49 tiles instead of 392. Being a function of `phaseBits` alone it was identical for every ' +
+    'option and drowned what the metric exists to measure: A2/A3/A4 read 0.835/0.859/0.821° where they now read ' +
+    '0.210/0.288/0.143°, and A4\'s null floor moved from −53.8 dB to −68.9 dB.',
+    '- **The drift kernel had no loop gain.** `rate·T/√3` is the deadbeat µ = 1 case while the rest of the ' +
+    'calibration model runs at µ = 0.3. The residual therefore fell monotonically as µ fell and the model\'s ' +
+    'optimum was always the smallest allowed gain. With the standing lag included the drift term is 4.93× larger ' +
+    'at the default and there is a real minimum near µ = 0.5.',
+    '- **The BIST measurement noise was inside the drift residual and added again as the injected-noise term,** ' +
+    'with an ×M referral only the second copy received. What the "drift residual" row reported was 80% ' +
+    'measurement noise.',
+    '- **The per-tile map values disagreed with the aggregates beside them:** the split term ignored the ' +
+    'active-fanout exemption, so A1 was drawn at 17–20 dB against a 0.97 dB headline; transition loss was ' +
+    'missing; and repeater power was added on top of a per-tile figure that already contained it, so the tiles ' +
+    'summed to 21.6 W against a 16.7 W total.',
+    '- **Loss mixed a worst-case split count with a mean line length.** It is now the worst path, with the mean ' +
+    'reported alongside. "Compensating gain required" was the same variable as Total loss under another name and ' +
+    'is replaced by the gain the drawn topology already supplies.',
+    '- **Every bar of the null-depth chart was one pixel wide,** because a dB quantity needs `zeroBase:false` and ' +
+    'only the Systems charts passed it.',
+    'Open, and deliberately not changed without a measurement or a decision:',
+    '- **Is the Dk tolerance common-mode?** It is applied to the mean path, which treats the whole tolerance as ' +
+    'differential — 14.44 ps, 99.8% of the static term and therefore of the correction range. Traces on one ' +
+    'laminate see correlated Dk; if the differential is the tolerance acting on the path *spread* it is 0.352 ps, ' +
+    '41× smaller. The conservative choice is kept until someone measures a panel.',
+    '- **A5\'s coupler bias is not referred through the tile ×M, and the round-trip factor of two is not applied ' +
+    'either.** The two corrections push opposite ways and roughly halve against each other; getting it right ' +
+    'needs a decision about where the phase detector actually sits.',
+    '- **The baseband inter-tile resistive star is charged no combine loss** — only line loss. Net of array gain ' +
+    'that is 10log10(49) = 16.9 dB for B1, larger than everything B1 does report.',
+    '- **B2 saturates and says so in numbers rather than words:** 997.72° of "phase error" and a beam steer that ' +
+    'is exactly 90.0000° because the arcsine clipped.',
+    '- **The inter-tile geometric term is added to both the random and the systematic baseband totals,** and the ' +
+    'uncompensated part compares an RMS spread against a peak-to-peak range, so the flat star is declared inside ' +
+    'the TTD range when its arms span 2278 ps against 809 ps of range.',
+
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
     'carrier phase noise; a number there would be fabricated.',

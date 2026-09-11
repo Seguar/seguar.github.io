@@ -38,22 +38,40 @@ Supporting geometry: 0.65° beamwidth broadside; 867 ps of true-time-delay
 **range** required at 60° scan (range binds, not resolution — a 75 ps step
 costs 0.007 dB); 173 ps of residual delay inside a 6 cm sub-tile.
 
-## 2. The four LO options, side by side
+## 2. The six LO options, side by side
 
-| Metric | A1 Local PLL | A2 HF foldback | A3 Daisy chain | **A4 Mid + ×4** |
-|:---|---:|---:|---:|---:|
-| Residual inter-tile φ (°) | 3.24 | 0.835 | 0.847 | **0.821** |
-| — irreducible phase-noise part (°) | 3.14 | 0.193 | 0.235 | 0.104 |
-| Null-depth floor (dB) | −38.9 | −50.7 | −50.6 | **−50.9** |
-| Distribution loss (dB) | **1.0** | **60.6** | 31.5 | 35.4 |
-| Repeater amplifiers | **0** | 51 | 9 | 32 |
-| Distribution power (W) | 10.85 | 10.12 | **9.89** | 9.96 |
-| Share of array budget (%) | 11.4 | 10.7 | 10.4 | 10.5 |
-| Frequency on the board (GHz) | 0.1 | 78 | 39 | 19.5 |
-| Array-output EVM (%) | **1.08** | 4.11 | 3.38 | 3.37 |
-| Highest supportable QAM | **64QAM** | QPSK | 16QAM | 16QAM |
-| Static offset to calibrate (wraps) | 8.0 | 6.4 | **47.9** | 6.4 |
-| Risk | medium | high | high | **low** |
+Regenerated from the model at its current defaults. The inter-tile spec is
+**5.00° RMS** (binding constraint: proposal Eq. 16); the null-depth target is
+−38.1 dB and the array-output EVM budget −32.4 dB against a 95 W array.
+
+| Metric | A1 Local PLL | A2 HF foldback | A3 Daisy chain | **A4 Mid + ×4** | A5 Stabilised link | A6 Injection lock |
+|:---|---:|---:|---:|---:|---:|---:|
+| Residual inter-tile φ (°) | 3.171 | 0.210 | 0.288 | **0.143** | 0.770 | 2.235 |
+| — irreducible phase-noise part (°) | 3.169 | 0.193 | 0.275 | 0.103 | 0.103 | **0.086** |
+| — drift left after BIST (°) | 0.102 | 0.082 | 0.083 | 0.082 | 0.761 | 2.232 |
+| Null-depth floor (dB) | −42.0 | −65.6 | −62.9 | **−68.9** | −54.3 | −45.1 |
+| Distribution loss, worst path (dB) | **1.0** | 64.3 | 59.4 | 38.7 | 38.7 | 38.7 |
+| — on the mean path (dB) | **1.0** | 62.5 | 40.2 | 37.9 | 37.9 | 37.9 |
+| Repeater amplifiers | **0** | 75 | 7 | 49 | 49 | 49 |
+| Distribution power (W) | 18.55 | 16.19 | 16.83 | 16.66 | 18.86 | **15.48** |
+| Share of array budget (%) | 19.5 | 17.0 | 17.7 | 17.5 | 19.9 | **16.3** |
+| Frequency on the board (GHz) | 0.1 | 78 | 39 | 19.5 | 19.5 | 19.5 |
+| Array-output EVM (%) | **0.98** | 4.11 | 3.38 | 3.37 | 3.37 | 3.36 |
+| Highest supportable QAM | **256QAM** | QPSK | 16QAM | 16QAM | 16QAM | 16QAM |
+| Static offset to calibrate (wraps) | 5.4 | **4.4** | 59.5 | **4.4** | **4.4** | **4.4** |
+| Risk | medium | high | high | **low** | medium | medium |
+
+Every option clears the 5.00° inter-tile spec except A1, which fails on
+per-tile oscillator phase noise, and A6, which fails on the temperature drift
+of its locked phase offset unless the tanks are trimmed. A4 wins the metric
+the decision turns on by 1.5× over its nearest competitor.
+
+> The residual column moved materially in the September audit: the
+> phase-shifter LSB had been counted at the tile level as well as the element
+> level, and being a per-element RFIC property it was identical for every
+> option, compressing A2/A3/A4 into a 4.6% band. With it removed from the
+> tile-level figure — it still reaches the beam through the element term —
+> the architectures separate. See the audit notes in the honesty ledger.
 
 All four **pass** the 5° coherence spec. The choice is therefore about margin,
 board cost and risk — not about one option failing outright.
