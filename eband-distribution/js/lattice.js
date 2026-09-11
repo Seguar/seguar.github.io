@@ -30,6 +30,12 @@
    1.41 cm. Same channel count, same die count, same tile: strictly better.
    The lobe COUNT is unchanged — that is fixed by element density alone.
 
+   That worked example is the OLD 4 cm / 8-element default, kept because it
+   is the case where the choice bites. At today's 6 cm / 16-element default
+   the enumeration returns a square 4 x 4 at a 1.5 cm pitch as both the
+   rectangular representative and the widest-separation sublattice, so the
+   parameter is real but inert: there is nothing to trade.
+
    Exposes window.Lat.
    ========================================================================= */
 (function () {

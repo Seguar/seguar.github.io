@@ -126,14 +126,14 @@
       conf: 'measured/datasheet', why: '≈2 GHz class per the RFIC front-end table.' },
     { key: 'apertureCm', label: 'Aperture width', units: 'cm', value: 30, min: 6, max: 60, step: 1, group: 'Array & band',
       conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal. This is D in the beamwidth 0.886·λ/D, and it is a hard system spec — the tile pitch is the design choice that has to fit inside it.' },
-    { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 4, min: 0.25, max: 15, step: 0.25, group: 'Array & band',
-      conf: 'published-literature', why: 'Centre-to-centre tile spacing; with abutting square tiles it equals the tile edge. "Pitch" rather than "side" or "size" because a spacing is what the grid is built from, and "size" for a 2-D module reads as an area. Sub-tiling to 5–10 cm keeps residual intra-tile delay under ~200 ps; 4 cm gives 116 ps with margin, at the cost of more tiles. Note 4 cm does not divide 30 cm — see the derived readout.' },
+    { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 6, min: 0.25, max: 15, step: 0.25, group: 'Array & band',
+      conf: 'published-literature', why: 'Centre-to-centre tile spacing; with abutting square tiles it equals the tile edge. "Pitch" rather than "side" or "size" because a spacing is what the grid is built from, and "size" for a 2-D module reads as an area. The default is the pitch that is OPTIMAL FOR THE 30 cm APERTURE, not a round number: 6 cm divides 30 exactly (5×5 = 25 tiles filling the whole aperture), sits inside the proposal\'s own 5–10 cm sub-tiling range (§4.5), and gives 173 ps of residual intra-tile delay at 60° against the ~200 ps target. The earlier 4 cm default is BELOW that range and does not divide 30 cm: it fits 7×7 = 49 tiles across 28 cm and throws away the outer 2 cm in each direction.' },
     { key: 'nDies', label: 'RFIC dies in the array', units: '-', value: 100, min: 4, max: 4000, step: 1, group: 'Array & band',
       conf: 'measured/datasheet', why: '≈100 existing 2.5 × 2.5 mm E-band dies. Tile pitch, taps per tile and this total are independent inputs that can disagree, so the tool checks them against each other rather than letting the mismatch pass silently.' },
-    { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 2, min: 1, max: 32, step: 1, group: 'Array & band',
-      conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At a 4 cm pitch 7×7 = 49 tiles fit, and the 100-die inventory allows floor(100/49) = 2 dies per tile: 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB of array gain. Two dies lay out as a 1×2 pair on one matched 1:2 split. At a 6 cm pitch it was 25 × 4 = 100 exactly.' },
-    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 16, min: 2, max: 64, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 2 dies per tile that is 16, and 49 × 16 = 784 per rail.' },
+    { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
+      conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At the 6 cm pitch 5×5 = 25 tiles fit and the 100-die inventory divides exactly: 25 × 4 = 100 placed, none stranded, no die-population gain loss. Four dies lay out as a 2×2 quad on one matched 1:4 split. At the earlier 4 cm pitch it was floor(100/49) = 2 dies per tile — 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB.' },
+    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 32, min: 2, max: 64, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 4 dies per tile that is 32, and 25 × 32 = 800 per rail. This is NOT a free parameter: it has to track the LO taps per tile, because both count the same dies.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
     { key: 'elemDirDbi', label: 'Element directivity', units: 'dBi', value: 6, min: 0, max: 12, step: 0.5, group: 'Array & band',
@@ -143,7 +143,7 @@
       conf: 'engineering-guess', why: 'A periodic lattice coarser than λ/2 has discrete grating lobes; deliberately breaking the periodicity trades them for a raised, roughly uniform sidelobe floor near 1/N. Which one applies is a layout decision that has not been made yet, and the two look completely different on the pattern.' },
     { key: 'inTileLattice', label: 'In-tile lattice', units: '', value: 0, group: 'Array & band',
       choices: [{ value: 0, label: 'Rectangular (as drawn)' }, { value: 1, label: 'Best sublattice' }, { value: 2, label: 'Single row' }],
-      conf: 'engineering-guess', why: '"8 elements per tile" does not force 4×2. Every sublattice of index 8 that contains the tile lattice keeps all tiles identical, and their worst grating lobe runs from 5.5° (8×1) through 11.08° (4×2 — the worst of the sensible options) to 15.77° for the sheared lattice a1=(1,−1), a2=(0,2) cm, which also raises minimum element separation from 1.00 to 1.41 cm. Same channels, same dies, same tile. The lobe count does not change: that is fixed by density alone.' },
+      conf: 'engineering-guess', why: '"N elements per tile" does not force one arrangement: every sublattice of index N that contains the tile lattice keeps all tiles identical, and they differ in where the worst grating lobe lands and in minimum element separation. AT THE DEFAULT GEOMETRY THIS CHOICE IS MOOT — 16 elements in a 6 cm tile lay out 4×4 on a square 1.5 cm lattice, which is simultaneously the rectangular arrangement and the best sublattice available. It mattered at the old 4 cm / 8-element tile, where the rectangular 4×2 was the WORST of the sensible options (worst lobe 11.08° against 15.77° for the sheared a1=(1,−1), a2=(0,2) cm, and 1.00 cm minimum separation against 1.41). The lobe count never changes: that is fixed by density alone.' },
     { key: 'elemModelSel', label: 'Element pattern model', units: '', value: 0, group: 'Array & band',
       choices: [{ value: 0, label: 'Directivity-matched cos^n' }, { value: 1, label: 'HPBW-matched patch' }, { value: 2, label: 'Cell-filling nulled' }],
       conf: 'engineering-guess', why: 'One cos^n curve cannot be both a 6 dBi directivity-matched element (n = 0.99, 120° HPBW, only 3 dB of scan loss at 60°) and a real package patch (65–80° HPBW, n ≈ 3.5, 10 dB at 60°). Using the broad one for grating-lobe suppression AND for scan loss is pessimistic about the lobe and optimistic about the scan with the same curve, which is not a defensible pair. The third option is a cell-filling radiator whose nulls land exactly on the grating lobes.' },
@@ -569,7 +569,7 @@
      * by how the elements are distributed over the tile, not by the die.
      *
      * The consequence is the headline fact about this architecture: with a
-     * few hundred elements over a 28 cm aperture the lattice is several
+     * few hundred elements over a 30 cm aperture the lattice is several
      * wavelengths coarse, so the array keeps the BEAMWIDTH of the full
      * aperture but only the GAIN of its element count, and the difference
      * goes into grating lobes.
@@ -580,19 +580,25 @@
     g.nElem = g.nTilesTotal * g.elemPerTile;
 
     /* Arrangement inside a tile — CHOSEN, not assumed. An earlier version
-       forced a rectangular factorisation (round(sqrt(8)) -> 4 x 2). That is
-       not a constraint: every sublattice of index 8 that CONTAINS the tile
-       lattice keeps all tiles identical, and 4 x 2 turns out to be the worst
-       of them (worst grating lobe 11.08 deg, against 15.77 deg for the
-       sheared lattice a1 = (1,-1), a2 = (0,2) cm, at zero cost). See
-       lattice.js.
+       forced a rectangular factorisation (round(sqrt(N)) rounded to a
+       rectangle). That is not a constraint: every sublattice of index N
+       that CONTAINS the tile lattice keeps all tiles identical, and the
+       rectangle is not always the best of them. See lattice.js.
+
+       At the DEFAULT geometry it happens to be: 16 elements in a 6 cm tile
+       give a square 4 x 4 at a 1.5 cm pitch, which is both the rectangular
+       arrangement and the widest-separation sublattice, so the choice is
+       moot. It was not moot at the old 4 cm / 8-element tile, where the
+       rectangular 4 x 2 was the WORST of them (worst grating lobe
+       11.08 deg against 15.77 deg for the sheared a1 = (1,-1), a2 = (0,2)
+       cm, at zero cost).
 
        Whatever the choice, tiles abut, so the FULL array is one lattice with
        the tile grid as a sublattice. That consistency is what lets the ideal
        pattern factorise as intra-tile x tile-grid: at band centre the
        intra-tile phase steer and the inter-tile delay steer coincide and
-       AF(4, 1 cm) x AF(7, 4 cm) collapses exactly to AF(28, 1 cm), so the
-       full-aperture beamwidth is preserved while the grating lobes appear. */
+       AF(4, 1.5 cm) x AF(5, 6 cm) collapses exactly to AF(20, 1.5 cm), so
+       the full-aperture beamwidth is preserved while the lobes appear. */
     g.lamCm = g.lambdaM * 100;
     g.latList = window.Lat.candidates(g.elemPerTile, g.tileCm, g.lamCm);
     g.latKey = ['rect', 'best', 'row'][Math.round(g.inTileLattice)] || 'rect';
@@ -602,10 +608,11 @@
     g.latOffsetsCm = g.lat.offsets;
 
     /* What a principal-plane cut actually sees: the lattice PROJECTED onto
-       the cut axis. For the sheared lattice the 8 offsets project onto 4
-       distinct x columns of 2, so the x-cut is indistinguishable from 4 x 2
-       — the improvement lives off the principal planes, which is exactly why
-       two cuts are not an honest presentation of this array. */
+       the cut axis. A sheared lattice projects onto the same set of x
+       columns as the rectangle it was sheared from, so the x-cut cannot
+       tell them apart — the improvement lives off the principal planes,
+       which is exactly why two cuts are not an honest presentation of this
+       array. */
     function project(offs, idx, period) {
       var seen = {}, xs = [];
       offs.forEach(function (p) {
@@ -1049,8 +1056,8 @@
        Phase-shifter quantisation is NOT in this list, and that is the fix,
        not an omission. A phase shifter sits at the element; its LSB residual
        has no tile-common part, and js/beam.js already puts
-       quantResidualDeg(phaseBits) into sigElem where it averages over 392
-       elements rather than 49 tiles. Carrying it here too counted the same
+       quantResidualDeg(phaseBits) into sigElem where it averages over the
+       ELEMENTS rather than over the tiles. Carrying it here too counted the same
        0.812 deg twice and at the wrong level — and because it depends only
        on phaseBits it was IDENTICAL for all six options, so it drowned the
        thing this metric exists to measure: A2/A3/A4 sat at 0.835/0.859/0.821

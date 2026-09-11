@@ -730,17 +730,23 @@
        picker. They were previously merged into a single badge on the
        recommended column reading "selected", so whenever the two differed the
        header asserted the opposite of the truth. */
-    function opt(m, results, curId, pickId) {
+    /* tieIds holds every option the weights cannot separate from the
+       leader. A build sitting on any of them is on the model's answer —
+       badging it "your build" against a different "model pick" would
+       assert a distinction the score does not support. */
+    function opt(m, results, curId, pickId, tieIds) {
       var o = { id: m.id, name: m.name, topology: results[m.id].note };
+      var tied = (tieIds || [pickId]).indexOf(m.id) >= 0;
       if (m.id === curId) {
         o.cur = true;
-        o.badge = m.id === pickId ? 'your build · model pick' : 'your build';
-        o.badgeClass = m.id === pickId ? 'acc' : 'warn';
+        o.badge = m.id === pickId ? 'your build · model pick'
+          : tied ? 'your build · tied for model pick' : 'your build';
+        o.badgeClass = tied ? 'acc' : 'warn';
       }
       return o;
     }
-    var loOpts = M.LO_META.map(function (m) { return opt(m, res.lo, res.g.loOptionId, dec.loPick.id); });
-    var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id); });
+    var loOpts = M.LO_META.map(function (m) { return opt(m, res.lo, res.g.loOptionId, dec.loPick.id, dec.loTieIds); });
+    var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id, dec.bbTieIds); });
 
     var cfg = { recLabel: 'model pick' };
     var lr = loRows(budget), br = bbRows(budget);
@@ -783,16 +789,43 @@
       d.appendChild(l); d.appendChild(m2);
       vm.appendChild(d);
     }
-    var lp = dec.loPick, bp = dec.bbPick;
-    verdict('LO', lp.name,
+    /* A lead the weights cannot resolve is reported as a tie, not as a
+       winner with a runner-up: naming one of two indistinguishable options
+       "the pick" is the whole failure mode this tool is built against.
+
+       Which member of a tie heads the verdict is then a free choice, and
+       the useful one is the READER'S. Leading with rank-1 makes the panel
+       look like it disagrees with a build that is in fact sitting on the
+       model's answer; leading with the build answers the question actually
+       being asked — "is what I have selected the right thing?" — and the
+       tie sentence still names its equals. Outside a tie this changes
+       nothing: head() returns rank-1. */
+    function head(tied, curId) {
+      if (!tied || tied.length < 2) return tied[0];
+      for (var i = 0; i < tied.length; i++) if (tied[i].id === curId) return tied[i];
+      return tied[0];
+    }
+    var lp = head(dec.loTied, res.g.loOptionId) || dec.loPick;
+    var bp = head(dec.bbTied, res.g.bbOptionId) || dec.bbPick;
+    function tieNote(tied, shown) {
+      if (!tied || tied.length < 2) return '';
+      var others = tied.filter(function (o) { return o.id !== shown.id; });
+      return ' <strong>Tied with ' + others.map(function (o) { return o.short; }).join(', ') +
+        '</strong> — the scores differ by ' + n(Math.abs(tied[0].score - tied[tied.length - 1].score), 3) +
+        ' on a 0–1 scale, inside what re-weighting can move, so this ordering is not a result.';
+    }
+    verdict('LO', lp.name + (dec.loTied && dec.loTied.length > 1 ? ' (tied)' : ''),
       'Residual inter-tile phase error <span class="kv">' + n(lp.r.interTileResidualDeg) + '°</span> against a <span class="kv">' +
       n(budget.sigSpecDeg) + '°</span> spec, null floor <span class="kv">' + n(lp.r.sllDb, 1) + ' dB</span>, ' +
       'distribution power <span class="kv">' + n(lp.r.powerFracOfArray, 1) + '%</span> of the array. ' +
-      'Runner-up: ' + (dec.loRank[1] ? dec.loRank[1].short : '—') + '.');
-    verdict('Baseband', bp.name,
+      (dec.loTied && dec.loTied.length > 1 ? tieNote(dec.loTied, lp)
+        : 'Runner-up: ' + (dec.loRank[1] ? dec.loRank[1].short : '—') + '.'));
+    verdict('Baseband', bp.name + (dec.bbTied && dec.bbTied.length > 1 ? ' (tied)' : ''),
       'Squint loss <span class="kv">' + n(bp.r.squintLossDb, 3) + ' dB</span>, noise-figure penalty <span class="kv">' +
       n(bp.r.nfPenaltyDb, 2) + ' dB</span>, <span class="kv">' + n(bp.r.powerPerTileMw, 0) + ' mW</span> per tile ' +
-      'across both rails. Runner-up: ' + (dec.bbRank[1] ? dec.bbRank[1].short : '—') + '.');
+      'across both rails. ' +
+      (dec.bbTied && dec.bbTied.length > 1 ? tieNote(dec.bbTied, bp)
+        : 'Runner-up: ' + (dec.bbRank[1] ? dec.bbRank[1].short : '—') + '.'));
 
     /* charts */
     var cc = document.getElementById('compareCharts');
@@ -1472,9 +1505,11 @@
     trs.appendChild(c0);
     M.LO_META.forEach(function (m) {
       var row = dec.loRank.filter(function (r) { return r.id === m.id; })[0];
-      var td = UI.elt('td', 'v' + (row.id === dec.loPick.id ? ' rec' : ''));
+      var tied = (dec.loTieIds || [dec.loPick.id]).indexOf(row.id) >= 0;
+      var td = UI.elt('td', 'v' + (tied ? ' rec' : ''));
       td.innerHTML = '<strong>' + (row.score * 100).toFixed(0) + '</strong>' +
-        (row.eligible ? '' : row.infeasible ? ' <span class="badge fail">infeasible</span>' : ' <span class="badge fail">off-spec</span>');
+        (row.eligible ? '' : row.infeasible ? ' <span class="badge fail">infeasible</span>' : ' <span class="badge fail">off-spec</span>') +
+        (tied && dec.loTied.length > 1 ? ' <span class="badge warn">tied</span>' : '');
       trs.appendChild(td);
     });
     trs.appendChild(UI.elt('td', 'v', '1.00'));
@@ -1598,8 +1633,15 @@
     chip(document.getElementById('ctxLo'), 'LO', lm ? lm.short : '—');
     chip(document.getElementById('ctxBb'), 'BB', bm ? bm.short : '—');
 
+    /* A tie is shown as "X ≈ Y", not as a single winner: the chip is the
+       one place the verdict is visible from every view, so it must not
+       assert a ranking the score cannot support. */
+    function pickLabel(p, tied) {
+      if (!p) return '—';
+      return p.short + (tied && tied.length > 1 ? ' ≈ ' + tied[1].short : '');
+    }
     var vpick = dec && dec.loPick && dec.bbPick
-      ? dec.loPick.short + ' + ' + dec.bbPick.short : '—';
+      ? pickLabel(dec.loPick, dec.loTied) + ' + ' + pickLabel(dec.bbPick, dec.bbTied) : '—';
     chip(document.getElementById('ctxVerdict'), 'model picks', vpick);
 
     /* A hard inconsistency now lives in a banner inside the map panel, so it

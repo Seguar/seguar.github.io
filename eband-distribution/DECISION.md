@@ -9,15 +9,30 @@ decision.
 
 - **LO / reference distribution → A4, mid-frequency distribution with a per-tile ×4 multiplier.**
   Distribute 19.5 GHz on the board; multiply to 78 GHz at each tile.
-- **Baseband split/combine → B3, H-tree with active cells**, with B1 (passive
-  resistive) kept as a live fallback — the two are close and the choice rests
-  on drive power and PVT, not on noise.
+- **Baseband split/combine → B3, H-tree with active cells**, with B4
+  (current-mode summing) as the first alternative. The weighted score cannot
+  separate the two — it puts them 0.001 apart on a 0–1 scale and the tool
+  reports them as tied — so the decision rests on a criterion the score does
+  not carry: how much of the coarse TTD range each spends on its own geometry.
 
 All numbers below come from the tool at its default configuration: 78 GHz LO,
-2 GHz RF bandwidth, 30 cm aperture, 6 cm tiles (5×5 = 25 tiles, 100 RFIC dies),
-RFSoC CLK104 100 MHz reference, RO3003 GCPW, BIST at 1 Hz, 95 W array budget.
-Change any of them in the tool and the ranking recomputes; the permalink
-captures the exact configuration.
+2 GHz RF bandwidth, 30 cm aperture, 6 cm tiles (5×5 = 25 tiles, 4 dies each,
+100 RFIC dies, 400 elements), RFSoC CLK104 100 MHz reference, RO3003 GCPW,
+BIST at 1 Hz, 95 W array budget. Change any of them in the tool and the
+ranking recomputes; the permalink captures the exact configuration.
+
+**On the 6 cm tile pitch.** The 30 cm aperture is a hard system spec from the
+proposal; the tile pitch is the design choice that has to fit inside it, and
+6 cm is the one that does. It divides 30 exactly, so the array uses the whole
+aperture rather than 28 cm of it; 5×5 × 4 dies is exactly the 100-die
+inventory, with nothing stranded; and it sits inside the proposal's own
+5–10 cm sub-tiling range (§4.5), where 4 cm does not. Against a 4 cm pitch it
+costs 0.004° of inter-tile residual — on a 5° spec — and buys 2.2 dB of
+distribution loss, 6.7 W of distribution power, the full aperture, the two
+stranded dies (+0.09 dB) and a narrower beam (0.650° against 0.696° broadside).
+It is also
+the configuration this document has always been written against; the tool's
+default had drifted to 4 cm and is now back in step.
 
 ---
 
@@ -42,29 +57,30 @@ costs 0.007 dB); 173 ps of residual delay inside a 6 cm sub-tile.
 
 Regenerated from the model at its current defaults. The inter-tile spec is
 **5.00° RMS** (binding constraint: proposal Eq. 16); the null-depth target is
-−38.1 dB and the array-output EVM budget −32.4 dB against a 95 W array.
+−35.2 dB and the array-output EVM budget 1.38° RMS for 64QAM against a 95 W
+array.
 
 | Metric | A1 Local PLL | A2 HF foldback | A3 Daisy chain | **A4 Mid + ×4** | A5 Stabilised link | A6 Injection lock |
 |:---|---:|---:|---:|---:|---:|---:|
-| Residual inter-tile φ (°) | 3.171 | 0.210 | 0.288 | **0.143** | 0.770 | 2.235 |
-| — irreducible phase-noise part (°) | 3.169 | 0.193 | 0.275 | 0.103 | 0.103 | **0.086** |
-| — drift left after BIST (°) | 0.102 | 0.082 | 0.083 | 0.082 | 0.761 | 2.232 |
-| Null-depth floor (dB) | −42.0 | −65.6 | −62.9 | **−68.9** | −54.3 | −45.1 |
-| Distribution loss, worst path (dB) | **1.0** | 64.3 | 59.4 | 38.7 | 38.7 | 38.7 |
-| — on the mean path (dB) | **1.0** | 62.5 | 40.2 | 37.9 | 37.9 | 37.9 |
-| Repeater amplifiers | **0** | 75 | 7 | 49 | 49 | 49 |
-| Distribution power (W) | 18.55 | 16.19 | 16.83 | 16.66 | 18.86 | **15.48** |
-| Share of array budget (%) | 19.5 | 17.0 | 17.7 | 17.5 | 19.9 | **16.3** |
+| Residual inter-tile φ (°) | 3.139 | 0.212 | 0.249 | **0.147** | 0.770 | 2.235 |
+| — irreducible phase-noise part (°) | 3.137 | 0.193 | 0.235 | 0.104 | 0.104 | **0.086** |
+| — drift left after BIST (°) | 0.107 | 0.086 | 0.078 | 0.086 | 0.761 | 2.232 |
+| Null-depth floor (dB) | −39.2 | −62.6 | −61.2 | **−65.8** | −51.4 | −42.2 |
+| Distribution loss, worst path (dB) | **1.0** | 62.9 | 45.7 | 36.5 | 36.5 | 36.5 |
+| — on the mean path (dB) | **1.0** | 60.6 | 31.5 | 35.4 | 35.4 | 35.4 |
+| Repeater amplifiers | **0** | 51 | 9 | 32 | 32 | 32 |
+| Distribution power (W) | 10.85 | 10.12 | 9.89 | 9.96 | 11.08 | **9.36** |
+| Share of array budget (%) | 11.4 | 10.7 | 10.4 | 10.5 | 11.7 | **9.8** |
 | Frequency on the board (GHz) | 0.1 | 78 | 39 | 19.5 | 19.5 | 19.5 |
-| Array-output EVM (%) | **0.98** | 4.11 | 3.38 | 3.37 | 3.37 | 3.36 |
-| Highest supportable QAM | **256QAM** | QPSK | 16QAM | 16QAM | 16QAM | 16QAM |
-| Static offset to calibrate (wraps) | 5.4 | **4.4** | 59.5 | **4.4** | **4.4** | **4.4** |
+| Array-output EVM (%) | **1.08** | 4.11 | 3.38 | 3.37 | 3.37 | 3.36 |
+| Highest supportable QAM | **64QAM** | QPSK | 16QAM | 16QAM | 16QAM | 16QAM |
+| Static offset to calibrate (wraps) | 8.0 | **6.4** | 47.9 | **6.4** | **6.4** | **6.4** |
 | Risk | medium | high | high | **low** | medium | medium |
 
 Every option clears the 5.00° inter-tile spec except A1, which fails on
 per-tile oscillator phase noise, and A6, which fails on the temperature drift
 of its locked phase offset unless the tanks are trimmed. A4 wins the metric
-the decision turns on by 1.5× over its nearest competitor.
+the decision turns on by 1.4× over its nearest competitor.
 
 > The residual column moved materially in the September audit: the
 > phase-shifter LSB had been counted at the tile level as well as the element
@@ -78,21 +94,21 @@ board cost and risk — not about one option failing outright.
 
 ## 3. Why A4
 
-**Coherence margin is the first discriminator, and it is a 12 dB effect.** A1's
-residual inter-tile phase error is 3.24°, almost all of it irreducible
+**Coherence margin is the first discriminator, and it is a 27 dB effect.** A1's
+residual inter-tile phase error is 3.139°, almost all of it irreducible
 free-running VCO and PFD noise above the PLL loop bandwidth. That puts its
-null-depth floor at −38.9 dB against −50.9 dB for a shared LO. It clears the
-5° spec, but with 1.5× margin against 6× for the shared-LO options, and nothing
+null-depth floor at −39.2 dB against −65.8 dB for a shared LO. It clears the
+5° spec, but with 1.6× margin against 34× for A4, and nothing
 recovers the difference: at a 1 Hz BIST rate with loop gain µ = 0.3 the
 calibration corner is 0.048 Hz, while essentially all of the integrated phase
 error lives in the kHz-to-MHz decades. If the demonstration ever needs deeper
-nulls or more spatial streams, that 12 dB is the headroom you gave away.
+nulls or more spatial streams, that 27 dB is the headroom you gave away.
 
 **But A1 is genuinely better for the link, and this is worth stating plainly.**
 Uncorrelated per-tile noise *averages down* by 10log10(25) = 14.0 dB in the
 coherent sum, so A1's array-output phase error is 0.62° against 1.94° for a
-single tile — it is the only option that supports 64QAM at these defaults,
-where the shared-LO options manage 16QAM. This is exactly the effect the
+single tile — it is the only option that supports 64QAM at these defaults
+(1.08 % EVM), where the shared-LO options manage 16QAM. This is exactly the effect the
 proposal's §4.7 identifies, and the tool confirms it quantitatively. It also has
 by far the simplest board: 1.0 dB of distribution loss, **zero** repeater
 amplifiers, and no E-band or mid-band routing at all.
@@ -106,8 +122,9 @@ choosing A4, and it is a judgement call, not a numerical knockout. If the link
 budget turns out to demand 64QAM and nulling turns out not to matter, A1 is the
 better answer and the tool will say so.
 
-**Among the three shared-LO options, A4 wins on the board.** A2, A3 and A4 all
-land within 2 % of each other on residual phase error, so the decision falls to
+**Among the three shared-LO options, A4 wins on the board.** A2, A3 and A4 sit
+at 0.212°, 0.249° and 0.147° — a spread of 1.7× on a quantity all three clear
+by 20× or better, so coherence does not separate them and the decision falls to
 loss, power and risk:
 
 - A2 puts 78 GHz on 45 cm of routed line at 0.872 dB/cm — 60.6 dB total,
@@ -168,14 +185,14 @@ hardware map draws whichever one is selected.
 | Metric | B1 Passive · star | B2 Daisy · bus | **B3 Active · H-tree** |
 |:---|---:|---:|---:|
 | Inter-tile topology | flat star | serpentine bus | H-tree, 5 levels |
-| Routed wire, inter-tile (cm) | 626 | **191** | 261 |
-| Mean → longest path (cm) | 25 → 43 | 117 → 189 | **49 → 52** |
-| Geometric skew, raw (ps) | 600 | 2738 | **101** |
+| Routed wire, inter-tile (cm) | 644 | **192** | 262 |
+| Mean → longest path (cm) | 26 → 44 | 118 → 190 | **50 → 53** |
+| Geometric skew, raw (ps) | 602 | 2738 | **101** |
 | Beyond the 867 ps TTD range (ps) | 0 | **1872** | 0 |
-| Share of TTD range consumed (%) | 69 | — | **12** |
+| Share of TTD range consumed (%) | 69 | 316 | **12** |
 | Geometric skew after coarse TTD (ps) | **21.7** | 1872 | **21.7** |
 | Band-averaged squint loss (dB) | **0.027** | 11.2 | 0.029 |
-| Net insertion loss (dB) | 15.9 | 16.9 | **1.7** |
+| Net insertion loss (dB) | 16.0 | 17.0 | **1.8** |
 | Noise-figure penalty (dB) | 1.20 | 0.75 | **0.26** |
 | −3 dB bandwidth (GHz) | **4.0** | 0.15 | 3.5 |
 | Power per tile, both rails (mW) | 554 | **178** | 477 |
@@ -198,7 +215,7 @@ What separates them is what fraction of that range each spends on its own
 geometry rather than on steering the beam: **69 % for the star against 12 % for
 the H-tree**. The 867 ps exists because a 30 cm aperture at 60° needs it for
 steering; handing two-thirds of it to the combiner's own arm mismatch is the
-real cost of a star. Add 15.9 dB of insertion loss against 1.7 dB, 2.4× the
+real cost of a star. Add 16.0 dB of insertion loss against 1.8 dB, 2.5× the
 routed wire, and 554 mW against 477 mW — because the passive network needs a
 strong TX-direction driver fighting the whole tree — and B3 wins on the network.
 
@@ -208,9 +225,25 @@ argument usually made for active combining is close to vacuous here — with
 30 dB of RFIC gain ahead of it even the passive network costs only 1.20 dB — so
 do not lead with it.
 
-**Take B3, and keep B1 as a live fallback.** If measured PVT drift or linearity
-on the first tile silicon is worse than modelled, B1 costs only drive power to
-fall back to, and its stability advantage is real. Two constraints must be
+**B4 current-mode ties B3 on the weighted score, and the tie is informative.**
+The tool ranks B4 at 0.832 against B3's 0.831 — a lead of 0.001 on a 0–1 scale,
+where shifting 0.01 of weight between two criteria can move a gap by 0.02. The
+tool therefore reports the two as **tied** rather than crowning B4, which is the
+honest reading. B4 is best understood as B1's flat star with current-mode
+summing instead of a resistive one: it keeps the star's short answer to loss
+(0.9 dB) and noise (0.01 dB), pays no cascaded-IIP3 penalty at all against B3's
+7.0 dB, drifts at 0.020 °/K against 0.050, and costs 440 mW per tile against
+477 — but it also inherits the star's geometry, consuming **69 % of the coarse
+TTD range** on its own arm mismatch against the H-tree's 12 %.
+
+That last line is the tiebreaker, and it is one the weighted score does not
+carry: TTD-range consumption is not one of the five criteria. So the ranking is
+right to call it a tie, and the argument two paragraphs above — the 867 ps
+exists for steering, not for absorbing the combiner's own geometry — is what
+decides it. **Take B3.** Keep B4 as the first alternative rather than B1: it
+dominates B1 on every axis where B1 was the fallback, so if the H-tree's PVT
+drift or linearity on first silicon disappoints, B4 is the better place to go.
+Two constraints must be
 stated in the specification regardless of choice:
 
 1. At baseband, B1 means a **resistive** network. A Wilkinson passes no DC and
@@ -258,45 +291,49 @@ independent of the lattice, and so is the three-chip partition of §4. What it
 changes is the **order in which the coherence argument may be made**, and it
 adds one parameter to the list of architectural choices.
 
-Numbers here are at the tool's current default (4 cm tiles, 7×7 = 49 tiles,
-2 dies per tile, 392 elements), not at the 6 cm configuration §1–§6 were
-written against.
+Numbers here are at the tool's default configuration, the same one §1–§6 are
+written against: 6 cm tiles, 5×5 = 25 tiles, 4 dies per tile, 400 elements
+over the full 30 cm.
 
 **1. The error floor is not the binding metric on a periodic lattice.**
-392 elements over 28 cm is a 2.60λ × 5.20λ lattice. That puts
-π·A_cell/λ² = **42 grating lobes** inside the horizon, and because a uniform
+400 elements over 30 cm is a square 3.90λ × 3.90λ lattice. That puts
+π·A_cell/λ² = **44 grating lobes** inside the horizon, and because a uniform
 progressive-phase array has |AF| = N at every one of them, only the element
-pattern suppresses them: the binding lobe sits at **11.08° and is 0.081 dB
-below the main beam**. Steered to 30° a grating lobe is **0.59 dB above** the
-intended beam; at 45°, 1.48 dB above. The array is angularly ambiguous 43 ways.
-Against that, the whole distribution-error floor is at −45 to −47 dB. So on a
+pattern suppresses them: the binding lobe sits at **14.85° and is 0.146 dB
+below the main beam**. Steered to 30° a grating lobe is **0.62 dB above** the
+intended beam; at 45°, 1.48 dB above; at 60°, 2.96 dB above. The array is
+angularly ambiguous 45 ways.
+Against that, the whole distribution-error floor is at −46 to −47 dB. So on a
 periodic lattice the null-depth floor of §1 is **not** what limits the array —
 it becomes the binding metric only once the lattice is made aperiodic. The
 coherence argument is correct, but it has a precondition, and the precondition
 has to be stated first.
 
 **2. Making it aperiodic lands back on the distribution network.** Aperiodicity
-costs no gain — N·D_el is unchanged; the 43 lattice beams are redistributed
-into a floor, mean −25.9 dB with an expected peak near −19.0 dB. But breaking
-the periodicity properly needs ~7.8 mm RMS position randomisation, and
-dithering within one 1 × 2 cm cell supplies at most 2.9 mm, which leaves a
-quasi-grating residue near −14 dB at the old lobe angles. Doing it properly
+costs no gain — N·D_el is unchanged; the 45 lattice beams are redistributed
+into a floor, mean −26.0 dB with an expected peak near −19.0 dB. But breaking
+the periodicity properly needs ~5.8 mm RMS position randomisation, and
+dithering within one 1.5 × 1.5 cm cell supplies at most 4.3 mm, which leaves a
+quasi-grating residue near −14.3 dB at the old lobe angles. (The square cell
+of the 6 cm tiling is materially better placed here than the 1 × 2 cm cell of
+the old 4 cm tiling, which supplied only 2.9 mm against a 7.8 mm need — the
+short axis is what limits the dither.) Doing it properly
 means positions that do **not** repeat tile to tile — i.e. tiles that are no
 longer identical, per-element position and phase calibration that is mandatory
 rather than optional, and therefore a higher calibration bandwidth and
 stability requirement on exactly the distribution network this thesis is about.
 
-**3. The element, not the layout, is the recoverable term.** The 16.31 dB gap
-between the 392-element directivity (31.93 dBi) and the filled aperture
-(48.24 dBi) is not a thinning loss to be accepted. It is exactly
+**3. The element, not the layout, is the recoverable term.** The 16.82 dB gap
+between the 400-element directivity (32.02 dBi) and the filled aperture
+(48.84 dBi) is not a thinning loss to be accepted. It is exactly
 10log10(4π·A_cell/(λ²·D_el)) — the ratio of the element's effective area
-(4.68 mm²) to its cell (200 mm²), i.e. 2.34% — and identically 10log10 of the
-43 co-equal lattice beams. It closes as element directivity rises toward the
-22.31 dBi ceiling a 1 × 2 cm cell can support. A cell-filling *nulled* radiator
-puts its sinc nulls exactly on the reciprocal lattice, removing every grating
-lobe at broadside and recovering the full 48.24 dBi — but only at broadside:
-at 5° the first lobe is already 10.8 dB down and falling, and steered to 30° a
-grating lobe overtakes the beam by 13 dB. That is a broadside instrument, and
+(4.68 mm²) to its cell (225 mm²), i.e. 2.08% — and identically 10log10 of the
+48 co-equal lattice beams. It closes as element directivity rises toward the
+22.82 dBi ceiling a 1.5 × 1.5 cm cell can support. A cell-filling *nulled*
+radiator puts its sinc nulls exactly on the reciprocal lattice, removing every
+grating lobe at broadside and recovering the full 48.84 dBi — but only at broadside:
+at 5° the first lobe is already only 5.8 dB down, and steered to 30° a
+grating lobe overtakes the beam by 33 dB. That is a broadside instrument, and
 it is what the *first* version of the tool's pattern model was accidentally
 describing.
 
@@ -305,28 +342,30 @@ quantisation lobe, not by the squint loss.** §1 justifies the 75 ps step on
 loss: it costs 0.007 dB. That is true and it is the wrong criterion. The
 quantisation residual e_t = Δτ·round(τ_t/Δτ) − τ_t is deterministic, exactly
 zero at broadside, and common to a whole tile column when scanning in one
-plane — so it averages by 7, not 49, and scatters into the scan plane. Swept
-over commanded angles at ±1 GHz it produces a **discrete lobe at −18.8 dB**
-(worst at 53° commanded), against −25.8 dB from the angle-averaged variance
-proxy and −45 dB for everything else in the error budget. It is the dominant
+plane — so it averages by 5, not 25, and scatters into the scan plane. Swept
+over commanded angles at ±1 GHz it produces a **discrete lobe at −18.9 dB**
+(worst at 34° commanded), against −25.8 dB from the angle-averaged variance
+proxy and −46 dB for everything else in the error budget. It is the dominant
 band-edge artefact by a wide margin. A finer step buys it down directly
 (−42 dB at 5 ps by the same measure), so the LSB should be specified against
 the lobe, with the loss figure as a secondary check.
 
-**5. Two free improvements, at zero cost in channels, dies or tile pitch.**
-"8 elements per tile" does not mean 4×2. Every sublattice of index 8 that
-contains the tile lattice keeps all tiles identical, and 4×2 is the **worst**
-of them: it puts the binding lobe at 11.08°, against 15.77° for the sheared
-lattice a1 = (1,−1) cm, a2 = (0,2) cm, which also raises minimum element
-separation from 1.00 to 1.41 cm and so reduces coupling. It does not rescue a
-periodic layout and it does not reduce the lobe count, which is fixed by
-element density alone — it is simply strictly better, and it is the right
-starting point for a perturbed-aperiodic design. Separately, a compact filled
-λ/2 array of the same 392 elements would be 3.8 × 3.8 cm, have a 5.1° beam and
-the **same** 31.93 dBi. Spreading 392 channels over 28 cm buys angular
+**5. The lattice improvement is already banked, and the gain one is not
+available at all.** At the old 4 cm tiling this section recommended replacing
+the rectangular 4×2 in-tile lattice with a sheared one: 4×2 was the **worst**
+of the index-8 sublattices, putting the binding lobe at 11.08° against 15.77°
+for a1 = (1,−1) cm, a2 = (0,2) cm, and 1.41 cm of minimum element separation
+against 1.00. The 6 cm tiling takes that win by construction — 16 elements in
+a 6 cm tile lay out 4×4 on a square 1.5 cm lattice, which is simultaneously
+the rectangular arrangement and the widest-separation sublattice available, so
+there is nothing left to trade and minimum separation is 1.50 cm. It still
+does not rescue a periodic layout and it still does not reduce the lobe count,
+which is fixed by element density alone. Separately, a compact filled
+λ/2 array of the same 400 elements would be 3.8 × 3.8 cm, have a 5.1° beam and
+the **same** 32.02 dBi. Spreading 400 channels over 30 cm buys angular
 resolution and buys zero gain.
 
-**Consequence for how this is presented.** The 28 cm panel is not justified by
+**Consequence for how this is presented.** The 30 cm panel is not justified by
 array performance; it is justified by the research question, which is LO and
 baseband distribution over a 30 cm baseline. The demonstrator should be labelled
 a **sparse / thinned interferometric aperture** and scored with sparse-array

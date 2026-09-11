@@ -8,8 +8,8 @@
       aperture the size of the tile pitch. That is a *filled* subarray, and
       because its sinc nulls landed exactly on the tile-grid grating lobes it
       cancelled them — the right answer for contiguous filled subarrays, and
-      completely wrong for 8 radiators in a 4 cm tile (a filled tile at
-      lambda/2 needs 433). It was assuming away the grating lobes the real
+      completely wrong for 16 radiators in a 6 cm tile (a filled tile at
+      lambda/2 needs 975). It was assuming away the grating lobes the real
       array has, and simultaneously assuming 100% aperture efficiency: the
       same defect seen in pattern space and in gain space.
 
@@ -54,7 +54,7 @@
 
    Pattern factorisation is used only where it is legitimate. The ideal
    excitation is progressive, so intra-tile x tile-grid is exact, and at band
-   centre AF(4,1cm) x AF(7,4cm) collapses to AF(28,1cm) — the full-aperture
+   centre AF(4,1.5cm) x AF(5,6cm) collapses to AF(20,1.5cm) — the full-aperture
    beamwidth and the -13.26 dB uniform first sidelobe are preserved. Errors
    are not progressive, so they are handled by the exact grouped-error mean
    above, and a seeded Monte-Carlo REALISATION is drawn alongside it, because
@@ -465,7 +465,7 @@
     /* LIGHT MODE exists for the Systems view, which evaluates the whole
        model for several saved parameter sets at once. It drops what only a
        plot needs — the second principal-plane cut and the Monte-Carlo
-       realisation (801 points x 392 elements) — and coarsens two sampling
+       realisation (801 points x 400 elements) — and coarsens two sampling
        grids: the zoom cuts (801 instead of 1601 points) and the TTD
        commanded-angle sweep (1 deg instead of 0.25 deg steps, 180 instead
        of 360 u-samples). 40 ms -> 5 ms per system.

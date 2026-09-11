@@ -223,9 +223,10 @@
     'exactly on the tile-grid grating lobes and cancel them. That is right for contiguous *filled* subarrays and ' +
     'wrong here, and it hid the dominant effect in the whole view.',
     '- **The element positions are assumed, not designed.** The in-tile lattice is now a selectable sublattice ' +
-    'rather than a hard-coded 4×2, but it is still a choice made in this tool and not by a layout. A real layout ' +
-    'might cluster the four elements of a die instead, which is worse — clusters on the 4 cm tile pitch put ' +
-    'grating lobes every 5.5°. Treat the lattice as a parameter, not a result.',
+    'rather than a hard-coded rectangle, but it is still a choice made in this tool and not by a layout. A real ' +
+    'layout might cluster the four elements of a die instead, which is worse — clustering collapses the effective ' +
+    'lattice onto the tile pitch, which at 6 cm puts grating lobes every 3.7°. Treat the lattice as a parameter, ' +
+    'not a result.',
     '- **The aperiodic mode is a model, not a design.** It replaces the periodic structure with the full-aperture ' +
     'main lobe plus a uniform 1/N floor. A real thinned array has a specific, non-uniform sidelobe structure that ' +
     'depends on the actual positions, and achieving the ideal floor takes deliberate optimisation.',
@@ -292,8 +293,8 @@
     'doubling), so it is a tile-implementation choice inside A4 rather than a separate column.',
     '- **Photonic / RF-over-fibre LO, optical heterodyne, frequency combs, optoelectronic oscillators.** The right ' +
     'answer at a different scale. Fibre earns its E/O and O/E conversion over hundreds of metres, as at ALMA; over ' +
-    'a 30 cm panel with 49 tiles it adds a laser, a modulator and 49 photodiodes to beat a copper run whose total ' +
-    'loss is 38 dB at 19.5 GHz. Worth revisiting only if the array grows to a distributed aperture.',
+    'a 30 cm panel with 25 tiles it adds a laser, a modulator and 25 photodiodes to beat a copper run whose total ' +
+    'loss is 37 dB at 19.5 GHz. Worth revisiting only if the array grows to a distributed aperture.',
     '- **Space-fed / quasi-optical LO illumination.** Genuinely distinct — no distribution network at all, and a ' +
     'per-tile phase that is a closed-form function of geometry rather than a manufactured artefact. Not modelled ' +
     'because it brings error classes this tool has no machinery for (illumination taper, feed pointing, LO ' +
@@ -309,7 +310,7 @@
     '- **Coupled-oscillator arrays, standing-wave/resonant networks, two-tone difference-frequency LO, reference ' +
     'multiplexed onto the baseband or power interconnect, per-tile DDS, SYSREF-only synchronisation.** All real ' +
     'techniques; none distinct enough at this scale to earn a column against A1–A6.',
-    '- **Fully digital per element** (784 converters rather than 98). The limiting case of B5, and it loses by the ' +
+    '- **Fully digital per element** (800 converters rather than 100). The limiting case of B5, and it loses by the ' +
     'same argument by a factor of eight.',
     '- **Frequency-division-multiplexed IF over one coax, delta-sigma bitstream distribution, transformer ' +
     'combining, TDM calibration receivers.** Each solves a narrower problem than the one this comparison is about.',
@@ -319,9 +320,11 @@
     'a reader would have quoted, so they are recorded here rather than only in the commit log.',
     '- **The phase-shifter LSB was counted twice.** It sat in the tile-level inter-tile residual *and* in the ' +
     'per-element beam term. A phase shifter is per element, so the tile-level copy was both a duplicate and ' +
-    'averaged over 49 tiles instead of 392. Being a function of `phaseBits` alone it was identical for every ' +
-    'option and drowned what the metric exists to measure: A2/A3/A4 read 0.835/0.859/0.821° where they now read ' +
-    '0.210/0.288/0.143°, and A4\'s null floor moved from −53.8 dB to −68.9 dB.',
+    'averaged over the tiles instead of over the elements. Being a function of `phaseBits` alone it was identical ' +
+    'for every option and drowned what the metric exists to measure: A2/A3/A4 read 0.835/0.859/0.821° where they ' +
+    'then read 0.210/0.288/0.143°, and A4\'s null floor moved from −53.8 dB to −68.9 dB. (Both halves of that ' +
+    'comparison are at the 4 cm / 49-tile geometry that was the default when the audit ran; at today\'s 6 cm / ' +
+    '25-tile default the same three read 0.212/0.249/0.147°. The fix is what the pair records, not the geometry.)',
     '- **The drift kernel had no loop gain.** `rate·T/√3` is the deadbeat µ = 1 case while the rest of the ' +
     'calibration model runs at µ = 0.3. The residual therefore fell monotonically as µ fell and the model\'s ' +
     'optimum was always the smallest allowed gain. With the standing lag included the drift term is 4.93× larger ' +
@@ -348,11 +351,31 @@
     'needs a decision about where the phase detector actually sits.',
     '- **The baseband inter-tile resistive star is charged no combine loss** — only line loss. Net of array gain ' +
     'that is 10log10(49) = 16.9 dB for B1, larger than everything B1 does report.',
-    '- **B2 saturates and says so in numbers rather than words:** 997.72° of "phase error" and a beam steer that ' +
+    '- **B2 saturates and says so in numbers rather than words:** 673.88° of "phase error" and a beam steer that ' +
     'is exactly 90.0000° because the arcsine clipped.',
     '- **The inter-tile geometric term is added to both the random and the systematic baseband totals,** and the ' +
-    'uncompensated part compares an RMS spread against a peak-to-peak range, so the flat star is declared inside ' +
-    'the TTD range when its arms span 2278 ps against 809 ps of range.',
+    'uncompensated part compares an RMS spread against a peak-to-peak range. At the old 4 cm geometry that let ' +
+    'the flat star be declared inside the TTD range while its arms spanned 2278 ps against 809 ps of range. At ' +
+    'the 6 cm default the star spans 602 ps against 867 ps and genuinely does fit, so the symptom is gone — but ' +
+    'the comparison is still RMS against peak-to-peak, and it will mis-declare again at a finer pitch.',
+
+    '### Why the tool opens on a 6 cm tile pitch, and what a tie means here',
+    '- **The default geometry is the one that fits the aperture, not a round number.** The 30 cm aperture is a ' +
+    'hard spec; the tile pitch is the design choice that has to fit inside it. 6 cm divides 30 exactly (5×5 = 25 ' +
+    'tiles using the whole aperture), takes the 100-die inventory exactly (25 × 4, nothing stranded), and sits ' +
+    'inside the proposal\'s own 5–10 cm sub-tiling range. The tool previously opened on 4 cm, which is below that ' +
+    'range, fits 7×7 = 49 tiles across only 28 cm, strands 2 dies, and costs 2.2 dB of distribution loss and ' +
+    '6.7 W. Everything the pitch touches — tiles, taps, channels, elements, the in-tile lattice — moves with it, ' +
+    'so `tapsPerTile` and `chPerTile` are defaulted to match rather than left to disagree with it.',
+    '- **The architecture defaults are the model\'s own ranking, checked rather than assumed.** A4 leads the LO ' +
+    'ranking by 0.17 on a 0–1 score and holds that lead across every aperture from 10 to 60 cm, every tile pitch ' +
+    'from 2 to 10 cm and every multiplier from ×2 to ×8 the tool can be set to. That is a result.',
+    '- **The baseband leader is not.** B3 and B4 sit 0.001 apart, and which of them leads changes with the tile ' +
+    'pitch. So the tool reports a **tie** whenever the gap is under 0.02 — the most a single 0.01 shift of weight ' +
+    'between two criteria can move a gap — and names both rather than crowning one. The default build takes B3 on ' +
+    'a criterion the weights do not carry: B4 inherits the flat star\'s geometry and spends 69 % of the coarse ' +
+    'TTD range on its own arm mismatch against the H-tree\'s 12 %. Read the tie as "the score cannot decide this", ' +
+    'not as "these options are the same".',
 
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
