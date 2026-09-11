@@ -577,7 +577,13 @@
        belongs in the denominator, not in the exponent. */
     var pkTx = esTx.e1 * pk0.af0 + esTx.cT * pk0.ss + esTx.cD * pk0.ds + esTx.cE;
     var cohLossDb = -10 * Math.log10((pkTx / (c.Ne * c.Ne)) / (1 + esTx.vA));
-    var realisedDbi = g.dArrayDbi - scanLossDb - cohLossDb - g.antLossDb;
+    /* antLossTotalDb, not antLossDb: the intra-cell corporate feed is part of
+       the antenna-side chain too. It is 0.0000 exactly at C1, so this
+       reproduces every pre-antenna-family number. Adding the second lumped
+       term at model.js's site only, and not here, is the defect class this
+       file already records elsewhere. */
+    var realisedDbi = g.dArrayDbi - scanLossDb - cohLossDb -
+      (g.antLossTotalDb != null ? g.antLossTotalDb : g.antLossDb);
 
     /* ---- the two numbers that justify the LO/baseband partition ---- */
     var sMax = Math.sin(K.deg2rad(g.scanDegMax));

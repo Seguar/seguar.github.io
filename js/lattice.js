@@ -212,76 +212,220 @@
   }
 
   /* ---------------------------------------------------------------------
-     Element pattern. THREE self-consistent models, because one cos^n curve
+     THE UNIT RADIATOR. Two self-consistent models, because one cos^n curve
      cannot be both a 6 dBi directivity-matched element (n = 0.99, 120 deg
      HPBW, only 3 dB of scan loss at 60 deg) and a real package patch
      (65-80 deg HPBW, n = 3.5, 10 dB at 60 deg). The old model used the
      first for grating-lobe suppression AND for scan loss, which is
      pessimistic about the lobe and optimistic about the scan with the same
-     curve. Now the choice is explicit:
+     curve. The choice is explicit:
 
-       dir    cos^n with n from D = 2(n+1). Broad, honest about the lobe,
+       dir    cos^n with n from D = 2(n+1). D IS the integral of its own
+              pattern, by that closed form. Broad, honest about the lobe,
               optimistic about scan loss. The conservative lobe case.
        hpbw   cos^n with n from a stated HPBW, directivity kept at the
-              parameter value (a real patch has back radiation and E/H
-              asymmetry, so D < 2(n+1)). Realistic scan loss.
-       nulled cell-filling radiator: uniformly illuminated parallelogram of
-              the lattice cell. Its nulls land exactly on the reciprocal
-              lattice, i.e. exactly on every grating lobe, and its
-              directivity is the cell ceiling 4*pi*A_cell/lambda^2. This is
-              the filled-subarray trick done in metal instead of silicon —
-              the only way to keep a periodic lattice — and it costs scan
-              range, because the nulls sit on the lobes only at broadside.
+              PARAMETER value and deliberately NOT re-derived from the
+              pattern: a real patch has back radiation and E/H asymmetry,
+              so D < 2(n+1). This asymmetry is the whole point of the
+              selector and anything that "fixes" it destroys the model.
+
+     A THIRD KIND, 'nulled', USED TO LIVE HERE and has been removed. It was a
+     uniformly illuminated cell whose sinc nulls land on the reciprocal
+     lattice; C3 at K = 64 in span mode is the same antenna built out of
+     discrete radiators, reaches the same 22.82 dBi, and unlike the old kind
+     never asserts a directivity its own pattern disagrees with. The old one
+     did: its powAt carries a cos(theta) obliquity factor that 4*pi*A/lambda^2
+     does not, so it integrated to 23.0446 dBi against the 22.8194 it
+     reported — 0.225 dB of self-contradiction. Deleting it removes that
+     rather than clamping around it. Its HPBW line carried a second defect:
+     0.6031 is the sinc = 0.5 point, which is the -6 dB point of a POWER
+     pattern; the half-power constant is 0.4429, so the width it reported was
+     1.36x the true one. That was dead code — nothing read hpbwDeg for that
+     kind — which is exactly how it survived, and why the kinds now go
+     through one table that surfaces every field uniformly.
+
+     THE SUBARRAY. One controllable port may feed kx * ky radiators through a
+     FIXED corporate tree. The beamformer cannot see inside a cell, so this
+     changes the ELEMENT PATTERN and nothing else: not the port count, not
+     the port lattice, not the grating-lobe positions, not their count.
 
      powAt(u,v) is POWER relative to the element's own boresight.
      ------------------------------------------------------------------- */
-  function element(cfg) {
-    var key = cfg.key || 'dir';
-    var lamCm = cfg.lamCm, a1 = cfg.a1, a2 = cfg.a2;
-    var dParam = cfg.elemDirDbi;
-    var nDir = Math.max(0, Math.pow(10, dParam / 10) / 2 - 1);
-    var nHp = 1;
-    if (cfg.hpbwDeg > 0 && cfg.hpbwDeg < 179.9) {
-      var ch = Math.cos(K.deg2rad(cfg.hpbwDeg / 2));
-      nHp = ch > 0 && ch < 1 ? Math.log(0.5) / Math.log(ch) : 1;
+  var KINDS = {
+    dir: {
+      label: 'directivity-matched',
+      nOf: function (c) { return Math.max(0, Math.pow(10, c.dUnitDbi / 10) / 2 - 1); },
+      /* D = 2(n+1) is the integral of cos^n, so this kind's directivity is
+         derived from its own pattern and the two can never disagree. */
+      dOf: function (c) { return c.dUnitDbi; }
+    },
+    hpbw: {
+      label: 'HPBW-matched patch',
+      nOf: function (c) {
+        if (!(c.hpbwDeg > 0 && c.hpbwDeg < 179.9)) return 1;
+        var ch = Math.cos(K.deg2rad(c.hpbwDeg / 2));
+        return ch > 0 && ch < 1 ? Math.log(0.5) / Math.log(ch) : 1;
+      },
+      /* ASSERTED, not integrated — see the note above. */
+      dOf: function (c) { return c.dUnitDbi; }
     }
+  };
+  var KIND_KEYS = ['dir', 'hpbw'];
+
+  /* Normalised power array factor of N radiators at pitch p (cm), fed in
+     phase, evaluated at direction cosine w. N < 2 is the identity, which is
+     what lets the K = 1 path below be the old code verbatim. */
+  function af2(N, pCm, w, lamCm) {
+    if (!(N > 1)) return 1;
+    var x = Math.PI * pCm * w / lamCm;
+    var s = Math.sin(x);
+    if (Math.abs(s) < 1e-13) return 1;            /* the N-fold main/grating lobe */
+    var r = Math.sin(N * x) / (N * s);
+    return r * r;
+  }
+
+  /* Directivity of a subarray, as a RATIO of quadratures rather than an
+     absolute integral.
+
+       dElDbi = dUnitDbi + 10 log10( I_unit / I_sub )
+
+     Both integrals run on the SAME grid over the visible disc, so the
+     quadrature error cancels and kx = ky = 1 returns dUnitDbi EXACTLY, for
+     BOTH unit kinds. That exactness is the point: an unconditional
+     D = 4*pi*powAt(0,0)/integral would return about 13.9 dBi for a 6 dBi
+     HPBW-matched patch and silently destroy the dir/hpbw distinction this
+     file exists to create.
+
+     The result is NEVER clamped. dElDbi is always the integral, so the
+     identity thinningLossDb = dCellDbi - dElDbi survives untouched, and a
+     cell-spanning subarray is allowed to integrate a few hundredths of a dB
+     past 4*pi*A_cell/lambda^2 — which it does, because that bound is
+     obliquity-free and this pattern carries cos(theta). The caller reports
+     that rather than hiding it. */
+  var dCache = {};
+  function dOfRatio(n, kx, ky, pxCm, pyCm, lamCm) {
+    if (kx <= 1 && ky <= 1) return 0;
+    var ck = n.toFixed(6) + '|' + kx + '|' + ky + '|' + pxCm.toFixed(6) + '|' +
+      pyCm.toFixed(6) + '|' + lamCm.toFixed(6);
+    if (dCache[ck] != null) return dCache[ck];
+    var N = 700, iU = 0, iS = 0, step = 2 / N;
+    for (var i = 0; i < N; i++) {
+      var u = -1 + (i + 0.5) * step;
+      for (var j = 0; j < N; j++) {
+        var v = -1 + (j + 0.5) * step;
+        var c2 = 1 - u * u - v * v;
+        if (c2 <= 0) continue;
+        var ct = Math.sqrt(c2);
+        /* du dv / cos(theta) is the solid-angle element in direction cosines */
+        var w = Math.pow(ct, n) / ct;
+        iU += w;
+        iS += w * af2(kx, pxCm, u, lamCm) * af2(ky, pyCm, v, lamCm);
+      }
+    }
+    var out = iS > 0 ? 10 * Math.log10(iU / iS) : 0;
+    dCache[ck] = out;
+    return out;
+  }
+
+  function element(cfg) {
+    var key = KINDS[cfg.key] ? cfg.key : 'dir';
+    var lamCm = cfg.lamCm, a1 = cfg.a1, a2 = cfg.a2;
+    var kind = KINDS[key];
+    var ctx = {
+      dUnitDbi: cfg.dUnitDbi != null ? cfg.dUnitDbi : cfg.elemDirDbi,
+      hpbwDeg: cfg.hpbwDeg, lamCm: lamCm
+    };
+    var n = kind.nOf(ctx);
+    var dUnit = kind.dOf(ctx);
     var aCellCm2 = Math.abs(a1[0] * a2[1] - a1[1] * a2[0]);
     var dCellDbi = 10 * Math.log10(4 * Math.PI * aCellCm2 / (lamCm * lamCm));
+    var kx = Math.max(1, Math.round(cfg.kx || 1));
+    var ky = Math.max(1, Math.round(cfg.ky || 1));
+    var pxCm = cfg.pxCm > 0 ? cfg.pxCm : lamCm / 2;
+    var pyCm = cfg.pyCm > 0 ? cfg.pyCm : lamCm / 2;
 
-    function sinc(x) { return Math.abs(x) < 1e-9 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x); }
-
-    var n = key === 'hpbw' ? nHp : nDir;
     var o = {
-      key: key, n: n, nDir: nDir, nHpbw: nHp,
+      key: key, n: n, nDir: KINDS.dir.nOf(ctx), nHpbw: KINDS.hpbw.nOf(ctx),
       dCellDbi: dCellDbi, aCellCm2: aCellCm2,
-      dElDbi: key === 'nulled' ? dCellDbi : dParam,
-      hpbwDeg: key === 'nulled'
-        ? 2 * Math.asin(0.6031 * lamCm / Math.sqrt(aCellCm2)) * K.DEG
-        : 2 * Math.acos(Math.pow(0.5, 1 / Math.max(n, 1e-6))) * K.DEG
+      kx: kx, ky: ky, kTotal: kx * ky, pxCm: pxCm, pyCm: pyCm,
+      dUnitDbi: dUnit
     };
-    o.powAt = key === 'nulled'
-      ? function (u, v) {
-          var c2 = 1 - u * u - v * v;
-          if (c2 <= 0) return 0;
-          var f = sinc((a1[0] * u + a1[1] * v) / lamCm) * sinc((a2[0] * u + a2[1] * v) / lamCm);
-          return Math.sqrt(c2) * f * f;
+
+    function cosPow(u, v) {
+      var c2 = 1 - u * u - v * v;
+      if (c2 <= 0) return 0;
+      return Math.pow(Math.sqrt(c2), n);
+    }
+
+    if (kx === 1 && ky === 1) {
+      /* THE K = 1 SHORT CIRCUIT IS LOAD-BEARING. C1 back-compatibility is
+         guaranteed by the integrator never running, not by it happening to
+         return the right number. */
+      o.dElDbi = dUnit;
+      o.dGainOverUnitDb = 0;
+      o.powAt = cosPow;
+      o.hpbwDeg = 2 * Math.acos(Math.pow(0.5, 1 / Math.max(n, 1e-6))) * K.DEG;
+      o.hpbwXDeg = o.hpbwDeg;
+      o.hpbwYDeg = o.hpbwDeg;
+      o.subLobes = [];
+      o.label = 'cos^' + (Math.round(n * 100) / 100) + ', HPBW ' + Math.round(o.hpbwDeg) + '° (' +
+        kind.label + ')';
+    } else {
+      var gain = dOfRatio(n, kx, ky, pxCm, pyCm, lamCm);
+      o.dElDbi = dUnit + gain;
+      o.dGainOverUnitDb = gain;
+      o.powAt = function (u, v) {
+        var p = cosPow(u, v);
+        if (p <= 0) return 0;
+        return p * af2(kx, pxCm, u, lamCm) * af2(ky, pyCm, v, lamCm);
+      };
+      o.hpbwXDeg = halfPowerConeDeg(o.powAt, 'x') * 2;
+      o.hpbwYDeg = halfPowerConeDeg(o.powAt, 'y') * 2;
+      o.hpbwDeg = Math.min(o.hpbwXDeg, o.hpbwYDeg);
+      /* the subarray's OWN grating lobes, i.e. where its fixed feed puts a
+         full-strength replica. Empty whenever every axis pitch is < lambda. */
+      o.subLobes = [];
+      [[kx, pxCm, 'x'], [ky, pyCm, 'y']].forEach(function (ax) {
+        if (!(ax[0] > 1)) return;
+        var du = lamCm / ax[1];
+        for (var m = 1; m * du <= 1; m++) {
+          o.subLobes.push(ax[2] === 'x' ? { u: m * du, v: 0 } : { u: 0, v: m * du });
+          o.subLobes.push(ax[2] === 'x' ? { u: -m * du, v: 0 } : { u: 0, v: -m * du });
         }
-      : function (u, v) {
-          var c2 = 1 - u * u - v * v;
-          if (c2 <= 0) return 0;
-          return Math.pow(Math.sqrt(c2), n);
-        };
-    o.label = key === 'nulled'
-      ? 'cell-filling nulled radiator, ' + (Math.round(dCellDbi * 10) / 10) + ' dBi'
-      : 'cos^' + (Math.round(n * 100) / 100) + ', HPBW ' + Math.round(o.hpbwDeg) + '° (' +
-        (key === 'hpbw' ? 'HPBW-matched patch' : 'directivity-matched') + ')';
+      });
+      o.label = kx + '×' + ky + ' ' + kind.label + ' subarray at ' +
+        (Math.round(100 * pxCm / lamCm) / 100) + 'λ, ' +
+        (Math.round(o.dElDbi * 100) / 100) + ' dBi';
+    }
     return o;
+  }
+
+  /* -3 dB HALF-angle along one principal axis, by bisection on the pattern
+     itself rather than on a closed form, because a subarray pattern is
+     cos^n times an array factor and has no closed-form half-power point. */
+  function halfPowerConeDeg(powAt, axis) {
+    var p0 = axis === 'x' ? powAt(0, 0) : powAt(0, 0);
+    if (!(p0 > 0)) return 0;
+    var at = function (s) { return axis === 'x' ? powAt(s, 0) : powAt(0, s); };
+    var lo = 0, hi = 1;
+    if (at(hi) > p0 / 2) return 90;
+    for (var i = 0; i < 60; i++) {
+      var mid = (lo + hi) / 2;
+      if (at(mid) > p0 / 2) lo = mid; else hi = mid;
+    }
+    return Math.asin(Math.min(1, (lo + hi) / 2)) * K.DEG;
   }
 
   /* Level of each grating lobe relative to the intended beam, which for a
      uniform periodic array is set by the element pattern alone. Sorted
-     strongest first — that, not the smallest angle, is the binding lobe (for
-     a nulled element the two are not the same). */
+     strongest first — that, not the smallest angle, is the binding lobe
+     (with a subarray element the two are not the same).
+
+     NOTE FOR CALLERS: this MUTATES the list it is handed — it writes relDb
+     and re-sorts in place. Anything that levels several element options
+     against the same geometry must call lobes() fresh for each one, or the
+     shared list ends up carrying the last option's levels and the map, the
+     beam and the tables describe different arrays. */
   function withLevels(list, elem, u0, v0) {
     var g0 = Math.max(elem.powAt(u0, v0), 1e-12);
     list.forEach(function (l) {
@@ -294,6 +438,6 @@
   window.Lat = {
     divisors: divisors, shortest: shortest, dual: dual, offsets: offsets,
     candidates: candidates, pick: pick, lobes: lobes, element: element,
-    withLevels: withLevels
+    withLevels: withLevels, KIND_KEYS: KIND_KEYS, af2: af2
   };
 })();
