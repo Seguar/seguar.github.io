@@ -3020,6 +3020,12 @@ footer.foot a { color: var(--ink-2); }
    1.41 cm. Same channel count, same die count, same tile: strictly better.
    The lobe COUNT is unchanged — that is fixed by element density alone.
 
+   That worked example is the OLD 4 cm / 8-element default, kept because it
+   is the case where the choice bites. At today's 6 cm / 16-element default
+   the enumeration returns a square 4 x 4 at a 1.5 cm pitch as both the
+   rectangular representative and the widest-separation sublattice, so the
+   parameter is real but inert: there is nothing to trade.
+
    Exposes window.Lat.
    ========================================================================= */
 (function () {
@@ -4360,14 +4366,14 @@ footer.foot a { color: var(--ink-2); }
       conf: 'measured/datasheet', why: '≈2 GHz class per the RFIC front-end table.' },
     { key: 'apertureCm', label: 'Aperture width', units: 'cm', value: 30, min: 6, max: 60, step: 1, group: 'Array & band',
       conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal. This is D in the beamwidth 0.886·λ/D, and it is a hard system spec — the tile pitch is the design choice that has to fit inside it.' },
-    { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 4, min: 0.25, max: 15, step: 0.25, group: 'Array & band',
-      conf: 'published-literature', why: 'Centre-to-centre tile spacing; with abutting square tiles it equals the tile edge. "Pitch" rather than "side" or "size" because a spacing is what the grid is built from, and "size" for a 2-D module reads as an area. Sub-tiling to 5–10 cm keeps residual intra-tile delay under ~200 ps; 4 cm gives 116 ps with margin, at the cost of more tiles. Note 4 cm does not divide 30 cm — see the derived readout.' },
+    { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 6, min: 0.25, max: 15, step: 0.25, group: 'Array & band',
+      conf: 'published-literature', why: 'Centre-to-centre tile spacing; with abutting square tiles it equals the tile edge. "Pitch" rather than "side" or "size" because a spacing is what the grid is built from, and "size" for a 2-D module reads as an area. The default is the pitch that is OPTIMAL FOR THE 30 cm APERTURE, not a round number: 6 cm divides 30 exactly (5×5 = 25 tiles filling the whole aperture), sits inside the proposal\'s own 5–10 cm sub-tiling range (§4.5), and gives 173 ps of residual intra-tile delay at 60° against the ~200 ps target. The earlier 4 cm default is BELOW that range and does not divide 30 cm: it fits 7×7 = 49 tiles across 28 cm and throws away the outer 2 cm in each direction.' },
     { key: 'nDies', label: 'RFIC dies in the array', units: '-', value: 100, min: 4, max: 4000, step: 1, group: 'Array & band',
       conf: 'measured/datasheet', why: '≈100 existing 2.5 × 2.5 mm E-band dies. Tile pitch, taps per tile and this total are independent inputs that can disagree, so the tool checks them against each other rather than letting the mismatch pass silently.' },
-    { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 2, min: 1, max: 32, step: 1, group: 'Array & band',
-      conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At a 4 cm pitch 7×7 = 49 tiles fit, and the 100-die inventory allows floor(100/49) = 2 dies per tile: 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB of array gain. Two dies lay out as a 1×2 pair on one matched 1:2 split. At a 6 cm pitch it was 25 × 4 = 100 exactly.' },
-    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 16, min: 2, max: 64, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 2 dies per tile that is 16, and 49 × 16 = 784 per rail.' },
+    { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
+      conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At the 6 cm pitch 5×5 = 25 tiles fit and the 100-die inventory divides exactly: 25 × 4 = 100 placed, none stranded, no die-population gain loss. Four dies lay out as a 2×2 quad on one matched 1:4 split. At the earlier 4 cm pitch it was floor(100/49) = 2 dies per tile — 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB.' },
+    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 32, min: 2, max: 64, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 4 dies per tile that is 32, and 25 × 32 = 800 per rail. This is NOT a free parameter: it has to track the LO taps per tile, because both count the same dies.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
     { key: 'elemDirDbi', label: 'Element directivity', units: 'dBi', value: 6, min: 0, max: 12, step: 0.5, group: 'Array & band',
@@ -4377,7 +4383,7 @@ footer.foot a { color: var(--ink-2); }
       conf: 'engineering-guess', why: 'A periodic lattice coarser than λ/2 has discrete grating lobes; deliberately breaking the periodicity trades them for a raised, roughly uniform sidelobe floor near 1/N. Which one applies is a layout decision that has not been made yet, and the two look completely different on the pattern.' },
     { key: 'inTileLattice', label: 'In-tile lattice', units: '', value: 0, group: 'Array & band',
       choices: [{ value: 0, label: 'Rectangular (as drawn)' }, { value: 1, label: 'Best sublattice' }, { value: 2, label: 'Single row' }],
-      conf: 'engineering-guess', why: '"8 elements per tile" does not force 4×2. Every sublattice of index 8 that contains the tile lattice keeps all tiles identical, and their worst grating lobe runs from 5.5° (8×1) through 11.08° (4×2 — the worst of the sensible options) to 15.77° for the sheared lattice a1=(1,−1), a2=(0,2) cm, which also raises minimum element separation from 1.00 to 1.41 cm. Same channels, same dies, same tile. The lobe count does not change: that is fixed by density alone.' },
+      conf: 'engineering-guess', why: '"N elements per tile" does not force one arrangement: every sublattice of index N that contains the tile lattice keeps all tiles identical, and they differ in where the worst grating lobe lands and in minimum element separation. AT THE DEFAULT GEOMETRY THIS CHOICE IS MOOT — 16 elements in a 6 cm tile lay out 4×4 on a square 1.5 cm lattice, which is simultaneously the rectangular arrangement and the best sublattice available. It mattered at the old 4 cm / 8-element tile, where the rectangular 4×2 was the WORST of the sensible options (worst lobe 11.08° against 15.77° for the sheared a1=(1,−1), a2=(0,2) cm, and 1.00 cm minimum separation against 1.41). The lobe count never changes: that is fixed by density alone.' },
     { key: 'elemModelSel', label: 'Element pattern model', units: '', value: 0, group: 'Array & band',
       choices: [{ value: 0, label: 'Directivity-matched cos^n' }, { value: 1, label: 'HPBW-matched patch' }, { value: 2, label: 'Cell-filling nulled' }],
       conf: 'engineering-guess', why: 'One cos^n curve cannot be both a 6 dBi directivity-matched element (n = 0.99, 120° HPBW, only 3 dB of scan loss at 60°) and a real package patch (65–80° HPBW, n ≈ 3.5, 10 dB at 60°). Using the broad one for grating-lobe suppression AND for scan loss is pessimistic about the lobe and optimistic about the scan with the same curve, which is not a defensible pair. The third option is a cell-filling radiator whose nulls land exactly on the grating lobes.' },
@@ -4803,7 +4809,7 @@ footer.foot a { color: var(--ink-2); }
      * by how the elements are distributed over the tile, not by the die.
      *
      * The consequence is the headline fact about this architecture: with a
-     * few hundred elements over a 28 cm aperture the lattice is several
+     * few hundred elements over a 30 cm aperture the lattice is several
      * wavelengths coarse, so the array keeps the BEAMWIDTH of the full
      * aperture but only the GAIN of its element count, and the difference
      * goes into grating lobes.
@@ -4814,19 +4820,25 @@ footer.foot a { color: var(--ink-2); }
     g.nElem = g.nTilesTotal * g.elemPerTile;
 
     /* Arrangement inside a tile — CHOSEN, not assumed. An earlier version
-       forced a rectangular factorisation (round(sqrt(8)) -> 4 x 2). That is
-       not a constraint: every sublattice of index 8 that CONTAINS the tile
-       lattice keeps all tiles identical, and 4 x 2 turns out to be the worst
-       of them (worst grating lobe 11.08 deg, against 15.77 deg for the
-       sheared lattice a1 = (1,-1), a2 = (0,2) cm, at zero cost). See
-       lattice.js.
+       forced a rectangular factorisation (round(sqrt(N)) rounded to a
+       rectangle). That is not a constraint: every sublattice of index N
+       that CONTAINS the tile lattice keeps all tiles identical, and the
+       rectangle is not always the best of them. See lattice.js.
+
+       At the DEFAULT geometry it happens to be: 16 elements in a 6 cm tile
+       give a square 4 x 4 at a 1.5 cm pitch, which is both the rectangular
+       arrangement and the widest-separation sublattice, so the choice is
+       moot. It was not moot at the old 4 cm / 8-element tile, where the
+       rectangular 4 x 2 was the WORST of them (worst grating lobe
+       11.08 deg against 15.77 deg for the sheared a1 = (1,-1), a2 = (0,2)
+       cm, at zero cost).
 
        Whatever the choice, tiles abut, so the FULL array is one lattice with
        the tile grid as a sublattice. That consistency is what lets the ideal
        pattern factorise as intra-tile x tile-grid: at band centre the
        intra-tile phase steer and the inter-tile delay steer coincide and
-       AF(4, 1 cm) x AF(7, 4 cm) collapses exactly to AF(28, 1 cm), so the
-       full-aperture beamwidth is preserved while the grating lobes appear. */
+       AF(4, 1.5 cm) x AF(5, 6 cm) collapses exactly to AF(20, 1.5 cm), so
+       the full-aperture beamwidth is preserved while the lobes appear. */
     g.lamCm = g.lambdaM * 100;
     g.latList = window.Lat.candidates(g.elemPerTile, g.tileCm, g.lamCm);
     g.latKey = ['rect', 'best', 'row'][Math.round(g.inTileLattice)] || 'rect';
@@ -4836,10 +4848,11 @@ footer.foot a { color: var(--ink-2); }
     g.latOffsetsCm = g.lat.offsets;
 
     /* What a principal-plane cut actually sees: the lattice PROJECTED onto
-       the cut axis. For the sheared lattice the 8 offsets project onto 4
-       distinct x columns of 2, so the x-cut is indistinguishable from 4 x 2
-       — the improvement lives off the principal planes, which is exactly why
-       two cuts are not an honest presentation of this array. */
+       the cut axis. A sheared lattice projects onto the same set of x
+       columns as the rectangle it was sheared from, so the x-cut cannot
+       tell them apart — the improvement lives off the principal planes,
+       which is exactly why two cuts are not an honest presentation of this
+       array. */
     function project(offs, idx, period) {
       var seen = {}, xs = [];
       offs.forEach(function (p) {
@@ -5283,8 +5296,8 @@ footer.foot a { color: var(--ink-2); }
        Phase-shifter quantisation is NOT in this list, and that is the fix,
        not an omission. A phase shifter sits at the element; its LSB residual
        has no tile-common part, and js/beam.js already puts
-       quantResidualDeg(phaseBits) into sigElem where it averages over 392
-       elements rather than 49 tiles. Carrying it here too counted the same
+       quantResidualDeg(phaseBits) into sigElem where it averages over the
+       ELEMENTS rather than over the tiles. Carrying it here too counted the same
        0.812 deg twice and at the wrong level — and because it depends only
        on phaseBits it was IDENTICAL for all six options, so it drowned the
        thing this metric exists to measure: A2/A3/A4 sat at 0.835/0.859/0.821
@@ -6277,8 +6290,8 @@ footer.foot a { color: var(--ink-2); }
       aperture the size of the tile pitch. That is a *filled* subarray, and
       because its sinc nulls landed exactly on the tile-grid grating lobes it
       cancelled them — the right answer for contiguous filled subarrays, and
-      completely wrong for 8 radiators in a 4 cm tile (a filled tile at
-      lambda/2 needs 433). It was assuming away the grating lobes the real
+      completely wrong for 16 radiators in a 6 cm tile (a filled tile at
+      lambda/2 needs 975). It was assuming away the grating lobes the real
       array has, and simultaneously assuming 100% aperture efficiency: the
       same defect seen in pattern space and in gain space.
 
@@ -6323,7 +6336,7 @@ footer.foot a { color: var(--ink-2); }
 
    Pattern factorisation is used only where it is legitimate. The ideal
    excitation is progressive, so intra-tile x tile-grid is exact, and at band
-   centre AF(4,1cm) x AF(7,4cm) collapses to AF(28,1cm) — the full-aperture
+   centre AF(4,1.5cm) x AF(5,6cm) collapses to AF(20,1.5cm) — the full-aperture
    beamwidth and the -13.26 dB uniform first sidelobe are preserved. Errors
    are not progressive, so they are handled by the exact grouped-error mean
    above, and a seeded Monte-Carlo REALISATION is drawn alongside it, because
@@ -6734,7 +6747,7 @@ footer.foot a { color: var(--ink-2); }
     /* LIGHT MODE exists for the Systems view, which evaluates the whole
        model for several saved parameter sets at once. It drops what only a
        plot needs — the second principal-plane cut and the Monte-Carlo
-       realisation (801 points x 392 elements) — and coarsens two sampling
+       realisation (801 points x 400 elements) — and coarsens two sampling
        grids: the zoom cuts (801 instead of 1601 points) and the TTD
        commanded-angle sweep (1 deg instead of 0.25 deg steps, 180 instead
        of 360 u-samples). 40 ms -> 5 ms per system.
@@ -6953,6 +6966,37 @@ footer.foot a { color: var(--ink-2); }
       why: 'LO measurements per array pass, weighted by estimator conditioning.' }
   ];
 
+  /* WHEN IS A LEAD A DECISION, AND WHEN IS IT NOISE?
+     The weights above are declared judgement, written to two decimals. Move
+     0.01 of weight from one criterion to another and any single option's
+     score moves by at most 0.01, so the GAP between two options moves by at
+     most 0.02. A lead smaller than that cannot survive a re-weighting its
+     own author would sign, and reporting it as a winner is exactly the
+     false precision this tool exists to avoid.
+
+     This is not hypothetical here. At the default geometry the baseband
+     lead is 0.0011 — one part in eight hundred — and it changes hands
+     between B3 and B4 on a change of tile pitch. The LO lead is 0.17,
+     eight times the threshold, and holds across every sweep in the tool.
+     So the tool says "A4, decisively" and "B3 and B4, indistinguishable",
+     which are two different kinds of claim and must not be rendered the
+     same way. */
+  var TIE_EPS = 0.02;
+
+  /* The leader plus everyone within TIE_EPS of it, in rank order. Length 1
+     means the lead is real. Ineligible options never join: failing a hard
+     constraint is not a near-miss on points. */
+  function tiedWithLeader(rank) {
+    if (!rank.length) return [];
+    var out = [rank[0]];
+    for (var i = 1; i < rank.length; i++) {
+      if (rank[0].eligible && !rank[i].eligible) break;
+      if (rank[0].score - rank[i].score > TIE_EPS) break;
+      out.push(rank[i]);
+    }
+    return out;
+  }
+
   function normalise(vals, better) {
     var f = vals.filter(isFinite);
     if (!f.length) return vals.map(function () { return 0.5; });
@@ -7025,10 +7069,15 @@ footer.foot a { color: var(--ink-2); }
   function n(v, d) { return window.UI.num(v, d); }
 
   /* ------------------------------- the prose ------------------------------ */
-  function prose(res, budget, loRank, bbRank) {
+  function prose(res, budget, loRank, bbRank, loTied, bbTied) {
     var g = res.g;
     var pick = loRank[0], second = loRank[1];
     var bpick = bbRank[0], bsecond = bbRank[1];
+    loTied = loTied || [pick]; bbTied = bbTied || [bpick];
+    function names(set) {
+      var ns = set.map(function (o) { return o.short; });
+      return ns.length < 2 ? ns[0] : ns.slice(0, -1).join(', ') + ' and ' + ns[ns.length - 1];
+    }
     var a1 = res.lo['local-pll'], a2 = res.lo['hf-foldback'], a3 = res.lo['daisy-chain'], a4 = res.lo['mid-mult'];
     var nT = budget.nTiles;
     var t = [];
@@ -7036,7 +7085,16 @@ footer.foot a { color: var(--ink-2); }
     t.push('### The decision');
     t.push('For the LO and reference distribution, take **' + pick.name + '**' +
       (pick.r.tileMultiplier > 1 ? ' at ×' + pick.r.tileMultiplier + ', distributing ' + n(pick.r.distFreqGHz) + ' GHz on the board' : '') +
-      '. For the baseband split and combine, take **' + bpick.name + '**.');
+      (loTied.length > 1 ? ' — though ' + names(loTied) + ' are within `' + n(Math.abs(pick.score - loTied[loTied.length - 1].score), 3) +
+        '` of each other on a 0–1 score, which these weights cannot resolve' : '') +
+      '. For the baseband split and combine, ' +
+      (bbTied.length > 1
+        ? '**' + names(bbTied) + ' are tied**: `' + bbTied.map(function (o) { return n(o.score, 3); }).join('` vs `') +
+          '` on a 0–1 score, a lead of `' + n(Math.abs(bpick.score - bbTied[bbTied.length - 1].score), 3) +
+          '` against the `' + n(TIE_EPS, 2) + '` that a single defensible re-weighting can move. Pick between them on ' +
+          'grounds this model does not carry — the impedance regime of §5, layout area, or what the combiner IC ' +
+          'already implements — not on the ranking.'
+        : 'take **' + bpick.name + '**.'));
 
     t.push('### Why, in numbers');
     t.push('The requirement is an inter-tile differential phase error below `' + n(budget.sigSpecDeg) + '° RMS` ' +
@@ -7252,15 +7310,23 @@ footer.foot a { color: var(--ink-2); }
   function build(res, budget) {
     var loRank = rankLo(res, budget);
     var bbRank = rankBb(res, budget);
+    var loTied = tiedWithLeader(loRank);
+    var bbTied = tiedWithLeader(bbRank);
     return {
       loRank: loRank, bbRank: bbRank,
       loPick: loRank[0], bbPick: bbRank[0],
+      /* ids that the weights cannot separate from the leader, leader
+         included; length 1 means the lead is real */
+      loTied: loTied, bbTied: bbTied,
+      loTieIds: loTied.map(function (o) { return o.id; }),
+      bbTieIds: bbTied.map(function (o) { return o.id; }),
+      tieEps: TIE_EPS,
       weights: WEIGHTS,
-      text: prose(res, budget, loRank, bbRank)
+      text: prose(res, budget, loRank, bbRank, loTied, bbTied)
     };
   }
 
-  window.Decision = { build: build, WEIGHTS: WEIGHTS };
+  window.Decision = { build: build, WEIGHTS: WEIGHTS, TIE_EPS: TIE_EPS };
 })();
 
 /* ===== js/diagram.js ===== */
@@ -8328,9 +8394,10 @@ footer.foot a { color: var(--ink-2); }
     'exactly on the tile-grid grating lobes and cancel them. That is right for contiguous *filled* subarrays and ' +
     'wrong here, and it hid the dominant effect in the whole view.',
     '- **The element positions are assumed, not designed.** The in-tile lattice is now a selectable sublattice ' +
-    'rather than a hard-coded 4×2, but it is still a choice made in this tool and not by a layout. A real layout ' +
-    'might cluster the four elements of a die instead, which is worse — clusters on the 4 cm tile pitch put ' +
-    'grating lobes every 5.5°. Treat the lattice as a parameter, not a result.',
+    'rather than a hard-coded rectangle, but it is still a choice made in this tool and not by a layout. A real ' +
+    'layout might cluster the four elements of a die instead, which is worse — clustering collapses the effective ' +
+    'lattice onto the tile pitch, which at 6 cm puts grating lobes every 3.7°. Treat the lattice as a parameter, ' +
+    'not a result.',
     '- **The aperiodic mode is a model, not a design.** It replaces the periodic structure with the full-aperture ' +
     'main lobe plus a uniform 1/N floor. A real thinned array has a specific, non-uniform sidelobe structure that ' +
     'depends on the actual positions, and achieving the ideal floor takes deliberate optimisation.',
@@ -8397,8 +8464,8 @@ footer.foot a { color: var(--ink-2); }
     'doubling), so it is a tile-implementation choice inside A4 rather than a separate column.',
     '- **Photonic / RF-over-fibre LO, optical heterodyne, frequency combs, optoelectronic oscillators.** The right ' +
     'answer at a different scale. Fibre earns its E/O and O/E conversion over hundreds of metres, as at ALMA; over ' +
-    'a 30 cm panel with 49 tiles it adds a laser, a modulator and 49 photodiodes to beat a copper run whose total ' +
-    'loss is 38 dB at 19.5 GHz. Worth revisiting only if the array grows to a distributed aperture.',
+    'a 30 cm panel with 25 tiles it adds a laser, a modulator and 25 photodiodes to beat a copper run whose total ' +
+    'loss is 37 dB at 19.5 GHz. Worth revisiting only if the array grows to a distributed aperture.',
     '- **Space-fed / quasi-optical LO illumination.** Genuinely distinct — no distribution network at all, and a ' +
     'per-tile phase that is a closed-form function of geometry rather than a manufactured artefact. Not modelled ' +
     'because it brings error classes this tool has no machinery for (illumination taper, feed pointing, LO ' +
@@ -8414,7 +8481,7 @@ footer.foot a { color: var(--ink-2); }
     '- **Coupled-oscillator arrays, standing-wave/resonant networks, two-tone difference-frequency LO, reference ' +
     'multiplexed onto the baseband or power interconnect, per-tile DDS, SYSREF-only synchronisation.** All real ' +
     'techniques; none distinct enough at this scale to earn a column against A1–A6.',
-    '- **Fully digital per element** (784 converters rather than 98). The limiting case of B5, and it loses by the ' +
+    '- **Fully digital per element** (800 converters rather than 100). The limiting case of B5, and it loses by the ' +
     'same argument by a factor of eight.',
     '- **Frequency-division-multiplexed IF over one coax, delta-sigma bitstream distribution, transformer ' +
     'combining, TDM calibration receivers.** Each solves a narrower problem than the one this comparison is about.',
@@ -8424,9 +8491,11 @@ footer.foot a { color: var(--ink-2); }
     'a reader would have quoted, so they are recorded here rather than only in the commit log.',
     '- **The phase-shifter LSB was counted twice.** It sat in the tile-level inter-tile residual *and* in the ' +
     'per-element beam term. A phase shifter is per element, so the tile-level copy was both a duplicate and ' +
-    'averaged over 49 tiles instead of 392. Being a function of `phaseBits` alone it was identical for every ' +
-    'option and drowned what the metric exists to measure: A2/A3/A4 read 0.835/0.859/0.821° where they now read ' +
-    '0.210/0.288/0.143°, and A4\'s null floor moved from −53.8 dB to −68.9 dB.',
+    'averaged over the tiles instead of over the elements. Being a function of `phaseBits` alone it was identical ' +
+    'for every option and drowned what the metric exists to measure: A2/A3/A4 read 0.835/0.859/0.821° where they ' +
+    'then read 0.210/0.288/0.143°, and A4\'s null floor moved from −53.8 dB to −68.9 dB. (Both halves of that ' +
+    'comparison are at the 4 cm / 49-tile geometry that was the default when the audit ran; at today\'s 6 cm / ' +
+    '25-tile default the same three read 0.212/0.249/0.147°. The fix is what the pair records, not the geometry.)',
     '- **The drift kernel had no loop gain.** `rate·T/√3` is the deadbeat µ = 1 case while the rest of the ' +
     'calibration model runs at µ = 0.3. The residual therefore fell monotonically as µ fell and the model\'s ' +
     'optimum was always the smallest allowed gain. With the standing lag included the drift term is 4.93× larger ' +
@@ -8453,11 +8522,31 @@ footer.foot a { color: var(--ink-2); }
     'needs a decision about where the phase detector actually sits.',
     '- **The baseband inter-tile resistive star is charged no combine loss** — only line loss. Net of array gain ' +
     'that is 10log10(49) = 16.9 dB for B1, larger than everything B1 does report.',
-    '- **B2 saturates and says so in numbers rather than words:** 997.72° of "phase error" and a beam steer that ' +
+    '- **B2 saturates and says so in numbers rather than words:** 673.88° of "phase error" and a beam steer that ' +
     'is exactly 90.0000° because the arcsine clipped.',
     '- **The inter-tile geometric term is added to both the random and the systematic baseband totals,** and the ' +
-    'uncompensated part compares an RMS spread against a peak-to-peak range, so the flat star is declared inside ' +
-    'the TTD range when its arms span 2278 ps against 809 ps of range.',
+    'uncompensated part compares an RMS spread against a peak-to-peak range. At the old 4 cm geometry that let ' +
+    'the flat star be declared inside the TTD range while its arms spanned 2278 ps against 809 ps of range. At ' +
+    'the 6 cm default the star spans 602 ps against 867 ps and genuinely does fit, so the symptom is gone — but ' +
+    'the comparison is still RMS against peak-to-peak, and it will mis-declare again at a finer pitch.',
+
+    '### Why the tool opens on a 6 cm tile pitch, and what a tie means here',
+    '- **The default geometry is the one that fits the aperture, not a round number.** The 30 cm aperture is a ' +
+    'hard spec; the tile pitch is the design choice that has to fit inside it. 6 cm divides 30 exactly (5×5 = 25 ' +
+    'tiles using the whole aperture), takes the 100-die inventory exactly (25 × 4, nothing stranded), and sits ' +
+    'inside the proposal\'s own 5–10 cm sub-tiling range. The tool previously opened on 4 cm, which is below that ' +
+    'range, fits 7×7 = 49 tiles across only 28 cm, strands 2 dies, and costs 2.2 dB of distribution loss and ' +
+    '6.7 W. Everything the pitch touches — tiles, taps, channels, elements, the in-tile lattice — moves with it, ' +
+    'so `tapsPerTile` and `chPerTile` are defaulted to match rather than left to disagree with it.',
+    '- **The architecture defaults are the model\'s own ranking, checked rather than assumed.** A4 leads the LO ' +
+    'ranking by 0.17 on a 0–1 score and holds that lead across every aperture from 10 to 60 cm, every tile pitch ' +
+    'from 2 to 10 cm and every multiplier from ×2 to ×8 the tool can be set to. That is a result.',
+    '- **The baseband leader is not.** B3 and B4 sit 0.001 apart, and which of them leads changes with the tile ' +
+    'pitch. So the tool reports a **tie** whenever the gap is under 0.02 — the most a single 0.01 shift of weight ' +
+    'between two criteria can move a gap — and names both rather than crowning one. The default build takes B3 on ' +
+    'a criterion the weights do not carry: B4 inherits the flat star\'s geometry and spends 69 % of the coarse ' +
+    'TTD range on its own arm mismatch against the H-tree\'s 12 %. Read the tie as "the score cannot decide this", ' +
+    'not as "these options are the same".',
 
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
@@ -9342,17 +9431,23 @@ footer.foot a { color: var(--ink-2); }
        picker. They were previously merged into a single badge on the
        recommended column reading "selected", so whenever the two differed the
        header asserted the opposite of the truth. */
-    function opt(m, results, curId, pickId) {
+    /* tieIds holds every option the weights cannot separate from the
+       leader. A build sitting on any of them is on the model's answer —
+       badging it "your build" against a different "model pick" would
+       assert a distinction the score does not support. */
+    function opt(m, results, curId, pickId, tieIds) {
       var o = { id: m.id, name: m.name, topology: results[m.id].note };
+      var tied = (tieIds || [pickId]).indexOf(m.id) >= 0;
       if (m.id === curId) {
         o.cur = true;
-        o.badge = m.id === pickId ? 'your build · model pick' : 'your build';
-        o.badgeClass = m.id === pickId ? 'acc' : 'warn';
+        o.badge = m.id === pickId ? 'your build · model pick'
+          : tied ? 'your build · tied for model pick' : 'your build';
+        o.badgeClass = tied ? 'acc' : 'warn';
       }
       return o;
     }
-    var loOpts = M.LO_META.map(function (m) { return opt(m, res.lo, res.g.loOptionId, dec.loPick.id); });
-    var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id); });
+    var loOpts = M.LO_META.map(function (m) { return opt(m, res.lo, res.g.loOptionId, dec.loPick.id, dec.loTieIds); });
+    var bbOpts = M.BB_META.map(function (m) { return opt(m, res.bb, res.g.bbOptionId, dec.bbPick.id, dec.bbTieIds); });
 
     var cfg = { recLabel: 'model pick' };
     var lr = loRows(budget), br = bbRows(budget);
@@ -9395,16 +9490,43 @@ footer.foot a { color: var(--ink-2); }
       d.appendChild(l); d.appendChild(m2);
       vm.appendChild(d);
     }
-    var lp = dec.loPick, bp = dec.bbPick;
-    verdict('LO', lp.name,
+    /* A lead the weights cannot resolve is reported as a tie, not as a
+       winner with a runner-up: naming one of two indistinguishable options
+       "the pick" is the whole failure mode this tool is built against.
+
+       Which member of a tie heads the verdict is then a free choice, and
+       the useful one is the READER'S. Leading with rank-1 makes the panel
+       look like it disagrees with a build that is in fact sitting on the
+       model's answer; leading with the build answers the question actually
+       being asked — "is what I have selected the right thing?" — and the
+       tie sentence still names its equals. Outside a tie this changes
+       nothing: head() returns rank-1. */
+    function head(tied, curId) {
+      if (!tied || tied.length < 2) return tied[0];
+      for (var i = 0; i < tied.length; i++) if (tied[i].id === curId) return tied[i];
+      return tied[0];
+    }
+    var lp = head(dec.loTied, res.g.loOptionId) || dec.loPick;
+    var bp = head(dec.bbTied, res.g.bbOptionId) || dec.bbPick;
+    function tieNote(tied, shown) {
+      if (!tied || tied.length < 2) return '';
+      var others = tied.filter(function (o) { return o.id !== shown.id; });
+      return ' <strong>Tied with ' + others.map(function (o) { return o.short; }).join(', ') +
+        '</strong> — the scores differ by ' + n(Math.abs(tied[0].score - tied[tied.length - 1].score), 3) +
+        ' on a 0–1 scale, inside what re-weighting can move, so this ordering is not a result.';
+    }
+    verdict('LO', lp.name + (dec.loTied && dec.loTied.length > 1 ? ' (tied)' : ''),
       'Residual inter-tile phase error <span class="kv">' + n(lp.r.interTileResidualDeg) + '°</span> against a <span class="kv">' +
       n(budget.sigSpecDeg) + '°</span> spec, null floor <span class="kv">' + n(lp.r.sllDb, 1) + ' dB</span>, ' +
       'distribution power <span class="kv">' + n(lp.r.powerFracOfArray, 1) + '%</span> of the array. ' +
-      'Runner-up: ' + (dec.loRank[1] ? dec.loRank[1].short : '—') + '.');
-    verdict('Baseband', bp.name,
+      (dec.loTied && dec.loTied.length > 1 ? tieNote(dec.loTied, lp)
+        : 'Runner-up: ' + (dec.loRank[1] ? dec.loRank[1].short : '—') + '.'));
+    verdict('Baseband', bp.name + (dec.bbTied && dec.bbTied.length > 1 ? ' (tied)' : ''),
       'Squint loss <span class="kv">' + n(bp.r.squintLossDb, 3) + ' dB</span>, noise-figure penalty <span class="kv">' +
       n(bp.r.nfPenaltyDb, 2) + ' dB</span>, <span class="kv">' + n(bp.r.powerPerTileMw, 0) + ' mW</span> per tile ' +
-      'across both rails. Runner-up: ' + (dec.bbRank[1] ? dec.bbRank[1].short : '—') + '.');
+      'across both rails. ' +
+      (dec.bbTied && dec.bbTied.length > 1 ? tieNote(dec.bbTied, bp)
+        : 'Runner-up: ' + (dec.bbRank[1] ? dec.bbRank[1].short : '—') + '.'));
 
     /* charts */
     var cc = document.getElementById('compareCharts');
@@ -10084,9 +10206,11 @@ footer.foot a { color: var(--ink-2); }
     trs.appendChild(c0);
     M.LO_META.forEach(function (m) {
       var row = dec.loRank.filter(function (r) { return r.id === m.id; })[0];
-      var td = UI.elt('td', 'v' + (row.id === dec.loPick.id ? ' rec' : ''));
+      var tied = (dec.loTieIds || [dec.loPick.id]).indexOf(row.id) >= 0;
+      var td = UI.elt('td', 'v' + (tied ? ' rec' : ''));
       td.innerHTML = '<strong>' + (row.score * 100).toFixed(0) + '</strong>' +
-        (row.eligible ? '' : row.infeasible ? ' <span class="badge fail">infeasible</span>' : ' <span class="badge fail">off-spec</span>');
+        (row.eligible ? '' : row.infeasible ? ' <span class="badge fail">infeasible</span>' : ' <span class="badge fail">off-spec</span>') +
+        (tied && dec.loTied.length > 1 ? ' <span class="badge warn">tied</span>' : '');
       trs.appendChild(td);
     });
     trs.appendChild(UI.elt('td', 'v', '1.00'));
@@ -10210,8 +10334,15 @@ footer.foot a { color: var(--ink-2); }
     chip(document.getElementById('ctxLo'), 'LO', lm ? lm.short : '—');
     chip(document.getElementById('ctxBb'), 'BB', bm ? bm.short : '—');
 
+    /* A tie is shown as "X ≈ Y", not as a single winner: the chip is the
+       one place the verdict is visible from every view, so it must not
+       assert a ranking the score cannot support. */
+    function pickLabel(p, tied) {
+      if (!p) return '—';
+      return p.short + (tied && tied.length > 1 ? ' ≈ ' + tied[1].short : '');
+    }
     var vpick = dec && dec.loPick && dec.bbPick
-      ? dec.loPick.short + ' + ' + dec.bbPick.short : '—';
+      ? pickLabel(dec.loPick, dec.loTied) + ' + ' + pickLabel(dec.bbPick, dec.bbTied) : '—';
     chip(document.getElementById('ctxVerdict'), 'model picks', vpick);
 
     /* A hard inconsistency now lives in a banner inside the map panel, so it

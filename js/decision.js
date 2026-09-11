@@ -29,6 +29,37 @@
       why: 'LO measurements per array pass, weighted by estimator conditioning.' }
   ];
 
+  /* WHEN IS A LEAD A DECISION, AND WHEN IS IT NOISE?
+     The weights above are declared judgement, written to two decimals. Move
+     0.01 of weight from one criterion to another and any single option's
+     score moves by at most 0.01, so the GAP between two options moves by at
+     most 0.02. A lead smaller than that cannot survive a re-weighting its
+     own author would sign, and reporting it as a winner is exactly the
+     false precision this tool exists to avoid.
+
+     This is not hypothetical here. At the default geometry the baseband
+     lead is 0.0011 — one part in eight hundred — and it changes hands
+     between B3 and B4 on a change of tile pitch. The LO lead is 0.17,
+     eight times the threshold, and holds across every sweep in the tool.
+     So the tool says "A4, decisively" and "B3 and B4, indistinguishable",
+     which are two different kinds of claim and must not be rendered the
+     same way. */
+  var TIE_EPS = 0.02;
+
+  /* The leader plus everyone within TIE_EPS of it, in rank order. Length 1
+     means the lead is real. Ineligible options never join: failing a hard
+     constraint is not a near-miss on points. */
+  function tiedWithLeader(rank) {
+    if (!rank.length) return [];
+    var out = [rank[0]];
+    for (var i = 1; i < rank.length; i++) {
+      if (rank[0].eligible && !rank[i].eligible) break;
+      if (rank[0].score - rank[i].score > TIE_EPS) break;
+      out.push(rank[i]);
+    }
+    return out;
+  }
+
   function normalise(vals, better) {
     var f = vals.filter(isFinite);
     if (!f.length) return vals.map(function () { return 0.5; });
@@ -101,10 +132,15 @@
   function n(v, d) { return window.UI.num(v, d); }
 
   /* ------------------------------- the prose ------------------------------ */
-  function prose(res, budget, loRank, bbRank) {
+  function prose(res, budget, loRank, bbRank, loTied, bbTied) {
     var g = res.g;
     var pick = loRank[0], second = loRank[1];
     var bpick = bbRank[0], bsecond = bbRank[1];
+    loTied = loTied || [pick]; bbTied = bbTied || [bpick];
+    function names(set) {
+      var ns = set.map(function (o) { return o.short; });
+      return ns.length < 2 ? ns[0] : ns.slice(0, -1).join(', ') + ' and ' + ns[ns.length - 1];
+    }
     var a1 = res.lo['local-pll'], a2 = res.lo['hf-foldback'], a3 = res.lo['daisy-chain'], a4 = res.lo['mid-mult'];
     var nT = budget.nTiles;
     var t = [];
@@ -112,7 +148,16 @@
     t.push('### The decision');
     t.push('For the LO and reference distribution, take **' + pick.name + '**' +
       (pick.r.tileMultiplier > 1 ? ' at ×' + pick.r.tileMultiplier + ', distributing ' + n(pick.r.distFreqGHz) + ' GHz on the board' : '') +
-      '. For the baseband split and combine, take **' + bpick.name + '**.');
+      (loTied.length > 1 ? ' — though ' + names(loTied) + ' are within `' + n(Math.abs(pick.score - loTied[loTied.length - 1].score), 3) +
+        '` of each other on a 0–1 score, which these weights cannot resolve' : '') +
+      '. For the baseband split and combine, ' +
+      (bbTied.length > 1
+        ? '**' + names(bbTied) + ' are tied**: `' + bbTied.map(function (o) { return n(o.score, 3); }).join('` vs `') +
+          '` on a 0–1 score, a lead of `' + n(Math.abs(bpick.score - bbTied[bbTied.length - 1].score), 3) +
+          '` against the `' + n(TIE_EPS, 2) + '` that a single defensible re-weighting can move. Pick between them on ' +
+          'grounds this model does not carry — the impedance regime of §5, layout area, or what the combiner IC ' +
+          'already implements — not on the ranking.'
+        : 'take **' + bpick.name + '**.'));
 
     t.push('### Why, in numbers');
     t.push('The requirement is an inter-tile differential phase error below `' + n(budget.sigSpecDeg) + '° RMS` ' +
@@ -328,13 +373,21 @@
   function build(res, budget) {
     var loRank = rankLo(res, budget);
     var bbRank = rankBb(res, budget);
+    var loTied = tiedWithLeader(loRank);
+    var bbTied = tiedWithLeader(bbRank);
     return {
       loRank: loRank, bbRank: bbRank,
       loPick: loRank[0], bbPick: bbRank[0],
+      /* ids that the weights cannot separate from the leader, leader
+         included; length 1 means the lead is real */
+      loTied: loTied, bbTied: bbTied,
+      loTieIds: loTied.map(function (o) { return o.id; }),
+      bbTieIds: bbTied.map(function (o) { return o.id; }),
+      tieEps: TIE_EPS,
       weights: WEIGHTS,
-      text: prose(res, budget, loRank, bbRank)
+      text: prose(res, budget, loRank, bbRank, loTied, bbTied)
     };
   }
 
-  window.Decision = { build: build, WEIGHTS: WEIGHTS };
+  window.Decision = { build: build, WEIGHTS: WEIGHTS, TIE_EPS: TIE_EPS };
 })();
