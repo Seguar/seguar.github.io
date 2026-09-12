@@ -603,8 +603,197 @@
     return Math.max(0, Math.ceil(total / maxSegLossDb) - 1);
   }
 
+  /* ==========================================================================
+     THE RADIO LINK.
+
+     Everything above describes what the array does to its own signal. This
+     block is the only part of the tool that puts the array in front of a
+     path, and it exists because the question a committee asks first —
+     "what range does this give you, in rain?" — could not be answered at
+     all before.
+
+     E-band is a rain-limited band, and that is not a detail: at 78 GHz a
+     25 mm/h rain cell costs about 10 dB per kilometre, which is thirty
+     times the gaseous absorption over the same kilometre. Anything that
+     ignores rain is describing a different radio.
+     ====================================================================== */
+
+  /* Free-space path loss. The 92.45 constant is for GHz and km. */
+  function fsplDb(fGHz, dKm) {
+    if (!(fGHz > 0) || !(dKm > 0)) return NaN;
+    return 92.45 + 20 * Math.log10(fGHz) + 20 * Math.log10(dKm);
+  }
+
+  /* Gaseous absorption, ITU-R P.676. E-band sits in the window between the
+     60 GHz oxygen complex and the 183 GHz water line, so the figure is
+     small and slowly varying: about 0.3-0.5 dB/km at sea level, 7.5 g/m^3
+     water vapour, 15 C. Linear interpolation over that window is well
+     inside the spread between atmospheres, and the parameter is editable
+     for anyone who wants a real P.676 run. */
+  var GAS_TABLE = [
+    { f: 60, a: 15.0 },   /* oxygen line — here only so the shape is visible */
+    { f: 70, a: 0.50 },
+    { f: 80, a: 0.38 },
+    { f: 90, a: 0.42 },
+    { f: 100, a: 0.50 }
+  ];
+  function gasAbsDbPerKm(fGHz) {
+    var t = GAS_TABLE;
+    if (fGHz <= t[1].f) return t[1].a;           /* do not extrapolate into the O2 line */
+    for (var i = 1; i < t.length - 1; i++) {
+      if (fGHz <= t[i + 1].f) {
+        var u = (fGHz - t[i].f) / (t[i + 1].f - t[i].f);
+        return t[i].a + u * (t[i + 1].a - t[i].a);
+      }
+    }
+    return t[t.length - 1].a;
+  }
+
+  /* ITU-R P.838-3 specific-attenuation coefficients. Tabulated at the
+     frequencies that bracket E-band; log-log interpolation in k and linear
+     in alpha is what the Recommendation itself prescribes between its
+     tabulated points. Horizontal polarisation is the worse case and is the
+     default, which is the conservative choice and is stated as such. */
+  var RAIN_TABLE = [
+    { f: 60, kH: 0.8606, aH: 0.7656, kV: 0.8515, aV: 0.7486 },
+    { f: 70, kH: 0.9865, aH: 0.7302, kV: 0.9751, aV: 0.7215 },
+    { f: 80, kH: 1.0217, aH: 0.7051, kV: 1.0195, aV: 0.6997 },
+    { f: 90, kH: 1.0258, aH: 0.6849, kV: 1.0419, aV: 0.6820 },
+    { f: 100, kH: 1.0197, aH: 0.6690, kV: 1.0480, aV: 0.6674 }
+  ];
+  function rainCoeffs(fGHz, pol) {
+    var t = RAIN_TABLE, lo = t[0], hi = t[t.length - 1], i;
+    for (i = 0; i < t.length - 1; i++) {
+      if (fGHz >= t[i].f && fGHz <= t[i + 1].f) { lo = t[i]; hi = t[i + 1]; break; }
+    }
+    var kLo = pol === 'V' ? lo.kV : lo.kH, kHi = pol === 'V' ? hi.kV : hi.kH;
+    var aLo = pol === 'V' ? lo.aV : lo.aH, aHi = pol === 'V' ? hi.aV : hi.aH;
+    if (hi.f === lo.f) return { k: kLo, alpha: aLo };
+    var u = (Math.log10(Math.max(fGHz, 1)) - Math.log10(lo.f)) / (Math.log10(hi.f) - Math.log10(lo.f));
+    u = Math.max(0, Math.min(1, u));
+    return {
+      k: Math.pow(10, Math.log10(kLo) + u * (Math.log10(kHi) - Math.log10(kLo))),
+      alpha: aLo + u * (aHi - aLo)
+    };
+  }
+
+  /* specific attenuation gamma = k R^alpha, dB/km */
+  function rainSpecificDbKm(k, alpha, rateMmH) {
+    if (!(rateMmH > 0)) return 0;
+    return k * Math.pow(rateMmH, alpha);
+  }
+
+  /* ITU-R P.530 effective-path-length factor:
+
+       r = 1 / (0.477 d^0.633 R^(0.073a) f^0.123 - 10.579 (1 - e^-0.024d))
+
+     capped at 2.5. It reconciles a POINT rain rate with a PATH average: on
+     a long hop the cell does not cover it all, so r < 1; on a short hop the
+     whole path can sit inside the intense core, so r > 1.
+
+     THE f^0.123 TERM IS NOT OPTIONAL. Leaving it out — which this function
+     did at first — shrinks the denominator, and at 78 GHz over 1 km it
+     drove r from 1.40 to beyond the 2.5 cap, inflating the rain term by
+     1.8x and taking about 11 dB off the link for no reason. The frequency
+     is already in gamma through k and alpha; it is in r as well because the
+     cell-size statistics are frequency-dependent too. */
+  function rainPathFactor(dKm, rateMmH, alpha, fGHz) {
+    if (!(dKm > 0)) return 1;
+    var den = 0.477 * Math.pow(dKm, 0.633) *
+      Math.pow(Math.max(rateMmH, 0.1), 0.073 * alpha) *
+      Math.pow(Math.max(fGHz || 1, 1), 0.123) -
+      10.579 * (1 - Math.exp(-0.024 * dKm));
+    if (!(den > 0)) return 2.5;
+    return Math.min(2.5, 1 / den);
+  }
+
+  function rainAttenDb(fGHz, dKm, rateMmH, pol) {
+    var c = rainCoeffs(fGHz, pol);
+    var gamma = rainSpecificDbKm(c.k, c.alpha, rateMmH);
+    return gamma * dKm * rainPathFactor(dKm, rateMmH, c.alpha, fGHz);
+  }
+
+  /* thermal noise floor in dBm: kTB at 290 K plus the receiver's own NF */
+  function noiseFloorDbm(bwHz, nfDb) {
+    if (!(bwHz > 0)) return NaN;
+    return -174 + 10 * Math.log10(bwHz) + nfDb;
+  }
+
+  /* Required SNR per constellation.
+
+     Derived, not tabulated: for square M-QAM over AWGN the symbol error
+     rate is bounded by 4Q(sqrt(3 SNR/(M-1))), so the SNR for a target SER
+     follows in closed form. A coding gain is then SUBTRACTED as a single
+     declared number rather than being folded in silently, because the
+     coding gain is a system choice and the uncoded figure is the one that
+     can be checked against a textbook. */
+  function qInv(p) {
+    /* inverse Gaussian tail, Acklam's rational approximation */
+    if (!(p > 0 && p < 1)) return NaN;
+    var a = [-39.69683028665376, 220.9460984245205, -275.9285104469687,
+             138.3577518672690, -30.66479806614716, 2.506628277459239];
+    var b = [-54.47609879822406, 161.5858368580409, -155.6989798598866,
+             66.80131188771972, -13.28068155288572];
+    var c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838,
+             -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    var d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996,
+             3.754408661907416];
+    var pl = 0.02425, q, r, x;
+    if (p < pl) {
+      q = Math.sqrt(-2 * Math.log(p));
+      x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+          ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    } else if (p <= 1 - pl) {
+      q = p - 0.5; r = q * q;
+      x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+          (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+    } else {
+      q = Math.sqrt(-2 * Math.log(1 - p));
+      x = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+           ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    return -x;                                  /* Q^-1(p) */
+  }
+  function snrForQamDb(order, ber, codingGainDb) {
+    if (!(order >= 2)) return NaN;
+    var bits = Math.log2(order);
+    /* SER from BER with Gray mapping: SER ~ BER * bits */
+    var ser = Math.min(0.5, Math.max(1e-12, ber * bits));
+    var qArg = qInv(ser / 4);                   /* SER = 4 Q(sqrt(3 SNR/(M-1))) */
+    var snrLin = qArg * qArg * (order - 1) / 3;
+    return 10 * Math.log10(snrLin) - (codingGainDb || 0);
+  }
+
+  /* An EVM is an SNR ceiling: no amount of received power beats it. This is
+     the bridge between everything else in this tool and the link. */
+  function snrCeilFromEvmDb(evmDbVal) { return -evmDbVal; }
+
+  /* Two independent impairments add in POWER at the slicer, so their SNRs
+     combine reciprocally. */
+  function combineSnrDb() {
+    var inv = 0, any = false;
+    for (var i = 0; i < arguments.length; i++) {
+      var s = arguments[i];
+      if (s == null || !isFinite(s)) continue;
+      inv += Math.pow(10, -s / 10);
+      any = true;
+    }
+    return any ? -10 * Math.log10(inv) : NaN;
+  }
+
+  function shannonBps(bwHz, snrDbVal) {
+    if (!(bwHz > 0)) return 0;
+    return bwHz * Math.log2(1 + Math.pow(10, snrDbVal / 10));
+  }
+
   window.K = {
     C0: C0, DEG: DEG, MEDIA: MEDIA, QAM_EVM: QAM_EVM,
+    fsplDb: fsplDb, gasAbsDbPerKm: gasAbsDbPerKm,
+    rainCoeffs: rainCoeffs, rainSpecificDbKm: rainSpecificDbKm,
+    rainPathFactor: rainPathFactor, rainAttenDb: rainAttenDb,
+    noiseFloorDbm: noiseFloorDbm, snrForQamDb: snrForQamDb, qInv: qInv,
+    snrCeilFromEvmDb: snrCeilFromEvmDb, combineSnrDb: combineSnrDb,
+    shannonBps: shannonBps,
     db2lin: db2lin, lin2db: lin2db, deg2rad: deg2rad, rad2deg: rad2deg,
     multDb: multDb, uncorrDb: uncorrDb,
     lineAlphaDbCm: lineAlphaDbCm, lineDelayPsCm: lineDelayPsCm,

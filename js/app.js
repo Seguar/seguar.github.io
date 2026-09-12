@@ -762,6 +762,247 @@
   }
 
   /* =====================================================================
+     Link calculator
+
+     A link budget is a cascade, and the only honest way to show one is as a
+     cascade: each term on its own line, signed, with the running total
+     beside it, so a reader can check it against their own spreadsheet line
+     by line rather than being handed a single number to trust.
+
+     The two things this view exists to make visible:
+
+       1. E-band is rain-limited. At 78 GHz a 25 mm/h cell costs about
+          10 dB/km against 0.4 dB/km of gaseous absorption, so the rain row
+          is usually larger than every other loss except free space, and it
+          is what sets the range.
+
+       2. The array's own residual phase error is an SNR CEILING. No amount
+          of received power beats it. That is where everything else in this
+          tool — the LO architecture, the baseband network, the antenna
+          arrangement — stops being an abstraction and starts setting a data
+          rate. The cascade says which of the two is binding.
+     ===================================================================== */
+  function renderLink(res, budget) {
+    /* local table builder: a link budget is a plain signed list, not the
+       option-comparison shape ui.js renders */
+    function linkTable(mount, headers, rows) {
+      mount.textContent = '';
+      var t = document.createElement('table');
+      t.className = 'grid';
+      var thead = document.createElement('thead'), htr = document.createElement('tr');
+      headers.forEach(function (h) { htr.appendChild(UI.elt('th', null, h)); });
+      thead.appendChild(htr); t.appendChild(thead);
+      var tb = document.createElement('tbody');
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        if (r.mark) tr.className = 'sect';
+        if (r.cls) tr.classList.add(r.cls);
+        r.cells.forEach(function (cv, i) {
+          var td = UI.elt('td', i === 0 ? 'mn' : 'v', cv === null || cv === undefined ? '—' : String(cv));
+          if (i === headers.length - 1) td.style.cssText = 'text-align:left;white-space:normal;min-width:240px';
+          tr.appendChild(td);
+        });
+        tb.appendChild(tr);
+      });
+      t.appendChild(tb);
+      mount.appendChild(t);
+    }
+    var g = res.g;
+    var lo = res.lo[g.loOptionId];
+    var bm = window.Beam.evaluate(g, budget, lo, res.bb[g.bbOptionId], { light: true });
+    var L = M.evalLink(g, lo, bm);
+    var fmtR = function (km) { return km >= 1 ? n(km, 2) + ' km' : n(km * 1000, 0) + ' m'; };
+
+    /* ---- verdict ---- */
+    document.getElementById('linkVerdictSub').textContent =
+      n(g.linkRangeKm, 2) + ' km · ' + n(g.rainRateMmH, 0) + ' mm/h rain · ' +
+      n(g.rfBwGHz, 1) + ' GHz · ' + L.pol + '-pol';
+
+    UI.renderBudget(document.getElementById('linkStats'), null, null, {
+      cells: [
+        { k: 'EIRP', n: n(L.eirpDbm, 1), unit: 'dBm',
+          d: n(L.pPerElemDbm, 1) + ' dBm at each of ' + L.nPorts + ' ports (' +
+             n(g.txPoutDbm, 1) + ' dBm less ' + n(g.txBackoffDb, 1) + ' dB back-off) = ' +
+             n(L.pTotalDbm, 1) + ' dBm radiated, plus ' + n(L.dArrayDbi, 2) +
+             ' dBi of array directivity, less ' + n(L.antLossTotalDb, 2) + ' dB antenna chain. ' +
+             'Equivalently P_element + 20log10(N) + D_element — N twice, once for the power summed ' +
+             'and once for the directivity, which is the N² of coherent combining.' },
+        { k: 'Received power', n: n(L.prxDbm, 1), unit: 'dBm',
+          d: 'after ' + n(L.fsplDb, 1) + ' dB free space, ' + n(L.gasDb, 2) + ' dB gaseous and ' +
+             n(L.rainDb, 1) + ' dB rain, plus ' + n(L.gRxDbi, 2) + ' dBi of realised receive gain. ' +
+             'In clear air it would be ' + n(L.prxClearDbm, 1) + ' dBm — rain is costing ' +
+             n(L.rainDb, 1) + ' dB.' },
+        { k: 'SNR', n: n(L.snrEffDb, 1), unit: 'dB',
+          binding: L.ceilingBinds,
+          d: L.ceilingBinds
+            ? 'THE ARRAY IS BINDING, NOT THE PATH. The link delivers ' + n(L.snrPathDb, 1) +
+              ' dB, but this build\'s residual phase error is an EVM of ' + n(lo.evmPct, 2) +
+              '%, which is an SNR ceiling of ' + n(L.snrCeilDb, 1) + ' dB that no received power ' +
+              'beats. Fix the distribution, not the link.'
+            : 'the path delivers ' + n(L.snrPathDb, 1) + ' dB and the array\'s own EVM ceiling is ' +
+              n(L.snrCeilDb, 1) + ' dB, combining to ' + n(L.snrEffDb, 1) +
+              '. The PATH is binding here — more array coherence buys nothing until the path improves.' },
+        { k: 'Supports', n: L.closes ? L.best.name : 'nothing', unit: '',
+          binding: !L.closes,
+          d: L.closes
+            ? n(L.bitsPerSym, 0) + ' bits/symbol over ' + n(g.rfBwGHz, 1) + ' GHz = ' +
+              n(L.rateBps / 1e9, 2) + ' Gb/s, with ' + n(L.marginDb, 1) + ' dB in hand above the ' +
+              n(L.best.snrDb, 1) + ' dB it needs. Shannon on this SNR would allow ' +
+              n(L.shannonCapBps / 1e9, 1) + ' Gb/s.'
+            : 'The link does not close at this range and rain rate even at the lowest constellation, ' +
+              'which needs ' + n(L.requirements[0].snrDb, 1) + ' dB plus ' + n(g.linkMarginReqDb, 1) +
+              ' dB of margin against the ' + n(L.snrEffDb, 1) + ' dB available.' },
+        { k: 'Range at this rain rate', n: fmtR(L.maxRangeKm), unit: '',
+          d: 'where the SNR falls to the ' + n(L.needDb, 1) + ' dB that ' +
+             (L.closes ? L.best.name : L.requirements[0].name) + ' plus ' + n(g.linkMarginReqDb, 1) +
+             ' dB of margin needs. Solved by bisection on the same cascade printed below, so it ' +
+             'cannot drift from it.' }
+      ]
+    });
+
+    /* ---- the cascade ---- */
+    var run = 0;
+    var rows = [];
+    function step(label, delta, note, isTotal) {
+      if (delta !== null) run += delta;
+      rows.push({
+        cells: [label, delta === null ? '' : (delta > 0 ? '+' : '') + n(delta, 2),
+                n(run, 2), note || ''],
+        mark: !!isTotal
+      });
+    }
+    run = L.pPerElemDbm;
+    rows.push({ cells: ['PA output per element, after back-off', '', n(run, 2),
+      n(g.txPoutDbm, 1) + ' dBm saturated less ' + n(g.txBackoffDb, 1) + ' dB — engineering guess, measure it'] });
+    step('Coherent sum of ' + L.nPorts + ' ports', 10 * Math.log10(L.nPorts), '10log10(N) — power, not field');
+    step('Array directivity', L.dArrayDbi, 'from the beam model: ' + g.elem.label);
+    step('Antenna-side chain', -L.antLossTotalDb, 'efficiency, feed, T/R, and the in-cell feed if any');
+    step('EIRP', null, '', true);
+    step('Free-space path loss', -L.fsplDb,
+      '92.45 + 20log10(' + n(g.fLoGHz, 1) + ' GHz) + 20log10(' + n(g.linkRangeKm, 2) + ' km)');
+    step('Gaseous absorption', -L.gasDb,
+      n(L.gasPerKm, 2) + ' dB/km over ' + n(g.linkRangeKm, 2) + ' km — ITU-R P.676 window between the 60 and 183 GHz lines');
+    step('Rain', -L.rainDb,
+      'ITU-R P.838-3: k=' + n(L.rainK, 3) + ', α=' + n(L.rainAlpha, 3) + ' (' + L.pol + '-pol) → γ=' +
+      n(L.rainGammaDbKm, 2) + ' dB/km at ' + n(g.rainRateMmH, 0) + ' mm/h, × ' + n(g.linkRangeKm, 2) +
+      ' km × ' + n(L.rainPathFactor, 3) + ' path factor (ITU-R P.530)');
+    step('Receive array gain', L.gRxDbi,
+      'REALISED, not directivity: less scan loss and coherence loss and the antenna chain');
+    step('Received power', null, '', true);
+    /* the running total changes UNITS here: dBm of received power minus dBm
+       of noise is dB of ratio. The label says "subtract" so the positive
+       delta does not read as noise helping. */
+    step('Subtract the noise floor', -L.noiseDbm,
+      '−174 dBm/Hz + 10log10(' + n(g.rfBwGHz, 1) + ' GHz) + ' + n(g.rxNfDb, 1) + ' dB NF = ' +
+      n(L.noiseDbm, 1) + ' dBm. From here the running total is a RATIO in dB, not a power in dBm.');
+    step('Implementation loss', -g.implLossDb, 'synchronisation, timing, quantisation, filter ripple');
+    step('SNR from the path', null, '', true);
+    rows.push({ cells: ['Array EVM ceiling', '', n(L.snrCeilDb, 2),
+      'this build\'s ' + n(lo.evmPct, 2) + '% array-output EVM is an SNR no power beats'] });
+    rows.push({ cells: ['Effective SNR', '', n(L.snrEffDb, 2),
+      'the two combine in power: 1/S = 1/S_path + 1/S_array' + (L.ceilingBinds ? ' — THE ARRAY BINDS' : ' — the path binds')],
+      mark: true });
+
+    linkTable(document.getElementById('linkTable'),
+      ['Term', 'dB', 'Running', 'Where it comes from'], rows, true);
+
+    /* ---- range chart ---- */
+    var clearPts = [], rainPts = [];
+    L.rangeCurve.forEach(function (p) { rainPts.push({ x: p.d, y: p.snr }); });
+    (function () {
+      var save = g.rainRateMmH;
+      L.rangeCurve.forEach(function (p) {
+        var fs = K.fsplDb(g.fLoGHz, p.d);
+        var ga = L.gasPerKm * p.d;
+        var pw = L.eirpDbm - fs - ga + L.gRxDbi;
+        clearPts.push({ x: p.d, y: K.combineSnrDb(pw - L.noiseDbm - g.implLossDb, L.snrCeilDb) });
+      });
+      void save;
+    })();
+    var need = L.needDb;
+    document.getElementById('linkRangeChart').textContent = '';
+    document.getElementById('linkRangeChart').appendChild(window.Charts.lineChart({
+      series: [
+        { name: 'clear air', color: SERIES[0], points: clearPts },
+        { name: n(g.rainRateMmH, 0) + ' mm/h rain', color: SERIES[1], points: rainPts }
+      ],
+      xLabel: 'range (km, log)', yLabel: 'effective SNR (dB)',
+      xFmt: function (v) { return v >= 1 ? v + ' km' : (v * 1000) + ' m'; },
+      hLine: isFinite(need) ? need : undefined,
+      hLabel: (L.closes ? L.best.name : L.requirements[0].name) + ' + margin'
+    }));
+    document.getElementById('linkRangeNote').innerHTML =
+      'Both curves flatten at <span class="kv">' + n(L.snrCeilDb, 1) + ' dB</span> however short the hop, ' +
+      'because that is this build\'s own EVM ceiling — the array cannot be out-ranged into working better ' +
+      'than its own coherence. The gap between the curves at any range is what rain costs: <span class="kv">' +
+      n(L.rainDb, 1) + ' dB</span> at ' + n(g.linkRangeKm, 2) + ' km. Range in clear air would be <span class="kv">' +
+      fmtR((function () {
+        var lo2 = 0.05, hi2 = 50;
+        function s(d) {
+          var pw = L.eirpDbm - K.fsplDb(g.fLoGHz, d) - L.gasPerKm * d + L.gRxDbi;
+          return K.combineSnrDb(pw - L.noiseDbm - g.implLossDb, L.snrCeilDb);
+        }
+        if (!(s(lo2) >= need)) return 0;
+        if (s(hi2) >= need) return hi2;
+        for (var i = 0; i < 60; i++) { var mid = (lo2 + hi2) / 2; if (s(mid) >= need) lo2 = mid; else hi2 = mid; }
+        return (lo2 + hi2) / 2;
+      })()) + '</span>.';
+
+    /* ---- per-constellation table ---- */
+    var qrows = L.requirements.map(function (r) {
+      var ok = L.snrEffDb >= r.snrDb + g.linkMarginReqDb;
+      return {
+        cells: [r.name, n(r.snrDb + g.codingGainDb, 1), n(r.snrDb, 1),
+                n(Math.log2(r.order) * L.bwHz / 1e9, 1),
+                n(L.snrEffDb - r.snrDb, 1),
+                ok ? 'closes' : 'no'],
+        cls: ok ? 'pass' : 'fail'
+      };
+    });
+    linkTable(document.getElementById('linkQamTable'),
+      ['Constellation', 'Uncoded SNR', 'With ' + n(g.codingGainDb, 1) + ' dB FEC',
+       'Gb/s', 'Margin', 'At ' + n(g.linkRangeKm, 2) + ' km'], qrows, true);
+
+    /* The trap this view can walk a reader into, so it is named before they
+       reach it. */
+    var a1 = res.lo['local-pll'], a4 = res.lo['mid-mult'];
+    document.getElementById('linkRangeNote').innerHTML +=
+      '<br><br><strong>One warning about reading this view on its own.</strong> The SNR ceiling here comes ' +
+      'from the ARRAY-OUTPUT EVM, which is the ABSOLUTE phase error after the coherent sum — and that is ' +
+      'the one metric on which a per-tile PLL wins. A1\'s uncorrelated noise averages down by 10log10(' +
+      g.nTilesTotal + ') = ' + n(10 * Math.log10(g.nTilesTotal), 1) + ' dB at the beam output, so it reads ' +
+      n(a1.evmPct, 2) + '% here against A4\'s ' + n(a4.evmPct, 2) + '% and would appear to support a higher ' +
+      'constellation. It does. What it does not do is hold a null: the same uncorrelated noise appears in ' +
+      'FULL in the inter-tile differential, ' + n(a1.interTileResidualDeg, 2) + '° against ' +
+      n(a4.interTileResidualDeg, 3) + '°, which is ' + n(Math.abs(a1.sllDb - a4.sllDb), 1) +
+      ' dB of null depth and therefore the spatial-multiplexing ceiling. <em>This view scores the single ' +
+      'link; the Decision view scores the array.</em> They point in opposite directions on exactly one ' +
+      'choice, and that opposition is the thesis, not a contradiction.';
+
+    UI.renderProse(document.getElementById('linkCaveats'), [
+      '!!! warn This is a first-order link budget. It is built from the array this tool models and from ' +
+      'published propagation recommendations, and it is the right shape — but every number below is ' +
+      'missing from it, and several of them are worth decibels.',
+      '- **Transmit power is a guess.** Neither source document states a per-element output power, so ' +
+      '`txPoutDbm` is labelled engineering-guess and the whole EIRP rests on it. Measure the PA before ' +
+      'quoting a range from this tool.',
+      '- **No PA nonlinearity.** Back-off is a declared allowance, not a computed one: there is no AM/AM or ' +
+      'AM/PM model here, so the EVM the back-off is protecting is not actually recomputed from it.',
+      '- **No pointing loss beyond scan loss.** A real link loses to mispointing, mast sway and alignment ' +
+      'drift. At the 0.65° beamwidth this array has, that is not a small omission — it is arguably the ' +
+      'second rain.',
+      '- **No multipath, no interference, no ground reflection, no atmospheric turbulence or scintillation.**',
+      '- **Rain is the ITU point-rate model**, which is a statistical long-run figure for a rain zone. It is ' +
+      'not a weather forecast, and a real deployment needs the local P.837 statistics.',
+      '- **One hop, one polarisation, no diversity.** No space or frequency diversity, and no adaptive ' +
+      'modulation: the table reports what closes at a fixed rain rate, where a real link would drop its ' +
+      'constellation and stay up.',
+      '- **The required SNR is derived for an AWGN channel** by inverting the square-QAM symbol-error ' +
+      'bound, then reduced by a single declared coding gain. It is not a simulation of a specific FEC.'
+    ]);
+  }
+
+  /* =====================================================================
      Compare view
      ================================================================== */
   /* The rows that decide the answer, for the "key metrics" filter. The rule
@@ -1912,6 +2153,7 @@
     if (view.name === 'decision') renderDecision(res, budget, dec);
     if (view.name === 'assumptions') renderAssumptions(res);
     if (view.name === 'systems') renderSystems();
+    if (view.name === 'link') renderLink(res, budget);
     if (view.name === 'method') UI.renderProse(document.getElementById('methodMount'), window.Content.METHOD);
     glossify();
     /* the nav badge is visible from every view, so it updates outside the
@@ -3153,7 +3395,8 @@
     bom:    { id: 'bomMount',   title: 'Hardware bill of materials',             file: 'bom.csv' },
     sys:      { id: 'sysMetricMount', title: 'Saved systems — results',          file: 'systems-results.csv' },
     sysparam: { id: 'sysParamMount',  title: 'Saved systems — differing inputs', file: 'systems-inputs.csv' },
-    sysreq:   { id: 'sysReqMount',    title: 'Saved systems — derived requirement', file: 'systems-requirement.csv' }
+    sysreq:   { id: 'sysReqMount',    title: 'Saved systems — derived requirement', file: 'systems-requirement.csv' },
+    link:     { id: 'linkTable',      title: 'Radio link budget',                   file: 'link-budget.csv' }
   };
 
   /* kind: lo | bb | assume | bom | decision ;  fmt: md | csv ;  mode: copy | dl */

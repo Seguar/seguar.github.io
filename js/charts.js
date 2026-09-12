@@ -64,11 +64,15 @@
     function X(v) { return m.l + (Math.log10(v) - lx0) / (lx1 - lx0) * pw; }
     function Y(v) { return m.t + (yHi - v) / (yHi - yLo) * ph; }
 
-    /* x grid: decade lines + minor ticks */
+    /* x grid: decade lines + minor ticks.
+       The tick formatter defaults to fLabel because this chart was built for
+       L(f), but a log axis is not always a frequency axis — a range sweep in
+       kilometres would otherwise be labelled "0.1 Hz". */
+    var xFmt = cfg.xFmt || fLabel;
     for (var d = Math.ceil(lx0); d <= Math.floor(lx1); d++) {
       var xv = Math.pow(10, d);
       svg.appendChild(el('line', { class: 'gl', x1: X(xv), y1: m.t, x2: X(xv), y2: m.t + ph }));
-      svg.appendChild(el('text', { x: X(xv), y: m.t + ph + 14, 'text-anchor': 'middle' }, fLabel(xv)));
+      svg.appendChild(el('text', { x: X(xv), y: m.t + ph + 14, 'text-anchor': 'middle' }, xFmt(xv)));
       for (var k = 2; k <= 9; k++) {
         var xm = xv * k;
         if (xm > xMax || xm < xMin) continue;
@@ -156,7 +160,7 @@
     svg.appendChild(el('line', { class: 'ax', x1: m.l, y1: m.t, x2: m.l, y2: m.t + ph }));
     svg.appendChild(el('line', { class: 'ax', x1: m.l, y1: m.t + ph, x2: m.l + pw, y2: m.t + ph }));
 
-    if (cfg.hLine !== undefined && cfg.hLine >= yLo && cfg.hLine <= yHi) {
+    if (typeof cfg.hLine === 'number' && isFinite(cfg.hLine) && cfg.hLine >= yLo && cfg.hLine <= yHi) {
       svg.appendChild(el('line', { class: 'mask', x1: m.l, y1: Y(cfg.hLine), x2: m.l + pw, y2: Y(cfg.hLine) }));
       svg.appendChild(el('text', { x: m.l + pw - 3, y: Y(cfg.hLine) - 5, 'text-anchor': 'end', fill: 'var(--s5)' }, cfg.hLabel || 'spec'));
     }
