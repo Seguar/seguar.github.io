@@ -5196,7 +5196,38 @@ footer.foot a { color: var(--ink-2); }
     g.lat = window.Lat.pick(g.latList, g.latKey, g.elemPerTile);
     g.latBest = g.latList[g.latList.length - 1];
     g.latWorst = g.latList[0];
-    g.latOffsetsCm = g.lat.offsets;
+
+    /* CENTRE THE LATTICE IN THE TILE.
+
+       Lat.offsets() wraps every position into [0, tileCm), so the raw set
+       starts at zero: at the default that is 0, 1.5, 3.0, 4.5 cm in a 6 cm
+       tile. Tiled across the panel that puts the outermost element centres
+       at 0 and 28.5 cm on a 30 cm aperture — so the first column of
+       radiators straddles the panel edge with half of each patch hanging
+       into space, and a bare 1.5 cm strip is left at the far edge. Nobody
+       builds that, and on the hardware map it reads as the array having
+       slipped sideways.
+
+       Each element owns a cell extending half a pitch around it, so the
+       layout that actually tiles the aperture is the centred one: 0.75 to
+       29.25 cm, with the cells exactly covering 0 to 30.
+
+       This is a RIGID TRANSLATION of the whole lattice, which is a global
+       phase factor and cancels in |AF|^2 — it moves no number the tool
+       reports, and that is asserted in selfTest rather than argued here.
+       It is applied at the single point where the offsets are adopted, so
+       the beam model, the projections and the hardware map all share one
+       convention and cannot drift apart. */
+    g.latOffsetsCm = (function (offs, period) {
+      if (!offs || !offs.length) return offs;
+      function shiftFor(idx) {
+        var lo = Infinity, hi = -Infinity;
+        offs.forEach(function (o) { lo = Math.min(lo, o[idx]); hi = Math.max(hi, o[idx]); });
+        return (period - (hi - lo)) / 2 - lo;
+      }
+      var dx = shiftFor(0), dy = shiftFor(1);
+      return offs.map(function (o) { return [o[0] + dx, o[1] + dy]; });
+    })(g.lat.offsets, g.tileCm);
 
     /* What a principal-plane cut actually sees: the lattice PROJECTED onto
        the cut axis. A sheared lattice projects onto the same set of x
@@ -6461,7 +6492,29 @@ footer.foot a { color: var(--ink-2); }
       eq('C1 thinning', c1.thinningLossDb, 16.8194, 5e-4);
       eq('C1 feed loss', c1.feedLossDb, 0, 1e-12);
       eq('C1 realised', c1.realisedGainDbi, 28.0206, 5e-4);
-      /* (iii) the quadrature ratio is exactly 1 at K=1 for BOTH unit kinds */
+      /* (iii) the lattice is centred in its tile, and centring it moved
+         nothing. The offsets must be symmetric about the tile centre, and
+         a further rigid translation must leave every pattern quantity
+         alone — that invariance is the whole licence for having shifted
+         them, so it is asserted rather than asserted-in-a-comment. */
+      (function () {
+        var offs = res.g.latOffsetsCm, P = res.g.tileCm;
+        var lo = Infinity, hi = -Infinity;
+        offs.forEach(function (o) { lo = Math.min(lo, o[0]); hi = Math.max(hi, o[0]); });
+        eq('lattice centred in x', lo + hi, P, 1e-9);
+        if (lo < 0 || hi > P) fails.push('lattice x out of tile: ' + lo + '..' + hi + ' of ' + P);
+        var bud = window.Budget.derive(res.g);
+        var base = window.Beam.evaluate(res.g, bud, res.lo[res.g.loOptionId], res.bb[res.g.bbOptionId], { light: true });
+        var g2 = {};
+        for (var k in res.g) g2[k] = res.g[k];
+        g2.latOffsetsCm = offs.map(function (o) { return [o[0] + 0.37, o[1] - 0.21]; });
+        var moved = window.Beam.evaluate(g2, bud, res.lo[res.g.loOptionId], res.bb[res.g.bbOptionId], { light: true });
+        eq('translation invariance: HPBW', moved.m.hpbwDeg, base.m.hpbwDeg, 1e-9);
+        eq('translation invariance: scan loss', moved.scanLossDb, base.scanLossDb, 1e-9);
+        eq('translation invariance: realised', moved.realisedDbi, base.realisedDbi, 1e-9);
+        eq('translation invariance: sidelobe', moved.m.sllDb, base.m.sllDb, 1e-9);
+      })();
+      /* (iv) the quadrature ratio is exactly 1 at K=1 for BOTH unit kinds */
       [0, 1].forEach(function (m) {
         var e = window.Lat.element({
           key: window.Lat.KIND_KEYS[m], lamCm: res.g.lamCm,
