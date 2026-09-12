@@ -86,6 +86,9 @@
     antPatchBoard:  { name: 'Wideband radiator on antenna board', tech: 'separate low-loss laminate', freqGHz: 78, powerMw: 0, gainDb: 0, areaMm2: 14.8, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'C4 only. A stacked patch, cavity-backed patch or magneto-electric dipole of roughly one wavelength, on hardware this thesis does not design. 14.8 mm² is λ² at 78 GHz. It reaches 71–86 GHz in one radiator, which no single-layer package patch does.' },
     antFeedSplit:   { name: 'In-cell corporate split junction', tech: 'package microstrip', freqGHz: 78, powerMw: 0, gainDb: -0.3, areaMm2: 0.12, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Excess loss above the ideal 3.01 dB division, per binary stage of the fixed tree behind one port. Anchored to loSplit78, which books −3.5 dB against an ideal −3.0. Without this term a cell-filling cluster looks free, which is the exact error the honesty ledger records the first pattern model making.' },
 
+    radialLauncher: { name: 'Radial line centre launcher', tech: 'RO3003 parallel-plate / radial line', freqGHz: 19.5, powerMw: 0, gainDb: -1.2, areaMm2: 4.0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'A7 only. The ONE division point: a probe launching into a radial or parallel-plate region that divides to all tiles at once. −1.2 dB is the excess above the ideal 10log10(N), which is where a radial divider is usually quoted; a cascaded tree pays its excess once per level instead. It has no isolation resistors, and that is the architecture\'s weakness rather than an oversight.' },
+    radialProbe:    { name: 'Radial line tile probe', tech: 'in-board probe', freqGHz: 19.5, powerMw: 0, gainDb: -0.25, areaMm2: 0.3, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'A7 only. One coupling probe per tile off the radial region, all at the same radius. Replaces the cascade of 1:2 junctions a tree needs, so the count is N rather than N−1 junctions in a binary cascade — but they are all in parallel rather than in series, which is the point.' },
+
     loSourceChain:  { name: 'Chain source', tech: 'SiGe BiCMOS', freqGHz: 39, powerMw: 220, gainDb: 0, areaMm2: 0.7, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'PLL at the chain frequency.' },
     chainBuf:       { name: 'Daisy-chain hop buffer', tech: 'SiGe BiCMOS', freqGHz: 39, powerMw: 40, gainDb: 10, areaMm2: 0.07, addPnFloorDbc: -155, addPnCornerHz: 4e4, conf: 'scaled-estimate', why: 'Re-amplifies the chain at every tile. Also the single point of failure.' },
     chainTap:       { name: 'Directional tap', tech: 'on-board / in-package', freqGHz: 39, powerMw: 0, gainDb: -1.2, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Couples a fraction off the through line at each tile.' },
@@ -220,8 +223,13 @@
         { value: 2, label: 'A3 · Daisy chain' },
         { value: 3, label: 'A4 · Mid-frequency + ×M' },
         { value: 4, label: 'A5 · Round-trip stabilised link' },
-        { value: 5, label: 'A6 · Injection-locked tile oscillator' }
+        { value: 5, label: 'A6 · Injection-locked tile oscillator' },
+        { value: 6, label: 'A7 · Radial equal-path feed' }
       ], conf: 'measured/datasheet', why: 'A1–A4 are the candidates from the proposal. A5 and A6 were added after a survey of the wider design space: A5 is the only architecture with a return path INSIDE the distribution network, so it attacks the drift term rather than tracking it, and A6 is the only one whose tile carries no PFD, charge pump or divider at all. This selects what the map draws.' },
+    { key: 'portVswr', label: 'Tile port VSWR (A7)', units: ':1', value: 1.5, min: 1.0, max: 3.0, step: 0.05, group: 'LO architecture',
+      conf: 'engineering-guess', why: 'A7 only. A radial junction has no isolation resistors, so a reflection from one tile port is redistributed to all the others as a LOAD-DEPENDENT phase error. This is the architecture\'s own weakness and the reason it is a trade rather than a free win: unlike thermal drift it is not tracked, and unlike a static offset it is not calibratable, because it changes whenever a neighbour\'s match changes or a die powers down. 1.5:1 is an ordinary in-band match; 1.0 switches the term off and is the idealisation, not the expectation.' },
+    { key: 'radialExcessDb', label: 'Radial junction excess (A7)', units: 'dB', value: 1.2, min: 0, max: 4, step: 0.1, group: 'LO architecture',
+      conf: 'engineering-guess', why: 'A7 only. Loss above the ideal 10log10(N) that power conservation demands of ANY divider. A cascaded tree pays its excess once per level; a radial junction pays it once in total. That is the real saving, and it is small — a few tenths of a dB — because both are floored by the same 10log10(N). The reason to build A7 is the path spread, not the split loss.' },
     { key: 'midM', label: 'Multiplier M (A4)', units: '×', value: 4, group: 'LO architecture',
       choices: [{ value: 2, label: '×2 → 39 GHz' }, { value: 3, label: '×3 → 26 GHz' }, { value: 4, label: '×4 → 19.5 GHz' },
                 { value: 6, label: '×6 → 13 GHz' }, { value: 8, label: '×8 → 9.75 GHz' }],
@@ -393,7 +401,7 @@
   ];
 
   var MEDIA_KEYS = ['ro3003_gcpw', 'ro3003_ms', 'siw_ro3003', 'wr12', 'ro4350_ms'];
-  var LO_IDS = ['local-pll', 'hf-foldback', 'daisy-chain', 'mid-mult', 'stabilised-link', 'inj-lock'];
+  var LO_IDS = ['local-pll', 'hf-foldback', 'daisy-chain', 'mid-mult', 'stabilised-link', 'inj-lock', 'radial-feed'];
   var BB_IDS = ['passive-50', 'bb-daisy', 'h-tree-active', 'current-mode', 'digital-tile'];
 
   var LO_META = [
@@ -402,7 +410,8 @@
     { id: 'daisy-chain', name: 'A3 Daisy chain', short: 'A3 Daisy chain' },
     { id: 'mid-mult', name: 'A4 Mid-frequency + ×M', short: 'A4 Mid + ×M' },
     { id: 'stabilised-link', name: 'A5 Round-trip stabilised link', short: 'A5 Stabilised link' },
-    { id: 'inj-lock', name: 'A6 Injection-locked tile oscillator', short: 'A6 Injection lock' }
+    { id: 'inj-lock', name: 'A6 Injection-locked tile oscillator', short: 'A6 Injection lock' },
+    { id: 'radial-feed', name: 'A7 Radial equal-path feed', short: 'A7 Radial feed' }
   ];
   var BB_META = [
     { id: 'passive-50', name: 'B1 Passive resistive', short: 'B1 Passive 50 Ω' },
@@ -584,6 +593,33 @@
             ? 'free-running spread exceeds the lock range — tiles will not all lock'
             : 'realisable; no PFD, no divider, but the locked phase offset is a new error term',
           risk: over ? 'high' : 'medium'
+        };
+      }
+    },
+    'radial-feed': {
+      ampBlockKey: 'loAmpMid', vcoFomPenaltyDb: 0,
+      /* reinterpreted for this option: the excess above the ideal
+         10log10(N) of ONE junction, not a per-level excess compounded over
+         a cascade. evalLo's radial branch reads it that way. */
+      splitExcessDb: 1.2,
+      transLossDb: 0.25, mediumKey: 'lo', perTileSource: false, activeFanout: false,
+      radialJunction: true,
+      verdict: function (c) {
+        /* The isolation term is the architecture's own weakness and the
+           reason it is a column rather than a free win: a junction with no
+           isolation resistors redistributes one tile's mismatch to all the
+           others, which is a LOAD-dependent unknown phase with no analogue
+           anywhere else in this model — not thermal, not static, not
+           calibratable by a per-tile LUT, because it changes whenever a
+           neighbour's match changes or a die powers down. */
+        var bad = c.isolErrDeg > c.g.specPhaseDeg;
+        return {
+          feasibility: bad
+            ? 'port-to-port isolation exceeds the coherence spec: one mismatched or powered-down tile ' +
+              'moves every other tile by ' + c.isolErrDeg.toFixed(2) + '°'
+            : 'realisable; one junction, no cascade, and no isolation resistors — the mismatch coupling ' +
+              'is the price of the equal path',
+          risk: bad ? 'high' : 'medium'
         };
       }
     }
@@ -1350,8 +1386,37 @@
        deg, within 4.6% of each other, where the distribution architectures
        actually differ by 0.197/0.279/0.123. It is still reported on its own
        row, and still reaches the beam through sigElem. */
-    var interTileRawDeg = K.rss(phiDiffRawRad * K.DEG, correctionRangeDeg, driftTotalDeg, lockOffsetDeg);
-    var interTileResidualDeg = K.rss(phiDiffCalRad * K.DEG, injDeg, driftResidDeg);
+    /* ---- A7's own error class: load-dependent coupling through an
+       unisolated junction ----
+       A radial divider has no isolation resistors, so a reflection from one
+       port is redistributed to the other N−1. The reflected fraction is
+       Γ = (VSWR−1)/(VSWR+1). Each of the other N−1 ports reflects Γ back
+       into the junction, where it divides by N on its way out to any given
+       port; the N−1 contributions have uncorrelated phases and so add in
+       RSS, giving an amplitude Γ·√(N−1)/N and a phase error
+       arcsin(Γ·√(N−1)/N) to first order.
+
+       Getting this wrong is easy and it was wrong here first: dividing by
+       √N instead of N and applying the √(N−1) outside the arcsine gives
+       11.2° instead of 2.2°, which is the difference between an option that
+       fails the 5° coherence spec outright and one that spends about half
+       of it. The N is a voltage division at the junction, not a power one.
+
+       It is in this RSS and not in the calibratable bucket deliberately: it
+       is neither thermal nor static. It changes whenever a neighbour's
+       match changes — a die powering down is the worst case — so a per-tile
+       LUT written at calibration time does not hold it. That is a new error
+       class with no analogue in any other option here, and it is what makes
+       A7 a genuine trade rather than a free win. Zero for every other
+       option, whose junctions are isolated. */
+    var isolErrDeg = 0;
+    if (trL.radialJunction) {
+      var gam = (g.portVswr - 1) / (g.portVswr + 1);
+      isolErrDeg = Math.asin(Math.min(1,
+        gam * Math.sqrt(Math.max(nT - 1, 0)) / Math.max(nT, 1))) * K.DEG;
+    }
+    var interTileRawDeg = K.rss(phiDiffRawRad * K.DEG, correctionRangeDeg, driftTotalDeg, lockOffsetDeg, isolErrDeg);
+    var interTileResidualDeg = K.rss(phiDiffCalRad * K.DEG, injDeg, driftResidDeg, isolErrDeg);
 
     /* ---------------- M5: loss ----------------
        A link budget and the gain that compensates it are set by the WORST
@@ -1365,7 +1430,18 @@
     var lineLossDb = lo.pathMaxCm * alpha;
     var lineLossMeanDb = lo.pathMeanCm * alpha;
     var splitLossDb = 0;
-    if (lo.kind === 'tree') {
+    if (lo.kind === 'radial') {
+      /* ONE junction: the ideal 10log10(N) of power conservation, plus a
+         single excess. A tree pays the same ideal total — both are floored
+         by power conservation, and that floor is why the radial saving here
+         is a few tenths of a dB and not the several dB it looks like — but
+         a tree compounds its excess once per cascaded level.
+
+         This branch is not optional. A third kind falling through to the
+         chain branch below would multiply lo.maxHop, which a radial network
+         does not define, and the whole option would report NaN. */
+      splitLossDb = 10 * Math.log10(Math.max(nT, 1)) + trL.splitExcessDb;
+    } else if (lo.kind === 'tree') {
       /* A low-frequency reference tree is fanned out with ACTIVE CML/LVDS
          buffers, not passive splitters, so it pays no 3 dB per level — the
          cost shows up as buffer power instead. Charging it passive split
@@ -1463,9 +1539,11 @@
     var basePerTileMw = (powerTotalMw - repPoolMw) / nT;
     grid.tiles.forEach(function (t) {
       var dev = (t.pathCm - lo.pathMeanCm) * psPerCm;
-      var splitDb = lo.kind === 'tree'
-        ? (trL.activeFanout ? 0 : t.level * (3.01 + trL.splitExcessDb))
-        : t.hop * 1.2;
+      var splitDb = lo.kind === 'radial'
+        ? 10 * Math.log10(Math.max(nT, 1)) + trL.splitExcessDb
+        : lo.kind === 'tree'
+          ? (trL.activeFanout ? 0 : t.level * (3.01 + trL.splitExcessDb))
+          : t.hop * 1.2;
       /* transitions in THIS tile's path: source and tile for a tree, one per
          hop along a chain — the same convention nTrans uses for the total */
       var transDb = (lo.kind === 'chain' ? Math.max(1, t.hop) : 2) * trL.transLossDb;
@@ -1482,7 +1560,7 @@
 
     /* feasibility flags — from the option's own verdict() in LO_TRAITS, so
        an option added later cannot fall through to another one's */
-    var verdict = trL.verdict({ g: g, lossTotalDb: lossTotalDb, lo: lo, nT: nT });
+    var verdict = trL.verdict({ g: g, lossTotalDb: lossTotalDb, lo: lo, nT: nT, isolErrDeg: isolErrDeg });
     var feasibility = verdict.feasibility;
     var riskLevel = verdict.risk;
 
@@ -1493,7 +1571,7 @@
       interTileRawDeg: interTileRawDeg, interTileResidualDeg: interTileResidualDeg,
       pnDiffRawDeg: phiDiffRawRad * K.DEG, pnDiffCalDeg: phiDiffCalRad * K.DEG,
       injDeg: injDeg, driftResidDeg: driftResidDeg, quantDeg: quantDeg,
-      reciprocityDeg: reciprocityDeg, couplerBiasDeg: couplerBiasDeg,
+      reciprocityDeg: reciprocityDeg, couplerBiasDeg: couplerBiasDeg, isolErrDeg: isolErrDeg,
       selfCorrecting: linkTracksDrift,
       lockOffsetDeg: lockOffsetDeg, lockOffsetDriftDeg: lockOffsetDriftDeg,
       skewRmsPs: skewRmsPs, skewPeakPs: skewPeakPs, skewSystematicPs: skewStaticPs,

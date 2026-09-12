@@ -319,6 +319,68 @@
     return { links: links, nodes: nodes, maxLevel: maxLevel, source: src, maxAmpsInPath: totalAmps.n };
   }
 
+  /* ------------------------------------------------------ radial equal-path
+     One N-way junction — a radial line or parallel-plate divider — at the
+     centre of the panel, with a meander-equalised run to every tile. A third
+     topology class beside the corporate tree and the serpentine chain.
+
+     THE EQUALISATION HAS TO BE DRAWN, NOT ASSUMED. It is tempting to say
+     path spread goes to zero "by symmetry", and the honesty ledger said
+     exactly that for two revisions. It is false on a square grid: the 25
+     centre-referred radii on a 5 x 6 cm array run from 0 to 16.97 cm and
+     spread 4.19 cm RMS, which is 2.6x WORSE than the bisection tree's
+     1.589 cm. Symmetry gives equal phase only to tiles at equal radius, and
+     a square grid has five distinct radii. So every run is meandered out to
+     the CORNER radius, which is what buys the zero spread and what it costs:
+     the mean routed length rises from 11.25 cm to 16.97 cm and every tile
+     pays the longest path's line loss.
+
+     What it buys is not mainly split loss — both this and a tree are floored
+     at 10log10(N) by power conservation, so the saving there is a few tenths
+     of a dB. It is that the path-delay spread is identically zero, and the
+     path-delay spread is the ONLY mechanism by which a shared source's
+     correlated phase noise leaks into the inter-tile differential, through
+     decorrKernel = 4 sin^2(pi f dTau). At the tree's 81.3 ps that leak is
+     -5.9 dB at the 1 GHz rail edge; here it does not exist at any offset.  */
+  function radial(grid, opts) {
+    var links = [], nodes = [];
+    var cx = grid.cols * grid.tileCm / 2, cy = grid.rows * grid.tileCm / 2;
+    var src = { x: cx, y: cy };
+    nodes.push({ type: 'source', x: src.x, y: src.y, label: opts.sourceLabel || 'source', freqHz: opts.freqHz });
+    nodes.push({ type: 'split', x: cx, y: cy, label: '1:' + grid.nTiles, freqHz: opts.freqHz, level: 0 });
+
+    /* the corner radius every run is equalised to */
+    var rMax = 0;
+    grid.tiles.forEach(function (t) {
+      var r = Math.sqrt(Math.pow(t.cx - cx, 2) + Math.pow(t.cy - cy, 2));
+      if (r > rMax) rMax = r;
+    });
+
+    var amps = 0;
+    grid.tiles.forEach(function (t) {
+      var r = Math.sqrt(Math.pow(t.cx - cx, 2) + Math.pow(t.cy - cy, 2));
+      /* the direct radial run, drawn to scale */
+      links.push({ x1: cx, y1: cy, x2: t.cx, y2: t.cy, freqHz: opts.freqHz, kind: 'branch', level: 1 });
+      /* the meander that equalises it to rMax is real copper and real loss,
+         so it is carried in the path length even though drawing its
+         serpentine would only clutter the map */
+      t.pathCm = rMax;
+      t.level = 1;
+      t.hop = 0;
+      t.segments = 1;
+      t.meanderCm = rMax - r;
+      var loss = rMax * (opts.alphaDbCm || 0) + (opts.splitLossDb || 0);
+      t.repeaters = opts.maxSegLossDb > 0 ? Math.max(0, Math.ceil(loss / opts.maxSegLossDb) - 1) : 0;
+      amps = Math.max(amps, t.repeaters);
+      if (t.repeaters) nodes.push({ type: 'amp', x: (cx + t.cx) / 2, y: (cy + t.cy) / 2, freqHz: opts.freqHz, tile: t.i });
+    });
+
+    return {
+      links: links, nodes: nodes, maxLevel: 1, source: src, maxAmpsInPath: amps,
+      equalisedCm: rMax
+    };
+  }
+
   /* ------------------------------------------------------- daisy / serpent
      Boustrophedon order: row by row, reversing on odd rows, so consecutive
      tiles are always physical neighbours. Optionally split into `branches`
@@ -516,6 +578,53 @@
        Distribute at f_LO/M on a corporate tree, multiply at each tile.
        The board carries a manageable frequency; the die carries a
        multiplier. Buys loss and power — NOT skew.                        */
+    /* ------------------------------------------------------ A7 radial-feed
+       One N-way radial junction at the centre, every run meander-equalised
+       to the corner radius. See radial() above for why the equalisation is
+       drawn rather than assumed.                                           */
+    'radial-feed': function (g, grid) {
+      var M = Math.max(2, Math.round(g.midM));
+      var fHz = g.fLoGHz * 1e9 / M;
+      var alpha = window.K.lineAlphaDbCm(g.loMediumKey, fHz);
+      /* ONE junction, so the whole division happens at once: the ideal
+         10log10(N) plus a single excess, not a per-level excess compounded
+         over 5.6 cascaded levels. */
+      var idealSplitDb = 10 * Math.log10(Math.max(grid.nTiles, 1));
+      var net = radial(grid, {
+        freqHz: fHz, sourceLabel: (fHz / 1e9).toFixed(1) + ' GHz radial source',
+        alphaDbCm: alpha, maxSegLossDb: g.maxSegLossDb,
+        splitLossDb: idealSplitDb + (g.radialExcessDb != null ? g.radialExcessDb : 1.2)
+      });
+      var reps = grid.tiles.reduce(function (a, t) { return a + (t.repeaters || 0); }, 0);
+      grid.tiles.forEach(function (t) {
+        t.blocks = [{ type: 'mult', label: '×' + M }, { type: 'amp', label: 'LO buf' }];
+      });
+      net.nodes = net.nodes.concat(grid.tiles.map(function (t) {
+        return { type: 'mult', x: t.cx, y: t.cy, label: '×' + M, freqHz: g.fLoGHz * 1e9, tile: t.i };
+      }));
+      return {
+        net: net, distFreqHz: fHz, tileMultiplier: M, repeaters: reps,
+        kind: 'radial', equalisedCm: net.equalisedCm,
+        bom: bomOf([
+          ['loSourceMid', 1, 'one source at ' + (fHz / 1e9).toFixed(1) + ' GHz'],
+          ['radialLauncher', 1, 'centre launcher into the radial line — the single division point'],
+          ['radialProbe', grid.nTiles, 'one probe per tile off the radial line, all at the same radius'],
+          ['loAmpMid', reps, 'mid-frequency repeaters on the equalised runs'],
+          ['tileMult', grid.nTiles, 'per-tile ×' + M + ' multiplier to 78 GHz'],
+          ['loChipletSige', grid.nTiles, 'SiGe LO last-mile chiplet per tile — mandatory: a 78 GHz gain stage is not realisable in 65nm LP CMOS'],
+          ['loBuf78', grid.nTiles * g.tapsPerTile, 'per-tile LO buffers driving ' + g.tapsPerTile + ' RFIC taps'],
+          ['midTransition', grid.nTiles, 'board-to-package transition at ' + (fHz / 1e9).toFixed(1) + ' GHz']
+        ]),
+        note: 'One N-way junction instead of ' + (Math.log(grid.nTiles) / Math.log(2)).toFixed(1) +
+              ' cascaded 1:2 levels, with every run meander-equalised to the ' +
+              net.equalisedCm.toFixed(1) + ' cm corner radius. The path-delay spread is then identically ' +
+              'zero, which matters because that spread is the only route by which a shared source\'s ' +
+              'correlated noise reaches the inter-tile differential. It is paid for in copper — every tile ' +
+              'is routed at the longest length — and in isolation, because a junction with no isolation ' +
+              'resistors passes one tile\'s mismatch to all the others.'
+      };
+    },
+
     'mid-mult': function (g, grid) {
       var M = Math.max(2, Math.round(g.midM));
       var fHz = g.fLoGHz * 1e9 / M;
