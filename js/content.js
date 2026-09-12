@@ -299,14 +299,35 @@
     'per-tile phase that is a closed-form function of geometry rather than a manufactured artefact. Not modelled ' +
     'because it brings error classes this tool has no machinery for (illumination taper, feed pointing, LO ' +
     'leakage into the RX aperture) and because it needs a standoff the panel does not have.',
-    '- **Radial / parallel-plate equal-path feed.** The sharpest of the rejected ideas, and the one to revisit ' +
-    'first. It is a third topology class — one N-way junction at equal radius instead of 5.6 cascaded levels of ' +
-    '2-way splitters — so path spread goes to zero by symmetry, cascaded transitions go from ~6 to 1, and ' +
-    'repeaters in path go to zero. This tool\'s honesty ledger already admits that recursive bisection on a ' +
-    'non-power-of-two grid manufactures deterministic skew, and a radial feed is the standard answer to exactly ' +
-    'that. It is not modelled because it belongs as a *topology* axis under A2/A4 rather than as a fifth LO ' +
-    'family, and adding an axis is a larger change than adding a column. Its own weakness is port-to-port ' +
-    'isolation: one mismatched tile perturbs all the others.',
+    '- **Radial / parallel-plate equal-path feed — NO LONGER REJECTED. It is now A7,** and the entry that used ' +
+    'to sit here was wrong in three separate ways, which is worth recording because all three were the kind of ' +
+    'error that sounds right.',
+    '   *The stated reason for rejecting it did not survive reading the code.* It said the idea "belongs as a ' +
+    'topology axis under A2/A4 rather than as a fifth LO family, and adding an axis is a larger change than ' +
+    'adding a column". But `lo.kind` IS already that axis, already carries two values, and already switches five ' +
+    'separate models — split loss, transition count, the pointing kernel, the static-skew walk factor and the ' +
+    'calibration conditioning. Adding `kind: \'radial\'` is exactly the size of change `kind: \'chain\'` already ' +
+    'was. The option was rejected on a cost estimate its own codebase contradicted.',
+    '   *"Path spread goes to zero by symmetry" is false on a square grid.* Symmetry gives equal phase only to ' +
+    'tiles at equal radius, and a 5×5 grid has five distinct radii: the centre-referred radii run from 0 to ' +
+    '16.97 cm and spread 4.19 cm RMS, which is 2.6× WORSE than the bisection tree\'s 1.589 cm. The zero spread ' +
+    'is real but it has to be BOUGHT, by meandering every run out to the corner radius — so the mean routed ' +
+    'length rises from 11.25 cm to 16.97 cm and every tile pays the longest path\'s loss. A7 draws it that way.',
+    '   *"Cascaded transitions go from ~6 to 1" was already booked.* The model charges 2 transitions to any ' +
+    'tree regardless of depth, so that saving never existed.',
+    '- **What actually justifies A7** is none of the above. It is that the path-delay spread is the ONLY ' +
+    'mechanism by which a shared source\'s correlated phase noise reaches the inter-tile differential, through ' +
+    '`decorrKernel = 4sin²(πf·Δτ)`. At the tree\'s 81.3 ps that leak is −5.9 dB at the 1 GHz rail edge — a ' +
+    'quarter of the source\'s noise landing in the one term this whole comparison exists to minimise — and a ' +
+    'radial feed makes it identically zero at every offset. The split-loss saving, by contrast, is about ' +
+    '0.24 dB, because both a radial junction and a tree are floored at 10log10(N) by power conservation. ' +
+    'Anyone quoting the split loss as the reason has the argument backwards.',
+    '- **And its weakness is a new error class, which is why it earns a column rather than a free win.** A ' +
+    'radial junction has no isolation resistors, so each of the other N−1 ports reflects Γ back into the ' +
+    'junction, where it divides by N on the way out: the phase error is arcsin(Γ·√(N−1)/N), about 2.25° at a ' +
+    '1.5:1 match against a 5.00° spec. That is neither thermal nor static — it moves whenever a neighbour\'s ' +
+    'match changes or a die powers down — so no per-tile LUT holds it, and nothing else in this model has an ' +
+    'error of that kind. It costs A7 24 dB of null floor against A4 and is the whole of the trade.',
     '- **Coupled-oscillator arrays, standing-wave/resonant networks, two-tone difference-frequency LO, reference ' +
     'multiplexed onto the baseband or power interconnect, per-tile DDS, SYSREF-only synchronisation.** All real ' +
     'techniques; none distinct enough at this scale to earn a column against A1–A6.',

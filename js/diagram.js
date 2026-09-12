@@ -824,7 +824,12 @@
     var rows = [
       ['Grid position', 'row ' + t.r + ', col ' + t.c + '  (tile ' + t.i + ' of ' + built.grid.nTiles + ')'],
       ['Routed path from source', t.pathCm.toFixed(1) + ' cm'],
-      [lo.kind === 'chain' ? 'Chain hop' : 'Tree level', lo.kind === 'chain' ? t.hop + ' of ' + lo.maxHop : t.level + ' of ' + lo.net.maxLevel],
+      [lo.kind === 'chain' ? 'Chain hop' : lo.kind === 'radial' ? 'Radial run' : 'Tree level',
+       lo.kind === 'chain' ? t.hop + ' of ' + lo.maxHop
+         : lo.kind === 'radial'
+           ? 'one junction, equalised to ' + (lo.equalisedCm || 0).toFixed(1) + ' cm' +
+             (t.meanderCm > 0.05 ? ' (' + t.meanderCm.toFixed(1) + ' cm of meander)' : ' (corner tile, no meander)')
+           : t.level + ' of ' + lo.net.maxLevel],
       ['Series segments', String(t.segments)],
       ['Repeaters in path', String(t.repeaters)]
     ];
