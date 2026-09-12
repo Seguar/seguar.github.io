@@ -90,6 +90,30 @@
     var areaMm2 = ((window.Model && window.Model.BLOCKS[blk]) || { areaMm2: 6.7 }).areaMm2;
     var wCm = Math.sqrt(Math.max(areaMm2, 0.01)) / 10;
 
+    /* The isolated radiator's own footprint can EXCEED the pitch it is being
+       packed at: 2.59 mm of patch on a 1.92 mm lambda/2 pitch. That is not a
+       drawing quirk, it is the same physical fact that makes K close-packed
+       radiators fall about 1.03 dB short of D_unit + 10log10(K) — an
+       isolated 6 dBi patch claims more area than a lambda/2 cell can hold.
+       Drawn at true scale the squares would overlap and read as a rendering
+       fault, so the drawn size is capped at the pitch and the cap is
+       REPORTED: the legend says so, and consistency() raises it as the
+       modelling caveat it is. */
+    var limit = Infinity;
+    if (kx > 1) limit = Math.min(limit, px);
+    if (ky > 1) limit = Math.min(limit, py);
+    var wDrawCm = Math.min(wCm, limit);
+    t.radFootprintCm = wCm;
+    t.radCappedToPitch = wDrawCm < wCm - 1e-9;
+
+    /* The port's CELL, which is what the ring on the map represents. It is
+       elemDx x elemDy and it is NOT square in general — the 'row' in-tile
+       lattice makes it 3.75 x 60 mm — so a circle sized from sqrt(ports)
+       misrepresents it by a factor of four on one axis and overlaps its
+       neighbours. Carry the real dimensions. */
+    t.cellXCm = g.elemDxCm || (tileCm / Math.max(Math.round(Math.sqrt(offs.length)), 1));
+    t.cellYCm = g.elemDyCm || t.cellXCm;
+
     t.ports = [];
     t.rads = [];
     offs.forEach(function (o, pi) {
@@ -101,13 +125,13 @@
             p: pi,
             x: cx + (ix - (kx - 1) / 2) * px,
             y: cy + (iy - (ky - 1) / 2) * py,
-            w: wCm
+            w: wDrawCm
           });
         }
       }
     });
     t.radPerPort = kx * ky;
-    t.radW = wCm;
+    t.radW = wDrawCm;
   }
 
   /* ------------------------------------------------------ dies and LO taps

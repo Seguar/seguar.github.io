@@ -3542,6 +3542,30 @@ footer.foot a { color: var(--ink-2); }
     var areaMm2 = ((window.Model && window.Model.BLOCKS[blk]) || { areaMm2: 6.7 }).areaMm2;
     var wCm = Math.sqrt(Math.max(areaMm2, 0.01)) / 10;
 
+    /* The isolated radiator's own footprint can EXCEED the pitch it is being
+       packed at: 2.59 mm of patch on a 1.92 mm lambda/2 pitch. That is not a
+       drawing quirk, it is the same physical fact that makes K close-packed
+       radiators fall about 1.03 dB short of D_unit + 10log10(K) — an
+       isolated 6 dBi patch claims more area than a lambda/2 cell can hold.
+       Drawn at true scale the squares would overlap and read as a rendering
+       fault, so the drawn size is capped at the pitch and the cap is
+       REPORTED: the legend says so, and consistency() raises it as the
+       modelling caveat it is. */
+    var limit = Infinity;
+    if (kx > 1) limit = Math.min(limit, px);
+    if (ky > 1) limit = Math.min(limit, py);
+    var wDrawCm = Math.min(wCm, limit);
+    t.radFootprintCm = wCm;
+    t.radCappedToPitch = wDrawCm < wCm - 1e-9;
+
+    /* The port's CELL, which is what the ring on the map represents. It is
+       elemDx x elemDy and it is NOT square in general — the 'row' in-tile
+       lattice makes it 3.75 x 60 mm — so a circle sized from sqrt(ports)
+       misrepresents it by a factor of four on one axis and overlaps its
+       neighbours. Carry the real dimensions. */
+    t.cellXCm = g.elemDxCm || (tileCm / Math.max(Math.round(Math.sqrt(offs.length)), 1));
+    t.cellYCm = g.elemDyCm || t.cellXCm;
+
     t.ports = [];
     t.rads = [];
     offs.forEach(function (o, pi) {
@@ -3553,13 +3577,13 @@ footer.foot a { color: var(--ink-2); }
             p: pi,
             x: cx + (ix - (kx - 1) / 2) * px,
             y: cy + (iy - (ky - 1) / 2) * py,
-            w: wCm
+            w: wDrawCm
           });
         }
       }
     });
     t.radPerPort = kx * ky;
-    t.radW = wCm;
+    t.radW = wDrawCm;
   }
 
   /* ------------------------------------------------------ dies and LO taps
@@ -6359,6 +6383,25 @@ footer.foot a { color: var(--ink-2); }
         ' does not allow; it has been clamped to ' + g.radPerCh + '. The clamp is reported ' +
         'rather than silent because K changes the element directivity by 10log10(K).'
     });
+    if (g.radPerCh > 1) {
+      var footMm = Math.sqrt(Math.max(
+        (BLOCKS[(g.antTraits && g.antTraits.radBlockKey) || 'antPatch'] || BLOCKS.antPatch).areaMm2, 0.01));
+      var pitchMinMm = 10 * Math.min(
+        g.radKx > 1 ? g.radPitchXCm : Infinity,
+        g.radKy > 1 ? g.radPitchYCm : Infinity);
+      if (footMm > pitchMinMm + 1e-9) out.push({
+        severity: 'warn',
+        message: 'The radiator\'s isolated footprint is ' + footMm.toFixed(2) + ' mm and the pitch it is ' +
+          'being packed at is ' + pitchMinMm.toFixed(2) + ' mm, so they do not physically fit side by side. ' +
+          'This is the SAME fact that makes K close-packed radiators reach only ' +
+          g.dElDbi.toFixed(2) + ' dBi instead of the naive ' + (g.radUnitDbi + 10 * Math.log10(g.radPerCh)).toFixed(2) +
+          ' dBi: an isolated ' + g.radUnitDbi.toFixed(2) + ' dBi patch claims more area than this cell can hold. ' +
+          'The directivity already accounts for it — the pattern integral is what it is — but the FOOTPRINT ' +
+          'does not, so a real layout needs a physically smaller radiator here and its isolated directivity ' +
+          'would be lower than the parameter says. The map draws them capped to the pitch rather than ' +
+          'overlapping.'
+      });
+    }
     if (g.radPerCh > 1 && g.radPitchLam < 0.4 && !g.radSpanning) out.push({
       severity: 'warn',
       message: 'A ' + g.radPitchLam.toFixed(2) + 'λ radiator pitch is below λ/2. Crowding ' +
@@ -8478,16 +8521,24 @@ footer.foot a { color: var(--ink-2); }
             fill: antCol, 'fill-opacity': 0.55, stroke: 'none'
           }));
         });
+        /* The port's CELL, drawn as the rectangle it actually is. This was a
+           circle sized from sqrt(ports per tile), which assumes a SQUARE
+           arrangement: under the 'row' in-tile lattice the cell is
+           3.75 x 60 mm and that circle was 3.4x too wide in x, so every
+           ring overlapped its neighbours and none of them showed the cell
+           the fill percentage is computed against. */
+        var cw = Math.max(2, (t.cellXCm || grid.tileCm) * scale);
+        var ch = Math.max(2, (t.cellYCm || grid.tileCm) * scale);
         (t.ports || []).forEach(function (p) {
-          var pr = Math.max(2, (grid.tileCm / Math.max(Math.sqrt(t.ports.length), 1)) * scale * 0.42);
-          var c = el('circle', {
-            cx: X(p.x), cy: Y(p.y), r: pr, fill: 'none',
-            stroke: antCol, 'stroke-width': 0.7, 'stroke-opacity': 0.5,
+          var c = el('rect', {
+            x: X(p.x) - cw / 2, y: Y(p.y) - ch / 2, width: cw, height: ch,
+            fill: 'none', stroke: antCol, 'stroke-width': 0.7, 'stroke-opacity': 0.45,
             'stroke-dasharray': '2 2', 'vector-effect': 'non-scaling-stroke'
           });
           if (lod.tips) c.appendChild(el('title', null,
             'tile ' + t.i + ' · port ' + p.i + ' of ' + t.ports.length + '\n' +
             'ONE controllable RF channel — one phase shifter\n' +
+            'cell ' + (t.cellXCm * 10).toFixed(2) + ' × ' + (t.cellYCm * 10).toFixed(2) + ' mm\n' +
             t.radPerPort + ' radiator' + (t.radPerPort === 1 ? '' : 's') + ' behind it, fed in fixed phase\n' +
             'the beamformer cannot see inside this cell'));
           antG.appendChild(c);
@@ -8747,7 +8798,7 @@ footer.foot a { color: var(--ink-2); }
     return { svg: svg, lod: lod, visible: shown.length, zoom: Z };
   }
 
-  function renderLegend(mount, built) {
+  function renderLegend(mount, built, lod) {
     mount.textContent = '';
     var wrap = document.createElement('div');
     wrap.className = 'legend';
@@ -8788,12 +8839,18 @@ footer.foot a { color: var(--ink-2); }
     /* Ports and radiators get hand-written rows beside the die row rather
        than going through glyph()/order/names, because like the die they are
        drawn as scaled geometry and not as a fixed-size block symbol. */
-    if (t0 && t0.ports && t0.ports.length) {
+    /* A legend row for something the LOD has dropped is worse than no row:
+       it tells the reader a swatch is on screen when it is not. Both rows
+       are therefore gated on lod.ants, and when the radiators are hidden
+       the row says so rather than disappearing silently. */
+    var antsDrawn = !lod || lod.ants !== false;
+    if (t0 && t0.ports && t0.ports.length && antsDrawn) {
       var pl = document.createElement('span');
       pl.className = 'li';
-      pl.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;' +
+      pl.innerHTML = '<span style="display:inline-block;width:11px;height:8px;' +
         'border:1px dashed var(--s5);opacity:.7"></span>' +
-        t0.ports.length + ' controllable ports per tile — one phase shifter each';
+        t0.ports.length + ' controllable ports per tile — one phase shifter each, ' +
+        'ring = its ' + (t0.cellXCm * 10).toFixed(1) + ' × ' + (t0.cellYCm * 10).toFixed(1) + ' mm cell';
       wrap.appendChild(pl);
 
       var al = document.createElement('span');
@@ -8803,8 +8860,18 @@ footer.foot a { color: var(--ink-2); }
         (t0.radPerPort === 1
           ? 'one radiator per port, ' + (t0.radW * 10).toFixed(1) + ' mm, to scale'
           : t0.radPerPort + ' radiators per port (' + t0.rads.length + ' per tile), ' +
-            (t0.radW * 10).toFixed(1) + ' mm each, to scale — fixed feed, invisible to the beamformer');
+            (t0.radW * 10).toFixed(1) + ' mm each — fixed feed, invisible to the beamformer') +
+        (t0.radCappedToPitch
+          ? ' · drawn capped to the ' + (t0.radW * 10).toFixed(2) + ' mm pitch; the isolated footprint is ' +
+            (t0.radFootprintCm * 10).toFixed(2) + ' mm and does not fit'
+          : ', to scale');
       wrap.appendChild(al);
+    } else if (t0 && t0.ports && t0.ports.length) {
+      var hl = document.createElement('span');
+      hl.className = 'li';
+      hl.textContent = 'ports and radiators not drawn at this zoom — ' +
+        (t0.rads.length * built.grid.nTiles).toLocaleString() + ' glyphs';
+      wrap.appendChild(hl);
     }
 
     var seen = {};
@@ -10310,9 +10377,10 @@ footer.foot a { color: var(--ink-2); }
       apertureSpecCm: res.g.apertureCm,
       onViewChange: function (z, x, y) { view.zoom = z; view.panXCm = x; view.panYCm = y; render(); }
     }, function (i) { view.selected = i; render(); });
-    void mapInfo;
-
-    window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
+    /* the legend needs the LOD it was actually drawn at, or it describes
+       swatches that are not on screen */
+    window.Diagram.renderLegend(document.getElementById('mapLegend'), built,
+      mapInfo && mapInfo.lod);
     var bsel0 = res.bb[res.g.bbOptionId];
     document.getElementById('mapNote').innerHTML =
       '<strong>Scroll to zoom at the cursor, drag to pan, double-click to zoom in</strong> ' +
