@@ -3542,29 +3542,41 @@ footer.foot a { color: var(--ink-2); }
     var areaMm2 = ((window.Model && window.Model.BLOCKS[blk]) || { areaMm2: 6.7 }).areaMm2;
     var wCm = Math.sqrt(Math.max(areaMm2, 0.01)) / 10;
 
-    /* The isolated radiator's own footprint can EXCEED the pitch it is being
-       packed at: 2.59 mm of patch on a 1.92 mm lambda/2 pitch. That is not a
-       drawing quirk, it is the same physical fact that makes K close-packed
-       radiators fall about 1.03 dB short of D_unit + 10log10(K) — an
-       isolated 6 dBi patch claims more area than a lambda/2 cell can hold.
-       Drawn at true scale the squares would overlap and read as a rendering
-       fault, so the drawn size is capped at the pitch and the cap is
-       REPORTED: the legend says so, and consistency() raises it as the
-       modelling caveat it is. */
-    var limit = Infinity;
-    if (kx > 1) limit = Math.min(limit, px);
-    if (ky > 1) limit = Math.min(limit, py);
-    var wDrawCm = Math.min(wCm, limit);
-    t.radFootprintCm = wCm;
-    t.radCappedToPitch = wDrawCm < wCm - 1e-9;
-
-    /* The port's CELL, which is what the ring on the map represents. It is
-       elemDx x elemDy and it is NOT square in general — the 'row' in-tile
-       lattice makes it 3.75 x 60 mm — so a circle sized from sqrt(ports)
-       misrepresents it by a factor of four on one axis and overlaps its
-       neighbours. Carry the real dimensions. */
+    /* The port's CELL, which is what the dashed rectangle on the map shows.
+       It is elemDx x elemDy and it is NOT square in general — the 'row'
+       in-tile lattice makes it 3.75 x 60 mm — so a circle sized from
+       sqrt(ports) misrepresented it by a factor of four on one axis and
+       overlapped its neighbours. Carry the real dimensions. */
     t.cellXCm = g.elemDxCm || (tileCm / Math.max(Math.round(Math.sqrt(offs.length)), 1));
     t.cellYCm = g.elemDyCm || t.cellXCm;
+
+    /* The isolated radiator's own footprint can EXCEED the space it is being
+       packed into: 2.59 mm of patch on a 1.92 mm lambda/2 pitch. That is not
+       a drawing quirk, it is the same physical fact that makes K close-packed
+       radiators fall about 1.03 dB short of D_unit + 10log10(K) — an
+       isolated 6 dBi patch claims more area than a lambda/2 cell can hold.
+       Drawn at true scale the squares overlap and read as a rendering fault,
+       so the drawn size is bounded and the bound is REPORTED.
+
+       PER AXIS, because the crowding is per axis. A 1xK cross-scan column is
+       crowded only in y: kx = 1 and there is a whole 15 mm of empty cell in
+       x. Shrinking it in both axes understated the drawn metal by 1.8x in
+       area and quietly argued the author's case, since the reader is being
+       invited to eyeball the cell fill. Eight full-width 2.59 x 1.92 mm bars
+       is what the metal actually is.
+
+       The CELL is the outer bound whatever K is. An earlier version only
+       compared against the intra-cluster pitch, so at K = 1 nothing was
+       compared at all and a C4 board radiator could be drawn overhanging its
+       own cell and overlapping its neighbours with no check firing. */
+    var limX = Math.min(kx > 1 ? px : Infinity, t.cellXCm);
+    var limY = Math.min(ky > 1 ? py : Infinity, t.cellYCm);
+    var wxCm = Math.min(wCm, limX);
+    var wyCm = Math.min(wCm, limY);
+    t.radFootprintCm = wCm;
+    t.radCappedToPitch = (wxCm < wCm - 1e-9) || (wyCm < wCm - 1e-9);
+    t.radCapXCm = wxCm;
+    t.radCapYCm = wyCm;
 
     t.ports = [];
     t.rads = [];
@@ -3577,13 +3589,13 @@ footer.foot a { color: var(--ink-2); }
             p: pi,
             x: cx + (ix - (kx - 1) / 2) * px,
             y: cy + (iy - (ky - 1) / 2) * py,
-            w: wDrawCm
+            wx: wxCm, wy: wyCm
           });
         }
       }
     });
     t.radPerPort = kx * ky;
-    t.radW = wDrawCm;
+    t.radW = wCm;                 /* the PHYSICAL footprint, not the drawn one */
   }
 
   /* ------------------------------------------------------ dies and LO taps
@@ -8411,6 +8423,7 @@ footer.foot a { color: var(--ink-2); }
     var lod = lodFor(shown.length, radsPerTile);
     /* explicit layer switches always win over the LOD default */
     var wantDies = view.showDies !== false && lod.dies;
+    var dieFloored = false;
     var wantBlocks = view.showBlocks !== false && lod.blocks;
 
     var svg = el('svg', {
@@ -8505,7 +8518,9 @@ footer.foot a { color: var(--ink-2); }
        Drawn from t.rads, which topology.js lays out on g.latOffsetsCm —
        the same lattice beam.js integrates over — so what is on screen and
        what is in the numbers cannot drift apart. */
-    if (view.showAnts !== false && lod.ants) {
+    var antsShown = view.showAnts !== false && lod.ants;
+    var antFloored = false;
+    if (antsShown) {
       var antG = el('g');
       var antCol = 'var(--s5)';
       /* The in-cell feed is deliberately NOT drawn. The model knows its mean
@@ -8514,10 +8529,19 @@ footer.foot a { color: var(--ink-2); }
          would assert geometry nobody chose. The port ring is what says these
          radiators are fed together. */
       shown.forEach(function (t) {
+        /* Floors are in SCREEN space (divided by Z), not viewBox units. A
+           viewBox-unit floor is an absolute size in centimetres that zoom
+           only magnifies, so it silently replaced the physical size the
+           legend was simultaneously quoting AND re-created the very overlap
+           the per-axis cap exists to prevent. In screen space the floor is a
+           legibility minimum that zooming in dissolves, and antScaled
+           records whether it bit so the legend can stop saying "to scale". */
         (t.rads || []).forEach(function (a) {
-          var w = Math.max(1.2, a.w * scale);
+          var wx = a.wx * scale, wy = a.wy * scale;
+          var fx = Math.max(0.6 / Z, wx), fy = Math.max(0.6 / Z, wy);
+          if (fx > wx + 1e-9 || fy > wy + 1e-9) antFloored = true;
           antG.appendChild(el('rect', {
-            x: X(a.x) - w / 2, y: Y(a.y) - w / 2, width: w, height: w,
+            x: X(a.x) - fx / 2, y: Y(a.y) - fy / 2, width: fx, height: fy,
             fill: antCol, 'fill-opacity': 0.55, stroke: 'none'
           }));
         });
@@ -8527,8 +8551,15 @@ footer.foot a { color: var(--ink-2); }
            3.75 x 60 mm and that circle was 3.4x too wide in x, so every
            ring overlapped its neighbours and none of them showed the cell
            the fill percentage is computed against. */
-        var cw = Math.max(2, (t.cellXCm || grid.tileCm) * scale);
-        var ch = Math.max(2, (t.cellYCm || grid.tileCm) * scale);
+        /* Also screen-space: flooring the two axes independently in viewBox
+           units inverted the drawn aspect ratio of a strongly anisotropic
+           cell and made adjacent cells overlap instead of tile, which
+           defeats the one glyph whose whole job is to state the cell
+           honestly. */
+        var cw = Math.max(1.2 / Z, (t.cellXCm || grid.tileCm) * scale);
+        var ch = Math.max(1.2 / Z, (t.cellYCm || grid.tileCm) * scale);
+        if (cw > (t.cellXCm || grid.tileCm) * scale + 1e-9 ||
+            ch > (t.cellYCm || grid.tileCm) * scale + 1e-9) antFloored = true;
         (t.ports || []).forEach(function (p) {
           var c = el('rect', {
             x: X(p.x) - cw / 2, y: Y(p.y) - ch / 2, width: cw, height: ch,
@@ -8559,7 +8590,12 @@ footer.foot a { color: var(--ink-2); }
           })));
         });
         (t.dies || []).forEach(function (d) {
-          var w = Math.max(3, d.w * scale);
+          /* screen-space floor, for the same reason as the radiators: in
+             viewBox units this drew a 2.81 mm die above a 53 cm aperture
+             while the legend beside it said "2.5 mm, to scale" */
+          var wTrue = d.w * scale;
+          var w = Math.max(3 / Z, wTrue);
+          if (w > wTrue + 1e-9) dieFloored = true;
           var rect = el('rect', {
             x: X(d.x) - w / 2, y: Y(d.y) - w / 2, width: w, height: w, rx: 0.8,
             fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb,
@@ -8795,10 +8831,24 @@ footer.foot a { color: var(--ink-2); }
     sc.appendChild(cnt);
     mount.appendChild(sc);
 
-    return { svg: svg, lod: lod, visible: shown.length, zoom: Z };
+    /* The legend needs to know what was ACTUALLY drawn — LOD tier, layer
+       toggles and size floors all — or it describes swatches that are not
+       on screen and quotes sizes that are not what was rendered. */
+    return {
+      svg: svg, lod: lod, visible: shown.length, zoom: Z,
+      drew: {
+        ants: !!antsShown, dies: !!wantDies,
+        antFloored: antFloored, dieFloored: dieFloored
+      }
+    };
   }
 
-  function renderLegend(mount, built, lod) {
+  /* `info` is renderMap's return: { lod, drew: {ants, dies, antFloored,
+     dieFloored} }. The legend must be gated on what was DRAWN, not on what
+     the data could support — the LOD tier, the toolbar layer switches and
+     the size floors all change what is on screen. */
+  function renderLegend(mount, built, info) {
+    var lod = (info && info.lod) || info || null;
     mount.textContent = '';
     var wrap = document.createElement('div');
     wrap.className = 'legend';
@@ -8828,12 +8878,16 @@ footer.foot a { color: var(--ink-2); }
     wrap.appendChild(bl);
 
     var t0 = built.grid.tiles[0];
-    if (t0 && t0.dies) {
+    var drew = (info && info.drew) || {};
+    var diesDrawn = drew.dies !== undefined ? drew.dies : !!(t0 && t0.dies);
+    if (t0 && t0.dies && diesDrawn) {
       var dl = document.createElement('span');
       dl.className = 'li';
       dl.innerHTML = '<span style="display:inline-block;width:9px;height:9px;background:var(--ink);opacity:.62;' +
         'border:0.9px solid ' + BAND_STYLE.eband.stroke + '"></span>' +
-        t0.dies.length + ' RFIC dies per tile, 2.5 mm, to scale — each with one 78 GHz LO tap';
+        t0.dies.length + ' RFIC dies per tile, 2.5 mm' +
+        (drew.dieFloored ? ', drawn at a legibility minimum — zoom in for true scale' : ', to scale') +
+        ' — each with one 78 GHz LO tap';
       wrap.appendChild(dl);
     }
     /* Ports and radiators get hand-written rows beside the die row rather
@@ -8843,28 +8897,35 @@ footer.foot a { color: var(--ink-2); }
        it tells the reader a swatch is on screen when it is not. Both rows
        are therefore gated on lod.ants, and when the radiators are hidden
        the row says so rather than disappearing silently. */
-    var antsDrawn = !lod || lod.ants !== false;
+    var antsDrawn = drew.ants !== undefined ? drew.ants : (!lod || lod.ants !== false);
     if (t0 && t0.ports && t0.ports.length && antsDrawn) {
       var pl = document.createElement('span');
       pl.className = 'li';
-      pl.innerHTML = '<span style="display:inline-block;width:11px;height:8px;' +
-        'border:1px dashed var(--s5);opacity:.7"></span>' +
+      /* the swatch mirrors the cell's real aspect, clamped so a 16:1 cell
+         does not produce a 1 px sliver in the legend */
+      var ar = Math.max(0.25, Math.min(4, t0.cellXCm / Math.max(t0.cellYCm, 1e-9)));
+      var sw = Math.round(11 * Math.min(1, ar)), sh = Math.round(11 * Math.min(1, 1 / ar));
+      pl.innerHTML = '<span style="display:inline-block;width:' + sw + 'px;height:' + sh + 'px;' +
+        'border:1px dashed var(--s5);opacity:.7;vertical-align:middle"></span>' +
         t0.ports.length + ' controllable ports per tile — one phase shifter each, ' +
-        'ring = its ' + (t0.cellXCm * 10).toFixed(1) + ' × ' + (t0.cellYCm * 10).toFixed(1) + ' mm cell';
+        'the dashed box is its ' + (t0.cellXCm * 10).toFixed(2) + ' × ' +
+        (t0.cellYCm * 10).toFixed(2) + ' mm cell';
       wrap.appendChild(pl);
 
       var al = document.createElement('span');
       al.className = 'li';
+      /* ONE size claim, not two. The physical footprint is always quoted;
+         whether it was drawn smaller is a separate clause. */
       al.innerHTML = '<span style="display:inline-block;width:7px;height:7px;background:var(--s5);' +
-        'opacity:.55"></span>' +
+        'opacity:.55;vertical-align:middle"></span>' +
         (t0.radPerPort === 1
-          ? 'one radiator per port, ' + (t0.radW * 10).toFixed(1) + ' mm, to scale'
+          ? 'one radiator per port, ' + (t0.radFootprintCm * 10).toFixed(2) + ' mm'
           : t0.radPerPort + ' radiators per port (' + t0.rads.length + ' per tile), ' +
-            (t0.radW * 10).toFixed(1) + ' mm each — fixed feed, invisible to the beamformer') +
+            (t0.radFootprintCm * 10).toFixed(2) + ' mm each — fixed feed, invisible to the beamformer') +
         (t0.radCappedToPitch
-          ? ' · drawn capped to the ' + (t0.radW * 10).toFixed(2) + ' mm pitch; the isolated footprint is ' +
-            (t0.radFootprintCm * 10).toFixed(2) + ' mm and does not fit'
-          : ', to scale');
+          ? ' · drawn ' + (t0.radCapXCm * 10).toFixed(2) + ' × ' + (t0.radCapYCm * 10).toFixed(2) +
+            ' mm, capped to the pitch: the isolated footprint does not fit'
+          : drew.antFloored ? ' · drawn at a legibility minimum — zoom in for true scale' : ', to scale');
       wrap.appendChild(al);
     } else if (t0 && t0.ports && t0.ports.length) {
       var hl = document.createElement('span');
@@ -8957,7 +9018,16 @@ footer.foot a { color: var(--ink-2); }
         (g.elemDxCm || 0).toFixed(2) + ' cm lattice']);
       rows.push(['Radiators per port', String(t.radPerPort) +
         (t.radPerPort > 1 ? ' (' + g.radKx + ' × ' + g.radKy + ', fixed feed)' : '')]);
-      rows.push(['Radiators in this tile', String(t.rads.length) + ' × ' + (t.radW * 10).toFixed(1) + ' mm']);
+      /* the PHYSICAL footprint. This used to print the pitch-capped DRAWING
+         width, so the table and the legend stated different sizes for the
+         same object on the same screen — and the table stated the one that
+         does not exist. */
+      rows.push(['Radiators in this tile', String(t.rads.length) + ' × ' +
+        (t.radFootprintCm * 10).toFixed(2) + ' mm footprint' +
+        (t.radCappedToPitch
+          ? ' — drawn ' + (t.radCapXCm * 10).toFixed(2) + ' × ' + (t.radCapYCm * 10).toFixed(2) +
+            ' mm, capped to the pitch'
+          : '')]);
       if (t.radPerPort > 1) {
         rows.push(['In-cell radiator pitch', (g.radPitchXCm * 10).toFixed(2) + ' mm (' +
           (g.radPitchXCm / g.lamCm).toFixed(2) + ' λ)' + (g.radSpanning ? ' — spans the cell' : '')]);
@@ -10377,10 +10447,10 @@ footer.foot a { color: var(--ink-2); }
       apertureSpecCm: res.g.apertureCm,
       onViewChange: function (z, x, y) { view.zoom = z; view.panXCm = x; view.panYCm = y; render(); }
     }, function (i) { view.selected = i; render(); });
-    /* the legend needs the LOD it was actually drawn at, or it describes
-       swatches that are not on screen */
-    window.Diagram.renderLegend(document.getElementById('mapLegend'), built,
-      mapInfo && mapInfo.lod);
+    /* the legend needs what renderMap ACTUALLY drew — LOD tier, layer
+       toggles and size floors — or it describes swatches that are not on
+       screen and quotes sizes that were not rendered */
+    window.Diagram.renderLegend(document.getElementById('mapLegend'), built, mapInfo);
     var bsel0 = res.bb[res.g.bbOptionId];
     document.getElementById('mapNote').innerHTML =
       '<strong>Scroll to zoom at the cursor, drag to pan, double-click to zoom in</strong> ' +
@@ -10824,10 +10894,21 @@ footer.foot a { color: var(--ink-2); }
           d: 'min(N·D_el, 4πA/λ²) = min(' + n(g.dArrayRawDbi, 2) + ', ' + n(g.dFilledDbi, 2) +
              ') dBi at broadside, from ' + g.nElem + ' elements of ' + n(g.dElDbi, 1) + ' dBi' },
         { k: 'Realised gain', n: n(b.realisedDbi, 2), unit: 'dBi',
+          /* antLossTotalDb, matching what beam.js actually subtracted. This
+             showed antLossDb while the figure above it was computed with
+             antLossTotalDb, so the terms did not add up to the number they
+             were explaining on every option with an in-cell feed. */
           d: 'directivity −' + n(b.scanLossDb, 2) + ' dB scan −' + n(b.cohLossDb, 3) +
-             ' dB error −' + n(g.antLossDb, 1) + ' dB antenna-side chain (efficiency, package feed, ' +
-             'flip-chip, mismatch, T/R, on-chip, radome). Directivity is not gain; on RX this sits in ' +
-             'front of the LNA and goes into G/T.' },
+             ' dB error −' + n(g.antLossDb, 1) + ' dB antenna-side chain' +
+             (g.antFeedLossDb > 0.005
+               ? ' −' + n(g.antFeedLossDb, 2) + ' dB in-cell feed'
+               : '') +
+             ' (efficiency, package feed, flip-chip, mismatch, T/R, on-chip, radome). ' +
+             'Directivity is not gain; on RX this sits in front of the LNA and goes into G/T' +
+             (g.antFeedLossDb > 0.005
+               ? ', so the feed term costs ' + n(2 * g.antFeedLossDb, 2) + ' dB of G/T, not ' +
+                 n(g.antFeedLossDb, 2) + '.'
+               : '.') },
         { k: 'Element / cell fill', n: n(g.thinningLossDb, 2), unit: 'dB', binding: g.thinningLossDb > 6,
           d: '= 10log10(4π·A_cell/(λ²·D_el)) = A_eff ' + n(g.aEffElMm2, 2) + ' mm² in a ' +
              n(g.aCellMm2, 0) + ' mm² cell = ' + n(g.cellFillPct, 2) + '%. NOT a thinning loss: it is a ' +
@@ -10953,10 +11034,16 @@ footer.foot a { color: var(--ink-2); }
         '<em>neither</em> principal plane — so a pair of cuts is not an honest presentation of this ' +
         'array. The count is fixed by element <em>density</em> alone: changing the lattice shape moves ' +
         'the lobes but removes none of them. ' +
-        (g.elem.key === 'nulled'
-          ? 'With the cell-filling nulled element the lobes sit in the element’s sinc nulls — at ' +
+        /* was gated on g.elem.key === 'nulled', a kind retired with the
+           antenna family — dead code recommending an element that no longer
+           exists. The suppression case is now reached by a SUBARRAY whose
+           own nulls land on the lobes, which is what span mode does. */
+        (g.radPerCh > 1 && -worst.relDb > 20
+          ? 'With this subarray the lobes sit in the element’s own nulls — at ' +
             'broadside exactly, and progressively less well as the beam scans away from it, which is ' +
-            'why this option buys grating-lobe suppression at the price of scan range.'
+            'why the arrangement buys grating-lobe suppression at the price of scan range. Here it is ' +
+            'worth ' + n(-worst.relDb, 1) + ' dB at the worst lobe, and the −3 dB half-cone has ' +
+            'narrowed to ' + n(g.antConeMinDeg, 1) + '°.'
           : 'For a uniform periodic array a grating lobe is a <em>full-amplitude</em> replica of the ' +
             'main beam (|AF| = N at every lobe, by the Dirichlet kernel), so only the element pattern ' +
             'suppresses it. Here that is worth ' + n(-worst.relDb, 2) + ' dB at the worst lobe. ' +

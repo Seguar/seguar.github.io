@@ -90,29 +90,41 @@
     var areaMm2 = ((window.Model && window.Model.BLOCKS[blk]) || { areaMm2: 6.7 }).areaMm2;
     var wCm = Math.sqrt(Math.max(areaMm2, 0.01)) / 10;
 
-    /* The isolated radiator's own footprint can EXCEED the pitch it is being
-       packed at: 2.59 mm of patch on a 1.92 mm lambda/2 pitch. That is not a
-       drawing quirk, it is the same physical fact that makes K close-packed
-       radiators fall about 1.03 dB short of D_unit + 10log10(K) — an
-       isolated 6 dBi patch claims more area than a lambda/2 cell can hold.
-       Drawn at true scale the squares would overlap and read as a rendering
-       fault, so the drawn size is capped at the pitch and the cap is
-       REPORTED: the legend says so, and consistency() raises it as the
-       modelling caveat it is. */
-    var limit = Infinity;
-    if (kx > 1) limit = Math.min(limit, px);
-    if (ky > 1) limit = Math.min(limit, py);
-    var wDrawCm = Math.min(wCm, limit);
-    t.radFootprintCm = wCm;
-    t.radCappedToPitch = wDrawCm < wCm - 1e-9;
-
-    /* The port's CELL, which is what the ring on the map represents. It is
-       elemDx x elemDy and it is NOT square in general — the 'row' in-tile
-       lattice makes it 3.75 x 60 mm — so a circle sized from sqrt(ports)
-       misrepresents it by a factor of four on one axis and overlaps its
-       neighbours. Carry the real dimensions. */
+    /* The port's CELL, which is what the dashed rectangle on the map shows.
+       It is elemDx x elemDy and it is NOT square in general — the 'row'
+       in-tile lattice makes it 3.75 x 60 mm — so a circle sized from
+       sqrt(ports) misrepresented it by a factor of four on one axis and
+       overlapped its neighbours. Carry the real dimensions. */
     t.cellXCm = g.elemDxCm || (tileCm / Math.max(Math.round(Math.sqrt(offs.length)), 1));
     t.cellYCm = g.elemDyCm || t.cellXCm;
+
+    /* The isolated radiator's own footprint can EXCEED the space it is being
+       packed into: 2.59 mm of patch on a 1.92 mm lambda/2 pitch. That is not
+       a drawing quirk, it is the same physical fact that makes K close-packed
+       radiators fall about 1.03 dB short of D_unit + 10log10(K) — an
+       isolated 6 dBi patch claims more area than a lambda/2 cell can hold.
+       Drawn at true scale the squares overlap and read as a rendering fault,
+       so the drawn size is bounded and the bound is REPORTED.
+
+       PER AXIS, because the crowding is per axis. A 1xK cross-scan column is
+       crowded only in y: kx = 1 and there is a whole 15 mm of empty cell in
+       x. Shrinking it in both axes understated the drawn metal by 1.8x in
+       area and quietly argued the author's case, since the reader is being
+       invited to eyeball the cell fill. Eight full-width 2.59 x 1.92 mm bars
+       is what the metal actually is.
+
+       The CELL is the outer bound whatever K is. An earlier version only
+       compared against the intra-cluster pitch, so at K = 1 nothing was
+       compared at all and a C4 board radiator could be drawn overhanging its
+       own cell and overlapping its neighbours with no check firing. */
+    var limX = Math.min(kx > 1 ? px : Infinity, t.cellXCm);
+    var limY = Math.min(ky > 1 ? py : Infinity, t.cellYCm);
+    var wxCm = Math.min(wCm, limX);
+    var wyCm = Math.min(wCm, limY);
+    t.radFootprintCm = wCm;
+    t.radCappedToPitch = (wxCm < wCm - 1e-9) || (wyCm < wCm - 1e-9);
+    t.radCapXCm = wxCm;
+    t.radCapYCm = wyCm;
 
     t.ports = [];
     t.rads = [];
@@ -125,13 +137,13 @@
             p: pi,
             x: cx + (ix - (kx - 1) / 2) * px,
             y: cy + (iy - (ky - 1) / 2) * py,
-            w: wDrawCm
+            wx: wxCm, wy: wyCm
           });
         }
       }
     });
     t.radPerPort = kx * ky;
-    t.radW = wDrawCm;
+    t.radW = wCm;                 /* the PHYSICAL footprint, not the drawn one */
   }
 
   /* ------------------------------------------------------ dies and LO taps
