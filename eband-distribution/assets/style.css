@@ -510,7 +510,9 @@ svg.chart .blab { font: 10px var(--mono); fill: var(--ink-2); }
 .legend { display: flex; flex-wrap: wrap; gap: 5px 16px; padding: 4px 12px 12px; font-size: 11.5px; color: var(--ink-2); }
 .legend .li { display: flex; align-items: center; gap: 6px; }
 .legend .sw { width: 15px; height: 3px; border-radius: 2px; flex: none; }
-.legend .sw.dash { height: 0; border-top: 2px dashed var(--s5); }
+/* currentColor, not --s5: the swatch must be the series' own colour, or it
+   points at the wrong curve. charts.js sets `color` on the element. */
+.legend .sw.dash { height: 0; border-top: 2px dashed currentColor; color: var(--s5); }
 .chartgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 18px; }
 @media (max-width: 560px) { .chartgrid { grid-template-columns: 1fr; } }
 

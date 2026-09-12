@@ -206,7 +206,11 @@
        charts where every value and the spec are negative and a spec
        stricter than every bar fell below the axis. Widen the range for it
        in BOTH directions, not just upward. */
-    if (cfg.hLine !== undefined && isFinite(cfg.hLine)) {
+    /* typeof number, NOT isFinite alone: isFinite(null) is TRUE in
+       JavaScript, because null coerces to 0. Two callers pass hLine: null
+       to mean "this quantity has no spec", and both were drawing a red
+       dashed line labelled "spec" at 0 dB on a chart with no spec at all. */
+    if (typeof cfg.hLine === 'number' && isFinite(cfg.hLine)) {
       vmax = Math.max(vmax, cfg.hLine);
       vmin = Math.min(vmin, cfg.hLine);
     }
@@ -252,7 +256,14 @@
       /* bars grow from zero when zero is in range, and from the axis when
          it is not — otherwise an all-negative dB chart draws every bar from
          a point outside the plot */
-      var origin = cfg.logX || cfg.zeroBase === false ? lo : Math.min(0, b.value);
+      /* Math.min(0, value) equals the VALUE for a negative bar, so the bar
+         had zero width and rendered as the 1 px sliver Math.max(1, …)
+         guarantees — on the one chart whose job is to show the SIGN of a
+         margin, a deficit looked like nothing at all. Grow from zero
+         whenever zero is on the axis, and from the axis when it is not. */
+      var origin = cfg.logX || cfg.zeroBase === false
+        ? lo
+        : Math.max(lo, Math.min(hi, 0));
       var x0 = X(origin), x1 = X(b.value);
       svg.appendChild(el('rect', { class: 'bar', x: Math.min(x0, x1), y: y, width: Math.max(1, Math.abs(x1 - x0)), height: h, rx: 2, fill: b.color }));
       /* the label gutter is fixed, so a long name would run off the left
@@ -269,7 +280,7 @@
     svg.appendChild(el('line', { class: 'ax', x1: m.l, y1: m.t, x2: m.l, y2: m.t + ph }));
     svg.appendChild(el('line', { class: 'ax', x1: m.l, y1: m.t + ph, x2: m.l + pw, y2: m.t + ph }));
 
-    if (cfg.hLine !== undefined && isFinite(cfg.hLine) && cfg.hLine > lo && cfg.hLine < hi) {
+    if (typeof cfg.hLine === 'number' && isFinite(cfg.hLine) && cfg.hLine > lo && cfg.hLine < hi) {
       svg.appendChild(el('line', { class: 'mask', x1: X(cfg.hLine), y1: m.t, x2: X(cfg.hLine), y2: m.t + ph }));
       svg.appendChild(el('text', { x: X(cfg.hLine), y: m.t - 1, 'text-anchor': 'middle', fill: 'var(--s5)' }, cfg.hLabel || 'spec'));
     }
@@ -337,7 +348,13 @@
       } else {
         var sw = document.createElement('span');
         sw.className = 'sw' + (it.dashed ? ' dash' : '');
-        if (!it.dashed) sw.style.background = it.color;
+        /* The legacy dashed swatch took its colour from the stylesheet, which
+           hard-codes --s5. That is a real series colour in these charts, so
+           the legend pointed a red swatch at a grey curve while a genuinely
+           red series sat in the row below it. Carry the series colour on
+           both branches; the stylesheet now uses currentColor. */
+        if (it.dashed) sw.style.color = it.color;
+        else sw.style.background = it.color;
         li.appendChild(sw);
       }
       li.appendChild(document.createTextNode(it.name));

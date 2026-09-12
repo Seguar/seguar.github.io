@@ -519,9 +519,20 @@
     var win = Math.max(6 * hpbwEst, 4);
     var zLo = Math.max(-90, g.beamScanDeg - win), zHi = Math.min(90, g.beamScanDeg + win);
 
-    /* peak reference: the error-free array at its intended direction */
+    /* peak reference: the error-free array at its intended direction.
+
+       A FIXED subarray feed can put a NULL at the steer angle — a 4-wide
+       group at lambda/2 nulls at exactly 30 degrees of scan — and then
+       pk0.ep is ~0, every trace divides by ~0, and all three pattern
+       panels clip flat against the top of the axis under a y-label still
+       reading "relative to intended beam". There is no intended beam to be
+       relative to. Detect it, fall back to the element-INDEPENDENT array
+       factor peak so the panels still show the array's own structure, and
+       flag it so the view can say which reference it is using. */
     var pk0 = c.periodic ? geomAt(c, fc, c.u0, c.v0) : geomAperiodic(c, fc, c.u0, c.v0);
-    var peakRef = pk0.ep * c.Ne * c.Ne;
+    var epBore = c.elem.powAt(0, 0);
+    var scanInNull = epBore > 0 && pk0.ep < 1e-6 * epBore;
+    var peakRef = scanInNull ? c.Ne * c.Ne : pk0.ep * c.Ne * c.Ne;
 
     var nZoom = light ? 801 : 1601;
     var gZoom = geomCut(c, fc, 0, zLo, zHi, nZoom);
@@ -625,7 +636,7 @@
       floorNearDb: esTx.floorNearDb, floorFarDb: esTx.floorFarDb,
       floorNearRxDb: esRx.floorNearDb, floorFarRxDb: esRx.floorFarDb,
       peakOverMeanDb: g.peakOverMeanDb, realPeakSllDb: realPeakSllDb,
-      scanLossDb: scanLossDb, cohLossDb: cohLossDb,
+      scanLossDb: scanLossDb, cohLossDb: cohLossDb, scanInNull: scanInNull,
       dFilledDbi: g.dFilledDbi, dArrayDbi: g.dArrayDbi, realisedDbi: realisedDbi,
       thinningLossDb: g.thinningLossDb,
       /* the WORST edge, not the better one. Math.max picked whichever band

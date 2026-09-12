@@ -1140,7 +1140,19 @@
         { k: 'Directivity', n: n(g.dArrayDbi, 2), unit: 'dBi',
           d: 'min(N·D_el, 4πA/λ²) = min(' + n(g.dArrayRawDbi, 2) + ', ' + n(g.dFilledDbi, 2) +
              ') dBi at broadside, from ' + g.nElem + ' elements of ' + n(g.dElDbi, 1) + ' dBi' },
-        { k: 'Realised gain', n: n(b.realisedDbi, 2), unit: 'dBi',
+        /* In a subarray null there is no beam to quote a gain for. The
+           antenna table already says "IN ITS OWN NULL"; this cell used to
+           print a clamped −90 dB scan loss and a ~−60 dBi gain beside it,
+           so the same build read two different ways on two screens. */
+        b.scanInNull
+        ? { k: 'Realised gain', n: '—', unit: '',
+            d: 'The beam is steered into the SUBARRAY\'S OWN NULL at ' + n(g.beamScanDeg, 0) +
+               '°, so there is no main beam to quote a gain for. A ' + g.radKx + '-wide fixed group at ' +
+               n(g.radPitchXCm * 10, 2) + ' mm nulls at sin θ = λ/(K·p) multiples and the steer angle is ' +
+               'one of them. Reduce K, change the pitch, turn the group across the scan plane, or steer ' +
+               'somewhere else. The pattern panels below are normalised to the ARRAY FACTOR peak instead ' +
+               'of the intended beam, because the intended beam has no power in it.' }
+        : { k: 'Realised gain', n: n(b.realisedDbi, 2), unit: 'dBi',
           /* antLossTotalDb, matching what beam.js actually subtracted. This
              showed antLossDb while the figure above it was computed with
              antLossTotalDb, so the terms did not add up to the number they

@@ -90,13 +90,28 @@
     var areaMm2 = ((window.Model && window.Model.BLOCKS[blk]) || { areaMm2: 6.7 }).areaMm2;
     var wCm = Math.sqrt(Math.max(areaMm2, 0.01)) / 10;
 
-    /* The port's CELL, which is what the dashed rectangle on the map shows.
-       It is elemDx x elemDy and it is NOT square in general — the 'row'
-       in-tile lattice makes it 3.75 x 60 mm — so a circle sized from
-       sqrt(ports) misrepresented it by a factor of four on one axis and
-       overlapped its neighbours. Carry the real dimensions. */
-    t.cellXCm = g.elemDxCm || (tileCm / Math.max(Math.round(Math.sqrt(offs.length)), 1));
-    t.cellYCm = g.elemDyCm || t.cellXCm;
+    /* The port's CELL, which is what the dashed outline on the map shows.
+
+       It is the PARALLELOGRAM spanned by the lattice basis a1, a2 — not
+       elemDx x elemDy. Those come from PROJECTIONS onto the two axes, and
+       on a sheared sublattice the projected columns collapse: the index-8
+       sheared lattice projects onto 4 x 4, so elemDx x elemDy claims
+       15 x 15 = 225 mm² when the real cell is |a1 x a2| = 450 mm². Half
+       the tile would have had no cell drawn on it at all, and the legend
+       would have contradicted the inspector's own cell-fill denominator by
+       exactly 2x.
+
+       Drawing the basis directly is right for every mode: for the
+       rectangular lattice a1 = (dx, 0) and a2 = (0, dy), so it degenerates
+       to the rectangle it always was. */
+    var a1 = (g.lat && g.lat.a1) || [g.elemDxCm || tileCm, 0];
+    var a2 = (g.lat && g.lat.a2) || [0, g.elemDyCm || tileCm];
+    t.cellA1 = a1;
+    t.cellA2 = a2;
+    t.cellAreaCm2 = Math.abs(a1[0] * a2[1] - a1[1] * a2[0]);
+    /* extents, for the legend's plain-language description of the cell */
+    t.cellXCm = Math.abs(a1[0]) + Math.abs(a2[0]);
+    t.cellYCm = Math.abs(a1[1]) + Math.abs(a2[1]);
 
     /* The isolated radiator's own footprint can EXCEED the space it is being
        packed into: 2.59 mm of patch on a 1.92 mm lambda/2 pitch. That is not
