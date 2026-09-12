@@ -42,6 +42,7 @@
       <a href="#" class="navlink" data-view="assumptions">Assumptions</a>
       <a href="#" class="navlink" data-view="systems">Systems<span id="navSysCount"></span></a>
       <a href="#" class="navlink" data-view="link">Link calculator</a>
+      <a href="#" class="navlink" data-view="chooser">Chooser</a>
       <a href="#" class="navlink" data-view="method">Method</a>
       <button id="themeBtn" type="button" title="Toggle light / dark">&#9788;</button>
     </nav>
@@ -441,6 +442,51 @@
         <section class="panel">
           <h2>What this calculator does not model</h2>
           <div id="linkCaveats"></div>
+        </section>
+      </div>
+
+      <!-- ---- CHOOSER ---- -->
+      <div class="view hidden" id="view-chooser">
+        <p class="viewintro"><span class="scope all">all options</span><span>State the constraints; it searches every
+          combination of LO, baseband and antenna and reports what survives. It ranks by <em>one</em> objective you
+          choose, never a blend — and it tells you what each constraint killed, which is usually more useful than
+          the winner.</span></p>
+
+        <section class="panel">
+          <h2>The question <span class="grow" id="chooserQuestion"></span></h2>
+          <div class="pk-bar" id="chooserControls"></div>
+          <div class="toolbar">
+            <button class="btn acc" id="chooserRun" type="button">Search the space</button>
+            <span class="sp"></span>
+            <span class="note" id="chooserStatus">The constraints live in the parameter column under “Search constraints”, and in the “Radio link” group for the range and rain rate.</span>
+          </div>
+        </section>
+
+        <section class="panel" id="chooserVerdictPanel">
+          <h2>Result</h2>
+          <div id="chooserVerdict"></div>
+        </section>
+
+        <section class="panel">
+          <h2>What the constraints killed <span class="grow">attrition, not just survivors</span></h2>
+          <div class="tscroll"><table class="grid" id="chooserAttrition"></table></div>
+        </section>
+
+        <section class="panel">
+          <h2>The survivors <span class="grow" id="chooserRankedBy"></span></h2>
+          <div class="tscroll tall"><table class="grid sticky1" id="chooserTable"></table></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="chooser-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-copy="chooser-csv" type="button">Copy as CSV</button>
+            <span class="sp"></span>
+            <button class="btn" data-dl="chooser-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>The trade you are actually making <span class="grow">link margin against beam coherence</span></h2>
+          <div class="chartbox" id="chooserPareto"></div>
+          <p class="note" id="chooserParetoNote"></p>
         </section>
       </div>
 

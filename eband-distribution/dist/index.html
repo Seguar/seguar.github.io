@@ -607,6 +607,7 @@ footer.foot a { color: var(--ink-2); }
       <a href="#" class="navlink" data-view="assumptions">Assumptions</a>
       <a href="#" class="navlink" data-view="systems">Systems<span id="navSysCount"></span></a>
       <a href="#" class="navlink" data-view="link">Link calculator</a>
+      <a href="#" class="navlink" data-view="chooser">Chooser</a>
       <a href="#" class="navlink" data-view="method">Method</a>
       <button id="themeBtn" type="button" title="Toggle light / dark">&#9788;</button>
     </nav>
@@ -1006,6 +1007,51 @@ footer.foot a { color: var(--ink-2); }
         <section class="panel">
           <h2>What this calculator does not model</h2>
           <div id="linkCaveats"></div>
+        </section>
+      </div>
+
+      <!-- ---- CHOOSER ---- -->
+      <div class="view hidden" id="view-chooser">
+        <p class="viewintro"><span class="scope all">all options</span><span>State the constraints; it searches every
+          combination of LO, baseband and antenna and reports what survives. It ranks by <em>one</em> objective you
+          choose, never a blend — and it tells you what each constraint killed, which is usually more useful than
+          the winner.</span></p>
+
+        <section class="panel">
+          <h2>The question <span class="grow" id="chooserQuestion"></span></h2>
+          <div class="pk-bar" id="chooserControls"></div>
+          <div class="toolbar">
+            <button class="btn acc" id="chooserRun" type="button">Search the space</button>
+            <span class="sp"></span>
+            <span class="note" id="chooserStatus">The constraints live in the parameter column under “Search constraints”, and in the “Radio link” group for the range and rain rate.</span>
+          </div>
+        </section>
+
+        <section class="panel" id="chooserVerdictPanel">
+          <h2>Result</h2>
+          <div id="chooserVerdict"></div>
+        </section>
+
+        <section class="panel">
+          <h2>What the constraints killed <span class="grow">attrition, not just survivors</span></h2>
+          <div class="tscroll"><table class="grid" id="chooserAttrition"></table></div>
+        </section>
+
+        <section class="panel">
+          <h2>The survivors <span class="grow" id="chooserRankedBy"></span></h2>
+          <div class="tscroll tall"><table class="grid sticky1" id="chooserTable"></table></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="chooser-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-copy="chooser-csv" type="button">Copy as CSV</button>
+            <span class="sp"></span>
+            <button class="btn" data-dl="chooser-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>The trade you are actually making <span class="grow">link margin against beam coherence</span></h2>
+          <div class="chartbox" id="chooserPareto"></div>
+          <p class="note" id="chooserParetoNote"></p>
         </section>
       </div>
 
@@ -5095,6 +5141,34 @@ footer.foot a { color: var(--ink-2); }
     { key: 'linkMarginReqDb', label: 'Required link margin', units: 'dB', value: 3, min: 0, max: 20, step: 0.5, group: 'Radio link',
       conf: 'engineering-guess', why: 'Margin demanded above the required SNR before the link is called closed. Covers what is not modelled: pointing error, multipath, ageing, interference.' },
 
+    /* --- search constraints ---
+       Only the Chooser reads these. They live in PARAMS rather than in view
+       state so a search is permalinkable and saveable like everything else:
+       "here is the question I asked" is as much a part of an answer as the
+       answer. Set a limit to its extreme to switch it off. */
+    { key: 'cnMaxResidualDeg', label: 'Max inter-tile residual', units: '°', value: 5, min: 0.01, max: 20, step: 0.01, group: 'Search constraints',
+      conf: 'measured/datasheet', why: 'Defaults to the derived coherence spec. Raise it to 20° to stop it constraining the search.' },
+    { key: 'cnMaxPowerPct', label: 'Max distribution power', units: '% of array', value: 25, min: 1, max: 100, step: 1, group: 'Search constraints',
+      conf: 'engineering-guess', why: 'LO plus baseband, as a share of the array power budget. 100 switches it off.' },
+    { key: 'cnMinScanDeg', label: 'Min scan cone', units: '°', value: 0, min: 0, max: 75, step: 5, group: 'Search constraints',
+      conf: 'engineering-guess', why: 'The element\'s worst-plane −3 dB half-cone. 0 switches it off. Set it to the scan requirement and the cell-filling antenna options disappear — which is the trade the antenna family exists to show.' },
+    { key: 'cnMinBwGHz', label: 'Min radiator bandwidth', units: 'GHz', value: 0, min: 0, max: 15, step: 0.5, group: 'Search constraints',
+      conf: 'engineering-guess', why: 'Set it to 15 to demand the whole 71–86 GHz band from one radiator, which only the board radiator delivers. 0 switches it off.' },
+    { key: 'cnMinQamSel', label: 'Link must reach', units: '', value: 0, group: 'Search constraints',
+      choices: [{ value: 0, label: 'anything that closes' }, { value: 1, label: 'QPSK' }, { value: 2, label: '16QAM' },
+                { value: 3, label: '64QAM' }, { value: 4, label: '256QAM' }],
+      conf: 'engineering-guess', why: 'The constellation the link must carry at the range and rain rate set in the Radio link group, with the margin set there too.' },
+    { key: 'cnMaxRiskSel', label: 'Max risk', units: '', value: 2, group: 'Search constraints',
+      choices: [{ value: 0, label: 'low only' }, { value: 1, label: 'up to medium' }, { value: 2, label: 'any' }],
+      conf: 'engineering-guess', why: 'The worst risk level accepted across the LO, baseband and antenna choices. The risk labels are the model\'s own judgement, stated per option.' },
+    { key: 'cnObjectiveSel', label: 'Rank the survivors by', units: '', value: 0, group: 'Search constraints',
+      choices: [{ value: 0, label: 'Largest link margin' }, { value: 1, label: 'Highest data rate' },
+                { value: 2, label: 'Lowest distribution power' }, { value: 3, label: 'Lowest inter-tile residual' },
+                { value: 4, label: 'Fewest parts' }],
+      conf: 'engineering-guess', why: 'ONE objective, not a blend. The options trade gain against scan range and link EVM against beam coherence in opposite directions, so a weighted "best" would be an answer manufactured out of weights nobody chose. Change this and watch the winner change — that is the point of it.' },
+    { key: 'cnTiePct', label: 'Call it a tie within', units: '%', value: 2, min: 0, max: 25, step: 0.5, group: 'Search constraints',
+      conf: 'engineering-guess', why: 'Candidates within this fraction of the leader on the chosen objective are reported as TIED with it rather than ranked below it. Several inputs to this search are tagged engineering-guess; a search over 300 candidates cannot resolve a 1% difference and should not pretend to.' },
+
     /* --- calibration --- */
     { key: 'fBistHz', label: 'BIST update rate', units: 'Hz', value: 1, min: 0.01, max: 1000, step: 0.01, group: 'Calibration',
       conf: 'scaled-estimate', why: 'Calibration-state update rate. Note this need NOT equal the ~100 Hz beam-update rate — drift bandwidth is ~0.3–3 Hz.' },
@@ -6558,6 +6632,225 @@ footer.foot a { color: var(--ink-2); }
     };
   }
 
+  /* ---------------------------------------------------------------------
+     THE CONSTRAINT SEARCH.
+
+     Enumerate the architecture space, apply the reader's constraints, and
+     rank what survives by the ONE objective they chose.
+
+     WHY THE ENUMERATION IS NOT A PRODUCT. It is tempting to evaluate 6 LO +
+     5 baseband + 9 antenna configurations and form 270 products, because
+     evalLo, evalBb and evalAnt are independent of one another and evalLink
+     never reads the baseband option at all. But Beam.evaluate takes the LO
+     result, the baseband result AND the antenna-patched geometry, and its
+     coherence loss depends on all three — so the realised gain that feeds
+     the link budget is a genuine three-way function. Cheating the product
+     here would make the search quietly disagree with every other view for
+     the same build, which is the one thing a tool that ranks must not do.
+
+     So: one resolve per ANTENNA configuration (the antenna is what changes
+     the geometry-derived element), and one light beam evaluation per
+     COMBINATION. About 1.6 s for the full space, which is why this runs
+     behind a button instead of on every keystroke.
+
+     WHAT IT REFUSES TO DO. It does not blend the objectives into a score.
+     The options trade gain against scan range and link EVM against beam
+     coherence in OPPOSITE directions — that opposition is this thesis's
+     central finding — so a single weighted "best" would be an answer
+     manufactured out of weights nobody chose. The reader picks one
+     objective, sees what the constraints killed, and is told when the
+     result is a tie rather than a winner.
+     ------------------------------------------------------------------- */
+  var SEARCH_ANT = [
+    { ant: 'single-patch', k: 1, span: 0 },
+    { ant: 'cross-column', k: 2, span: 0 },
+    { ant: 'cross-column', k: 4, span: 0 },
+    { ant: 'cross-column', k: 8, span: 0 },
+    { ant: 'square-cluster', k: 4, span: 0 },
+    { ant: 'square-cluster', k: 9, span: 0 },
+    { ant: 'square-cluster', k: 16, span: 0 },
+    { ant: 'square-cluster', k: 16, span: 1 },
+    { ant: 'square-cluster', k: 64, span: 1 },
+    { ant: 'board-radiator', k: 1, span: 0 }
+  ];
+
+  var RISK_ORDER = { low: 0, medium: 1, high: 2 };
+
+  /* The objectives. Each names the field it reads and which way is better,
+     so nothing is hidden in a comparator. */
+  var OBJECTIVES = {
+    margin:   { label: 'Largest link margin', unit: 'dB', better: 'high',
+                get: function (c) { return c.link.marginDb; },
+                why: 'How much SNR is in hand above what the achieved constellation needs, at the stated range and rain rate.' },
+    rate:     { label: 'Highest data rate', unit: 'Gb/s', better: 'high',
+                get: function (c) { return c.link.rateBps / 1e9; },
+                why: 'Bits per symbol times the RF bandwidth, for the highest constellation that closes with margin.' },
+    power:    { label: 'Lowest distribution power', unit: 'W', better: 'low',
+                get: function (c) { return (c.lo.powerTotalMw + c.bb.powerPerTileMw * c.nTiles) / 1000; },
+                why: 'LO distribution plus baseband across the array. The antenna family draws none.' },
+    residual: { label: 'Lowest inter-tile residual', unit: '°', better: 'low',
+                get: function (c) { return c.lo.interTileResidualDeg; },
+                why: 'The phase error no calibration removes — the null-depth floor, and the spatial-multiplexing ceiling.' },
+    parts:    { label: 'Fewest parts', unit: 'blocks', better: 'low',
+                get: function (c) { return c.partCount; },
+                why: 'Repeater amplifiers plus radiators plus BIST-invisible junctions: a build-cost and yield proxy, not a price.' }
+  };
+
+  /* Each constraint is a named predicate so the attrition table can say
+     which one killed what, rather than reporting a count of survivors and
+     leaving the reader to guess. */
+  function buildConstraints(q, budget) {
+    var cons = [];
+    if (q.requireFeasible !== false) {
+      cons.push({ key: 'feasible', label: 'Realisable in the stated technology',
+        test: function (c) { return !/beyond the technology|extreme|NOT REALISABLE/i.test(c.lo.feasibility + ' ' + c.ant.feasibility); } });
+    }
+    if (isFinite(q.maxResidualDeg)) {
+      cons.push({ key: 'residual', label: 'Inter-tile residual ≤ ' + q.maxResidualDeg.toFixed(2) + '°',
+        test: function (c) { return c.lo.interTileResidualDeg <= q.maxResidualDeg; },
+        distanceOf: function (c) { return c.lo.interTileResidualDeg - q.maxResidualDeg; }, unit: '°' });
+    }
+    if (isFinite(q.maxPowerPct)) {
+      cons.push({ key: 'power', label: 'Distribution power ≤ ' + q.maxPowerPct.toFixed(0) + '% of the array budget',
+        test: function (c) { return c.powerPct <= q.maxPowerPct; },
+        distanceOf: function (c) { return c.powerPct - q.maxPowerPct; }, unit: '%' });
+    }
+    if (isFinite(q.minScanConeDeg) && q.minScanConeDeg > 0) {
+      cons.push({ key: 'scan', label: 'Scan cone ≥ ' + q.minScanConeDeg.toFixed(0) + '°',
+        test: function (c) { return c.ant.coneMinDeg >= q.minScanConeDeg; },
+        distanceOf: function (c) { return q.minScanConeDeg - c.ant.coneMinDeg; }, unit: '°' });
+    }
+    if (isFinite(q.minBwGHz) && q.minBwGHz > 0) {
+      cons.push({ key: 'bw', label: 'Radiator bandwidth ≥ ' + q.minBwGHz.toFixed(1) + ' GHz',
+        test: function (c) { return c.ant.bwGHz >= q.minBwGHz; },
+        distanceOf: function (c) { return q.minBwGHz - c.ant.bwGHz; }, unit: 'GHz' });
+    }
+    if (q.maxRisk && RISK_ORDER[q.maxRisk] !== undefined) {
+      cons.push({ key: 'risk', label: 'Risk no worse than ' + q.maxRisk,
+        test: function (c) { return Math.max(RISK_ORDER[c.lo.riskLevel] || 0,
+          RISK_ORDER[c.bb.riskLevel] || 0, RISK_ORDER[c.ant.riskLevel] || 0) <= RISK_ORDER[q.maxRisk]; } });
+    }
+    if (q.minQamOrder > 0) {
+      cons.push({ key: 'link', label: 'Link closes at ' + q.minQamName + ' over ' +
+          q.rangeKm.toFixed(2) + ' km in ' + q.rainRateMmH.toFixed(0) + ' mm/h',
+        test: function (c) { return c.link.best && c.link.best.order >= q.minQamOrder; },
+        distanceOf: function (c) {
+          var need = c.link.requirements.filter(function (r) { return r.order === q.minQamOrder; })[0];
+          return need ? (need.snrDb + c.g.linkMarginReqDb) - c.link.snrEffDb : NaN;
+        }, unit: 'dB of SNR' });
+    }
+    return cons;
+  }
+
+  function search(state, q, budget) {
+    var cands = [];
+    var perAnt = {};
+
+    SEARCH_ANT.forEach(function (a) {
+      var st = {};
+      for (var k in state) st[k] = state[k];
+      st.antOption = ANT_IDS.indexOf(a.ant);
+      st.radPerCh = a.k;
+      st.radSpanPitch = a.span;
+      /* skip a combination the antenna option does not allow rather than
+         letting resolve() clamp it into a duplicate of another row */
+      var tr = ANT_TRAITS[a.ant];
+      if (tr.kAllowed.indexOf(a.k) < 0) return;
+      var g = resolve(st);
+      perAnt[a.ant + '|' + a.k + '|' + a.span] = { g: g, ant: evalAnt(a.ant, g), cfg: a };
+    });
+
+    Object.keys(perAnt).forEach(function (akey) {
+      var pa = perAnt[akey], g = pa.g;
+      LO_IDS.forEach(function (loId) {
+        var loR = evalLo(loId, g);
+        BB_IDS.forEach(function (bbId) {
+          var bbR = evalBb(bbId, g);
+          /* the three-way coupling: the beam needs all of them */
+          var bm = window.Beam.evaluate(g, budget, loR, bbR, { light: true });
+          var link = evalLink(g, loR, bm);
+          var nT = g.nTilesTotal;
+          var c = {
+            loId: loId, bbId: bbId, antId: pa.cfg.ant,
+            radPerCh: pa.cfg.k, spanning: !!pa.cfg.span,
+            g: g, lo: loR, bb: bbR, ant: pa.ant, beam: bm, link: link, nTiles: nT,
+            powerPct: (loR.powerTotalMw + bbR.powerPerTileMw * nT) / (g.arrayPowerW * 1000) * 100,
+            partCount: (loR.repeaters || 0) + (pa.ant.nRad || 0) / 100 +
+              (pa.ant.blindJunctions || 0) * g.nElem / 100,
+            realisedDbi: bm.realisedDbi
+          };
+          cands.push(c);
+        });
+      });
+    });
+
+    /* ---- attrition: which constraint killed how many ---- */
+    var cons = buildConstraints(q, budget);
+    var attrition = cons.map(function (cn) { return { key: cn.key, label: cn.label, killed: 0, soleKill: 0 }; });
+    var survivors = [];
+    cands.forEach(function (c) {
+      var failed = [];
+      cons.forEach(function (cn, i) { if (!cn.test(c)) { failed.push(i); attrition[i].killed++; } });
+      c.failed = failed.map(function (i) { return cons[i].label; });
+      if (!failed.length) survivors.push(c);
+      else if (failed.length === 1) attrition[failed[0]].soleKill++;
+    });
+
+    /* ---- rank the survivors by the one chosen objective ---- */
+    var obj = OBJECTIVES[q.objective] || OBJECTIVES.margin;
+    survivors.forEach(function (c) { c.score = obj.get(c); });
+    survivors = survivors.filter(function (c) { return isFinite(c.score); });
+    survivors.sort(function (a, b) {
+      return obj.better === 'high' ? b.score - a.score : a.score - b.score;
+    });
+
+    /* ---- ties, on the same principle decision.js already applies ----
+       A search over 270 candidates built from parameters several of which
+       are tagged engineering-guess cannot resolve a 1% difference. Anything
+       within tieFrac of the leader is reported as tied WITH it. */
+    var tieFrac = q.tieFrac != null ? q.tieFrac : 0.02;
+    var tied = [];
+    if (survivors.length) {
+      var topScore = survivors[0].score;
+      var scale = Math.max(Math.abs(topScore), 1e-9);
+      tied = survivors.filter(function (c) {
+        return Math.abs(c.score - topScore) / scale <= tieFrac;
+      });
+    }
+
+    /* ---- when nothing survives, which constraint is binding, and by how
+       much would it have to move? The nearest miss on each constraint,
+       measured only over candidates that failed nothing ELSE. ---- */
+    var binding = null;
+    if (!survivors.length && cands.length) {
+      var best = null;
+      cons.forEach(function (cn, i) {
+        if (!cn.distanceOf) return;
+        cands.forEach(function (c) {
+          if (c.failed.length !== 1 || c.failed[0] !== cn.label) return;
+          var d = cn.distanceOf(c);
+          if (!isFinite(d)) return;
+          if (!best || d < best.shortfall) best = { label: cn.label, shortfall: d, unit: cn.unit, cand: c };
+        });
+      });
+      /* nothing failed on exactly one constraint — report the one that
+         killed the most instead, and say that is what it is */
+      if (!best) {
+        var worst = attrition.slice().sort(function (a, b) { return b.killed - a.killed; })[0];
+        binding = worst ? { label: worst.label, shortfall: NaN, killedMost: worst.killed } : null;
+      } else {
+        binding = best;
+      }
+    }
+
+    return {
+      candidates: cands, survivors: survivors, tied: tied,
+      attrition: attrition, binding: binding, objective: obj, objectiveKey: q.objective,
+      constraints: cons.map(function (c) { return c.label; }),
+      total: cands.length, tieFrac: tieFrac
+    };
+  }
+
   function evalBb(id, g) {
     var trB = bbTraitsOf(id);
     var gg = {};
@@ -6956,6 +7249,7 @@ footer.foot a { color: var(--ink-2); }
     MEDIA_KEYS: MEDIA_KEYS,
     resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,
     evalAnt: evalAnt, evalLink: evalLink, consistency: consistency,
+    search: search, OBJECTIVES: OBJECTIVES, SEARCH_ANT: SEARCH_ANT,
 
     /* SELF-TESTS, shipped as assertions rather than as a comment claiming
        they passed once. There are exactly two ways the antenna family can
@@ -10971,6 +11265,240 @@ footer.foot a { color: var(--ink-2); }
   }
 
   /* =====================================================================
+     Chooser — the constraint search.
+
+     A tool that announces a "best system" is the most dangerous thing this
+     project could ship: it converts a pile of engineering guesses into an
+     answer with a name. Three things are therefore load-bearing here, and
+     none of them is the winner.
+
+       1. IT RANKS BY ONE OBJECTIVE, NAMED ON SCREEN. Not a blend. The
+          families trade in opposite directions — link EVM against beam
+          coherence, gain against scan range — so a weighted "best" would
+          be manufactured out of weights nobody chose.
+       2. IT SHOWS THE ATTRITION. Which constraint killed how many, and how
+          many it killed ALONE. That is usually the answer the reader
+          actually needed: not "take this one" but "your power budget is
+          what is stopping you".
+       3. IT REPORTS TIES AS TIES. Several inputs are tagged
+          engineering-guess; a search over 300 candidates cannot resolve a
+          1% difference and must not pretend to.
+
+     The search runs behind a button because it is ~3 s — 300 candidates,
+     each needing its own beam evaluation because the coherence loss is a
+     genuine three-way function of the LO, baseband and antenna choices.
+     ===================================================================== */
+  var chooserResult = null;
+
+  function renderChooser(res, budget) {
+    var g = res.g;
+    var QAM_ORDERS = [0, 4, 16, 64, 256];
+    var QAM_NAMES = ['anything that closes', 'QPSK', '16QAM', '64QAM', '256QAM'];
+    var RISKS = ['low', 'medium', 'high'];
+    var OBJ_KEYS = ['margin', 'rate', 'power', 'residual', 'parts'];
+    var objKey = OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'margin';
+    var qi = Math.round(state.cnMinQamSel);
+
+    document.getElementById('chooserQuestion').textContent =
+      'ranked by ' + (M.OBJECTIVES[objKey] || {}).label;
+
+    /* the question, restated in one sentence, because a reader arriving at
+       a result needs to see what was asked without reading the column */
+    var ctl = document.getElementById('chooserControls');
+    ctl.innerHTML = '<div class="pk-row"><span class="pk-lab">Asking</span><span class="pk-geo">' +
+      'every combination of <strong>6 LO × 5 baseband × 10 antenna</strong> configurations that ' +
+      (qi > 0 ? 'carries <strong>' + QAM_NAMES[qi] + '</strong> over <strong>' + n(g.linkRangeKm, 2) +
+        ' km</strong> in <strong>' + n(g.rainRateMmH, 0) + ' mm/h</strong> rain with ' +
+        n(g.linkMarginReqDb, 1) + ' dB of margin, and ' : '') +
+      'holds residual ≤ <strong>' + n(state.cnMaxResidualDeg, 2) + '°</strong>, power ≤ <strong>' +
+      n(state.cnMaxPowerPct, 0) + '%</strong>' +
+      (state.cnMinScanDeg > 0 ? ', scan cone ≥ <strong>' + n(state.cnMinScanDeg, 0) + '°</strong>' : '') +
+      (state.cnMinBwGHz > 0 ? ', bandwidth ≥ <strong>' + n(state.cnMinBwGHz, 1) + ' GHz</strong>' : '') +
+      ', risk ≤ <strong>' + RISKS[Math.round(state.cnMaxRiskSel)] + '</strong>.' +
+      '</span></div>';
+
+    var verdict = document.getElementById('chooserVerdict');
+    document.getElementById('chooserRankedBy').textContent =
+      chooserResult ? (M.OBJECTIVES[chooserResult.objectiveKey] || {}).label : '';
+
+    if (!chooserResult) {
+      verdict.innerHTML = '<p class="note">Press <strong>Search the space</strong>. It evaluates 300 ' +
+        'combinations, each with its own beam evaluation, and takes about three seconds — which is why ' +
+        'it does not run on every keystroke.</p>';
+      document.getElementById('chooserAttrition').textContent = '';
+      document.getElementById('chooserTable').textContent = '';
+      document.getElementById('chooserPareto').textContent = '';
+      document.getElementById('chooserParetoNote').textContent = '';
+      return;
+    }
+
+    var R = chooserResult;
+    var obj = R.objective;
+
+    /* ---- verdict ---- */
+    if (!R.survivors.length) {
+      var b = R.binding;
+      verdict.innerHTML =
+        '<p class="note fail"><strong>Nothing survives.</strong> All ' + R.total + ' combinations fail at ' +
+        'least one constraint.</p>' +
+        (b
+          ? '<p class="note">The binding one is <strong>' + b.label + '</strong>' +
+            (isFinite(b.shortfall)
+              ? ', and the nearest miss is short by <span class="kv">' + n(b.shortfall, 2) + ' ' +
+                (b.unit || '') + '</span> — that is ' +
+                (b.cand ? b.cand.loId + ' + ' + b.cand.bbId + ' + ' + b.cand.antId +
+                  (b.cand.radPerCh > 1 ? ' ×' + b.cand.radPerCh : '') : '') +
+                ', which clears everything else. Relax that one constraint by that much and you have an answer.'
+              : '. No single candidate failed on it alone, so there is no "nearly" here: it killed ' +
+                b.killedMost + ' candidates and the space is constrained on more than one axis at once.') +
+            '</p>'
+          : '');
+    } else {
+      var w = R.survivors[0];
+      var isTie = R.tied.length > 1;
+      var lm = M.LO_META.filter(function (m) { return m.id === w.loId; })[0];
+      var bmta = M.BB_META.filter(function (m) { return m.id === w.bbId; })[0];
+      var amta = M.ANT_META.filter(function (m) { return m.id === w.antId; })[0];
+      UI.renderBudget(verdict, null, null, {
+        cells: [
+          { k: isTie ? 'Tied for best' : 'Best', n: '', unit: '',
+            binding: isTie,
+            /* renderBudget escapes its description, so this is plain text by
+               design — markup here would render as literal tags. */
+            d: (isTie
+              ? R.tied.length + ' combinations are tied within ' +
+                n(R.tieFrac * 100, 1) + '% on ' + obj.label.toLowerCase() + ', so this is NOT a winner — ' +
+                'it is the first row of a tie, and they are marked in the table below. '
+              : '') +
+              lm.short + ' + ' + bmta.short + ' + ' + amta.short +
+              (w.radPerCh > 1 ? ' ×' + w.radPerCh + (w.spanning ? ' spanning' : '') : '') + '. ' +
+              obj.why },
+          { k: obj.label, n: n(w.score, 2), unit: obj.unit, d: 'of ' + R.survivors.length +
+              ' survivors out of ' + R.total + ' combinations' },
+          { k: 'Link', n: w.link.best ? w.link.best.name : 'no close', unit: '',
+            d: n(w.link.rateBps / 1e9, 2) + ' Gb/s at ' + n(g.linkRangeKm, 2) + ' km in ' +
+               n(g.rainRateMmH, 0) + ' mm/h, ' + n(w.link.marginDb, 1) + ' dB margin. ' +
+               (w.link.ceilingBinds ? 'The ARRAY binds, not the path.' : 'The path binds.') },
+          { k: 'Inter-tile residual', n: n(w.lo.interTileResidualDeg, 3), unit: '°',
+            binding: w.lo.interTileResidualDeg > budget.sigSpecDeg,
+            d: 'against a ' + n(budget.sigSpecDeg, 2) + '° spec; null floor ' + n(w.lo.sllDb, 1) + ' dB' },
+          { k: 'Distribution power', n: n(w.powerPct, 1), unit: '%',
+            d: n((w.lo.powerTotalMw + w.bb.powerPerTileMw * w.nTiles) / 1000, 1) + ' W of a ' +
+               n(g.arrayPowerW, 0) + ' W array budget' }
+        ]
+      });
+    }
+
+    /* ---- attrition ---- */
+    plainRows(document.getElementById('chooserAttrition'),
+      ['Constraint', 'Killed', 'Killed alone', 'Reading'],
+      R.attrition.map(function (a) {
+        return {
+          cells: [a.label, a.killed, a.soleKill,
+            a.killed === 0 ? 'not binding — nothing failed it'
+              : a.soleKill === 0 ? 'never the only reason; it overlaps other constraints'
+              : a.soleKill + ' candidate' + (a.soleKill === 1 ? '' : 's') +
+                ' would have survived but for this one'],
+          cls: a.soleKill > 0 ? 'warn' : ''
+        };
+      }));
+
+    /* ---- survivors ---- */
+    var tiedSet = {};
+    R.tied.forEach(function (c) { tiedSet[c.loId + '|' + c.bbId + '|' + c.antId + '|' + c.radPerCh + '|' + c.spanning] = 1; });
+    var rows = R.survivors.slice(0, 40).map(function (c, i) {
+      var key = c.loId + '|' + c.bbId + '|' + c.antId + '|' + c.radPerCh + '|' + c.spanning;
+      var lm2 = M.LO_META.filter(function (m) { return m.id === c.loId; })[0];
+      var bm2 = M.BB_META.filter(function (m) { return m.id === c.bbId; })[0];
+      var am2 = M.ANT_META.filter(function (m) { return m.id === c.antId; })[0];
+      return {
+        cells: [
+          (i + 1) + (tiedSet[key] ? ' =' : ''),
+          lm2.short, bm2.short, am2.short + (c.radPerCh > 1 ? ' ×' + c.radPerCh + (c.spanning ? 'sp' : '') : ''),
+          n(c.score, 2),
+          c.link.best ? c.link.best.name : '—',
+          n(c.link.marginDb, 1),
+          n(c.lo.interTileResidualDeg, 3),
+          n(c.powerPct, 1),
+          n(c.ant.coneMinDeg, 0),
+          [c.lo.riskLevel, c.bb.riskLevel, c.ant.riskLevel].sort(function (x, y) {
+            return (({ low: 0, medium: 1, high: 2 })[y] - ({ low: 0, medium: 1, high: 2 })[x]);
+          })[0]
+        ],
+        cls: tiedSet[key] ? 'pass' : ''
+      };
+    });
+    plainRows(document.getElementById('chooserTable'),
+      ['#', 'LO', 'Baseband', 'Antenna', obj.label + ' (' + obj.unit + ')', 'Carries',
+       'Margin dB', 'Residual °', 'Power %', 'Cone °', 'Risk'], rows);
+
+    /* ---- the trade, as a front rather than a winner ----
+       The single most useful picture here is NOT the ranking: it is the two
+       axes that genuinely oppose each other, with every survivor on them,
+       so the reader can see that picking one end is a choice and not a
+       calculation. */
+    var pts = R.survivors.map(function (c) {
+      return { x: Math.max(c.lo.interTileResidualDeg, 1e-3), y: c.link.marginDb };
+    });
+    var winner = R.survivors.length
+      ? [{ x: Math.max(R.survivors[0].lo.interTileResidualDeg, 1e-3), y: R.survivors[0].link.marginDb }] : [];
+    document.getElementById('chooserPareto').textContent = '';
+    if (pts.length) {
+      document.getElementById('chooserPareto').appendChild(window.Charts.lineChart({
+        series: [
+          { name: 'survivors', color: SERIES[1], points: pts.slice().sort(function (a, b) { return a.x - b.x; }), dash: '1 4' },
+          { name: 'the one it picked', color: SERIES[0], points: winner }
+        ],
+        xLabel: 'inter-tile residual (°, log) — lower is a deeper null',
+        yLabel: 'link margin (dB) — higher is a better link',
+        xFmt: function (v) { return v + '°'; },
+        height: 280
+      }));
+    }
+    var a1c = R.survivors.filter(function (c) { return c.loId === 'local-pll'; })[0];
+    var a4c = R.survivors.filter(function (c) { return c.loId === 'mid-mult'; })[0];
+    document.getElementById('chooserParetoNote').innerHTML =
+      'Every surviving combination, on the two axes that pull against each other. ' +
+      (a1c && a4c
+        ? 'The best A1 survivor sits at <span class="kv">' + n(a1c.link.marginDb, 1) +
+          ' dB</span> of margin and <span class="kv">' + n(a1c.lo.interTileResidualDeg, 2) +
+          '°</span> of residual; the best A4 at <span class="kv">' + n(a4c.link.marginDb, 1) +
+          ' dB</span> and <span class="kv">' + n(a4c.lo.interTileResidualDeg, 3) +
+          '°</span>. A1 buys ' + n(a1c.link.marginDb - a4c.link.marginDb, 1) +
+          ' dB of link and gives up ' + n(Math.abs(a1c.lo.sllDb - a4c.lo.sllDb), 1) +
+          ' dB of null depth for it. '
+        : '') +
+      '<strong>No objective in the list resolves that.</strong> Ranking by link margin picks the ' +
+      'per-tile PLL, because its uncorrelated noise averages down at the beam output; ranking by residual ' +
+      'picks the shared LO, because the same noise appears in full in the differential. The tool can tell ' +
+      'you what each choice costs. It cannot tell you which cost you are willing to pay, and a single ' +
+      '“best” that hid this behind a weighted score would be the least honest thing in it.';
+  }
+
+  /* a plain header+rows table, used by the chooser panels */
+  function plainRows(mount, headers, rows) {
+    mount.textContent = '';
+    var t = document.createElement('table');
+    t.className = 'grid';
+    var thead = document.createElement('thead'), htr = document.createElement('tr');
+    headers.forEach(function (h) { htr.appendChild(UI.elt('th', null, h)); });
+    thead.appendChild(htr); t.appendChild(thead);
+    var tb = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      if (r.cls) tr.className = r.cls;
+      r.cells.forEach(function (cv, i) {
+        var td = UI.elt('td', i === 0 ? 'mn' : 'v', cv === null || cv === undefined ? '—' : String(cv));
+        if (i === headers.length - 1) td.style.cssText = 'text-align:left;white-space:normal';
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    mount.appendChild(t);
+  }
+
+  /* =====================================================================
      Link calculator
 
      A link budget is a cascade, and the only honest way to show one is as a
@@ -12363,6 +12891,7 @@ footer.foot a { color: var(--ink-2); }
     if (view.name === 'assumptions') renderAssumptions(res);
     if (view.name === 'systems') renderSystems();
     if (view.name === 'link') renderLink(res, budget);
+    if (view.name === 'chooser') renderChooser(res, budget);
     if (view.name === 'method') UI.renderProse(document.getElementById('methodMount'), window.Content.METHOD);
     glossify();
     /* the nav badge is visible from every view, so it updates outside the
@@ -13605,7 +14134,8 @@ footer.foot a { color: var(--ink-2); }
     sys:      { id: 'sysMetricMount', title: 'Saved systems — results',          file: 'systems-results.csv' },
     sysparam: { id: 'sysParamMount',  title: 'Saved systems — differing inputs', file: 'systems-inputs.csv' },
     sysreq:   { id: 'sysReqMount',    title: 'Saved systems — derived requirement', file: 'systems-requirement.csv' },
-    link:     { id: 'linkTable',      title: 'Radio link budget',                   file: 'link-budget.csv' }
+    link:     { id: 'linkTable',      title: 'Radio link budget',                   file: 'link-budget.csv' },
+    chooser:  { id: 'chooserTable',   title: 'Constraint search — survivors',       file: 'chooser-survivors.csv' }
   };
 
   /* kind: lo | bb | assume | bom | decision ;  fmt: md | csv ;  mode: copy | dl */
@@ -13716,6 +14246,53 @@ footer.foot a { color: var(--ink-2); }
     if (b) b.addEventListener('click', function () {
       view.compareKeyOnly = view.compareKeyOnly === false;
       render();
+    });
+  })();
+
+  /* The chooser's search. Explicit, because it is ~3 s: 300 combinations,
+     each with its own beam evaluation. The status line says what it is
+     doing and then what it did, rather than the page appearing to hang. */
+  (function () {
+    var b = document.getElementById('chooserRun');
+    if (!b) return;
+    b.addEventListener('click', function () {
+      var st = document.getElementById('chooserStatus');
+      b.disabled = true;
+      st.textContent = 'searching 300 combinations…';
+      /* yield a frame so the status actually paints before the block */
+      setTimeout(function () {
+        var t0 = performance.now();
+        try {
+          var res = M.evaluate(state);
+          var budget = window.Budget.derive(res.g);
+          var QAM_ORDERS = [0, 4, 16, 64, 256];
+          var QAM_NAMES = ['', 'QPSK', '16QAM', '64QAM', '256QAM'];
+          var RISKS = ['low', 'medium', 'high'];
+          var OBJ_KEYS = ['margin', 'rate', 'power', 'residual', 'parts'];
+          var qi = Math.round(state.cnMinQamSel);
+          chooserResult = M.search(state, {
+            objective: OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'margin',
+            rangeKm: res.g.linkRangeKm, rainRateMmH: res.g.rainRateMmH,
+            minQamOrder: QAM_ORDERS[qi], minQamName: QAM_NAMES[qi],
+            maxResidualDeg: state.cnMaxResidualDeg,
+            maxPowerPct: state.cnMaxPowerPct >= 100 ? Infinity : state.cnMaxPowerPct,
+            minScanConeDeg: state.cnMinScanDeg,
+            minBwGHz: state.cnMinBwGHz,
+            maxRisk: RISKS[Math.round(state.cnMaxRiskSel)],
+            requireFeasible: true,
+            tieFrac: state.cnTiePct / 100
+          }, budget);
+          var ms = Math.round(performance.now() - t0);
+          st.textContent = chooserResult.total + ' combinations in ' + ms + ' ms · ' +
+            chooserResult.survivors.length + ' survived' +
+            (chooserResult.tied.length > 1 ? ', top ' + chooserResult.tied.length + ' tied' : '');
+        } catch (e) {
+          chooserResult = null;
+          st.textContent = 'search failed: ' + (e && e.message ? e.message : String(e));
+        }
+        b.disabled = false;
+        render();
+      }, 30);
     });
   })();
 
