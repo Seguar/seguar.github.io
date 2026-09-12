@@ -762,6 +762,240 @@
   }
 
   /* =====================================================================
+     Chooser — the constraint search.
+
+     A tool that announces a "best system" is the most dangerous thing this
+     project could ship: it converts a pile of engineering guesses into an
+     answer with a name. Three things are therefore load-bearing here, and
+     none of them is the winner.
+
+       1. IT RANKS BY ONE OBJECTIVE, NAMED ON SCREEN. Not a blend. The
+          families trade in opposite directions — link EVM against beam
+          coherence, gain against scan range — so a weighted "best" would
+          be manufactured out of weights nobody chose.
+       2. IT SHOWS THE ATTRITION. Which constraint killed how many, and how
+          many it killed ALONE. That is usually the answer the reader
+          actually needed: not "take this one" but "your power budget is
+          what is stopping you".
+       3. IT REPORTS TIES AS TIES. Several inputs are tagged
+          engineering-guess; a search over 300 candidates cannot resolve a
+          1% difference and must not pretend to.
+
+     The search runs behind a button because it is ~3 s — 300 candidates,
+     each needing its own beam evaluation because the coherence loss is a
+     genuine three-way function of the LO, baseband and antenna choices.
+     ===================================================================== */
+  var chooserResult = null;
+
+  function renderChooser(res, budget) {
+    var g = res.g;
+    var QAM_ORDERS = [0, 4, 16, 64, 256];
+    var QAM_NAMES = ['anything that closes', 'QPSK', '16QAM', '64QAM', '256QAM'];
+    var RISKS = ['low', 'medium', 'high'];
+    var OBJ_KEYS = ['margin', 'rate', 'power', 'residual', 'parts'];
+    var objKey = OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'margin';
+    var qi = Math.round(state.cnMinQamSel);
+
+    document.getElementById('chooserQuestion').textContent =
+      'ranked by ' + (M.OBJECTIVES[objKey] || {}).label;
+
+    /* the question, restated in one sentence, because a reader arriving at
+       a result needs to see what was asked without reading the column */
+    var ctl = document.getElementById('chooserControls');
+    ctl.innerHTML = '<div class="pk-row"><span class="pk-lab">Asking</span><span class="pk-geo">' +
+      'every combination of <strong>6 LO × 5 baseband × 10 antenna</strong> configurations that ' +
+      (qi > 0 ? 'carries <strong>' + QAM_NAMES[qi] + '</strong> over <strong>' + n(g.linkRangeKm, 2) +
+        ' km</strong> in <strong>' + n(g.rainRateMmH, 0) + ' mm/h</strong> rain with ' +
+        n(g.linkMarginReqDb, 1) + ' dB of margin, and ' : '') +
+      'holds residual ≤ <strong>' + n(state.cnMaxResidualDeg, 2) + '°</strong>, power ≤ <strong>' +
+      n(state.cnMaxPowerPct, 0) + '%</strong>' +
+      (state.cnMinScanDeg > 0 ? ', scan cone ≥ <strong>' + n(state.cnMinScanDeg, 0) + '°</strong>' : '') +
+      (state.cnMinBwGHz > 0 ? ', bandwidth ≥ <strong>' + n(state.cnMinBwGHz, 1) + ' GHz</strong>' : '') +
+      ', risk ≤ <strong>' + RISKS[Math.round(state.cnMaxRiskSel)] + '</strong>.' +
+      '</span></div>';
+
+    var verdict = document.getElementById('chooserVerdict');
+    document.getElementById('chooserRankedBy').textContent =
+      chooserResult ? (M.OBJECTIVES[chooserResult.objectiveKey] || {}).label : '';
+
+    if (!chooserResult) {
+      verdict.innerHTML = '<p class="note">Press <strong>Search the space</strong>. It evaluates 300 ' +
+        'combinations, each with its own beam evaluation, and takes about three seconds — which is why ' +
+        'it does not run on every keystroke.</p>';
+      document.getElementById('chooserAttrition').textContent = '';
+      document.getElementById('chooserTable').textContent = '';
+      document.getElementById('chooserPareto').textContent = '';
+      document.getElementById('chooserParetoNote').textContent = '';
+      return;
+    }
+
+    var R = chooserResult;
+    var obj = R.objective;
+
+    /* ---- verdict ---- */
+    if (!R.survivors.length) {
+      var b = R.binding;
+      verdict.innerHTML =
+        '<p class="note fail"><strong>Nothing survives.</strong> All ' + R.total + ' combinations fail at ' +
+        'least one constraint.</p>' +
+        (b
+          ? '<p class="note">The binding one is <strong>' + b.label + '</strong>' +
+            (isFinite(b.shortfall)
+              ? ', and the nearest miss is short by <span class="kv">' + n(b.shortfall, 2) + ' ' +
+                (b.unit || '') + '</span> — that is ' +
+                (b.cand ? b.cand.loId + ' + ' + b.cand.bbId + ' + ' + b.cand.antId +
+                  (b.cand.radPerCh > 1 ? ' ×' + b.cand.radPerCh : '') : '') +
+                ', which clears everything else. Relax that one constraint by that much and you have an answer.'
+              : '. No single candidate failed on it alone, so there is no "nearly" here: it killed ' +
+                b.killedMost + ' candidates and the space is constrained on more than one axis at once.') +
+            '</p>'
+          : '');
+    } else {
+      var w = R.survivors[0];
+      var isTie = R.tied.length > 1;
+      var lm = M.LO_META.filter(function (m) { return m.id === w.loId; })[0];
+      var bmta = M.BB_META.filter(function (m) { return m.id === w.bbId; })[0];
+      var amta = M.ANT_META.filter(function (m) { return m.id === w.antId; })[0];
+      UI.renderBudget(verdict, null, null, {
+        cells: [
+          { k: isTie ? 'Tied for best' : 'Best', n: '', unit: '',
+            binding: isTie,
+            /* renderBudget escapes its description, so this is plain text by
+               design — markup here would render as literal tags. */
+            d: (isTie
+              ? R.tied.length + ' combinations are tied within ' +
+                n(R.tieFrac * 100, 1) + '% on ' + obj.label.toLowerCase() + ', so this is NOT a winner — ' +
+                'it is the first row of a tie, and they are marked in the table below. '
+              : '') +
+              lm.short + ' + ' + bmta.short + ' + ' + amta.short +
+              (w.radPerCh > 1 ? ' ×' + w.radPerCh + (w.spanning ? ' spanning' : '') : '') + '. ' +
+              obj.why },
+          { k: obj.label, n: n(w.score, 2), unit: obj.unit, d: 'of ' + R.survivors.length +
+              ' survivors out of ' + R.total + ' combinations' },
+          { k: 'Link', n: w.link.best ? w.link.best.name : 'no close', unit: '',
+            d: n(w.link.rateBps / 1e9, 2) + ' Gb/s at ' + n(g.linkRangeKm, 2) + ' km in ' +
+               n(g.rainRateMmH, 0) + ' mm/h, ' + n(w.link.marginDb, 1) + ' dB margin. ' +
+               (w.link.ceilingBinds ? 'The ARRAY binds, not the path.' : 'The path binds.') },
+          { k: 'Inter-tile residual', n: n(w.lo.interTileResidualDeg, 3), unit: '°',
+            binding: w.lo.interTileResidualDeg > budget.sigSpecDeg,
+            d: 'against a ' + n(budget.sigSpecDeg, 2) + '° spec; null floor ' + n(w.lo.sllDb, 1) + ' dB' },
+          { k: 'Distribution power', n: n(w.powerPct, 1), unit: '%',
+            d: n((w.lo.powerTotalMw + w.bb.powerPerTileMw * w.nTiles) / 1000, 1) + ' W of a ' +
+               n(g.arrayPowerW, 0) + ' W array budget' }
+        ]
+      });
+    }
+
+    /* ---- attrition ---- */
+    plainRows(document.getElementById('chooserAttrition'),
+      ['Constraint', 'Killed', 'Killed alone', 'Reading'],
+      R.attrition.map(function (a) {
+        return {
+          cells: [a.label, a.killed, a.soleKill,
+            a.killed === 0 ? 'not binding — nothing failed it'
+              : a.soleKill === 0 ? 'never the only reason; it overlaps other constraints'
+              : a.soleKill + ' candidate' + (a.soleKill === 1 ? '' : 's') +
+                ' would have survived but for this one'],
+          cls: a.soleKill > 0 ? 'warn' : ''
+        };
+      }));
+
+    /* ---- survivors ---- */
+    var tiedSet = {};
+    R.tied.forEach(function (c) { tiedSet[c.loId + '|' + c.bbId + '|' + c.antId + '|' + c.radPerCh + '|' + c.spanning] = 1; });
+    var rows = R.survivors.slice(0, 40).map(function (c, i) {
+      var key = c.loId + '|' + c.bbId + '|' + c.antId + '|' + c.radPerCh + '|' + c.spanning;
+      var lm2 = M.LO_META.filter(function (m) { return m.id === c.loId; })[0];
+      var bm2 = M.BB_META.filter(function (m) { return m.id === c.bbId; })[0];
+      var am2 = M.ANT_META.filter(function (m) { return m.id === c.antId; })[0];
+      return {
+        cells: [
+          (i + 1) + (tiedSet[key] ? ' =' : ''),
+          lm2.short, bm2.short, am2.short + (c.radPerCh > 1 ? ' ×' + c.radPerCh + (c.spanning ? 'sp' : '') : ''),
+          n(c.score, 2),
+          c.link.best ? c.link.best.name : '—',
+          n(c.link.marginDb, 1),
+          n(c.lo.interTileResidualDeg, 3),
+          n(c.powerPct, 1),
+          n(c.ant.coneMinDeg, 0),
+          [c.lo.riskLevel, c.bb.riskLevel, c.ant.riskLevel].sort(function (x, y) {
+            return (({ low: 0, medium: 1, high: 2 })[y] - ({ low: 0, medium: 1, high: 2 })[x]);
+          })[0]
+        ],
+        cls: tiedSet[key] ? 'pass' : ''
+      };
+    });
+    plainRows(document.getElementById('chooserTable'),
+      ['#', 'LO', 'Baseband', 'Antenna', obj.label + ' (' + obj.unit + ')', 'Carries',
+       'Margin dB', 'Residual °', 'Power %', 'Cone °', 'Risk'], rows);
+
+    /* ---- the trade, as a front rather than a winner ----
+       The single most useful picture here is NOT the ranking: it is the two
+       axes that genuinely oppose each other, with every survivor on them,
+       so the reader can see that picking one end is a choice and not a
+       calculation. */
+    var pts = R.survivors.map(function (c) {
+      return { x: Math.max(c.lo.interTileResidualDeg, 1e-3), y: c.link.marginDb };
+    });
+    var winner = R.survivors.length
+      ? [{ x: Math.max(R.survivors[0].lo.interTileResidualDeg, 1e-3), y: R.survivors[0].link.marginDb }] : [];
+    document.getElementById('chooserPareto').textContent = '';
+    if (pts.length) {
+      document.getElementById('chooserPareto').appendChild(window.Charts.lineChart({
+        series: [
+          { name: 'survivors', color: SERIES[1], points: pts.slice().sort(function (a, b) { return a.x - b.x; }), dash: '1 4' },
+          { name: 'the one it picked', color: SERIES[0], points: winner }
+        ],
+        xLabel: 'inter-tile residual (°, log) — lower is a deeper null',
+        yLabel: 'link margin (dB) — higher is a better link',
+        xFmt: function (v) { return v + '°'; },
+        height: 280
+      }));
+    }
+    var a1c = R.survivors.filter(function (c) { return c.loId === 'local-pll'; })[0];
+    var a4c = R.survivors.filter(function (c) { return c.loId === 'mid-mult'; })[0];
+    document.getElementById('chooserParetoNote').innerHTML =
+      'Every surviving combination, on the two axes that pull against each other. ' +
+      (a1c && a4c
+        ? 'The best A1 survivor sits at <span class="kv">' + n(a1c.link.marginDb, 1) +
+          ' dB</span> of margin and <span class="kv">' + n(a1c.lo.interTileResidualDeg, 2) +
+          '°</span> of residual; the best A4 at <span class="kv">' + n(a4c.link.marginDb, 1) +
+          ' dB</span> and <span class="kv">' + n(a4c.lo.interTileResidualDeg, 3) +
+          '°</span>. A1 buys ' + n(a1c.link.marginDb - a4c.link.marginDb, 1) +
+          ' dB of link and gives up ' + n(Math.abs(a1c.lo.sllDb - a4c.lo.sllDb), 1) +
+          ' dB of null depth for it. '
+        : '') +
+      '<strong>No objective in the list resolves that.</strong> Ranking by link margin picks the ' +
+      'per-tile PLL, because its uncorrelated noise averages down at the beam output; ranking by residual ' +
+      'picks the shared LO, because the same noise appears in full in the differential. The tool can tell ' +
+      'you what each choice costs. It cannot tell you which cost you are willing to pay, and a single ' +
+      '“best” that hid this behind a weighted score would be the least honest thing in it.';
+  }
+
+  /* a plain header+rows table, used by the chooser panels */
+  function plainRows(mount, headers, rows) {
+    mount.textContent = '';
+    var t = document.createElement('table');
+    t.className = 'grid';
+    var thead = document.createElement('thead'), htr = document.createElement('tr');
+    headers.forEach(function (h) { htr.appendChild(UI.elt('th', null, h)); });
+    thead.appendChild(htr); t.appendChild(thead);
+    var tb = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      if (r.cls) tr.className = r.cls;
+      r.cells.forEach(function (cv, i) {
+        var td = UI.elt('td', i === 0 ? 'mn' : 'v', cv === null || cv === undefined ? '—' : String(cv));
+        if (i === headers.length - 1) td.style.cssText = 'text-align:left;white-space:normal';
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    mount.appendChild(t);
+  }
+
+  /* =====================================================================
      Link calculator
 
      A link budget is a cascade, and the only honest way to show one is as a
@@ -2154,6 +2388,7 @@
     if (view.name === 'assumptions') renderAssumptions(res);
     if (view.name === 'systems') renderSystems();
     if (view.name === 'link') renderLink(res, budget);
+    if (view.name === 'chooser') renderChooser(res, budget);
     if (view.name === 'method') UI.renderProse(document.getElementById('methodMount'), window.Content.METHOD);
     glossify();
     /* the nav badge is visible from every view, so it updates outside the
@@ -3396,7 +3631,8 @@
     sys:      { id: 'sysMetricMount', title: 'Saved systems — results',          file: 'systems-results.csv' },
     sysparam: { id: 'sysParamMount',  title: 'Saved systems — differing inputs', file: 'systems-inputs.csv' },
     sysreq:   { id: 'sysReqMount',    title: 'Saved systems — derived requirement', file: 'systems-requirement.csv' },
-    link:     { id: 'linkTable',      title: 'Radio link budget',                   file: 'link-budget.csv' }
+    link:     { id: 'linkTable',      title: 'Radio link budget',                   file: 'link-budget.csv' },
+    chooser:  { id: 'chooserTable',   title: 'Constraint search — survivors',       file: 'chooser-survivors.csv' }
   };
 
   /* kind: lo | bb | assume | bom | decision ;  fmt: md | csv ;  mode: copy | dl */
@@ -3507,6 +3743,53 @@
     if (b) b.addEventListener('click', function () {
       view.compareKeyOnly = view.compareKeyOnly === false;
       render();
+    });
+  })();
+
+  /* The chooser's search. Explicit, because it is ~3 s: 300 combinations,
+     each with its own beam evaluation. The status line says what it is
+     doing and then what it did, rather than the page appearing to hang. */
+  (function () {
+    var b = document.getElementById('chooserRun');
+    if (!b) return;
+    b.addEventListener('click', function () {
+      var st = document.getElementById('chooserStatus');
+      b.disabled = true;
+      st.textContent = 'searching 300 combinations…';
+      /* yield a frame so the status actually paints before the block */
+      setTimeout(function () {
+        var t0 = performance.now();
+        try {
+          var res = M.evaluate(state);
+          var budget = window.Budget.derive(res.g);
+          var QAM_ORDERS = [0, 4, 16, 64, 256];
+          var QAM_NAMES = ['', 'QPSK', '16QAM', '64QAM', '256QAM'];
+          var RISKS = ['low', 'medium', 'high'];
+          var OBJ_KEYS = ['margin', 'rate', 'power', 'residual', 'parts'];
+          var qi = Math.round(state.cnMinQamSel);
+          chooserResult = M.search(state, {
+            objective: OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'margin',
+            rangeKm: res.g.linkRangeKm, rainRateMmH: res.g.rainRateMmH,
+            minQamOrder: QAM_ORDERS[qi], minQamName: QAM_NAMES[qi],
+            maxResidualDeg: state.cnMaxResidualDeg,
+            maxPowerPct: state.cnMaxPowerPct >= 100 ? Infinity : state.cnMaxPowerPct,
+            minScanConeDeg: state.cnMinScanDeg,
+            minBwGHz: state.cnMinBwGHz,
+            maxRisk: RISKS[Math.round(state.cnMaxRiskSel)],
+            requireFeasible: true,
+            tieFrac: state.cnTiePct / 100
+          }, budget);
+          var ms = Math.round(performance.now() - t0);
+          st.textContent = chooserResult.total + ' combinations in ' + ms + ' ms · ' +
+            chooserResult.survivors.length + ' survived' +
+            (chooserResult.tied.length > 1 ? ', top ' + chooserResult.tied.length + ' tied' : '');
+        } catch (e) {
+          chooserResult = null;
+          st.textContent = 'search failed: ' + (e && e.message ? e.message : String(e));
+        }
+        b.disabled = false;
+        render();
+      }, 30);
     });
   })();
 

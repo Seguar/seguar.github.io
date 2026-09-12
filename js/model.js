@@ -343,6 +343,34 @@
     { key: 'linkMarginReqDb', label: 'Required link margin', units: 'dB', value: 3, min: 0, max: 20, step: 0.5, group: 'Radio link',
       conf: 'engineering-guess', why: 'Margin demanded above the required SNR before the link is called closed. Covers what is not modelled: pointing error, multipath, ageing, interference.' },
 
+    /* --- search constraints ---
+       Only the Chooser reads these. They live in PARAMS rather than in view
+       state so a search is permalinkable and saveable like everything else:
+       "here is the question I asked" is as much a part of an answer as the
+       answer. Set a limit to its extreme to switch it off. */
+    { key: 'cnMaxResidualDeg', label: 'Max inter-tile residual', units: '°', value: 5, min: 0.01, max: 20, step: 0.01, group: 'Search constraints',
+      conf: 'measured/datasheet', why: 'Defaults to the derived coherence spec. Raise it to 20° to stop it constraining the search.' },
+    { key: 'cnMaxPowerPct', label: 'Max distribution power', units: '% of array', value: 25, min: 1, max: 100, step: 1, group: 'Search constraints',
+      conf: 'engineering-guess', why: 'LO plus baseband, as a share of the array power budget. 100 switches it off.' },
+    { key: 'cnMinScanDeg', label: 'Min scan cone', units: '°', value: 0, min: 0, max: 75, step: 5, group: 'Search constraints',
+      conf: 'engineering-guess', why: 'The element\'s worst-plane −3 dB half-cone. 0 switches it off. Set it to the scan requirement and the cell-filling antenna options disappear — which is the trade the antenna family exists to show.' },
+    { key: 'cnMinBwGHz', label: 'Min radiator bandwidth', units: 'GHz', value: 0, min: 0, max: 15, step: 0.5, group: 'Search constraints',
+      conf: 'engineering-guess', why: 'Set it to 15 to demand the whole 71–86 GHz band from one radiator, which only the board radiator delivers. 0 switches it off.' },
+    { key: 'cnMinQamSel', label: 'Link must reach', units: '', value: 0, group: 'Search constraints',
+      choices: [{ value: 0, label: 'anything that closes' }, { value: 1, label: 'QPSK' }, { value: 2, label: '16QAM' },
+                { value: 3, label: '64QAM' }, { value: 4, label: '256QAM' }],
+      conf: 'engineering-guess', why: 'The constellation the link must carry at the range and rain rate set in the Radio link group, with the margin set there too.' },
+    { key: 'cnMaxRiskSel', label: 'Max risk', units: '', value: 2, group: 'Search constraints',
+      choices: [{ value: 0, label: 'low only' }, { value: 1, label: 'up to medium' }, { value: 2, label: 'any' }],
+      conf: 'engineering-guess', why: 'The worst risk level accepted across the LO, baseband and antenna choices. The risk labels are the model\'s own judgement, stated per option.' },
+    { key: 'cnObjectiveSel', label: 'Rank the survivors by', units: '', value: 0, group: 'Search constraints',
+      choices: [{ value: 0, label: 'Largest link margin' }, { value: 1, label: 'Highest data rate' },
+                { value: 2, label: 'Lowest distribution power' }, { value: 3, label: 'Lowest inter-tile residual' },
+                { value: 4, label: 'Fewest parts' }],
+      conf: 'engineering-guess', why: 'ONE objective, not a blend. The options trade gain against scan range and link EVM against beam coherence in opposite directions, so a weighted "best" would be an answer manufactured out of weights nobody chose. Change this and watch the winner change — that is the point of it.' },
+    { key: 'cnTiePct', label: 'Call it a tie within', units: '%', value: 2, min: 0, max: 25, step: 0.5, group: 'Search constraints',
+      conf: 'engineering-guess', why: 'Candidates within this fraction of the leader on the chosen objective are reported as TIED with it rather than ranked below it. Several inputs to this search are tagged engineering-guess; a search over 300 candidates cannot resolve a 1% difference and should not pretend to.' },
+
     /* --- calibration --- */
     { key: 'fBistHz', label: 'BIST update rate', units: 'Hz', value: 1, min: 0.01, max: 1000, step: 0.01, group: 'Calibration',
       conf: 'scaled-estimate', why: 'Calibration-state update rate. Note this need NOT equal the ~100 Hz beam-update rate — drift bandwidth is ~0.3–3 Hz.' },
@@ -1806,6 +1834,225 @@
     };
   }
 
+  /* ---------------------------------------------------------------------
+     THE CONSTRAINT SEARCH.
+
+     Enumerate the architecture space, apply the reader's constraints, and
+     rank what survives by the ONE objective they chose.
+
+     WHY THE ENUMERATION IS NOT A PRODUCT. It is tempting to evaluate 6 LO +
+     5 baseband + 9 antenna configurations and form 270 products, because
+     evalLo, evalBb and evalAnt are independent of one another and evalLink
+     never reads the baseband option at all. But Beam.evaluate takes the LO
+     result, the baseband result AND the antenna-patched geometry, and its
+     coherence loss depends on all three — so the realised gain that feeds
+     the link budget is a genuine three-way function. Cheating the product
+     here would make the search quietly disagree with every other view for
+     the same build, which is the one thing a tool that ranks must not do.
+
+     So: one resolve per ANTENNA configuration (the antenna is what changes
+     the geometry-derived element), and one light beam evaluation per
+     COMBINATION. About 1.6 s for the full space, which is why this runs
+     behind a button instead of on every keystroke.
+
+     WHAT IT REFUSES TO DO. It does not blend the objectives into a score.
+     The options trade gain against scan range and link EVM against beam
+     coherence in OPPOSITE directions — that opposition is this thesis's
+     central finding — so a single weighted "best" would be an answer
+     manufactured out of weights nobody chose. The reader picks one
+     objective, sees what the constraints killed, and is told when the
+     result is a tie rather than a winner.
+     ------------------------------------------------------------------- */
+  var SEARCH_ANT = [
+    { ant: 'single-patch', k: 1, span: 0 },
+    { ant: 'cross-column', k: 2, span: 0 },
+    { ant: 'cross-column', k: 4, span: 0 },
+    { ant: 'cross-column', k: 8, span: 0 },
+    { ant: 'square-cluster', k: 4, span: 0 },
+    { ant: 'square-cluster', k: 9, span: 0 },
+    { ant: 'square-cluster', k: 16, span: 0 },
+    { ant: 'square-cluster', k: 16, span: 1 },
+    { ant: 'square-cluster', k: 64, span: 1 },
+    { ant: 'board-radiator', k: 1, span: 0 }
+  ];
+
+  var RISK_ORDER = { low: 0, medium: 1, high: 2 };
+
+  /* The objectives. Each names the field it reads and which way is better,
+     so nothing is hidden in a comparator. */
+  var OBJECTIVES = {
+    margin:   { label: 'Largest link margin', unit: 'dB', better: 'high',
+                get: function (c) { return c.link.marginDb; },
+                why: 'How much SNR is in hand above what the achieved constellation needs, at the stated range and rain rate.' },
+    rate:     { label: 'Highest data rate', unit: 'Gb/s', better: 'high',
+                get: function (c) { return c.link.rateBps / 1e9; },
+                why: 'Bits per symbol times the RF bandwidth, for the highest constellation that closes with margin.' },
+    power:    { label: 'Lowest distribution power', unit: 'W', better: 'low',
+                get: function (c) { return (c.lo.powerTotalMw + c.bb.powerPerTileMw * c.nTiles) / 1000; },
+                why: 'LO distribution plus baseband across the array. The antenna family draws none.' },
+    residual: { label: 'Lowest inter-tile residual', unit: '°', better: 'low',
+                get: function (c) { return c.lo.interTileResidualDeg; },
+                why: 'The phase error no calibration removes — the null-depth floor, and the spatial-multiplexing ceiling.' },
+    parts:    { label: 'Fewest parts', unit: 'blocks', better: 'low',
+                get: function (c) { return c.partCount; },
+                why: 'Repeater amplifiers plus radiators plus BIST-invisible junctions: a build-cost and yield proxy, not a price.' }
+  };
+
+  /* Each constraint is a named predicate so the attrition table can say
+     which one killed what, rather than reporting a count of survivors and
+     leaving the reader to guess. */
+  function buildConstraints(q, budget) {
+    var cons = [];
+    if (q.requireFeasible !== false) {
+      cons.push({ key: 'feasible', label: 'Realisable in the stated technology',
+        test: function (c) { return !/beyond the technology|extreme|NOT REALISABLE/i.test(c.lo.feasibility + ' ' + c.ant.feasibility); } });
+    }
+    if (isFinite(q.maxResidualDeg)) {
+      cons.push({ key: 'residual', label: 'Inter-tile residual ≤ ' + q.maxResidualDeg.toFixed(2) + '°',
+        test: function (c) { return c.lo.interTileResidualDeg <= q.maxResidualDeg; },
+        distanceOf: function (c) { return c.lo.interTileResidualDeg - q.maxResidualDeg; }, unit: '°' });
+    }
+    if (isFinite(q.maxPowerPct)) {
+      cons.push({ key: 'power', label: 'Distribution power ≤ ' + q.maxPowerPct.toFixed(0) + '% of the array budget',
+        test: function (c) { return c.powerPct <= q.maxPowerPct; },
+        distanceOf: function (c) { return c.powerPct - q.maxPowerPct; }, unit: '%' });
+    }
+    if (isFinite(q.minScanConeDeg) && q.minScanConeDeg > 0) {
+      cons.push({ key: 'scan', label: 'Scan cone ≥ ' + q.minScanConeDeg.toFixed(0) + '°',
+        test: function (c) { return c.ant.coneMinDeg >= q.minScanConeDeg; },
+        distanceOf: function (c) { return q.minScanConeDeg - c.ant.coneMinDeg; }, unit: '°' });
+    }
+    if (isFinite(q.minBwGHz) && q.minBwGHz > 0) {
+      cons.push({ key: 'bw', label: 'Radiator bandwidth ≥ ' + q.minBwGHz.toFixed(1) + ' GHz',
+        test: function (c) { return c.ant.bwGHz >= q.minBwGHz; },
+        distanceOf: function (c) { return q.minBwGHz - c.ant.bwGHz; }, unit: 'GHz' });
+    }
+    if (q.maxRisk && RISK_ORDER[q.maxRisk] !== undefined) {
+      cons.push({ key: 'risk', label: 'Risk no worse than ' + q.maxRisk,
+        test: function (c) { return Math.max(RISK_ORDER[c.lo.riskLevel] || 0,
+          RISK_ORDER[c.bb.riskLevel] || 0, RISK_ORDER[c.ant.riskLevel] || 0) <= RISK_ORDER[q.maxRisk]; } });
+    }
+    if (q.minQamOrder > 0) {
+      cons.push({ key: 'link', label: 'Link closes at ' + q.minQamName + ' over ' +
+          q.rangeKm.toFixed(2) + ' km in ' + q.rainRateMmH.toFixed(0) + ' mm/h',
+        test: function (c) { return c.link.best && c.link.best.order >= q.minQamOrder; },
+        distanceOf: function (c) {
+          var need = c.link.requirements.filter(function (r) { return r.order === q.minQamOrder; })[0];
+          return need ? (need.snrDb + c.g.linkMarginReqDb) - c.link.snrEffDb : NaN;
+        }, unit: 'dB of SNR' });
+    }
+    return cons;
+  }
+
+  function search(state, q, budget) {
+    var cands = [];
+    var perAnt = {};
+
+    SEARCH_ANT.forEach(function (a) {
+      var st = {};
+      for (var k in state) st[k] = state[k];
+      st.antOption = ANT_IDS.indexOf(a.ant);
+      st.radPerCh = a.k;
+      st.radSpanPitch = a.span;
+      /* skip a combination the antenna option does not allow rather than
+         letting resolve() clamp it into a duplicate of another row */
+      var tr = ANT_TRAITS[a.ant];
+      if (tr.kAllowed.indexOf(a.k) < 0) return;
+      var g = resolve(st);
+      perAnt[a.ant + '|' + a.k + '|' + a.span] = { g: g, ant: evalAnt(a.ant, g), cfg: a };
+    });
+
+    Object.keys(perAnt).forEach(function (akey) {
+      var pa = perAnt[akey], g = pa.g;
+      LO_IDS.forEach(function (loId) {
+        var loR = evalLo(loId, g);
+        BB_IDS.forEach(function (bbId) {
+          var bbR = evalBb(bbId, g);
+          /* the three-way coupling: the beam needs all of them */
+          var bm = window.Beam.evaluate(g, budget, loR, bbR, { light: true });
+          var link = evalLink(g, loR, bm);
+          var nT = g.nTilesTotal;
+          var c = {
+            loId: loId, bbId: bbId, antId: pa.cfg.ant,
+            radPerCh: pa.cfg.k, spanning: !!pa.cfg.span,
+            g: g, lo: loR, bb: bbR, ant: pa.ant, beam: bm, link: link, nTiles: nT,
+            powerPct: (loR.powerTotalMw + bbR.powerPerTileMw * nT) / (g.arrayPowerW * 1000) * 100,
+            partCount: (loR.repeaters || 0) + (pa.ant.nRad || 0) / 100 +
+              (pa.ant.blindJunctions || 0) * g.nElem / 100,
+            realisedDbi: bm.realisedDbi
+          };
+          cands.push(c);
+        });
+      });
+    });
+
+    /* ---- attrition: which constraint killed how many ---- */
+    var cons = buildConstraints(q, budget);
+    var attrition = cons.map(function (cn) { return { key: cn.key, label: cn.label, killed: 0, soleKill: 0 }; });
+    var survivors = [];
+    cands.forEach(function (c) {
+      var failed = [];
+      cons.forEach(function (cn, i) { if (!cn.test(c)) { failed.push(i); attrition[i].killed++; } });
+      c.failed = failed.map(function (i) { return cons[i].label; });
+      if (!failed.length) survivors.push(c);
+      else if (failed.length === 1) attrition[failed[0]].soleKill++;
+    });
+
+    /* ---- rank the survivors by the one chosen objective ---- */
+    var obj = OBJECTIVES[q.objective] || OBJECTIVES.margin;
+    survivors.forEach(function (c) { c.score = obj.get(c); });
+    survivors = survivors.filter(function (c) { return isFinite(c.score); });
+    survivors.sort(function (a, b) {
+      return obj.better === 'high' ? b.score - a.score : a.score - b.score;
+    });
+
+    /* ---- ties, on the same principle decision.js already applies ----
+       A search over 270 candidates built from parameters several of which
+       are tagged engineering-guess cannot resolve a 1% difference. Anything
+       within tieFrac of the leader is reported as tied WITH it. */
+    var tieFrac = q.tieFrac != null ? q.tieFrac : 0.02;
+    var tied = [];
+    if (survivors.length) {
+      var topScore = survivors[0].score;
+      var scale = Math.max(Math.abs(topScore), 1e-9);
+      tied = survivors.filter(function (c) {
+        return Math.abs(c.score - topScore) / scale <= tieFrac;
+      });
+    }
+
+    /* ---- when nothing survives, which constraint is binding, and by how
+       much would it have to move? The nearest miss on each constraint,
+       measured only over candidates that failed nothing ELSE. ---- */
+    var binding = null;
+    if (!survivors.length && cands.length) {
+      var best = null;
+      cons.forEach(function (cn, i) {
+        if (!cn.distanceOf) return;
+        cands.forEach(function (c) {
+          if (c.failed.length !== 1 || c.failed[0] !== cn.label) return;
+          var d = cn.distanceOf(c);
+          if (!isFinite(d)) return;
+          if (!best || d < best.shortfall) best = { label: cn.label, shortfall: d, unit: cn.unit, cand: c };
+        });
+      });
+      /* nothing failed on exactly one constraint — report the one that
+         killed the most instead, and say that is what it is */
+      if (!best) {
+        var worst = attrition.slice().sort(function (a, b) { return b.killed - a.killed; })[0];
+        binding = worst ? { label: worst.label, shortfall: NaN, killedMost: worst.killed } : null;
+      } else {
+        binding = best;
+      }
+    }
+
+    return {
+      candidates: cands, survivors: survivors, tied: tied,
+      attrition: attrition, binding: binding, objective: obj, objectiveKey: q.objective,
+      constraints: cons.map(function (c) { return c.label; }),
+      total: cands.length, tieFrac: tieFrac
+    };
+  }
+
   function evalBb(id, g) {
     var trB = bbTraitsOf(id);
     var gg = {};
@@ -2204,6 +2451,7 @@
     MEDIA_KEYS: MEDIA_KEYS,
     resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,
     evalAnt: evalAnt, evalLink: evalLink, consistency: consistency,
+    search: search, OBJECTIVES: OBJECTIVES, SEARCH_ANT: SEARCH_ANT,
 
     /* SELF-TESTS, shipped as assertions rather than as a comment claiming
        they passed once. There are exactly two ways the antenna family can
