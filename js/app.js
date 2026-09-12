@@ -802,8 +802,13 @@
     /* the question, restated in one sentence, because a reader arriving at
        a result needs to see what was asked without reading the column */
     var ctl = document.getElementById('chooserControls');
+    /* the antenna configurations are DERIVED from the current geometry and
+       steer angle, so the size of the space is not a constant and the view
+       must not print one */
+    var space = M.searchAntConfigs(state);
     ctl.innerHTML = '<div class="pk-row"><span class="pk-lab">Asking</span><span class="pk-geo">' +
-      'every combination of <strong>6 LO × 5 baseband × 10 antenna</strong> configurations that ' +
+      'every combination of <strong>' + M.LO_IDS.length + ' LO × ' + M.BB_IDS.length +
+      ' baseband × ' + space.keep.length + ' antenna</strong> configurations that ' +
       (qi > 0 ? 'carries <strong>' + QAM_NAMES[qi] + '</strong> over <strong>' + n(g.linkRangeKm, 2) +
         ' km</strong> in <strong>' + n(g.rainRateMmH, 0) + ' mm/h</strong> rain with ' +
         n(g.linkMarginReqDb, 1) + ' dB of margin, and ' : '') +
@@ -812,7 +817,20 @@
       (state.cnMinScanDeg > 0 ? ', scan cone ≥ <strong>' + n(state.cnMinScanDeg, 0) + '°</strong>' : '') +
       (state.cnMinBwGHz > 0 ? ', bandwidth ≥ <strong>' + n(state.cnMinBwGHz, 1) + ' GHz</strong>' : '') +
       ', risk ≤ <strong>' + RISKS[Math.round(state.cnMaxRiskSel)] + '</strong>.' +
-      '</span></div>';
+      '</span></div>' +
+      /* what was excluded BEFORE the constraints, and why. The legal antenna
+         set depends on the geometry and the steer angle, so this changes as
+         the reader changes those — which is itself worth seeing. */
+      (space.dropped.length
+        ? '<div class="pk-row"><span class="pk-lab">Excluded</span><span class="pk-geo">' +
+          space.dropped.length + ' antenna configuration' + (space.dropped.length === 1 ? '' : 's') +
+          ' the model itself rejects at this geometry and steer angle, before any constraint: ' +
+          space.dropped.map(function (d) {
+            var meta = M.ANT_META[M.ANT_IDS.indexOf(d.ant)];
+            return '<strong>' + (meta ? meta.short : d.ant) + ' ×' + d.k + (d.span ? ' spanning' : '') +
+              '</strong> (' + d.why.replace(/\.$/, '').slice(0, 72) + '…)';
+          }).join('; ') + '.</span></div>'
+        : '');
 
     var verdict = document.getElementById('chooserVerdict');
     document.getElementById('chooserRankedBy').textContent =

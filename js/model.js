@@ -1876,18 +1876,55 @@
      objective, sees what the constraints killed, and is told when the
      result is a tie rather than a winner.
      ------------------------------------------------------------------- */
-  var SEARCH_ANT = [
-    { ant: 'single-patch', k: 1, span: 0 },
-    { ant: 'cross-column', k: 2, span: 0 },
-    { ant: 'cross-column', k: 4, span: 0 },
-    { ant: 'cross-column', k: 8, span: 0 },
-    { ant: 'square-cluster', k: 4, span: 0 },
-    { ant: 'square-cluster', k: 9, span: 0 },
-    { ant: 'square-cluster', k: 16, span: 0 },
-    { ant: 'square-cluster', k: 16, span: 1 },
-    { ant: 'square-cluster', k: 64, span: 1 },
-    { ant: 'board-radiator', k: 1, span: 0 }
-  ];
+  /* THE ANTENNA CONFIGURATIONS TO SEARCH ARE DERIVED, NOT LISTED.
+
+     An earlier version hard-coded ten of them, and the list was wrong in
+     both directions at the shipped defaults: it searched two configurations
+     the model itself rejects — a 1x8 column at lambda/2 spans 15.37 mm
+     against a 15.00 mm cell, and a 4x4 cluster at lambda/2 steers into its
+     own null at the default 30 degrees — while omitting two that are legal
+     and are arguably the most interesting in the family, the cross-scan
+     column SPANNING its cell, which puts its nulls on the cross-scan
+     grating lobes at zero cost in the scan plane.
+
+     It could not have been right as a list, either. Whether a configuration
+     is legal depends on the CURRENT geometry and steer angle: the 1x8
+     column fits in a larger cell, and the 4x4 cluster is fine at 20 degrees
+     of scan. A fixed list bakes in one set of parameters.
+
+     So: enumerate every option against every radiator count it allows and
+     both pitch modes, resolve each one, and keep those the model's own
+     consistency() does not hard-fail. The excluded ones are RETURNED with
+     the reason, because a search that silently drops candidates is a search
+     that cannot be checked. */
+  function searchAntConfigs(state) {
+    var keep = [], dropped = [];
+    ANT_IDS.forEach(function (id) {
+      var tr = ANT_TRAITS[id];
+      var modes = tr.pitchMode === 'lam' ? [0, 1] : [0];
+      tr.kAllowed.forEach(function (k) {
+        modes.forEach(function (span) {
+          var st = {};
+          for (var key in state) st[key] = state[key];
+          st.antOption = ANT_IDS.indexOf(id);
+          st.radPerCh = k;
+          st.radSpanPitch = span;
+          var g;
+          try { g = resolve(st); } catch (e) {
+            dropped.push({ ant: id, k: k, span: span, why: 'could not resolve: ' + e.message });
+            return;
+          }
+          var fails = consistency(g).filter(function (w) { return w.severity === 'fail'; });
+          if (fails.length) {
+            dropped.push({ ant: id, k: k, span: span, why: fails[0].message });
+            return;
+          }
+          keep.push({ ant: id, k: k, span: span });
+        });
+      });
+    });
+    return { keep: keep, dropped: dropped };
+  }
 
   var RISK_ORDER = { low: 0, medium: 1, high: 2 };
 
@@ -1989,16 +2026,13 @@
     var cands = [];
     var perAnt = {};
 
-    SEARCH_ANT.forEach(function (a) {
+    var antSet = searchAntConfigs(state);
+    antSet.keep.forEach(function (a) {
       var st = {};
       for (var k in state) st[k] = state[k];
       st.antOption = ANT_IDS.indexOf(a.ant);
       st.radPerCh = a.k;
       st.radSpanPitch = a.span;
-      /* skip a combination the antenna option does not allow rather than
-         letting resolve() clamp it into a duplicate of another row */
-      var tr = ANT_TRAITS[a.ant];
-      if (tr.kAllowed.indexOf(a.k) < 0) return;
       var g = resolve(st);
       perAnt[a.ant + '|' + a.k + '|' + a.span] = { g: g, ant: evalAnt(a.ant, g), cfg: a };
     });
@@ -2093,7 +2127,13 @@
       candidates: cands, survivors: survivors, tied: tied,
       attrition: attrition, binding: binding, objective: obj, objectiveKey: q.objective,
       constraints: cons.map(function (c) { return c.label; }),
-      total: cands.length, tieEps: eps
+      total: cands.length, tieEps: eps,
+      /* the space actually searched, and what was excluded before the
+         constraints were even applied — a search that silently drops
+         candidates cannot be checked */
+      antKept: antSet.keep, antDropped: antSet.dropped,
+      spaceNote: LO_IDS.length + ' LO × ' + BB_IDS.length + ' baseband × ' +
+        antSet.keep.length + ' antenna = ' + cands.length
     };
   }
 
@@ -2495,7 +2535,7 @@
     MEDIA_KEYS: MEDIA_KEYS,
     resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,
     evalAnt: evalAnt, evalLink: evalLink, consistency: consistency,
-    search: search, OBJECTIVES: OBJECTIVES, SEARCH_ANT: SEARCH_ANT,
+    search: search, OBJECTIVES: OBJECTIVES, searchAntConfigs: searchAntConfigs,
 
     /* SELF-TESTS, shipped as assertions rather than as a comment claiming
        they passed once. There are exactly two ways the antenna family can
