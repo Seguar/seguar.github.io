@@ -537,7 +537,9 @@ svg.chart .blab { font: 10px var(--mono); fill: var(--ink-2); }
 .legend { display: flex; flex-wrap: wrap; gap: 5px 16px; padding: 4px 12px 12px; font-size: 11.5px; color: var(--ink-2); }
 .legend .li { display: flex; align-items: center; gap: 6px; }
 .legend .sw { width: 15px; height: 3px; border-radius: 2px; flex: none; }
-.legend .sw.dash { height: 0; border-top: 2px dashed var(--s5); }
+/* currentColor, not --s5: the swatch must be the series' own colour, or it
+   points at the wrong curve. charts.js sets `color` on the element. */
+.legend .sw.dash { height: 0; border-top: 2px dashed currentColor; color: var(--s5); }
 .chartgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 18px; }
 @media (max-width: 560px) { .chartgrid { grid-template-columns: 1fr; } }
 
@@ -1416,7 +1418,11 @@ footer.foot a { color: var(--ink-2); }
        charts where every value and the spec are negative and a spec
        stricter than every bar fell below the axis. Widen the range for it
        in BOTH directions, not just upward. */
-    if (cfg.hLine !== undefined && isFinite(cfg.hLine)) {
+    /* typeof number, NOT isFinite alone: isFinite(null) is TRUE in
+       JavaScript, because null coerces to 0. Two callers pass hLine: null
+       to mean "this quantity has no spec", and both were drawing a red
+       dashed line labelled "spec" at 0 dB on a chart with no spec at all. */
+    if (typeof cfg.hLine === 'number' && isFinite(cfg.hLine)) {
       vmax = Math.max(vmax, cfg.hLine);
       vmin = Math.min(vmin, cfg.hLine);
     }
@@ -1462,7 +1468,14 @@ footer.foot a { color: var(--ink-2); }
       /* bars grow from zero when zero is in range, and from the axis when
          it is not — otherwise an all-negative dB chart draws every bar from
          a point outside the plot */
-      var origin = cfg.logX || cfg.zeroBase === false ? lo : Math.min(0, b.value);
+      /* Math.min(0, value) equals the VALUE for a negative bar, so the bar
+         had zero width and rendered as the 1 px sliver Math.max(1, …)
+         guarantees — on the one chart whose job is to show the SIGN of a
+         margin, a deficit looked like nothing at all. Grow from zero
+         whenever zero is on the axis, and from the axis when it is not. */
+      var origin = cfg.logX || cfg.zeroBase === false
+        ? lo
+        : Math.max(lo, Math.min(hi, 0));
       var x0 = X(origin), x1 = X(b.value);
       svg.appendChild(el('rect', { class: 'bar', x: Math.min(x0, x1), y: y, width: Math.max(1, Math.abs(x1 - x0)), height: h, rx: 2, fill: b.color }));
       /* the label gutter is fixed, so a long name would run off the left
@@ -1479,7 +1492,7 @@ footer.foot a { color: var(--ink-2); }
     svg.appendChild(el('line', { class: 'ax', x1: m.l, y1: m.t, x2: m.l, y2: m.t + ph }));
     svg.appendChild(el('line', { class: 'ax', x1: m.l, y1: m.t + ph, x2: m.l + pw, y2: m.t + ph }));
 
-    if (cfg.hLine !== undefined && isFinite(cfg.hLine) && cfg.hLine > lo && cfg.hLine < hi) {
+    if (typeof cfg.hLine === 'number' && isFinite(cfg.hLine) && cfg.hLine > lo && cfg.hLine < hi) {
       svg.appendChild(el('line', { class: 'mask', x1: X(cfg.hLine), y1: m.t, x2: X(cfg.hLine), y2: m.t + ph }));
       svg.appendChild(el('text', { x: X(cfg.hLine), y: m.t - 1, 'text-anchor': 'middle', fill: 'var(--s5)' }, cfg.hLabel || 'spec'));
     }
@@ -1547,7 +1560,13 @@ footer.foot a { color: var(--ink-2); }
       } else {
         var sw = document.createElement('span');
         sw.className = 'sw' + (it.dashed ? ' dash' : '');
-        if (!it.dashed) sw.style.background = it.color;
+        /* The legacy dashed swatch took its colour from the stylesheet, which
+           hard-codes --s5. That is a real series colour in these charts, so
+           the legend pointed a red swatch at a grey curve while a genuinely
+           red series sat in the row below it. Carry the series colour on
+           both branches; the stylesheet now uses currentColor. */
+        if (it.dashed) sw.style.color = it.color;
+        else sw.style.background = it.color;
         li.appendChild(sw);
       }
       li.appendChild(document.createTextNode(it.name));
@@ -3542,13 +3561,28 @@ footer.foot a { color: var(--ink-2); }
     var areaMm2 = ((window.Model && window.Model.BLOCKS[blk]) || { areaMm2: 6.7 }).areaMm2;
     var wCm = Math.sqrt(Math.max(areaMm2, 0.01)) / 10;
 
-    /* The port's CELL, which is what the dashed rectangle on the map shows.
-       It is elemDx x elemDy and it is NOT square in general — the 'row'
-       in-tile lattice makes it 3.75 x 60 mm — so a circle sized from
-       sqrt(ports) misrepresented it by a factor of four on one axis and
-       overlapped its neighbours. Carry the real dimensions. */
-    t.cellXCm = g.elemDxCm || (tileCm / Math.max(Math.round(Math.sqrt(offs.length)), 1));
-    t.cellYCm = g.elemDyCm || t.cellXCm;
+    /* The port's CELL, which is what the dashed outline on the map shows.
+
+       It is the PARALLELOGRAM spanned by the lattice basis a1, a2 — not
+       elemDx x elemDy. Those come from PROJECTIONS onto the two axes, and
+       on a sheared sublattice the projected columns collapse: the index-8
+       sheared lattice projects onto 4 x 4, so elemDx x elemDy claims
+       15 x 15 = 225 mm² when the real cell is |a1 x a2| = 450 mm². Half
+       the tile would have had no cell drawn on it at all, and the legend
+       would have contradicted the inspector's own cell-fill denominator by
+       exactly 2x.
+
+       Drawing the basis directly is right for every mode: for the
+       rectangular lattice a1 = (dx, 0) and a2 = (0, dy), so it degenerates
+       to the rectangle it always was. */
+    var a1 = (g.lat && g.lat.a1) || [g.elemDxCm || tileCm, 0];
+    var a2 = (g.lat && g.lat.a2) || [0, g.elemDyCm || tileCm];
+    t.cellA1 = a1;
+    t.cellA2 = a2;
+    t.cellAreaCm2 = Math.abs(a1[0] * a2[1] - a1[1] * a2[0]);
+    /* extents, for the legend's plain-language description of the cell */
+    t.cellXCm = Math.abs(a1[0]) + Math.abs(a2[0]);
+    t.cellYCm = Math.abs(a1[1]) + Math.abs(a2[1]);
 
     /* The isolated radiator's own footprint can EXCEED the space it is being
        packed into: 2.59 mm of patch on a 1.92 mm lambda/2 pitch. That is not
@@ -7607,9 +7641,20 @@ footer.foot a { color: var(--ink-2); }
     var win = Math.max(6 * hpbwEst, 4);
     var zLo = Math.max(-90, g.beamScanDeg - win), zHi = Math.min(90, g.beamScanDeg + win);
 
-    /* peak reference: the error-free array at its intended direction */
+    /* peak reference: the error-free array at its intended direction.
+
+       A FIXED subarray feed can put a NULL at the steer angle — a 4-wide
+       group at lambda/2 nulls at exactly 30 degrees of scan — and then
+       pk0.ep is ~0, every trace divides by ~0, and all three pattern
+       panels clip flat against the top of the axis under a y-label still
+       reading "relative to intended beam". There is no intended beam to be
+       relative to. Detect it, fall back to the element-INDEPENDENT array
+       factor peak so the panels still show the array's own structure, and
+       flag it so the view can say which reference it is using. */
     var pk0 = c.periodic ? geomAt(c, fc, c.u0, c.v0) : geomAperiodic(c, fc, c.u0, c.v0);
-    var peakRef = pk0.ep * c.Ne * c.Ne;
+    var epBore = c.elem.powAt(0, 0);
+    var scanInNull = epBore > 0 && pk0.ep < 1e-6 * epBore;
+    var peakRef = scanInNull ? c.Ne * c.Ne : pk0.ep * c.Ne * c.Ne;
 
     var nZoom = light ? 801 : 1601;
     var gZoom = geomCut(c, fc, 0, zLo, zHi, nZoom);
@@ -7713,7 +7758,7 @@ footer.foot a { color: var(--ink-2); }
       floorNearDb: esTx.floorNearDb, floorFarDb: esTx.floorFarDb,
       floorNearRxDb: esRx.floorNearDb, floorFarRxDb: esRx.floorFarDb,
       peakOverMeanDb: g.peakOverMeanDb, realPeakSllDb: realPeakSllDb,
-      scanLossDb: scanLossDb, cohLossDb: cohLossDb,
+      scanLossDb: scanLossDb, cohLossDb: cohLossDb, scanInNull: scanInNull,
       dFilledDbi: g.dFilledDbi, dArrayDbi: g.dArrayDbi, realisedDbi: realisedDbi,
       thinningLossDb: g.thinningLossDb,
       /* the WORST edge, not the better one. Math.max picked whichever band
@@ -8551,25 +8596,33 @@ footer.foot a { color: var(--ink-2); }
            3.75 x 60 mm and that circle was 3.4x too wide in x, so every
            ring overlapped its neighbours and none of them showed the cell
            the fill percentage is computed against. */
-        /* Also screen-space: flooring the two axes independently in viewBox
-           units inverted the drawn aspect ratio of a strongly anisotropic
-           cell and made adjacent cells overlap instead of tile, which
-           defeats the one glyph whose whole job is to state the cell
-           honestly. */
-        var cw = Math.max(1.2 / Z, (t.cellXCm || grid.tileCm) * scale);
-        var ch = Math.max(1.2 / Z, (t.cellYCm || grid.tileCm) * scale);
-        if (cw > (t.cellXCm || grid.tileCm) * scale + 1e-9 ||
-            ch > (t.cellYCm || grid.tileCm) * scale + 1e-9) antFloored = true;
+        /* The cell is the PARALLELOGRAM spanned by the lattice basis, drawn
+           as a polygon so it is exactly right on a sheared sublattice and
+           degenerates to the old rectangle on a rectangular one. No size
+           floor: a floor on a tiling shape makes adjacent cells overlap
+           instead of tile, which defeats the one glyph whose entire job is
+           to state the cell honestly. */
+        var A1 = t.cellA1 || [t.cellXCm || grid.tileCm, 0];
+        var A2 = t.cellA2 || [0, t.cellYCm || grid.tileCm];
+        var corners = [
+          [(-A1[0] - A2[0]) / 2, (-A1[1] - A2[1]) / 2],
+          [(A1[0] - A2[0]) / 2, (A1[1] - A2[1]) / 2],
+          [(A1[0] + A2[0]) / 2, (A1[1] + A2[1]) / 2],
+          [(-A1[0] + A2[0]) / 2, (-A1[1] + A2[1]) / 2]
+        ];
         (t.ports || []).forEach(function (p) {
-          var c = el('rect', {
-            x: X(p.x) - cw / 2, y: Y(p.y) - ch / 2, width: cw, height: ch,
+          var c = el('polygon', {
+            points: corners.map(function (k) {
+              return X(p.x + k[0]).toFixed(2) + ',' + Y(p.y + k[1]).toFixed(2);
+            }).join(' '),
             fill: 'none', stroke: antCol, 'stroke-width': 0.7, 'stroke-opacity': 0.45,
             'stroke-dasharray': '2 2', 'vector-effect': 'non-scaling-stroke'
           });
           if (lod.tips) c.appendChild(el('title', null,
             'tile ' + t.i + ' · port ' + p.i + ' of ' + t.ports.length + '\n' +
             'ONE controllable RF channel — one phase shifter\n' +
-            'cell ' + (t.cellXCm * 10).toFixed(2) + ' × ' + (t.cellYCm * 10).toFixed(2) + ' mm\n' +
+            'cell ' + (t.cellAreaCm2 * 100).toFixed(1) + ' mm², extent ' +
+            (t.cellXCm * 10).toFixed(2) + ' × ' + (t.cellYCm * 10).toFixed(2) + ' mm\n' +
             t.radPerPort + ' radiator' + (t.radPerPort === 1 ? '' : 's') + ' behind it, fed in fixed phase\n' +
             'the beamformer cannot see inside this cell'));
           antG.appendChild(c);
@@ -8908,8 +8961,7 @@ footer.foot a { color: var(--ink-2); }
       pl.innerHTML = '<span style="display:inline-block;width:' + sw + 'px;height:' + sh + 'px;' +
         'border:1px dashed var(--s5);opacity:.7;vertical-align:middle"></span>' +
         t0.ports.length + ' controllable ports per tile — one phase shifter each, ' +
-        'the dashed box is its ' + (t0.cellXCm * 10).toFixed(2) + ' × ' +
-        (t0.cellYCm * 10).toFixed(2) + ' mm cell';
+        'the dashed outline is its ' + (t0.cellAreaCm2 * 100).toFixed(1) + ' mm² cell';
       wrap.appendChild(pl);
 
       var al = document.createElement('span');
@@ -10893,7 +10945,19 @@ footer.foot a { color: var(--ink-2); }
         { k: 'Directivity', n: n(g.dArrayDbi, 2), unit: 'dBi',
           d: 'min(N·D_el, 4πA/λ²) = min(' + n(g.dArrayRawDbi, 2) + ', ' + n(g.dFilledDbi, 2) +
              ') dBi at broadside, from ' + g.nElem + ' elements of ' + n(g.dElDbi, 1) + ' dBi' },
-        { k: 'Realised gain', n: n(b.realisedDbi, 2), unit: 'dBi',
+        /* In a subarray null there is no beam to quote a gain for. The
+           antenna table already says "IN ITS OWN NULL"; this cell used to
+           print a clamped −90 dB scan loss and a ~−60 dBi gain beside it,
+           so the same build read two different ways on two screens. */
+        b.scanInNull
+        ? { k: 'Realised gain', n: '—', unit: '',
+            d: 'The beam is steered into the SUBARRAY\'S OWN NULL at ' + n(g.beamScanDeg, 0) +
+               '°, so there is no main beam to quote a gain for. A ' + g.radKx + '-wide fixed group at ' +
+               n(g.radPitchXCm * 10, 2) + ' mm nulls at sin θ = λ/(K·p) multiples and the steer angle is ' +
+               'one of them. Reduce K, change the pitch, turn the group across the scan plane, or steer ' +
+               'somewhere else. The pattern panels below are normalised to the ARRAY FACTOR peak instead ' +
+               'of the intended beam, because the intended beam has no power in it.' }
+        : { k: 'Realised gain', n: n(b.realisedDbi, 2), unit: 'dBi',
           /* antLossTotalDb, matching what beam.js actually subtracted. This
              showed antLossDb while the figure above it was computed with
              antLossTotalDb, so the terms did not add up to the number they

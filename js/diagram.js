@@ -388,25 +388,33 @@
            3.75 x 60 mm and that circle was 3.4x too wide in x, so every
            ring overlapped its neighbours and none of them showed the cell
            the fill percentage is computed against. */
-        /* Also screen-space: flooring the two axes independently in viewBox
-           units inverted the drawn aspect ratio of a strongly anisotropic
-           cell and made adjacent cells overlap instead of tile, which
-           defeats the one glyph whose whole job is to state the cell
-           honestly. */
-        var cw = Math.max(1.2 / Z, (t.cellXCm || grid.tileCm) * scale);
-        var ch = Math.max(1.2 / Z, (t.cellYCm || grid.tileCm) * scale);
-        if (cw > (t.cellXCm || grid.tileCm) * scale + 1e-9 ||
-            ch > (t.cellYCm || grid.tileCm) * scale + 1e-9) antFloored = true;
+        /* The cell is the PARALLELOGRAM spanned by the lattice basis, drawn
+           as a polygon so it is exactly right on a sheared sublattice and
+           degenerates to the old rectangle on a rectangular one. No size
+           floor: a floor on a tiling shape makes adjacent cells overlap
+           instead of tile, which defeats the one glyph whose entire job is
+           to state the cell honestly. */
+        var A1 = t.cellA1 || [t.cellXCm || grid.tileCm, 0];
+        var A2 = t.cellA2 || [0, t.cellYCm || grid.tileCm];
+        var corners = [
+          [(-A1[0] - A2[0]) / 2, (-A1[1] - A2[1]) / 2],
+          [(A1[0] - A2[0]) / 2, (A1[1] - A2[1]) / 2],
+          [(A1[0] + A2[0]) / 2, (A1[1] + A2[1]) / 2],
+          [(-A1[0] + A2[0]) / 2, (-A1[1] + A2[1]) / 2]
+        ];
         (t.ports || []).forEach(function (p) {
-          var c = el('rect', {
-            x: X(p.x) - cw / 2, y: Y(p.y) - ch / 2, width: cw, height: ch,
+          var c = el('polygon', {
+            points: corners.map(function (k) {
+              return X(p.x + k[0]).toFixed(2) + ',' + Y(p.y + k[1]).toFixed(2);
+            }).join(' '),
             fill: 'none', stroke: antCol, 'stroke-width': 0.7, 'stroke-opacity': 0.45,
             'stroke-dasharray': '2 2', 'vector-effect': 'non-scaling-stroke'
           });
           if (lod.tips) c.appendChild(el('title', null,
             'tile ' + t.i + ' · port ' + p.i + ' of ' + t.ports.length + '\n' +
             'ONE controllable RF channel — one phase shifter\n' +
-            'cell ' + (t.cellXCm * 10).toFixed(2) + ' × ' + (t.cellYCm * 10).toFixed(2) + ' mm\n' +
+            'cell ' + (t.cellAreaCm2 * 100).toFixed(1) + ' mm², extent ' +
+            (t.cellXCm * 10).toFixed(2) + ' × ' + (t.cellYCm * 10).toFixed(2) + ' mm\n' +
             t.radPerPort + ' radiator' + (t.radPerPort === 1 ? '' : 's') + ' behind it, fed in fixed phase\n' +
             'the beamformer cannot see inside this cell'));
           antG.appendChild(c);
@@ -745,8 +753,7 @@
       pl.innerHTML = '<span style="display:inline-block;width:' + sw + 'px;height:' + sh + 'px;' +
         'border:1px dashed var(--s5);opacity:.7;vertical-align:middle"></span>' +
         t0.ports.length + ' controllable ports per tile — one phase shifter each, ' +
-        'the dashed box is its ' + (t0.cellXCm * 10).toFixed(2) + ' × ' +
-        (t0.cellYCm * 10).toFixed(2) + ' mm cell';
+        'the dashed outline is its ' + (t0.cellAreaCm2 * 100).toFixed(1) + ' mm² cell';
       wrap.appendChild(pl);
 
       var al = document.createElement('span');
