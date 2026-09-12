@@ -58,8 +58,56 @@
       }
     }
     var grid = { rows: rows, cols: cols, tileCm: tileCm, tiles: tiles, nTiles: tiles.length };
-    tiles.forEach(function (t) { layDies(t, g, tileCm); });
+    tiles.forEach(function (t) { layDies(t, g, tileCm); layAntennas(t, g, tileCm); });
     return grid;
+  }
+
+  /* ------------------------------------------------- ports and radiators
+     Two different things, and the map is the one place a reader can SEE
+     that they are different.
+
+     A PORT is a controllable RF channel — one phase shifter, one entry in
+     the beamformer's state. Their positions are g.latOffsetsCm, i.e. the
+     very lattice beam.js integrates over, so what is drawn and what is
+     computed cannot drift apart. Note the offsets wrap into [0, tileCm),
+     so a port really does sit on the tile edge: with abutting tiles the
+     radiating lattice is UNIFORM across the whole aperture and the tile
+     boundary is a routing boundary, not an antenna one. Drawing it that
+     way is the honest picture.
+
+     A RADIATOR is metal. K of them sit behind one port on a fixed feed,
+     invisible to the beamformer. Drawn to scale from the block library's
+     own footprint, because the whole point of the antenna family is that a
+     2.6 mm patch alone in a 15 mm cell fills 2.08% of it — and at this
+     scale that is four pixels in a sixty-pixel square. The smallness IS
+     the argument.                                                        */
+  function layAntennas(t, g, tileCm) {
+    var offs = g.latOffsetsCm || [[0, 0]];
+    var kx = Math.max(1, Math.round(g.radKx || 1));
+    var ky = Math.max(1, Math.round(g.radKy || 1));
+    var px = g.radPitchXCm || 0, py = g.radPitchYCm || 0;
+    var blk = (g.antTraits && g.antTraits.radBlockKey) || 'antPatch';
+    var areaMm2 = ((window.Model && window.Model.BLOCKS[blk]) || { areaMm2: 6.7 }).areaMm2;
+    var wCm = Math.sqrt(Math.max(areaMm2, 0.01)) / 10;
+
+    t.ports = [];
+    t.rads = [];
+    offs.forEach(function (o, pi) {
+      var cx = t.x + o[0], cy = t.y + o[1];
+      t.ports.push({ i: pi, x: cx, y: cy });
+      for (var iy = 0; iy < ky; iy++) {
+        for (var ix = 0; ix < kx; ix++) {
+          t.rads.push({
+            p: pi,
+            x: cx + (ix - (kx - 1) / 2) * px,
+            y: cy + (iy - (ky - 1) / 2) * py,
+            w: wCm
+          });
+        }
+      }
+    });
+    t.radPerPort = kx * ky;
+    t.radW = wCm;
   }
 
   /* ------------------------------------------------------ dies and LO taps

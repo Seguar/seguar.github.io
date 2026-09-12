@@ -173,24 +173,41 @@
      Whatever a tier drops is named in the returned `lod.note` and shown
      under the map — a simplification the reader cannot see is worse than a
      slow render.                                                          */
-  function lodFor(visibleTiles) {
+  function lodFor(visibleTiles, radPerTile) {
+    /* Radiators drop out FIRST and at a much lower tile count than dies,
+       because there are far more of them: 25 tiles x 16 ports x 64
+       radiators is 25 600 glyphs, against 100 dies. The threshold is on the
+       glyph count rather than on tiles, so a 1x1 arrangement keeps its
+       radiators far longer than an 8x8 one. */
+    var perTile = Math.max(1, radPerTile || 1);
+    /* 12 000 keeps the 4x4 cluster (6 400 here) drawn, which is the case
+       most worth looking at, and drops the 8x8 (25 600) which is not worth
+       the frame time. Measured, not guessed. */
+    var antBudget = 12000;
+    var ants = visibleTiles * perTile <= antBudget;
+    var antNote = ants ? '' : 'radiators hidden above ' + antBudget.toLocaleString() +
+      ' of them on screen (' + (visibleTiles * perTile).toLocaleString() +
+      ' here) — zoom in to see them';
     if (visibleTiles <= 120) {
-      return { tier: 'full', dies: true, taps: true, blocks: true, links: 99, tips: true, note: '' };
+      return {
+        tier: 'full', dies: true, taps: true, blocks: true, links: 99, tips: true,
+        ants: ants, note: antNote
+      };
     }
     if (visibleTiles <= 500) {
       return {
-        tier: 'no-dies', dies: false, taps: false, blocks: true, links: 99, tips: true,
-        note: 'dies and their LO taps hidden above 120 visible tiles — zoom in to see them'
+        tier: 'no-dies', dies: false, taps: false, blocks: true, links: 99, tips: true, ants: false,
+        note: 'dies, radiators and their LO taps hidden above 120 visible tiles — zoom in to see them'
       };
     }
     if (visibleTiles <= 1500) {
       return {
-        tier: 'network', dies: false, taps: false, blocks: false, links: 99, tips: false,
+        tier: 'network', dies: false, taps: false, blocks: false, links: 99, tips: false, ants: false,
         note: 'dies, taps and block symbols hidden, and tooltips off, above 500 visible tiles — zoom in for detail'
       };
     }
     return {
-      tier: 'coarse', dies: false, taps: false, blocks: false, links: 6, tips: false,
+      tier: 'coarse', dies: false, taps: false, blocks: false, links: 6, tips: false, ants: false,
       note: 'above 1500 visible tiles only the tile heat map and the top 6 tree levels are drawn — zoom in for the rest'
     };
   }
@@ -238,7 +255,9 @@
 
     var dragMoved = false;   /* set by the pan handler; suppresses the click */
     var shown = grid.tiles.filter(tileVisible);
-    var lod = lodFor(shown.length);
+    var t0lod = grid.tiles[0];
+    var radsPerTile = t0lod && t0lod.rads ? t0lod.rads.length : 0;
+    var lod = lodFor(shown.length, radsPerTile);
     /* explicit layer switches always win over the LOD default */
     var wantDies = view.showDies !== false && lod.dies;
     var wantBlocks = view.showBlocks !== false && lod.blocks;
@@ -322,6 +341,52 @@
       }, t.hop));
     });
     svg.appendChild(tileG);
+
+    /* ---- radiators, drawn to scale, UNDER the dies and the network ----
+       Two glyphs, because they are two different things and the map is
+       where that stops being an abstract point: a hollow ring for the
+       controllable PORT (one phase shifter, one entry in the beamformer's
+       state) and a filled square for each RADIATOR behind it. At K = 1
+       they coincide and the picture is the old one. At K = 64 one ring
+       has sixty-four squares inside it and the beamformer still sees one
+       number.
+
+       Drawn from t.rads, which topology.js lays out on g.latOffsetsCm —
+       the same lattice beam.js integrates over — so what is on screen and
+       what is in the numbers cannot drift apart. */
+    if (view.showAnts !== false && lod.ants) {
+      var antG = el('g');
+      var antCol = 'var(--s5)';
+      /* The in-cell feed is deliberately NOT drawn. The model knows its mean
+         route length, which is what the loss is computed from; it does not
+         know the tree's shape, and drawing a specific one — a star, an H —
+         would assert geometry nobody chose. The port ring is what says these
+         radiators are fed together. */
+      shown.forEach(function (t) {
+        (t.rads || []).forEach(function (a) {
+          var w = Math.max(1.2, a.w * scale);
+          antG.appendChild(el('rect', {
+            x: X(a.x) - w / 2, y: Y(a.y) - w / 2, width: w, height: w,
+            fill: antCol, 'fill-opacity': 0.55, stroke: 'none'
+          }));
+        });
+        (t.ports || []).forEach(function (p) {
+          var pr = Math.max(2, (grid.tileCm / Math.max(Math.sqrt(t.ports.length), 1)) * scale * 0.42);
+          var c = el('circle', {
+            cx: X(p.x), cy: Y(p.y), r: pr, fill: 'none',
+            stroke: antCol, 'stroke-width': 0.7, 'stroke-opacity': 0.5,
+            'stroke-dasharray': '2 2', 'vector-effect': 'non-scaling-stroke'
+          });
+          if (lod.tips) c.appendChild(el('title', null,
+            'tile ' + t.i + ' · port ' + p.i + ' of ' + t.ports.length + '\n' +
+            'ONE controllable RF channel — one phase shifter\n' +
+            t.radPerPort + ' radiator' + (t.radPerPort === 1 ? '' : 's') + ' behind it, fed in fixed phase\n' +
+            'the beamformer cannot see inside this cell'));
+          antG.appendChild(c);
+        });
+      });
+      svg.appendChild(antG);
+    }
 
     /* ---- RFIC dies and the intra-tile LO tap fan-out, drawn to scale ---- */
     if (wantDies) {
@@ -612,6 +677,27 @@
         t0.dies.length + ' RFIC dies per tile, 2.5 mm, to scale — each with one 78 GHz LO tap';
       wrap.appendChild(dl);
     }
+    /* Ports and radiators get hand-written rows beside the die row rather
+       than going through glyph()/order/names, because like the die they are
+       drawn as scaled geometry and not as a fixed-size block symbol. */
+    if (t0 && t0.ports && t0.ports.length) {
+      var pl = document.createElement('span');
+      pl.className = 'li';
+      pl.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;' +
+        'border:1px dashed var(--s5);opacity:.7"></span>' +
+        t0.ports.length + ' controllable ports per tile — one phase shifter each';
+      wrap.appendChild(pl);
+
+      var al = document.createElement('span');
+      al.className = 'li';
+      al.innerHTML = '<span style="display:inline-block;width:7px;height:7px;background:var(--s5);' +
+        'opacity:.55"></span>' +
+        (t0.radPerPort === 1
+          ? 'one radiator per port, ' + (t0.radW * 10).toFixed(1) + ' mm, to scale'
+          : t0.radPerPort + ' radiators per port (' + t0.rads.length + ' per tile), ' +
+            (t0.radW * 10).toFixed(1) + ' mm each, to scale — fixed feed, invisible to the beamformer');
+      wrap.appendChild(al);
+    }
 
     var seen = {};
     /* Every node type a topology can emit needs a row here. A type that is
@@ -682,9 +768,30 @@
     if (t.dies && t.dies.length) {
       rows.push(['— RFIC dies in this tile —', '']);
       rows.push(['E-band dies', t.dies.length + ' × 2.5 × 2.5 mm SiGe']);
-      rows.push(['Channels', (t.dies.length * 8) + ' (4 RX + 4 TX per die, IQ baseband)']);
+      /* was hard-coded 8, which silently lied the moment chPerDiePerDir
+         became something the model derived rather than assumed */
+      var perDir = g.chPerDiePerDir || 4;
+      rows.push(['RF channels', (t.dies.length * perDir * 2) + ' (' + perDir + ' RX + ' + perDir +
+        ' TX per die, each an IQ pair at baseband)']);
       rows.push(['78 GHz LO taps', String(t.dies.length)]);
       rows.push(['Intra-tile LO fan-out', t.tapRoutedCm.toFixed(1) + ' cm routed at ' + g.fLoGHz + ' GHz']);
+    }
+    if (t.ports && t.ports.length) {
+      rows.push(['— antenna in this tile —', '']);
+      rows.push(['Controllable ports', t.ports.length + ' — one phase shifter each, on a ' +
+        (g.elemDxCm || 0).toFixed(2) + ' cm lattice']);
+      rows.push(['Radiators per port', String(t.radPerPort) +
+        (t.radPerPort > 1 ? ' (' + g.radKx + ' × ' + g.radKy + ', fixed feed)' : '')]);
+      rows.push(['Radiators in this tile', String(t.rads.length) + ' × ' + (t.radW * 10).toFixed(1) + ' mm']);
+      if (t.radPerPort > 1) {
+        rows.push(['In-cell radiator pitch', (g.radPitchXCm * 10).toFixed(2) + ' mm (' +
+          (g.radPitchXCm / g.lamCm).toFixed(2) + ' λ)' + (g.radSpanning ? ' — spans the cell' : '')]);
+        rows.push(['In-cell feed', (g.antFeedRouteCm * 10).toFixed(1) + ' mm routed, ' +
+          g.antFeedStages + ' split stages, ' + (g.antFeedLossDb || 0).toFixed(2) + ' dB']);
+      }
+      rows.push(['Cell fill', (g.cellFillPct || 0).toFixed(2) + '% of ' +
+        (g.aCellMm2 || 0).toFixed(0) + ' mm² — element ' + (g.dElDbi || 0).toFixed(2) +
+        ' dBi against a ' + (g.dCellDbi || 0).toFixed(2) + ' dBi ceiling']);
     }
     rows.push(['— blocks in this tile —', '']);
     (t.blocks || []).forEach(function (b) { rows.push([b.label, b.type]); });

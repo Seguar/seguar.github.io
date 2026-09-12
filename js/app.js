@@ -13,7 +13,7 @@
   var state = {};
   var view = {
     name: 'map', selected: 0, tileMetric: 'skewPs',
-    showBlocks: true, showLo: true, showBb: true, showDies: true,
+    showBlocks: true, showLo: true, showBb: true, showDies: true, showAnts: true,
     /* Systems view: transient UI state only. The saved systems themselves
        live in localStorage via window.Systems; `shared` holds systems that
        arrived in a link, which are deliberately NOT written to storage
@@ -631,6 +631,7 @@
       { k: 'showLo', label: 'LO / reference' },
       { k: 'showBb', label: 'baseband' },
       { k: 'showDies', label: 'dies + taps' },
+      { k: 'showAnts', label: 'ports + radiators' },
       { k: 'showBlocks', label: 'blocks' }
     ].forEach(function (L) {
       var b = document.createElement('button');
@@ -688,7 +689,7 @@
       tileMetric: view.tileMetric, tileMetricLabel: tm ? tm.label : view.tileMetric,
       selected: view.selected, sourceLabel: res.g.refName,
       showBlocks: view.showBlocks, showLo: view.showLo,
-      showBb: view.showBb, showDies: view.showDies,
+      showBb: view.showBb, showDies: view.showDies, showAnts: view.showAnts,
       zoom: view.zoom, panXCm: view.panXCm, panYCm: view.panYCm,
       apertureSpecCm: res.g.apertureCm,
       onViewChange: function (z, x, y) { view.zoom = z; view.panXCm = x; view.panYCm = y; render(); }
