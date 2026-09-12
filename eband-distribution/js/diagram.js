@@ -260,6 +260,7 @@
     var lod = lodFor(shown.length, radsPerTile);
     /* explicit layer switches always win over the LOD default */
     var wantDies = view.showDies !== false && lod.dies;
+    var dieFloored = false;
     var wantBlocks = view.showBlocks !== false && lod.blocks;
 
     var svg = el('svg', {
@@ -354,7 +355,9 @@
        Drawn from t.rads, which topology.js lays out on g.latOffsetsCm —
        the same lattice beam.js integrates over — so what is on screen and
        what is in the numbers cannot drift apart. */
-    if (view.showAnts !== false && lod.ants) {
+    var antsShown = view.showAnts !== false && lod.ants;
+    var antFloored = false;
+    if (antsShown) {
       var antG = el('g');
       var antCol = 'var(--s5)';
       /* The in-cell feed is deliberately NOT drawn. The model knows its mean
@@ -363,10 +366,19 @@
          would assert geometry nobody chose. The port ring is what says these
          radiators are fed together. */
       shown.forEach(function (t) {
+        /* Floors are in SCREEN space (divided by Z), not viewBox units. A
+           viewBox-unit floor is an absolute size in centimetres that zoom
+           only magnifies, so it silently replaced the physical size the
+           legend was simultaneously quoting AND re-created the very overlap
+           the per-axis cap exists to prevent. In screen space the floor is a
+           legibility minimum that zooming in dissolves, and antScaled
+           records whether it bit so the legend can stop saying "to scale". */
         (t.rads || []).forEach(function (a) {
-          var w = Math.max(1.2, a.w * scale);
+          var wx = a.wx * scale, wy = a.wy * scale;
+          var fx = Math.max(0.6 / Z, wx), fy = Math.max(0.6 / Z, wy);
+          if (fx > wx + 1e-9 || fy > wy + 1e-9) antFloored = true;
           antG.appendChild(el('rect', {
-            x: X(a.x) - w / 2, y: Y(a.y) - w / 2, width: w, height: w,
+            x: X(a.x) - fx / 2, y: Y(a.y) - fy / 2, width: fx, height: fy,
             fill: antCol, 'fill-opacity': 0.55, stroke: 'none'
           }));
         });
@@ -376,8 +388,15 @@
            3.75 x 60 mm and that circle was 3.4x too wide in x, so every
            ring overlapped its neighbours and none of them showed the cell
            the fill percentage is computed against. */
-        var cw = Math.max(2, (t.cellXCm || grid.tileCm) * scale);
-        var ch = Math.max(2, (t.cellYCm || grid.tileCm) * scale);
+        /* Also screen-space: flooring the two axes independently in viewBox
+           units inverted the drawn aspect ratio of a strongly anisotropic
+           cell and made adjacent cells overlap instead of tile, which
+           defeats the one glyph whose whole job is to state the cell
+           honestly. */
+        var cw = Math.max(1.2 / Z, (t.cellXCm || grid.tileCm) * scale);
+        var ch = Math.max(1.2 / Z, (t.cellYCm || grid.tileCm) * scale);
+        if (cw > (t.cellXCm || grid.tileCm) * scale + 1e-9 ||
+            ch > (t.cellYCm || grid.tileCm) * scale + 1e-9) antFloored = true;
         (t.ports || []).forEach(function (p) {
           var c = el('rect', {
             x: X(p.x) - cw / 2, y: Y(p.y) - ch / 2, width: cw, height: ch,
@@ -408,7 +427,12 @@
           })));
         });
         (t.dies || []).forEach(function (d) {
-          var w = Math.max(3, d.w * scale);
+          /* screen-space floor, for the same reason as the radiators: in
+             viewBox units this drew a 2.81 mm die above a 53 cm aperture
+             while the legend beside it said "2.5 mm, to scale" */
+          var wTrue = d.w * scale;
+          var w = Math.max(3 / Z, wTrue);
+          if (w > wTrue + 1e-9) dieFloored = true;
           var rect = el('rect', {
             x: X(d.x) - w / 2, y: Y(d.y) - w / 2, width: w, height: w, rx: 0.8,
             fill: 'var(--ink)', 'fill-opacity': 0.62, stroke: eb,
@@ -644,10 +668,24 @@
     sc.appendChild(cnt);
     mount.appendChild(sc);
 
-    return { svg: svg, lod: lod, visible: shown.length, zoom: Z };
+    /* The legend needs to know what was ACTUALLY drawn — LOD tier, layer
+       toggles and size floors all — or it describes swatches that are not
+       on screen and quotes sizes that are not what was rendered. */
+    return {
+      svg: svg, lod: lod, visible: shown.length, zoom: Z,
+      drew: {
+        ants: !!antsShown, dies: !!wantDies,
+        antFloored: antFloored, dieFloored: dieFloored
+      }
+    };
   }
 
-  function renderLegend(mount, built, lod) {
+  /* `info` is renderMap's return: { lod, drew: {ants, dies, antFloored,
+     dieFloored} }. The legend must be gated on what was DRAWN, not on what
+     the data could support — the LOD tier, the toolbar layer switches and
+     the size floors all change what is on screen. */
+  function renderLegend(mount, built, info) {
+    var lod = (info && info.lod) || info || null;
     mount.textContent = '';
     var wrap = document.createElement('div');
     wrap.className = 'legend';
@@ -677,12 +715,16 @@
     wrap.appendChild(bl);
 
     var t0 = built.grid.tiles[0];
-    if (t0 && t0.dies) {
+    var drew = (info && info.drew) || {};
+    var diesDrawn = drew.dies !== undefined ? drew.dies : !!(t0 && t0.dies);
+    if (t0 && t0.dies && diesDrawn) {
       var dl = document.createElement('span');
       dl.className = 'li';
       dl.innerHTML = '<span style="display:inline-block;width:9px;height:9px;background:var(--ink);opacity:.62;' +
         'border:0.9px solid ' + BAND_STYLE.eband.stroke + '"></span>' +
-        t0.dies.length + ' RFIC dies per tile, 2.5 mm, to scale — each with one 78 GHz LO tap';
+        t0.dies.length + ' RFIC dies per tile, 2.5 mm' +
+        (drew.dieFloored ? ', drawn at a legibility minimum — zoom in for true scale' : ', to scale') +
+        ' — each with one 78 GHz LO tap';
       wrap.appendChild(dl);
     }
     /* Ports and radiators get hand-written rows beside the die row rather
@@ -692,28 +734,35 @@
        it tells the reader a swatch is on screen when it is not. Both rows
        are therefore gated on lod.ants, and when the radiators are hidden
        the row says so rather than disappearing silently. */
-    var antsDrawn = !lod || lod.ants !== false;
+    var antsDrawn = drew.ants !== undefined ? drew.ants : (!lod || lod.ants !== false);
     if (t0 && t0.ports && t0.ports.length && antsDrawn) {
       var pl = document.createElement('span');
       pl.className = 'li';
-      pl.innerHTML = '<span style="display:inline-block;width:11px;height:8px;' +
-        'border:1px dashed var(--s5);opacity:.7"></span>' +
+      /* the swatch mirrors the cell's real aspect, clamped so a 16:1 cell
+         does not produce a 1 px sliver in the legend */
+      var ar = Math.max(0.25, Math.min(4, t0.cellXCm / Math.max(t0.cellYCm, 1e-9)));
+      var sw = Math.round(11 * Math.min(1, ar)), sh = Math.round(11 * Math.min(1, 1 / ar));
+      pl.innerHTML = '<span style="display:inline-block;width:' + sw + 'px;height:' + sh + 'px;' +
+        'border:1px dashed var(--s5);opacity:.7;vertical-align:middle"></span>' +
         t0.ports.length + ' controllable ports per tile — one phase shifter each, ' +
-        'ring = its ' + (t0.cellXCm * 10).toFixed(1) + ' × ' + (t0.cellYCm * 10).toFixed(1) + ' mm cell';
+        'the dashed box is its ' + (t0.cellXCm * 10).toFixed(2) + ' × ' +
+        (t0.cellYCm * 10).toFixed(2) + ' mm cell';
       wrap.appendChild(pl);
 
       var al = document.createElement('span');
       al.className = 'li';
+      /* ONE size claim, not two. The physical footprint is always quoted;
+         whether it was drawn smaller is a separate clause. */
       al.innerHTML = '<span style="display:inline-block;width:7px;height:7px;background:var(--s5);' +
-        'opacity:.55"></span>' +
+        'opacity:.55;vertical-align:middle"></span>' +
         (t0.radPerPort === 1
-          ? 'one radiator per port, ' + (t0.radW * 10).toFixed(1) + ' mm, to scale'
+          ? 'one radiator per port, ' + (t0.radFootprintCm * 10).toFixed(2) + ' mm'
           : t0.radPerPort + ' radiators per port (' + t0.rads.length + ' per tile), ' +
-            (t0.radW * 10).toFixed(1) + ' mm each — fixed feed, invisible to the beamformer') +
+            (t0.radFootprintCm * 10).toFixed(2) + ' mm each — fixed feed, invisible to the beamformer') +
         (t0.radCappedToPitch
-          ? ' · drawn capped to the ' + (t0.radW * 10).toFixed(2) + ' mm pitch; the isolated footprint is ' +
-            (t0.radFootprintCm * 10).toFixed(2) + ' mm and does not fit'
-          : ', to scale');
+          ? ' · drawn ' + (t0.radCapXCm * 10).toFixed(2) + ' × ' + (t0.radCapYCm * 10).toFixed(2) +
+            ' mm, capped to the pitch: the isolated footprint does not fit'
+          : drew.antFloored ? ' · drawn at a legibility minimum — zoom in for true scale' : ', to scale');
       wrap.appendChild(al);
     } else if (t0 && t0.ports && t0.ports.length) {
       var hl = document.createElement('span');
@@ -806,7 +855,16 @@
         (g.elemDxCm || 0).toFixed(2) + ' cm lattice']);
       rows.push(['Radiators per port', String(t.radPerPort) +
         (t.radPerPort > 1 ? ' (' + g.radKx + ' × ' + g.radKy + ', fixed feed)' : '')]);
-      rows.push(['Radiators in this tile', String(t.rads.length) + ' × ' + (t.radW * 10).toFixed(1) + ' mm']);
+      /* the PHYSICAL footprint. This used to print the pitch-capped DRAWING
+         width, so the table and the legend stated different sizes for the
+         same object on the same screen — and the table stated the one that
+         does not exist. */
+      rows.push(['Radiators in this tile', String(t.rads.length) + ' × ' +
+        (t.radFootprintCm * 10).toFixed(2) + ' mm footprint' +
+        (t.radCappedToPitch
+          ? ' — drawn ' + (t.radCapXCm * 10).toFixed(2) + ' × ' + (t.radCapYCm * 10).toFixed(2) +
+            ' mm, capped to the pitch'
+          : '')]);
       if (t.radPerPort > 1) {
         rows.push(['In-cell radiator pitch', (g.radPitchXCm * 10).toFixed(2) + ' mm (' +
           (g.radPitchXCm / g.lamCm).toFixed(2) + ' λ)' + (g.radSpanning ? ' — spans the cell' : '')]);

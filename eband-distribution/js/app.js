@@ -694,10 +694,10 @@
       apertureSpecCm: res.g.apertureCm,
       onViewChange: function (z, x, y) { view.zoom = z; view.panXCm = x; view.panYCm = y; render(); }
     }, function (i) { view.selected = i; render(); });
-    /* the legend needs the LOD it was actually drawn at, or it describes
-       swatches that are not on screen */
-    window.Diagram.renderLegend(document.getElementById('mapLegend'), built,
-      mapInfo && mapInfo.lod);
+    /* the legend needs what renderMap ACTUALLY drew — LOD tier, layer
+       toggles and size floors — or it describes swatches that are not on
+       screen and quotes sizes that were not rendered */
+    window.Diagram.renderLegend(document.getElementById('mapLegend'), built, mapInfo);
     var bsel0 = res.bb[res.g.bbOptionId];
     document.getElementById('mapNote').innerHTML =
       '<strong>Scroll to zoom at the cursor, drag to pan, double-click to zoom in</strong> ' +
@@ -1141,10 +1141,21 @@
           d: 'min(N·D_el, 4πA/λ²) = min(' + n(g.dArrayRawDbi, 2) + ', ' + n(g.dFilledDbi, 2) +
              ') dBi at broadside, from ' + g.nElem + ' elements of ' + n(g.dElDbi, 1) + ' dBi' },
         { k: 'Realised gain', n: n(b.realisedDbi, 2), unit: 'dBi',
+          /* antLossTotalDb, matching what beam.js actually subtracted. This
+             showed antLossDb while the figure above it was computed with
+             antLossTotalDb, so the terms did not add up to the number they
+             were explaining on every option with an in-cell feed. */
           d: 'directivity −' + n(b.scanLossDb, 2) + ' dB scan −' + n(b.cohLossDb, 3) +
-             ' dB error −' + n(g.antLossDb, 1) + ' dB antenna-side chain (efficiency, package feed, ' +
-             'flip-chip, mismatch, T/R, on-chip, radome). Directivity is not gain; on RX this sits in ' +
-             'front of the LNA and goes into G/T.' },
+             ' dB error −' + n(g.antLossDb, 1) + ' dB antenna-side chain' +
+             (g.antFeedLossDb > 0.005
+               ? ' −' + n(g.antFeedLossDb, 2) + ' dB in-cell feed'
+               : '') +
+             ' (efficiency, package feed, flip-chip, mismatch, T/R, on-chip, radome). ' +
+             'Directivity is not gain; on RX this sits in front of the LNA and goes into G/T' +
+             (g.antFeedLossDb > 0.005
+               ? ', so the feed term costs ' + n(2 * g.antFeedLossDb, 2) + ' dB of G/T, not ' +
+                 n(g.antFeedLossDb, 2) + '.'
+               : '.') },
         { k: 'Element / cell fill', n: n(g.thinningLossDb, 2), unit: 'dB', binding: g.thinningLossDb > 6,
           d: '= 10log10(4π·A_cell/(λ²·D_el)) = A_eff ' + n(g.aEffElMm2, 2) + ' mm² in a ' +
              n(g.aCellMm2, 0) + ' mm² cell = ' + n(g.cellFillPct, 2) + '%. NOT a thinning loss: it is a ' +
@@ -1270,10 +1281,16 @@
         '<em>neither</em> principal plane — so a pair of cuts is not an honest presentation of this ' +
         'array. The count is fixed by element <em>density</em> alone: changing the lattice shape moves ' +
         'the lobes but removes none of them. ' +
-        (g.elem.key === 'nulled'
-          ? 'With the cell-filling nulled element the lobes sit in the element’s sinc nulls — at ' +
+        /* was gated on g.elem.key === 'nulled', a kind retired with the
+           antenna family — dead code recommending an element that no longer
+           exists. The suppression case is now reached by a SUBARRAY whose
+           own nulls land on the lobes, which is what span mode does. */
+        (g.radPerCh > 1 && -worst.relDb > 20
+          ? 'With this subarray the lobes sit in the element’s own nulls — at ' +
             'broadside exactly, and progressively less well as the beam scans away from it, which is ' +
-            'why this option buys grating-lobe suppression at the price of scan range.'
+            'why the arrangement buys grating-lobe suppression at the price of scan range. Here it is ' +
+            'worth ' + n(-worst.relDb, 1) + ' dB at the worst lobe, and the −3 dB half-cone has ' +
+            'narrowed to ' + n(g.antConeMinDeg, 1) + '°.'
           : 'For a uniform periodic array a grating lobe is a <em>full-amplitude</em> replica of the ' +
             'main beam (|AF| = N at every lobe, by the Dirichlet kernel), so only the element pattern ' +
             'suppresses it. Here that is worth ' + n(-worst.relDb, 2) + ' dB at the worst lobe. ' +
