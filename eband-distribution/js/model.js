@@ -317,6 +317,32 @@
       choices: [{ value: 0, label: 'Shared radiators + T/R switch per port' }, { value: 1, label: 'Separate TX and RX radiator groups' }],
       conf: 'engineering-guess', why: 'The die carries 4 RX AND 4 TX real RF channels, so the port count counts ONE direction while the baseband channel count counts both. Shared means one radiator group serves both directions through a T/R switch — which is already what the antenna-loss chain itemises, and therefore the defensible default. Separate means each direction gets half the cell, so the per-direction cell ceiling falls by 10log10(2) = 3.01 dB and the legal K halves. Nothing in this tool asked this question before, and leaving it unstated makes every element directivity 3 dB optimistic in the case nobody chose.' },
 
+    /* --- the radio link ---
+       The only group that describes something OUTSIDE the array. Nothing
+       here feeds back into the distribution comparison: the link is what
+       the array is FOR, and separating the two is the point. */
+    { key: 'linkRangeKm', label: 'Link range', units: 'km', value: 1.0, min: 0.05, max: 10, step: 0.05, group: 'Radio link',
+      conf: 'engineering-guess', why: 'Hop length. Neither source document states a target range — the proposal contrasts the concept against a 30 cm dish solution but gives no distance — so this is a declared assumption, not a requirement. E-band point-to-point links in service are typically 0.3–3 km precisely because rain sets the ceiling.' },
+    { key: 'txPoutDbm', label: 'TX power per element', units: 'dBm', value: 10, min: -10, max: 25, step: 0.5, group: 'Radio link',
+      conf: 'engineering-guess', why: 'Saturated output of one element\'s PA. Neither source states it. 10 dBm is a reasonable SiGe E-band per-element figure; a published 71–86 GHz SiGe PA runs 10–15 dBm P_sat. This is the single number the whole EIRP rests on, so measure it before quoting any range from this tool.' },
+    { key: 'txBackoffDb', label: 'PA back-off', units: 'dB', value: 6, min: 0, max: 15, step: 0.5, group: 'Radio link',
+      conf: 'scaled-estimate', why: 'Back-off from saturation for linearity. A high-order QAM waveform has a 7–9 dB PAPR, and running a PA at saturation destroys the EVM this tool spends its time protecting. 6 dB is a normal compromise; the tool does NOT model AM/AM or AM/PM, so this is a declared allowance rather than a computed one.' },
+    { key: 'rxNfDb', label: 'Receiver noise figure', units: 'dB', value: 8, min: 2, max: 15, step: 0.5, group: 'Radio link',
+      conf: 'scaled-estimate', why: 'Cascaded NF at the array port, referred through the antenna-side chain. 6–10 dB is normal for an E-band SiGe front end. The in-cell antenna feed sits in FRONT of the LNA, so the antenna family adds its feed loss to this directly — that is why the antenna table reports a G/T delta of −2× the feed loss.' },
+    { key: 'rainRateMmH', label: 'Rain rate', units: 'mm/h', value: 25, min: 0, max: 150, step: 1, group: 'Radio link',
+      conf: 'published-literature', why: 'Point rain rate exceeded for the target availability, ITU-R P.837. 25 mm/h is roughly 99.9% in a temperate zone (ITU zone K); 42 mm/h is about 99.99% there, and Mediterranean coastal zones run higher. This is THE E-band parameter: at 78 GHz, 25 mm/h costs about 10 dB/km against 0.4 dB/km of gaseous absorption.' },
+    { key: 'linkPolSel', label: 'Polarisation', units: '', value: 0, group: 'Radio link',
+      choices: [{ value: 0, label: 'Horizontal (worse case)' }, { value: 1, label: 'Vertical' }],
+      conf: 'published-literature', why: 'Selects the ITU-R P.838-3 k and α coefficients. Horizontal rain attenuation is the higher of the two at E-band — raindrops are oblate — so it is the default and the conservative choice.' },
+    { key: 'implLossDb', label: 'Implementation loss', units: 'dB', value: 2, min: 0, max: 8, step: 0.5, group: 'Radio link',
+      conf: 'engineering-guess', why: 'Everything the demodulator loses that this tool does not model individually: synchroniser jitter, timing error, quantisation, filter ripple. Carried as one declared number rather than being distributed silently into the terms above it.' },
+    { key: 'codingGainDb', label: 'FEC coding gain', units: 'dB', value: 8, min: 0, max: 12, step: 0.5, group: 'Radio link',
+      conf: 'published-literature', why: 'Subtracted from the uncoded required SNR. An LDPC at rate 0.8 delivers roughly 7–9 dB at these error rates. Kept as a separate declared term so the UNCODED figure stays visible and checkable against a textbook.' },
+    { key: 'targetBerExp', label: 'Target BER exponent', units: '10^-x', value: 6, min: 3, max: 12, step: 1, group: 'Radio link',
+      conf: 'scaled-estimate', why: 'Pre-FEC bit error rate the required SNR is computed for, as 10^-x. Required SNR is DERIVED from it by inverting the square-QAM symbol-error bound, not read from a table.' },
+    { key: 'linkMarginReqDb', label: 'Required link margin', units: 'dB', value: 3, min: 0, max: 20, step: 0.5, group: 'Radio link',
+      conf: 'engineering-guess', why: 'Margin demanded above the required SNR before the link is called closed. Covers what is not modelled: pointing error, multipath, ageing, interference.' },
+
     /* --- calibration --- */
     { key: 'fBistHz', label: 'BIST update rate', units: 'Hz', value: 1, min: 0.01, max: 1000, step: 0.01, group: 'Calibration',
       conf: 'scaled-estimate', why: 'Calibration-state update rate. Note this need NOT equal the ~100 Hz beam-update rate — drift bandwidth is ~0.3–3 Hz.' },
@@ -1635,6 +1661,151 @@
     return 'realisable; a 1:' + K_ + ' corporate split in package substrate at 78 GHz is routine';
   }
 
+  /* ---------------------------------------------------------------------
+     THE RADIO LINK.
+
+     This is the only function in the tool that looks outside the array, and
+     it is deliberately a CASCADE: every line is one term, in order, with
+     the running total beside it, because that is what a link budget IS and
+     because a reader has to be able to check it line by line against their
+     own spreadsheet.
+
+     It consumes the array rather than re-deriving it. The EIRP comes from
+     the array directivity the beam model computed; the receive gain is the
+     realised gain including scan loss, coherence loss and the whole
+     antenna-side chain the antenna family added; and the SNR CEILING comes
+     from the array's own residual phase error, which is what the rest of
+     this tool exists to compute. That last connection is the point: it is
+     where the distribution architecture stops being an abstraction and
+     starts setting a data rate.
+     ------------------------------------------------------------------- */
+  function evalLink(g, loRes, beamRes) {
+    var fGHz = g.fLoGHz;
+    var dKm = g.linkRangeKm;
+    var bwHz = g.rfBwGHz * 1e9;
+    var pol = Math.round(g.linkPolSel) === 1 ? 'V' : 'H';
+
+    /* ---- transmit ---- */
+    var pPerElemDbm = g.txPoutDbm - g.txBackoffDb;
+    var nPorts = Math.max(g.nElem, 1);
+    var pTotalDbm = pPerElemDbm + 10 * Math.log10(nPorts);
+    /* EIRP = total radiated power + array DIRECTIVITY. Equivalently
+       P_elem + 20log10(N) + D_el — the N^2 of coherent combining, N once
+       for the power summed and once for the directivity. Writing it as
+       P_total + D_array keeps it obviously right rather than obviously
+       clever. */
+    var dArrayDbi = g.dArrayDbi;
+    var eirpDbm = pTotalDbm + dArrayDbi - g.antLossTotalDb;
+
+    /* ---- the path ---- */
+    var fsplDb = K.fsplDb(fGHz, dKm);
+    var gasPerKm = g.atmosDbPerKmOverride > 0 ? g.atmosDbPerKmOverride : K.gasAbsDbPerKm(fGHz);
+    var gasDb = gasPerKm * dKm;
+    var rc = K.rainCoeffs(fGHz, pol);
+    var rainGammaDbKm = K.rainSpecificDbKm(rc.k, rc.alpha, g.rainRateMmH);
+    /* with no rain there is no rain cell, so the point-to-path reconciliation
+       factor is not a meaningful number to report */
+    var rainR = g.rainRateMmH > 0 ? K.rainPathFactor(dKm, g.rainRateMmH, rc.alpha, fGHz) : 1;
+    var rainDb = rainGammaDbKm * dKm * rainR;
+
+    /* ---- receive ----
+       The receive gain is the REALISED gain: directivity less scan loss,
+       coherence loss and the antenna-side chain. Using the raw directivity
+       here would quietly hand the link everything the array gives up. */
+    var gRxDbi = beamRes ? beamRes.realisedDbi : (dArrayDbi - g.antLossTotalDb);
+    var prxClearDbm = eirpDbm - fsplDb - gasDb + gRxDbi;
+    var prxDbm = prxClearDbm - rainDb;
+
+    /* ---- noise and SNR ---- */
+    var noiseDbm = K.noiseFloorDbm(bwHz, g.rxNfDb);
+    var snrClearDb = prxClearDbm - noiseDbm - g.implLossDb;
+    var snrPathDb = prxDbm - noiseDbm - g.implLossDb;
+
+    /* ---- the ceiling this whole tool is about ----
+       The array's own residual phase error is an EVM, and an EVM is an SNR
+       that no received power can beat. */
+    var evmDbArr = loRes ? loRes.evmDb : NaN;
+    var snrCeilDb = isFinite(evmDbArr) ? K.snrCeilFromEvmDb(evmDbArr) : Infinity;
+    var snrEffDb = K.combineSnrDb(snrPathDb, snrCeilDb);
+    var snrEffClearDb = K.combineSnrDb(snrClearDb, snrCeilDb);
+    var ceilingBinds = isFinite(snrCeilDb) && snrCeilDb < snrPathDb;
+
+    /* ---- what that supports ---- */
+    var ber = Math.pow(10, -g.targetBerExp);
+    var orders = K.QAM_EVM.map(function (q) { return q.order; });
+    var req = orders.map(function (o) {
+      return { order: o, name: K.QAM_EVM.filter(function (q) { return q.order === o; })[0].name,
+               snrDb: K.snrForQamDb(o, ber, g.codingGainDb) };
+    });
+    var best = null;
+    req.forEach(function (r) {
+      if (snrEffDb >= r.snrDb + g.linkMarginReqDb && (!best || r.order > best.order)) best = r;
+    });
+    var bitsPerSym = best ? Math.log2(best.order) : 0;
+    /* one rail, both polarisations not assumed; the RF bandwidth is the
+       symbol bandwidth, and no excess-bandwidth factor is applied because
+       the tool does not model the pulse shaping */
+    var rateBps = best ? bitsPerSym * bwHz : 0;
+    var shannonCapBps = K.shannonBps(bwHz, snrEffDb);
+
+    /* margin against the modulation the ARRAY's EVM would allow if the path
+       were free — i.e. is the link or the array the binding constraint? */
+    var qamFromEvm = loRes ? loRes.maxQam : '—';
+    var marginDb = best ? snrEffDb - best.snrDb : (req[0] ? snrEffDb - req[0].snrDb : NaN);
+
+    /* ---- the range at which it stops closing ----
+       Solved by bisection on the same cascade rather than by inverting it,
+       so the answer cannot drift from the numbers printed above. */
+    function snrAt(d) {
+      var fs = K.fsplDb(fGHz, d);
+      var ga = gasPerKm * d;
+      var ra = K.rainSpecificDbKm(rc.k, rc.alpha, g.rainRateMmH) * d *
+        K.rainPathFactor(d, g.rainRateMmH, rc.alpha, fGHz);
+      var p = eirpDbm - fs - ga - ra + gRxDbi;
+      return K.combineSnrDb(p - noiseDbm - g.implLossDb, snrCeilDb);
+    }
+    function maxRangeFor(snrNeedDb) {
+      if (!(snrAt(0.05) >= snrNeedDb)) return 0;
+      var lo = 0.05, hi = 50;
+      if (snrAt(hi) >= snrNeedDb) return hi;
+      for (var i = 0; i < 60; i++) {
+        var mid = (lo + hi) / 2;
+        if (snrAt(mid) >= snrNeedDb) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+    var needDb = best ? best.snrDb + g.linkMarginReqDb
+                      : (req[0] ? req[0].snrDb + g.linkMarginReqDb : NaN);
+    var maxRangeKm = isFinite(needDb) ? maxRangeFor(needDb) : NaN;
+
+    return {
+      /* the cascade, in order, for the table */
+      pPerElemDbm: pPerElemDbm, nPorts: nPorts, pTotalDbm: pTotalDbm,
+      dArrayDbi: dArrayDbi, antLossTotalDb: g.antLossTotalDb, eirpDbm: eirpDbm,
+      fsplDb: fsplDb, gasPerKm: gasPerKm, gasDb: gasDb,
+      rainK: rc.k, rainAlpha: rc.alpha, rainGammaDbKm: rainGammaDbKm,
+      rainPathFactor: rainR, rainDb: rainDb, pol: pol,
+      gRxDbi: gRxDbi, prxClearDbm: prxClearDbm, prxDbm: prxDbm,
+      noiseDbm: noiseDbm, bwHz: bwHz,
+      snrClearDb: snrClearDb, snrPathDb: snrPathDb,
+      evmDbArr: evmDbArr, snrCeilDb: snrCeilDb,
+      snrEffDb: snrEffDb, snrEffClearDb: snrEffClearDb, ceilingBinds: ceilingBinds,
+      requirements: req, best: best, bitsPerSym: bitsPerSym,
+      rateBps: rateBps, shannonCapBps: shannonCapBps,
+      marginDb: marginDb, needDb: needDb, maxRangeKm: maxRangeKm,
+      qamFromEvm: qamFromEvm, closes: !!best,
+      rangeCurve: (function () {
+        var pts = [], n = 90;
+        for (var i = 0; i <= n; i++) {
+          var d = 0.05 * Math.pow(40 / 0.05, i / n);      /* 50 m to 2 km, log */
+          pts.push({ d: d, snr: snrAt(d) });
+        }
+        return pts;
+      })(),
+      snrAt: snrAt
+    };
+  }
+
   function evalBb(id, g) {
     var trB = bbTraitsOf(id);
     var gg = {};
@@ -2032,7 +2203,7 @@
     ANT_IDS: ANT_IDS, ANT_META: ANT_META, ANT_TRAITS: ANT_TRAITS,
     MEDIA_KEYS: MEDIA_KEYS,
     resolve: resolve, evaluate: evaluate, evalLo: evalLo, evalBb: evalBb,
-    evalAnt: evalAnt, consistency: consistency,
+    evalAnt: evalAnt, evalLink: evalLink, consistency: consistency,
 
     /* SELF-TESTS, shipped as assertions rather than as a comment claiming
        they passed once. There are exactly two ways the antenna family can
