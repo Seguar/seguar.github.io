@@ -694,9 +694,10 @@
       apertureSpecCm: res.g.apertureCm,
       onViewChange: function (z, x, y) { view.zoom = z; view.panXCm = x; view.panYCm = y; render(); }
     }, function (i) { view.selected = i; render(); });
-    void mapInfo;
-
-    window.Diagram.renderLegend(document.getElementById('mapLegend'), built);
+    /* the legend needs the LOD it was actually drawn at, or it describes
+       swatches that are not on screen */
+    window.Diagram.renderLegend(document.getElementById('mapLegend'), built,
+      mapInfo && mapInfo.lod);
     var bsel0 = res.bb[res.g.bbOptionId];
     document.getElementById('mapNote').innerHTML =
       '<strong>Scroll to zoom at the cursor, drag to pan, double-click to zoom in</strong> ' +

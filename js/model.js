@@ -1910,6 +1910,25 @@
         ' does not allow; it has been clamped to ' + g.radPerCh + '. The clamp is reported ' +
         'rather than silent because K changes the element directivity by 10log10(K).'
     });
+    if (g.radPerCh > 1) {
+      var footMm = Math.sqrt(Math.max(
+        (BLOCKS[(g.antTraits && g.antTraits.radBlockKey) || 'antPatch'] || BLOCKS.antPatch).areaMm2, 0.01));
+      var pitchMinMm = 10 * Math.min(
+        g.radKx > 1 ? g.radPitchXCm : Infinity,
+        g.radKy > 1 ? g.radPitchYCm : Infinity);
+      if (footMm > pitchMinMm + 1e-9) out.push({
+        severity: 'warn',
+        message: 'The radiator\'s isolated footprint is ' + footMm.toFixed(2) + ' mm and the pitch it is ' +
+          'being packed at is ' + pitchMinMm.toFixed(2) + ' mm, so they do not physically fit side by side. ' +
+          'This is the SAME fact that makes K close-packed radiators reach only ' +
+          g.dElDbi.toFixed(2) + ' dBi instead of the naive ' + (g.radUnitDbi + 10 * Math.log10(g.radPerCh)).toFixed(2) +
+          ' dBi: an isolated ' + g.radUnitDbi.toFixed(2) + ' dBi patch claims more area than this cell can hold. ' +
+          'The directivity already accounts for it — the pattern integral is what it is — but the FOOTPRINT ' +
+          'does not, so a real layout needs a physically smaller radiator here and its isolated directivity ' +
+          'would be lower than the parameter says. The map draws them capped to the pitch rather than ' +
+          'overlapping.'
+      });
+    }
     if (g.radPerCh > 1 && g.radPitchLam < 0.4 && !g.radSpanning) out.push({
       severity: 'warn',
       message: 'A ' + g.radPitchLam.toFixed(2) + 'λ radiator pitch is below λ/2. Crowding ' +

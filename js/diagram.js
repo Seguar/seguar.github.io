@@ -370,16 +370,24 @@
             fill: antCol, 'fill-opacity': 0.55, stroke: 'none'
           }));
         });
+        /* The port's CELL, drawn as the rectangle it actually is. This was a
+           circle sized from sqrt(ports per tile), which assumes a SQUARE
+           arrangement: under the 'row' in-tile lattice the cell is
+           3.75 x 60 mm and that circle was 3.4x too wide in x, so every
+           ring overlapped its neighbours and none of them showed the cell
+           the fill percentage is computed against. */
+        var cw = Math.max(2, (t.cellXCm || grid.tileCm) * scale);
+        var ch = Math.max(2, (t.cellYCm || grid.tileCm) * scale);
         (t.ports || []).forEach(function (p) {
-          var pr = Math.max(2, (grid.tileCm / Math.max(Math.sqrt(t.ports.length), 1)) * scale * 0.42);
-          var c = el('circle', {
-            cx: X(p.x), cy: Y(p.y), r: pr, fill: 'none',
-            stroke: antCol, 'stroke-width': 0.7, 'stroke-opacity': 0.5,
+          var c = el('rect', {
+            x: X(p.x) - cw / 2, y: Y(p.y) - ch / 2, width: cw, height: ch,
+            fill: 'none', stroke: antCol, 'stroke-width': 0.7, 'stroke-opacity': 0.45,
             'stroke-dasharray': '2 2', 'vector-effect': 'non-scaling-stroke'
           });
           if (lod.tips) c.appendChild(el('title', null,
             'tile ' + t.i + ' · port ' + p.i + ' of ' + t.ports.length + '\n' +
             'ONE controllable RF channel — one phase shifter\n' +
+            'cell ' + (t.cellXCm * 10).toFixed(2) + ' × ' + (t.cellYCm * 10).toFixed(2) + ' mm\n' +
             t.radPerPort + ' radiator' + (t.radPerPort === 1 ? '' : 's') + ' behind it, fed in fixed phase\n' +
             'the beamformer cannot see inside this cell'));
           antG.appendChild(c);
@@ -639,7 +647,7 @@
     return { svg: svg, lod: lod, visible: shown.length, zoom: Z };
   }
 
-  function renderLegend(mount, built) {
+  function renderLegend(mount, built, lod) {
     mount.textContent = '';
     var wrap = document.createElement('div');
     wrap.className = 'legend';
@@ -680,12 +688,18 @@
     /* Ports and radiators get hand-written rows beside the die row rather
        than going through glyph()/order/names, because like the die they are
        drawn as scaled geometry and not as a fixed-size block symbol. */
-    if (t0 && t0.ports && t0.ports.length) {
+    /* A legend row for something the LOD has dropped is worse than no row:
+       it tells the reader a swatch is on screen when it is not. Both rows
+       are therefore gated on lod.ants, and when the radiators are hidden
+       the row says so rather than disappearing silently. */
+    var antsDrawn = !lod || lod.ants !== false;
+    if (t0 && t0.ports && t0.ports.length && antsDrawn) {
       var pl = document.createElement('span');
       pl.className = 'li';
-      pl.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;' +
+      pl.innerHTML = '<span style="display:inline-block;width:11px;height:8px;' +
         'border:1px dashed var(--s5);opacity:.7"></span>' +
-        t0.ports.length + ' controllable ports per tile — one phase shifter each';
+        t0.ports.length + ' controllable ports per tile — one phase shifter each, ' +
+        'ring = its ' + (t0.cellXCm * 10).toFixed(1) + ' × ' + (t0.cellYCm * 10).toFixed(1) + ' mm cell';
       wrap.appendChild(pl);
 
       var al = document.createElement('span');
@@ -695,8 +709,18 @@
         (t0.radPerPort === 1
           ? 'one radiator per port, ' + (t0.radW * 10).toFixed(1) + ' mm, to scale'
           : t0.radPerPort + ' radiators per port (' + t0.rads.length + ' per tile), ' +
-            (t0.radW * 10).toFixed(1) + ' mm each, to scale — fixed feed, invisible to the beamformer');
+            (t0.radW * 10).toFixed(1) + ' mm each — fixed feed, invisible to the beamformer') +
+        (t0.radCappedToPitch
+          ? ' · drawn capped to the ' + (t0.radW * 10).toFixed(2) + ' mm pitch; the isolated footprint is ' +
+            (t0.radFootprintCm * 10).toFixed(2) + ' mm and does not fit'
+          : ', to scale');
       wrap.appendChild(al);
+    } else if (t0 && t0.ports && t0.ports.length) {
+      var hl = document.createElement('span');
+      hl.className = 'li';
+      hl.textContent = 'ports and radiators not drawn at this zoom — ' +
+        (t0.rads.length * built.grid.nTiles).toLocaleString() + ' glyphs';
+      wrap.appendChild(hl);
     }
 
     var seen = {};
