@@ -792,7 +792,7 @@
     var QAM_ORDERS = [0, 4, 16, 64, 256];
     var QAM_NAMES = ['anything that closes', 'QPSK', '16QAM', '64QAM', '256QAM'];
     var RISKS = ['low', 'medium', 'high'];
-    var OBJ_KEYS = ['margin', 'rate', 'power', 'residual', 'parts'];
+    var OBJ_KEYS = ['rate', 'headroom', 'power', 'residual', 'repeaters', 'radiators'];
     var objKey = OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'margin';
     var qi = Math.round(state.cnMinQamSel);
 
@@ -858,13 +858,14 @@
       var amta = M.ANT_META.filter(function (m) { return m.id === w.antId; })[0];
       UI.renderBudget(verdict, null, null, {
         cells: [
-          { k: isTie ? 'Tied for best' : 'Best', n: '', unit: '',
+          { k: isTie ? 'Tied for best' : 'Best',
+            n: isTie ? String(R.tied.length) : '1', unit: isTie ? 'ways' : 'winner',
             binding: isTie,
             /* renderBudget escapes its description, so this is plain text by
                design — markup here would render as literal tags. */
             d: (isTie
-              ? R.tied.length + ' combinations are tied within ' +
-                n(R.tieFrac * 100, 1) + '% on ' + obj.label.toLowerCase() + ', so this is NOT a winner — ' +
+              ? 'combinations are tied within ' +
+                n(R.tieEps, 2) + ' ' + obj.unit + ' on ' + obj.label.toLowerCase() + ', so this is NOT a winner — ' +
                 'it is the first row of a tie, and they are marked in the table below. '
               : '') +
               lm.short + ' + ' + bmta.short + ' + ' + amta.short +
@@ -934,11 +935,14 @@
        axes that genuinely oppose each other, with every survivor on them,
        so the reader can see that picking one end is a choice and not a
        calculation. */
+    /* the y axis is SNR HEADROOM, not margin: margin resets at every
+       constellation boundary, so plotting it drew a sawtooth and called it
+       a trade front */
     var pts = R.survivors.map(function (c) {
-      return { x: Math.max(c.lo.interTileResidualDeg, 1e-3), y: c.link.marginDb };
+      return { x: Math.max(c.lo.interTileResidualDeg, 1e-3), y: c.link.headroomDb };
     });
     var winner = R.survivors.length
-      ? [{ x: Math.max(R.survivors[0].lo.interTileResidualDeg, 1e-3), y: R.survivors[0].link.marginDb }] : [];
+      ? [{ x: Math.max(R.survivors[0].lo.interTileResidualDeg, 1e-3), y: R.survivors[0].link.headroomDb }] : [];
     document.getElementById('chooserPareto').textContent = '';
     if (pts.length) {
       document.getElementById('chooserPareto').appendChild(window.Charts.lineChart({
@@ -947,7 +951,7 @@
           { name: 'the one it picked', color: SERIES[0], points: winner }
         ],
         xLabel: 'inter-tile residual (°, log) — lower is a deeper null',
-        yLabel: 'link margin (dB) — higher is a better link',
+        yLabel: 'SNR headroom (dB) — higher is a better link',
         xFmt: function (v) { return v + '°'; },
         height: 280
       }));
@@ -957,11 +961,11 @@
     document.getElementById('chooserParetoNote').innerHTML =
       'Every surviving combination, on the two axes that pull against each other. ' +
       (a1c && a4c
-        ? 'The best A1 survivor sits at <span class="kv">' + n(a1c.link.marginDb, 1) +
-          ' dB</span> of margin and <span class="kv">' + n(a1c.lo.interTileResidualDeg, 2) +
-          '°</span> of residual; the best A4 at <span class="kv">' + n(a4c.link.marginDb, 1) +
-          ' dB</span> and <span class="kv">' + n(a4c.lo.interTileResidualDeg, 3) +
-          '°</span>. A1 buys ' + n(a1c.link.marginDb - a4c.link.marginDb, 1) +
+        ? 'The best A1 survivor sits at <span class="kv">' + n(a1c.link.headroomDb, 1) +
+          ' dB</span> of headroom and <span class="kv">' + n(a1c.lo.interTileResidualDeg, 2) +
+          '°</span> of residual; the best A4 at <span class="kv">' + n(a4c.link.headroomDb, 1) +
+          ' dB</span> of headroom and <span class="kv">' + n(a4c.lo.interTileResidualDeg, 3) +
+          '°</span>. A1 buys ' + n(a1c.link.headroomDb - a4c.link.headroomDb, 1) +
           ' dB of link and gives up ' + n(Math.abs(a1c.lo.sllDb - a4c.lo.sllDb), 1) +
           ' dB of null depth for it. '
         : '') +
@@ -1044,7 +1048,7 @@
     var g = res.g;
     var lo = res.lo[g.loOptionId];
     var bm = window.Beam.evaluate(g, budget, lo, res.bb[g.bbOptionId], { light: true });
-    var L = M.evalLink(g, lo, bm);
+    var L = M.evalLink(g, lo, bm, res.bb[g.bbOptionId]);
     var fmtR = function (km) { return km >= 1 ? n(km, 2) + ' km' : n(km * 1000, 0) + ' m'; };
 
     /* ---- verdict ---- */
@@ -3765,7 +3769,7 @@
           var QAM_ORDERS = [0, 4, 16, 64, 256];
           var QAM_NAMES = ['', 'QPSK', '16QAM', '64QAM', '256QAM'];
           var RISKS = ['low', 'medium', 'high'];
-          var OBJ_KEYS = ['margin', 'rate', 'power', 'residual', 'parts'];
+          var OBJ_KEYS = ['rate', 'headroom', 'power', 'residual', 'repeaters', 'radiators'];
           var qi = Math.round(state.cnMinQamSel);
           chooserResult = M.search(state, {
             objective: OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'margin',
@@ -3777,7 +3781,7 @@
             minBwGHz: state.cnMinBwGHz,
             maxRisk: RISKS[Math.round(state.cnMaxRiskSel)],
             requireFeasible: true,
-            tieFrac: state.cnTiePct / 100
+            tieEps: undefined
           }, budget);
           var ms = Math.round(performance.now() - t0);
           st.textContent = chooserResult.total + ' combinations in ' + ms + ' ms · ' +

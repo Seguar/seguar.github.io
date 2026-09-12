@@ -409,6 +409,34 @@
     'hold, precisely because an isolated patch is not truncated by neighbours. Measure a real embedded patch before ' +
     'quoting any subarray directivity from this tool.',
 
+    '### The Chooser, and what its answer rests on',
+    '- **It is the only view that names a winner, so it is the most dangerous one here.** A search over 300 ' +
+    'combinations turns a pile of confidence-tagged guesses into an answer with a name, and the name is the part ' +
+    'people repeat. Read the attrition table before the winner: which constraint killed how many, and how many it ' +
+    'killed ALONE, is usually the more useful result — "your power budget is what is stopping you" beats "take ' +
+    'this one".',
+    '- **Six inputs decide its answer and are guesses.** `linkRangeKm`, `txPoutDbm`, `implLossDb` and ' +
+    '`linkMarginReqDb` are all tagged engineering-guess, and `arrayPowerW` and the power ceiling are choices ' +
+    'rather than measurements. Every link-based objective and the headline power constraint rest on them. In ' +
+    'particular, neither source document states a per-element transmit power at all, so the EIRP the whole link ' +
+    'ranking depends on is a number this tool invented.',
+    '- **A defect worth recording, because it is exactly the failure this tool exists to refuse.** The first ' +
+    'version\'s default objective was "largest link margin", which read the margin against the constellation the ' +
+    'link ACHIEVES. That resets at every constellation boundary: measured live, 16 dBm per element gives 27.41 dB ' +
+    'of SNR carrying 64QAM at 8.80 dB of margin and 18 dBm gives 28.05 dB carrying 256QAM at 3.48 dB — better on ' +
+    'both counts and ranked LOWER. The objective systematically crowned whichever system had just failed to reach ' +
+    'the next constellation. Objectives are now required to be MONOTONE in the thing they name, and the tie window ' +
+    'is absolute and per-objective rather than a percentage of the leader, which was meaningless across quantities ' +
+    'spanning dB and degrees.',
+    '- **No objective in it scores null depth.** The constraints can bound the inter-tile residual, and one ' +
+    'objective minimises it, but nothing ranks on `sllDb` — so asking for the highest data rate returns the ' +
+    'per-tile PLL, whose null floor is 27 dB worse than the shared LO\'s. That is a correct answer to the question ' +
+    'asked and the wrong answer to the question the thesis is about. The scatter under the table exists to make ' +
+    'that visible; do not read the winner without it.',
+    '- **It searches architecture, not geometry.** Tile pitch, dies per tile, aperture, multiplier and the ' +
+    'calibration parameters are held at whatever the reader has set. It answers "which architecture, given this ' +
+    'array" and not "which array".',
+
     '### Things the model deliberately refuses to do',
     '- It does not report M1 or M2 for the baseband options. The network is after the mixer and contributes no ' +
     'carrier phase noise; a number there would be fabricated.',

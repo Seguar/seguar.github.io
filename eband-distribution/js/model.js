@@ -364,12 +364,10 @@
       choices: [{ value: 0, label: 'low only' }, { value: 1, label: 'up to medium' }, { value: 2, label: 'any' }],
       conf: 'engineering-guess', why: 'The worst risk level accepted across the LO, baseband and antenna choices. The risk labels are the model\'s own judgement, stated per option.' },
     { key: 'cnObjectiveSel', label: 'Rank the survivors by', units: '', value: 0, group: 'Search constraints',
-      choices: [{ value: 0, label: 'Largest link margin' }, { value: 1, label: 'Highest data rate' },
+      choices: [{ value: 0, label: 'Highest data rate' }, { value: 1, label: 'Most SNR headroom' },
                 { value: 2, label: 'Lowest distribution power' }, { value: 3, label: 'Lowest inter-tile residual' },
-                { value: 4, label: 'Fewest parts' }],
-      conf: 'engineering-guess', why: 'ONE objective, not a blend. The options trade gain against scan range and link EVM against beam coherence in opposite directions, so a weighted "best" would be an answer manufactured out of weights nobody chose. Change this and watch the winner change — that is the point of it.' },
-    { key: 'cnTiePct', label: 'Call it a tie within', units: '%', value: 2, min: 0, max: 25, step: 0.5, group: 'Search constraints',
-      conf: 'engineering-guess', why: 'Candidates within this fraction of the leader on the chosen objective are reported as TIED with it rather than ranked below it. Several inputs to this search are tagged engineering-guess; a search over 300 candidates cannot resolve a 1% difference and should not pretend to.' },
+                { value: 4, label: 'Fewest repeater amplifiers' }, { value: 5, label: 'Fewest radiators' }],
+      conf: 'engineering-guess', why: 'ONE objective, not a blend. The options trade gain against scan range and link EVM against beam coherence in opposite directions, so a weighted "best" would be an answer manufactured out of weights nobody chose. Change this and watch the winner change — that is the point of it. Every objective here is MONOTONE in the thing it names: an earlier "largest link margin" was not, because margin is measured against the constellation the link achieves and therefore resets at every constellation boundary, so it crowned whichever system had just failed to reach the next one. Its tie window is absolute and stated per objective, in that objective\'s own units.' },
 
     /* --- calibration --- */
     { key: 'fBistHz', label: 'BIST update rate', units: 'Hz', value: 1, min: 0.01, max: 1000, step: 0.01, group: 'Calibration',
@@ -1707,10 +1705,20 @@
      where the distribution architecture stops being an abstraction and
      starts setting a data rate.
      ------------------------------------------------------------------- */
-  function evalLink(g, loRes, beamRes) {
+  function evalLink(g, loRes, beamRes, bbRes) {
     var fGHz = g.fLoGHz;
     var dKm = g.linkRangeKm;
-    var bwHz = g.rfBwGHz * 1e9;
+    /* THE USABLE BANDWIDTH IS NOT ALWAYS THE RF BANDWIDTH. The baseband
+       network has its own −3 dB bandwidth, and a signal cannot be wider
+       than the pipe it is combined through: B2's daisy chain passes
+       0.15 GHz, so crediting it with the full 2 GHz would have let the
+       worst baseband option report the same data rate as the best. This
+       is the only place the link budget depends on the baseband choice,
+       and leaving it out made the link falsely independent of it. */
+    var bwRfHz = g.rfBwGHz * 1e9;
+    var bwBbHz = bbRes && isFinite(bbRes.bwGHz) && bbRes.bwGHz > 0 ? bbRes.bwGHz * 1e9 : Infinity;
+    var bwHz = Math.min(bwRfHz, bwBbHz);
+    var bwLimitedByBb = bwBbHz < bwRfHz;
     var pol = Math.round(g.linkPolSel) === 1 ? 'V' : 'H';
 
     /* ---- transmit ---- */
@@ -1770,10 +1778,14 @@
       if (snrEffDb >= r.snrDb + g.linkMarginReqDb && (!best || r.order > best.order)) best = r;
     });
     var bitsPerSym = best ? Math.log2(best.order) : 0;
-    /* one rail, both polarisations not assumed; the RF bandwidth is the
+    /* one rail, both polarisations not assumed; the usable bandwidth is the
        symbol bandwidth, and no excess-bandwidth factor is applied because
        the tool does not model the pulse shaping */
     var rateBps = best ? bitsPerSym * bwHz : 0;
+    /* Headroom over the LOWEST constellation, which is monotone in received
+       power — unlike the margin against the achieved constellation, which
+       resets at every boundary and would rank a better link lower. */
+    var headroomDb = req.length ? snrEffDb - (req[0].snrDb + g.linkMarginReqDb) : NaN;
     var shannonCapBps = K.shannonBps(bwHz, snrEffDb);
 
     /* margin against the modulation the ARRAY's EVM would allow if the path
@@ -1814,7 +1826,8 @@
       rainK: rc.k, rainAlpha: rc.alpha, rainGammaDbKm: rainGammaDbKm,
       rainPathFactor: rainR, rainDb: rainDb, pol: pol,
       gRxDbi: gRxDbi, prxClearDbm: prxClearDbm, prxDbm: prxDbm,
-      noiseDbm: noiseDbm, bwHz: bwHz,
+      noiseDbm: noiseDbm, bwHz: bwHz, bwRfHz: bwRfHz, bwBbHz: bwBbHz,
+      bwLimitedByBb: bwLimitedByBb, headroomDb: headroomDb,
       snrClearDb: snrClearDb, snrPathDb: snrPathDb,
       evmDbArr: evmDbArr, snrCeilDb: snrCeilDb,
       snrEffDb: snrEffDb, snrEffClearDb: snrEffClearDb, ceilingBinds: ceilingBinds,
@@ -1880,22 +1893,44 @@
 
   /* The objectives. Each names the field it reads and which way is better,
      so nothing is hidden in a comparator. */
+  /* EVERY OBJECTIVE MUST BE MONOTONE IN THE THING IT NAMES, and each carries
+     its own ABSOLUTE tie epsilon in its own units.
+
+     The first version failed both tests and it is worth recording how,
+     because it is the exact failure mode this tool exists to refuse.
+
+     "Largest link margin" read link.marginDb, which evalLink measures
+     against the constellation the link ACHIEVES. That makes it a sawtooth
+     confined to [marginReq, marginReq + one constellation step): measured
+     on the live model, 16 dBm per element gives 27.41 dB of SNR carrying
+     64QAM at 8.80 dB of margin, and 18 dBm gives 28.05 dB carrying 256QAM
+     at 3.48 dB. The second system is better on SNR and better on
+     constellation, and the objective ranked it LOWER. "Largest margin"
+     systematically crowned whichever system had just failed to reach the
+     next constellation.
+
+     A relative tie window was the same disease: 2% of a 9.67 dB margin is
+     0.19 dB, and 2% of a 0.147 deg residual is 0.003 deg — one is far too
+     loose and the other far tighter than any input to it is known. */
   var OBJECTIVES = {
-    margin:   { label: 'Largest link margin', unit: 'dB', better: 'high',
-                get: function (c) { return c.link.marginDb; },
-                why: 'How much SNR is in hand above what the achieved constellation needs, at the stated range and rain rate.' },
-    rate:     { label: 'Highest data rate', unit: 'Gb/s', better: 'high',
+    rate:     { label: 'Highest data rate', unit: 'Gb/s', better: 'high', eps: 0.01,
                 get: function (c) { return c.link.rateBps / 1e9; },
-                why: 'Bits per symbol times the RF bandwidth, for the highest constellation that closes with margin.' },
-    power:    { label: 'Lowest distribution power', unit: 'W', better: 'low',
+                why: 'Bits per symbol times the USABLE bandwidth, which is the RF bandwidth or the baseband network\'s own −3 dB bandwidth, whichever is narrower. Monotone: more SNR never lowers it. Its tie epsilon is nominal because the rate is quantised by the constellation anyway — equal rate means the same constellation.' },
+    headroom: { label: 'Most SNR headroom', unit: 'dB', better: 'high', eps: 1.0,
+                get: function (c) { return c.link.headroomDb; },
+                why: 'SNR above what the LOWEST constellation needs, including the required margin. Monotone in received power, unlike margin against the achieved constellation, which resets at every constellation boundary. Ties inside 1 dB because the per-element transmit power is an engineering guess spanning 10–15 dBm and the implementation loss allowance spans 0–8 dB; a search cannot resolve tenths against that.' },
+    power:    { label: 'Lowest distribution power', unit: 'W', better: 'low', eps: 0.5,
                 get: function (c) { return (c.lo.powerTotalMw + c.bb.powerPerTileMw * c.nTiles) / 1000; },
-                why: 'LO distribution plus baseband across the array. The antenna family draws none.' },
-    residual: { label: 'Lowest inter-tile residual', unit: '°', better: 'low',
+                why: 'LO distribution plus baseband across the array. The antenna family draws none — that is the finding, not an omission. Ties inside 0.5 W because the block library reconciles disagreeing sources (the tile multiplier is booked from 80 and 92 mW figures).' },
+    residual: { label: 'Lowest inter-tile residual', unit: '°', better: 'low', eps: 0.02,
                 get: function (c) { return c.lo.interTileResidualDeg; },
-                why: 'The phase error no calibration removes — the null-depth floor, and the spatial-multiplexing ceiling.' },
-    parts:    { label: 'Fewest parts', unit: 'blocks', better: 'low',
-                get: function (c) { return c.partCount; },
-                why: 'Repeater amplifiers plus radiators plus BIST-invisible junctions: a build-cost and yield proxy, not a price.' }
+                why: 'The phase error no calibration removes — the null-depth floor, and the spatial-multiplexing ceiling. Ties inside 0.02° because two independently built block libraries disagreed by 12 dB on additive phase noise, which the honesty ledger records.' },
+    repeaters: { label: 'Fewest repeater amplifiers', unit: 'amps', better: 'low', eps: 0.5,
+                get: function (c) { return c.lo.repeaters || 0; },
+                why: 'Every one is a separate SiGe die on the board. A build-cost and yield proxy, not a price.' },
+    radiators: { label: 'Fewest radiators', unit: 'radiators', better: 'low', eps: 0.5,
+                get: function (c) { return c.ant.nRad || 0; },
+                why: 'Metal and feed network across the panel. Separate from the amplifier count because they are different costs in different places — an earlier version blended them with an undocumented exchange rate, which is exactly what this view refuses to do elsewhere.' }
   };
 
   /* Each constraint is a named predicate so the attrition table can say
@@ -1904,8 +1939,14 @@
   function buildConstraints(q, budget) {
     var cons = [];
     if (q.requireFeasible !== false) {
-      cons.push({ key: 'feasible', label: 'Realisable in the stated technology',
-        test: function (c) { return !/beyond the technology|extreme|NOT REALISABLE/i.test(c.lo.feasibility + ' ' + c.ant.feasibility); } });
+      /* ALL THREE families, not two. The baseband verdict was being ignored,
+         so a combination whose baseband option is not realisable passed the
+         "realisable" gate. */
+      cons.push({ key: 'feasible', label: 'Realisable in the stated technology (all three families)',
+        test: function (c) {
+          return !/beyond the technology|extreme|NOT REALISABLE|not realisable/i
+            .test(c.lo.feasibility + ' ' + c.bb.feasibility + ' ' + c.ant.feasibility);
+        } });
     }
     if (isFinite(q.maxResidualDeg)) {
       cons.push({ key: 'residual', label: 'Inter-tile residual ≤ ' + q.maxResidualDeg.toFixed(2) + '°',
@@ -1970,15 +2011,15 @@
           var bbR = evalBb(bbId, g);
           /* the three-way coupling: the beam needs all of them */
           var bm = window.Beam.evaluate(g, budget, loR, bbR, { light: true });
-          var link = evalLink(g, loR, bm);
+          var link = evalLink(g, loR, bm, bbR);
           var nT = g.nTilesTotal;
           var c = {
             loId: loId, bbId: bbId, antId: pa.cfg.ant,
             radPerCh: pa.cfg.k, spanning: !!pa.cfg.span,
             g: g, lo: loR, bb: bbR, ant: pa.ant, beam: bm, link: link, nTiles: nT,
             powerPct: (loR.powerTotalMw + bbR.powerPerTileMw * nT) / (g.arrayPowerW * 1000) * 100,
-            partCount: (loR.repeaters || 0) + (pa.ant.nRad || 0) / 100 +
-              (pa.ant.blindJunctions || 0) * g.nElem / 100,
+            
+            blindJunctions: (pa.ant.blindJunctions || 0) * g.nElem,
             realisedDbi: bm.realisedDbi
           };
           cands.push(c);
@@ -2009,15 +2050,18 @@
     /* ---- ties, on the same principle decision.js already applies ----
        A search over 270 candidates built from parameters several of which
        are tagged engineering-guess cannot resolve a 1% difference. Anything
-       within tieFrac of the leader is reported as tied WITH it. */
-    var tieFrac = q.tieFrac != null ? q.tieFrac : 0.02;
+       within an absolute epsilon of the leader is reported as tied WITH it.
+       The epsilon is ABSOLUTE and belongs to the objective, in the
+       objective's own units, derived from the declared spread of the inputs
+       that dominate it. A fraction of the leader's value is meaningless
+       here: 2% of a 9.67 dB margin is 0.19 dB and 2% of a 0.147° residual
+       is 0.003°, one far looser than the inputs justify and the other far
+       tighter than anything is known to. */
+    var eps = q.tieEps != null ? q.tieEps : (obj.eps != null ? obj.eps : 0);
     var tied = [];
     if (survivors.length) {
       var topScore = survivors[0].score;
-      var scale = Math.max(Math.abs(topScore), 1e-9);
-      tied = survivors.filter(function (c) {
-        return Math.abs(c.score - topScore) / scale <= tieFrac;
-      });
+      tied = survivors.filter(function (c) { return Math.abs(c.score - topScore) <= eps; });
     }
 
     /* ---- when nothing survives, which constraint is binding, and by how
@@ -2049,7 +2093,7 @@
       candidates: cands, survivors: survivors, tied: tied,
       attrition: attrition, binding: binding, objective: obj, objectiveKey: q.objective,
       constraints: cons.map(function (c) { return c.label; }),
-      total: cands.length, tieFrac: tieFrac
+      total: cands.length, tieEps: eps
     };
   }
 
