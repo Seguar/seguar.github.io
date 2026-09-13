@@ -735,6 +735,18 @@ footer.foot a { color: var(--ink-2); }
           <div class="budget" id="mapStatsMount"></div>
         </section>
 
+        <!-- The same derived strengths-and-costs summary that Compare carries.
+             It is here as well because this is where the Compare button lands
+             you: having just asked to see the recommended build drawn, the
+             next question is what it is good and bad at, and sending the
+             reader back to the tab they came from to find out is the wrong
+             answer. -->
+        <section class="panel">
+          <h2>What this build is good and bad at <span class="tag">ranked against every other option</span>
+            <span class="grow" id="mapProsConsHdr"></span></h2>
+          <div class="body" id="mapProsConsMount"></div>
+        </section>
+
         <section class="panel">
           <h2>Hardware bill of materials <span class="tag">block counts from the drawn topology</span></h2>
           <div class="tscroll" id="bomMount"></div>
@@ -12173,6 +12185,12 @@ footer.foot a { color: var(--ink-2); }
         }
       ]
     });
+
+    /* The strengths-and-costs summary, on the map as well as on Compare.
+       render() evaluates every option (M.evaluate with no `only`), so the
+       ranking here is against the full field exactly as it is on Compare —
+       the two panels cannot disagree. */
+    renderProsCons(res, budget, 'mapProsConsMount', 'mapProsConsHdr');
   }
 
   /* =====================================================================
@@ -12988,7 +13006,7 @@ footer.foot a { color: var(--ink-2); }
       vm.appendChild(bar);
     })();
 
-    renderProsCons(res, budget);
+    renderProsCons(res, budget, 'prosConsMount', 'prosConsHdr');
 
     /* charts */
     var cc = document.getElementById('compareCharts');
@@ -15202,8 +15220,14 @@ footer.foot a { color: var(--ink-2); }
     return ['th', 'st', 'nd', 'rd'][k % 10] || 'th';
   }
 
-  function renderProsCons(res, budget) {
-    var mount = document.getElementById('prosConsMount');
+  /* Rendered into BOTH the Compare view and the Hardware map, because those
+     are the two places the question gets asked and they are different
+     questions. On Compare it is "is the thing I am about to pick any good";
+     on the map it is "what am I looking at" — and the map is where the
+     Compare button lands you, so a summary that lived only on Compare was
+     invisible at exactly the moment you had just asked to see the build. */
+  function renderProsCons(res, budget, mountId, hdrId) {
+    var mount = document.getElementById(mountId || 'prosConsMount');
     if (!mount) return;
     mount.textContent = '';
     var SPECS = prosConsSpecs(budget);
@@ -15396,7 +15420,7 @@ footer.foot a { color: var(--ink-2); }
       'beating options this tool calls unrealisable.';
     mount.appendChild(foot);
 
-    var hdr = document.getElementById('prosConsHdr');
+    var hdr = document.getElementById(hdrId || 'prosConsHdr');
     if (hdr) hdr.textContent = totalPro + ' strength' + (totalPro === 1 ? '' : 's') +
       ' · ' + totalCon + ' cost' + (totalCon === 1 ? '' : 's');
   }

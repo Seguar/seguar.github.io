@@ -149,6 +149,18 @@
           <div class="budget" id="mapStatsMount"></div>
         </section>
 
+        <!-- The same derived strengths-and-costs summary that Compare carries.
+             It is here as well because this is where the Compare button lands
+             you: having just asked to see the recommended build drawn, the
+             next question is what it is good and bad at, and sending the
+             reader back to the tab they came from to find out is the wrong
+             answer. -->
+        <section class="panel">
+          <h2>What this build is good and bad at <span class="tag">ranked against every other option</span>
+            <span class="grow" id="mapProsConsHdr"></span></h2>
+          <div class="body" id="mapProsConsMount"></div>
+        </section>
+
         <section class="panel">
           <h2>Hardware bill of materials <span class="tag">block counts from the drawn topology</span></h2>
           <div class="tscroll" id="bomMount"></div>

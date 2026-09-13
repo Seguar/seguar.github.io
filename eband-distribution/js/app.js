@@ -844,6 +844,12 @@
         }
       ]
     });
+
+    /* The strengths-and-costs summary, on the map as well as on Compare.
+       render() evaluates every option (M.evaluate with no `only`), so the
+       ranking here is against the full field exactly as it is on Compare —
+       the two panels cannot disagree. */
+    renderProsCons(res, budget, 'mapProsConsMount', 'mapProsConsHdr');
   }
 
   /* =====================================================================
@@ -1659,7 +1665,7 @@
       vm.appendChild(bar);
     })();
 
-    renderProsCons(res, budget);
+    renderProsCons(res, budget, 'prosConsMount', 'prosConsHdr');
 
     /* charts */
     var cc = document.getElementById('compareCharts');
@@ -3873,8 +3879,14 @@
     return ['th', 'st', 'nd', 'rd'][k % 10] || 'th';
   }
 
-  function renderProsCons(res, budget) {
-    var mount = document.getElementById('prosConsMount');
+  /* Rendered into BOTH the Compare view and the Hardware map, because those
+     are the two places the question gets asked and they are different
+     questions. On Compare it is "is the thing I am about to pick any good";
+     on the map it is "what am I looking at" — and the map is where the
+     Compare button lands you, so a summary that lived only on Compare was
+     invisible at exactly the moment you had just asked to see the build. */
+  function renderProsCons(res, budget, mountId, hdrId) {
+    var mount = document.getElementById(mountId || 'prosConsMount');
     if (!mount) return;
     mount.textContent = '';
     var SPECS = prosConsSpecs(budget);
@@ -4067,7 +4079,7 @@
       'beating options this tool calls unrealisable.';
     mount.appendChild(foot);
 
-    var hdr = document.getElementById('prosConsHdr');
+    var hdr = document.getElementById(hdrId || 'prosConsHdr');
     if (hdr) hdr.textContent = totalPro + ' strength' + (totalPro === 1 ? '' : 's') +
       ' · ' + totalCon + ' cost' + (totalCon === 1 ? '' : 's');
   }
