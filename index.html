@@ -167,6 +167,16 @@
           <div id="verdictMount"></div>
         </section>
 
+        <!-- Strengths and costs of the SELECTED build. Everything in it is
+             derived by ranking the selected option against the whole field on
+             the model's own metrics, so it cannot drift away from the tables
+             below it the way hand-written pros and cons would. -->
+        <section class="panel">
+          <h2>What this build is good and bad at <span class="tag">the selected build, ranked against the field</span>
+            <span class="grow" id="prosConsHdr"></span></h2>
+          <div class="body" id="prosConsMount"></div>
+        </section>
+
         <!-- 54 rows across 8 sections is the right depth for defending a
              choice and the wrong depth for understanding one, so the key view
              is the default and the full table is one click away. -->

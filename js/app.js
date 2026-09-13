@@ -190,6 +190,24 @@
     render();
   }
 
+  /* Several parameters as ONE change: one hash write and one render, so a
+     multi-key action does not push two intermediate states into the URL or
+     re-evaluate the model for a build that never existed. Returns the keys
+     that actually moved, so the caller can report the change rather than
+     claiming one that did not happen. */
+  function setParams(patch) {
+    var moved = [];
+    Object.keys(patch).forEach(function (k) {
+      if (!(k in state)) return;
+      if (Number(state[k]) === Number(patch[k])) return;
+      state[k] = patch[k];
+      if (k === 'refSel') stampRef(patch[k]);
+      moved.push(k);
+    });
+    if (moved.length) { syncHash(); render(); }
+    return moved;
+  }
+
   /* --------------------------- number formatting ------------------------- */
   function n(v, d) { return UI.num(v, d); }
   function str(v) { return (v === null || v === undefined) ? '—' : String(v); }
@@ -409,11 +427,25 @@
     container.appendChild(wrap);
   }
 
-  /* A row of compact chips for one parameter. */
+  /* A row of compact chips for one parameter.
+
+     The label and the chips go into ONE group element, not straight into the
+     container as two siblings. As siblings they were independent flex items
+     in a wrapping row, so the row could break between a label and the options
+     it names — and at 1440 px it did exactly that: "Baseband" ended line one
+     while B1-B5 began line two under the LO chips. */
   function chipRow(container, label, paramKey, choices) {
+    var grp = UI.elt('div', 'pk-grp');
     var lab = UI.elt('span', 'pk-lab', label);
-    container.appendChild(lab);
+    /* The label names a group of buttons, so say so to a screen reader as
+       well as to the eye: the chips become a labelled group rather than a
+       loose run of buttons. */
+    var labId = 'pkl_' + paramKey;
+    lab.id = labId;
+    grp.appendChild(lab);
     var row = UI.elt('div', 'pk-chips');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-labelledby', labId);
     choices.forEach(function (c) {
       var b = document.createElement('button');
       b.type = 'button';
@@ -438,7 +470,8 @@
       });
       row.appendChild(b);
     });
-    container.appendChild(row);
+    grp.appendChild(row);
+    container.appendChild(grp);
   }
 
   /* A labelled <select> for the parameters whose choices are long strings.
@@ -1554,6 +1587,79 @@
       'across both rails. ' +
       (dec.bbTied && dec.bbTied.length > 1 ? tieNote(dec.bbTied, bp)
         : 'Runner-up: ' + (dec.bbRank[1] ? dec.bbRank[1].short : '—') + '.'));
+
+    /* ------------------------------------------------------------------ *
+     * "Show me this on the board."
+     *
+     * Compare ranks options; the Hardware map is the only view that DRAWS
+     * one. Reading "A4 + B3" here and wanting to see what that actually
+     * looks like meant going to the map and re-picking both families by
+     * hand, from memory, with no confirmation you had picked the same thing
+     * the panel just recommended.
+     *
+     * TWO HONESTY CONSTRAINTS SHAPE THIS BUTTON.
+     *
+     * 1. Decision.build ranks the LO and baseband families and NOTHING
+     *    ELSE — there is no antenna ranking anywhere in it. So this applies
+     *    two families and says so; the antenna stays exactly as the reader
+     *    left it. Silently snapping family C to some "recommended" value
+     *    the model never computed would be inventing a recommendation.
+     *
+     * 2. Under a tie there IS no single recommendation, and the panel above
+     *    already leads with the reader's own option when it is one of the
+     *    tied. This applies WHAT THE PANEL SHOWS, so the button and the
+     *    text above it can never disagree — and the label says "tied" so
+     *    pressing it does not read as an endorsement.
+     * ------------------------------------------------------------------ */
+    (function () {
+      var loSame = res.g.loOptionId === lp.id;
+      var bbSame = res.g.bbOptionId === bp.id;
+      var already = loSame && bbSame;
+      var tied = (dec.loTied && dec.loTied.length > 1) || (dec.bbTied && dec.bbTied.length > 1);
+
+      var bar = UI.elt('div', 'toolbar');
+      bar.style.borderTop = '1px solid var(--rule)';
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn pri';
+      b.textContent = already
+        ? 'Show this build on the hardware map'
+        : 'Apply' + (tied ? ' the shown' : ' the recommended') + ' build and show it on the map';
+      b.title = already
+        ? 'Your current selection already is what this panel recommends — open the map to see it drawn.'
+        : 'Sets ' + (loSame ? '' : lp.short) + (!loSame && !bbSame ? ' and ' : '') +
+          (bbSame ? '' : bp.short) + ', then opens the Hardware map. The antenna arrangement is ' +
+          'left as you have it: the Decision view does not rank family C.';
+      b.addEventListener('click', function () {
+        var moved = already ? [] : setParams({
+          loOption: M.LO_IDS.indexOf(lp.id),
+          bbOption: M.BB_IDS.indexOf(bp.id)
+        });
+        /* setView does not write the hash — every other caller pairs the two
+           (see the navlink handler), and without it the address bar kept
+           `_v=compare` while the map was on screen, so the permalink reopened
+           the view you had just left. */
+        setView('map');
+        syncHash();
+        if (moved.length) {
+          X.flash('Applied ' + (loSame ? '' : lp.short) +
+            (!loSame && !bbSame ? ' + ' : '') + (bbSame ? '' : bp.short) +
+            ' — antenna left as ' + (M.ANT_META[Math.round(state.antOption)] || {}).short);
+        }
+      });
+      bar.appendChild(b);
+
+      var note = UI.elt('span', 'note');
+      note.style.cssText = 'font-size:11.5px;margin:0';
+      note.textContent = already
+        ? 'This is the build the panel recommends' + (tied ? ', one of the tied options.' : '.')
+        : 'Changes ' + [loSame ? null : 'LO → ' + lp.short, bbSame ? null : 'baseband → ' + bp.short]
+            .filter(Boolean).join(' and ') + '. The antenna stays as you set it — family C is not ranked here.';
+      bar.appendChild(note);
+      vm.appendChild(bar);
+    })();
+
+    renderProsCons(res, budget);
 
     /* charts */
     var cc = document.getElementById('compareCharts');
@@ -3698,6 +3804,272 @@
     if (box) box.value = '';
     render();
     X.flash(r.persisted ? 'Saved "' + name + '"' : 'Saved "' + name + '" (this session only — storage blocked)');
+  }
+
+  /* =====================================================================
+     STRENGTHS AND COSTS of the selected build.
+
+     A pros-and-cons list is the easiest thing in this tool to get wrong,
+     because the obvious way to build one is to write the prose by hand —
+     and hand-written prose stops being true the moment a parameter moves.
+     Every line below is DERIVED: the selected option is ranked against the
+     whole field on the same metrics the comparison tables use, and its rank
+     is what decides whether a line reads as a strength or a cost.
+
+     Three rules keep it honest:
+
+       1. A RANK IS NOT A RESULT IF THE FIELD IS FLAT. If the spread across
+          all options is under half a percent of the leader, being "best" is
+          noise, and the metric is dropped rather than credited. This is the
+          same test renderTable applies before it marks a winner, and it is
+          what stops the panel claiming a win on a row where every option is
+          identical.
+
+       2. FAILING A SPEC IS ALWAYS A COST, whatever the rank. An option can
+          be the best of six and still not meet the requirement, and
+          "best-in-field" must never read as "passes".
+
+       3. IT DESCRIBES THE SELECTED BUILD, NOT THE RECOMMENDED ONE. The
+          reader can be sitting on any combination; the panel says what THAT
+          costs. The verdict panel above it is where the recommendation
+          lives.
+     =================================================================== */
+  /* field, label, direction, formatting, and an optional spec to test. */
+  function prosConsSpecs(budget) {
+    return {
+      lo: [
+        { f: 'interTileResidualDeg', lab: 'inter-tile residual', u: '°', dec: 3, better: 'low', spec: budget.sigSpecDeg },
+        { f: 'sllDb', lab: 'null-depth floor', u: 'dB', dec: 1, better: 'low' },
+        { f: 'lossTotalDb', lab: 'distribution loss', u: 'dB', dec: 1, better: 'low' },
+        { f: 'powerFracOfArray', lab: 'share of the array power budget', u: '%', dec: 1, better: 'low' },
+        { f: 'pathImbalancePs', lab: 'path imbalance', u: 'ps', dec: 1, better: 'low' },
+        { f: 'correctionWraps', lab: 'calibration range', u: ' wraps', dec: 2, better: 'low' },
+        { f: 'calBurdenScore', lab: 'calibration burden', u: '', dec: 0, better: 'low' },
+        { f: 'areaPerTileMm2', lab: 'attributed area per tile', u: ' mm²', dec: 2, better: 'low' }
+      ],
+      bb: [
+        { f: 'squintLossDb', lab: 'squint loss', u: 'dB', dec: 3, better: 'low' },
+        { f: 'bwGHz', lab: 'baseband bandwidth', u: ' GHz', dec: 2, better: 'high' },
+        { f: 'nfPenaltyDb', lab: 'noise-figure penalty', u: 'dB', dec: 2, better: 'low' },
+        { f: 'lossTotalDb', lab: 'combine loss', u: 'dB', dec: 2, better: 'low' },
+        { f: 'powerPerTileMw', lab: 'power per tile', u: ' mW', dec: 0, better: 'low' },
+        { f: 'skewRmsPs', lab: 'skew', u: ' ps', dec: 1, better: 'low' },
+        { f: 'dieUtilPct', lab: 'worst baseband die utilisation', u: '%', dec: 1, better: 'low' }
+      ],
+      ant: [
+        { f: 'dElDbi', lab: 'element directivity', u: ' dBi', dec: 2, better: 'high' },
+        { f: 'coneMinDeg', lab: 'scan cone', u: '°', dec: 1, better: 'high' },
+        { f: 'bwGHz', lab: 'radiator bandwidth', u: ' GHz', dec: 2, better: 'high' },
+        { f: 'thinningLossDb', lab: 'thinning loss', u: 'dB', dec: 2, better: 'low' },
+        { f: 'antLossTotalDb', lab: 'antenna-side loss', u: 'dB', dec: 2, better: 'low' },
+        { f: 'blindJunctions', lab: 'in-cell feed junctions', u: '', dec: 0, better: 'low' }
+      ]
+    };
+  }
+
+  function ordinalSuffix(k) {
+    var t = k % 100;
+    if (t >= 11 && t <= 13) return 'th';
+    return ['th', 'st', 'nd', 'rd'][k % 10] || 'th';
+  }
+
+  function renderProsCons(res, budget) {
+    var mount = document.getElementById('prosConsMount');
+    if (!mount) return;
+    mount.textContent = '';
+    var SPECS = prosConsSpecs(budget);
+
+    var families = [
+      { key: 'lo', title: 'LO / reference', ids: M.LO_IDS, meta: M.LO_META, set: res.lo, cur: res.g.loOptionId },
+      { key: 'bb', title: 'Baseband', ids: M.BB_IDS, meta: M.BB_META, set: res.bb, cur: res.g.bbOptionId },
+      { key: 'ant', title: 'Antenna', ids: M.ANT_IDS, meta: M.ANT_META, set: res.ant, cur: res.g.antOptionId }
+    ];
+
+    var grid = UI.elt('div', 'chartgrid');
+    grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+
+    var totalPro = 0, totalCon = 0;
+
+    families.forEach(function (fam) {
+      var cur = fam.set[fam.cur];
+      if (!cur) return;
+      var mi = fam.ids.indexOf(fam.cur);
+      var name = (fam.meta[mi] || {}).short || fam.cur;
+
+      var pros = [], cons = [], scored = [];
+
+      SPECS[fam.key].forEach(function (s) {
+        var vals = fam.ids.map(function (id) {
+          var r = fam.set[id];
+          return r && isFinite(r[s.f]) ? r[s.f] : NaN;
+        });
+        var finite = vals.filter(isFinite);
+        var v = cur[s.f];
+        if (!isFinite(v) || finite.length < 2) return;
+
+        var lo = Math.min.apply(null, finite), hi = Math.max.apply(null, finite);
+        var span = hi - lo;
+        /* RULE 1: a flat field has no winner and no loser. */
+        var scale = Math.max(Math.abs(hi), Math.abs(lo), 1e-9);
+        if (!(span > scale * 5e-3)) return;
+
+        var better = s.better === 'high' ? hi : lo;
+        var worse = s.better === 'high' ? lo : hi;
+        var shown = n(v, s.dec) + s.u;
+        var bestTxt = n(better, s.dec) + s.u;
+        var worstTxt = n(worse, s.dec) + s.u;
+
+        /* RULE 2: a spec failure is a cost regardless of rank. */
+        if (s.spec !== undefined && isFinite(s.spec)) {
+          var ok = s.better === 'high' ? v >= s.spec : v <= s.spec;
+          if (!ok) {
+            cons.push({ lab: s.lab, val: shown,
+              why: 'misses the ' + n(s.spec, s.dec) + s.u + ' requirement' });
+            return;
+          }
+        }
+
+        /* RANK, not a percentile of the range. A percentile produced lines
+           like "path imbalance 81.3 ps — near the best, 81.3 ps behind it",
+           which is arithmetically right whenever the best value is zero and
+           reads exactly like a bug. A rank says the same thing without ever
+           printing the value twice. */
+        var N = finite.length;
+        var eps = scale * 5e-3;
+        var betterThan = finite.filter(function (x) {
+          return s.better === 'high' ? x > v + eps : x < v - eps;
+        }).length;
+        var sameAs = finite.filter(function (x) { return Math.abs(x - v) <= eps; }).length;
+        var rank = betterThan + 1;
+        var tie = sameAs > 1;
+
+        scored.push({ lab: s.lab, val: shown, rank: rank, N: N, bestTxt: bestTxt });
+
+        if (rank === 1) {
+          pros.push({ lab: s.lab, val: shown, ord: 0,
+            why: (tie ? 'tied best' : 'best') + ' of ' + N + ' — worst is ' + worstTxt });
+        } else if (rank === 2 && N >= 4) {
+          pros.push({ lab: s.lab, val: shown, ord: 1, why: '2nd of ' + N + ' — best is ' + bestTxt });
+        } else if (rank + sameAs - 1 === N) {
+          cons.push({ lab: s.lab, val: shown, ord: 0,
+            why: (tie ? 'tied worst' : 'worst') + ' of ' + N + ' — best is ' + bestTxt });
+        } else if (rank + sameAs - 1 === N - 1 && N >= 4) {
+          cons.push({ lab: s.lab, val: shown, ord: 1, why: '2nd worst of ' + N + ' — best is ' + bestTxt });
+        }
+      });
+
+      /* AN OPTION WITH NO DISADVANTAGES IS A RED FLAG, NOT A RESULT. Listing
+         only the bottom two of each field means a genuine cost that happens
+         to sit mid-table vanishes — at the defaults A4 showed six strengths
+         and nothing at all, while carrying 36.46 dB of distribution loss
+         against A1's 1.02. So when nothing ranks in the bottom two, name the
+         weakest metric anyway and give its real rank. "Third of seven" is a
+         fair thing to say; "no downsides" is not. */
+      if (!cons.length && scored.length) {
+        var weakest = scored.slice().sort(function (a, b) { return b.rank - a.rank; })[0];
+        if (weakest && weakest.rank > 1) {
+          cons.push({ lab: weakest.lab, val: weakest.val, ord: 2,
+            why: 'its weakest showing — ' + weakest.rank + ordinalSuffix(weakest.rank) +
+              ' of ' + weakest.N + ', best is ' + weakest.bestTxt });
+        }
+      }
+      /* strongest claims first, then trim: this is a SUMMARY, and the full
+         ordering is in the tables directly below. A trim is stated, never
+         silent. */
+      function trim(items) {
+        items.sort(function (a, b) { return a.ord - b.ord; });
+        if (items.length <= 4) return items;
+        var keep = items.slice(0, 4);
+        keep.push({ lab: '+' + (items.length - 4) + ' more', val: '',
+          why: 'in the tables below', plain: true });
+        return keep;
+      }
+      pros = trim(pros); cons = trim(cons);
+
+      /* the option's own stated verdict — qualitative, and the one thing here
+         that is not derived from a ranking */
+      var risk = cur.riskLevel || '';
+      var feas = cur.feasibility || '';
+
+      totalPro += pros.length; totalCon += cons.length;
+
+      var card = UI.elt('section', 'panel');
+      card.style.margin = '0';
+      var h = UI.elt('h2');
+      h.appendChild(document.createTextNode(fam.title));
+      var tg = UI.elt('span', 'tag', name);
+      h.appendChild(tg);
+      var gw = UI.elt('span', 'grow');
+      gw.appendChild(UI.elt('span', 'badge ' + (risk === 'low' ? 'pass' : risk === 'high' ? 'fail' : 'warn'),
+        risk ? risk + ' risk' : '—'));
+      h.appendChild(gw);
+      card.appendChild(h);
+
+      var body = UI.elt('div', 'body');
+      body.style.padding = '11px 13px';
+
+      function list(title, items, cls, empty) {
+        var wrap = UI.elt('div');
+        wrap.style.marginBottom = '9px';
+        var t2 = UI.elt('div');
+        t2.style.cssText = 'font:10px var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px';
+        t2.style.color = cls === 'pass' ? 'var(--pass)' : 'var(--fail)';
+        t2.textContent = title;
+        wrap.appendChild(t2);
+        if (!items.length) {
+          var e = UI.elt('div', 'note', empty);
+          e.style.cssText = 'font-size:11.5px;margin:0';
+          wrap.appendChild(e);
+          return wrap;
+        }
+        var ul = document.createElement('ul');
+        ul.style.cssText = 'margin:0;padding-left:15px;font-size:12px;color:var(--ink-2)';
+        items.forEach(function (it) {
+          var li = document.createElement('li');
+          li.style.margin = '2px 0';
+          var strong = UI.elt('strong', null, it.lab);
+          strong.style.color = 'var(--ink)';
+          li.appendChild(strong);
+          if (it.val) {
+            li.appendChild(document.createTextNode(' '));
+            li.appendChild(UI.elt('span', 'kv', it.val));
+          }
+          li.appendChild(document.createTextNode(' — ' + it.why));
+          ul.appendChild(li);
+        });
+        wrap.appendChild(ul);
+        return wrap;
+      }
+
+      body.appendChild(list('Advantages', pros, 'pass',
+        'Nothing in this family stands out as a strength at these settings.'));
+      body.appendChild(list('Disadvantages', cons, 'fail',
+        'Nothing in this family stands out as a weakness at these settings.'));
+
+      var fv = UI.elt('div', 'note');
+      fv.style.cssText = 'font-size:11.5px;margin:0;border-top:1px solid var(--rule);padding-top:8px';
+      fv.textContent = feas ? feas.charAt(0).toUpperCase() + feas.slice(1) + '.' : '';
+      body.appendChild(fv);
+
+      card.appendChild(body);
+      grid.appendChild(card);
+    });
+
+    mount.appendChild(grid);
+
+    var foot = UI.elt('p', 'note');
+    foot.style.cssText = 'margin:12px 0 0;font-size:11.5px';
+    foot.textContent = 'Derived, not written: each line ranks the SELECTED option against every option in its ' +
+      'family on the metrics the tables below use, and only the top two and bottom two of a field are listed. ' +
+      'A metric whose spread across the field is under 0.5% is dropped rather than credited — being "best" on ' +
+      'a flat row is noise. A requirement that is missed is listed as a cost whatever the rank, because ' +
+      'best-in-field does not mean it passes. The field includes every option, so a "best of 7" can still be ' +
+      'beating options this tool calls unrealisable.';
+    mount.appendChild(foot);
+
+    var hdr = document.getElementById('prosConsHdr');
+    if (hdr) hdr.textContent = totalPro + ' strength' + (totalPro === 1 ? '' : 's') +
+      ' · ' + totalCon + ' cost' + (totalCon === 1 ? '' : 's');
   }
 
   /* Load the curated shortlist as saved systems.
