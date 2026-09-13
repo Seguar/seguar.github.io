@@ -180,8 +180,29 @@ header.top nav a.on { background: var(--accent-soft); color: var(--accent); bord
 .pk-warn[open] > summary::before { transform: rotate(90deg); }
 
 .pk { display: flex; flex-direction: column; gap: 7px; }
-.pk-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pk-row-sel { gap: 12px; }
+/* Row gap is asymmetric on purpose: 8px between wrapped LINES, 20px between
+   the groups on a line. A family's label sits 6px from its own chips (see
+   .pk-grp) and 20px from the next family, so proximity alone says what
+   belongs to what — which is the only cue there is once a row wraps. */
+.pk-row { display: flex; gap: 8px 20px; align-items: center; flex-wrap: wrap; }
+.pk-row-sel { gap: 8px 14px; }
+
+/* ONE flex item per family, so a wrap can never separate a label from the
+   options it names. They used to be siblings of the row: at 1440 px the
+   "Baseband" label sat at the end of line one while its B1-B5 chips began
+   line two underneath the LO chips, so the label read as part of the LO row
+   and the chips read as unlabelled. Grouping is the fix; the gaps above are
+   what make the grouping visible. */
+/* baseline, not center: once the window is narrow enough that a family's
+   chips wrap to two or three lines inside the group, centring floats the
+   label to the middle of the block — at 375 px the "LO" label sat 81 px
+   BELOW its own first option. A baseline ties it to the first row of chips
+   at every width. */
+.pk-grp { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+/* Inside a group the label hugs its options — the 58px gutter below exists to
+   align labels in the stacked chooser rows, and here it would only push the
+   name away from the thing it names. */
+.pk-grp > .pk-lab { min-width: 0; }
 .pk-lab {
   font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em;
   color: var(--ink-3); flex: none; min-width: 58px;
