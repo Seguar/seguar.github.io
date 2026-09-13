@@ -3996,14 +3996,21 @@
           why: 'in the tables below', plain: true });
         return keep;
       }
+      /* COUNT BEFORE TRIMMING. The header summarises how many strengths and
+         costs were FOUND, not how many lines survived the cut — and trim()
+         appends a "+N more" placeholder, so counting afterwards both
+         under-reported the real total and counted that placeholder as a
+         strength. At the defaults that printed "13 strengths" over a list
+         holding 12 real ones and a "+2 more", a number contradicting the
+         list directly beneath it. */
+      totalPro += pros.length; totalCon += cons.length;
+
       pros = trim(pros); cons = trim(cons);
 
       /* the option's own stated verdict — qualitative, and the one thing here
          that is not derived from a ranking */
       var risk = cur.riskLevel || '';
       var feas = cur.feasibility || '';
-
-      totalPro += pros.length; totalCon += cons.length;
 
       var card = UI.elt('section', 'panel');
       card.style.margin = '0';
