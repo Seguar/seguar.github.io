@@ -811,6 +811,14 @@
       return {
         id: id, nCh: nCh, levels: 1, hops: nCh, links: links, nodes: nodes, W: W, H: H,
         bom: bomOf([
+          /* The per-channel weight is NOT optional here. B1, B3, B4 and B5 all
+             book one vector modulator per channel per rail; B2 booked none,
+             which made it look like the cheapest option in the comparison by a
+             factor of three. A daisy chain still has to apply the beamforming
+             weight before the channel reaches the shared bus — there is no
+             arrangement in which the control point disappears — so the
+             omission was a BOM defect, not a design statement. */
+          ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA, ahead of the tap'],
           ['bbTap', nCh * 2, 'one tap per channel per rail (I and Q)'],
           ['bbRootAmp', 2, 'one root amplifier per rail']
         ]),
@@ -861,14 +869,21 @@
       nodes.push({ type: 'serdes', x: serX, y: H / 2, label: 'SerDes' });
       links.push({ x1: serX, y1: H / 2, x2: W - 14, y2: H / 2, kind: 'digital' });
       nodes.push({ type: 'out', x: W - 10, y: H / 2, label: 'lanes to RFSoC' });
+      /* The tileSerdes block is priced PER LANE, so the count has to be the
+         lane count the converters actually demand — not a placeholder 1 each
+         way. At 10 bits and 2.5 GS/s the two rails need 51.56 Gb/s, which is
+         3 lanes of 25, so this books 6 rather than 2 and B5's serial link
+         triples its die area. Same kernel as the power model. */
+      var serLanes = window.K.serdesLanes(g.adcBits, g.adcGspsPerRail);
       return {
         id: id, nCh: nCh, levels: 1, hops: 1, links: links, nodes: nodes, W: W, H: H,
+        lanesPerDir: serLanes,
         bom: bomOf([
           ['tiaSum', 2, 'one summing amplifier per rail ahead of the converter'],
           ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA'],
           ['tileAdc', 2, 'one ADC per rail — power computed from the converter FOM parameters, not from this entry'],
           ['tileDac', 2, 'one DAC per rail, TX direction'],
-          ['tileSerdes', 2, 'serial lanes to the backend, both directions'],
+          ['tileSerdes', serLanes * 2, serLanes + ' serial lane' + (serLanes === 1 ? '' : 's') + ' each way to the backend'],
           ['bbDecap', 2, 'supply decoupling for the converters and the SerDes']
         ]),
         note: 'The analog inter-tile tier does not exist: the tile combines, digitises and sends bits. ' +

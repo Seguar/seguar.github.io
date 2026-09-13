@@ -22,6 +22,7 @@
     sys: {
       diffOnly: false, deltaMode: false, baseline: null,
       renaming: null, confirmDelete: null, confirmClear: false, shared: [],
+      confirmShortlist: false,
       excluded: {}
     }
   };
@@ -58,6 +59,20 @@
      16.8 dB change would be presented as a faithful restore. Migrating
      first is the only way that stays honest. Returns the keys it moved so
      the caller can say so. */
+  /* The size of the Chooser's space, derived exactly as search() derives it:
+     the two option families times the antenna configurations that survive
+     screening. NEVER a literal — it was hard-coded as 300 in two places
+     against a live 350, so the page could show both numbers at once, and the
+     antenna count moves whenever a kAllowed set or a consistency rule
+     changes. Module scope because both the pre-search prompt and the run
+     handler need it. */
+  function spaceSize() {
+    try {
+      var kept = window.Model.searchAntConfigs(state);
+      return window.Model.LO_IDS.length * window.Model.BB_IDS.length * kept.keep.length;
+    } catch (e) { return null; }
+  }
+
   function migrateRawState(raw) {
     var moved = [];
     if (raw && Math.round(parseFloat(raw.elemModelSel)) === 2) {
@@ -66,6 +81,26 @@
       raw.radPerCh = 64;
       raw.radSpanPitch = 1;       /* spanning: nulls on the reciprocal lattice */
       moved.push('elemModelSel=2 (retired "cell-filling nulled") → C3 cluster, K=64, spanning');
+    }
+    /* chPerTile was a free slider; it is now DERIVED from the 1:1 baseband
+       pairing as bbIqChPerDie × dies per tile. A link carrying the old key
+       would otherwise be dropped by the `k in DEFAULTS` filter and come back
+       silently at the new default — the same "faithful restore that is not
+       faithful" hazard that retiring elemModelSel=2 had. Convert it instead,
+       so an old system reproduces its own numbers, and SAY SO. The old 32
+       against 4 dies restores as 8 IQ channels per die, which is the
+       full-duplex reading; the consistency check then explains why that
+       needs two baseband dies per RFIC die rather than one. */
+    if (raw && raw.chPerTile !== undefined && raw.bbIqChPerDie === undefined) {
+      var oldCh = Math.round(parseFloat(raw.chPerTile));
+      var dies = Math.max(1, Math.round(parseFloat(raw.tapsPerTile) || DEFAULTS.tapsPerTile || 4));
+      if (isFinite(oldCh) && oldCh > 0) {
+        var perDie = Math.max(1, Math.min(16, Math.round(oldCh / dies)));
+        raw.bbIqChPerDie = perDie;
+        moved.push('chPerTile=' + oldCh + ' (retired free slider) → ' + perDie +
+          ' IQ channels per baseband die × ' + dies + ' dies = ' + (perDie * dies) + ' per tile');
+      }
+      delete raw.chPerTile;
     }
     return moved;
   }
@@ -561,6 +596,23 @@
        stays open. */
     var wm = document.getElementById('warnMount');
     wm.textContent = '';
+    /* A MIGRATION THAT NOBODY IS TOLD ABOUT IS A SILENT STATE CHANGE, which is
+       the exact failure migrateRawState exists to prevent. view.migrated has
+       been populated since the elemModelSel retirement and rendered nowhere,
+       so a restored link quietly came back as a different system. Show it. */
+    if (view.migrated && view.migrated.length) {
+      var mb = document.createElement('div');
+      mb.className = 'callout warnc';
+      mb.style.margin = '0 0 9px';
+      var mbHead = document.createElement('strong');
+      mbHead.textContent = 'Restored from an older link: ';
+      mb.appendChild(mbHead);
+      /* textContent, not innerHTML: every value in here is parsed out of the
+         URL hash, and a hash is input from wherever it came. */
+      mb.appendChild(document.createTextNode(view.migrated.join('; ') +
+        '. The numbers below are this system’s own, not the current defaults.'));
+      wm.appendChild(mb);
+    }
     var warns = res.warnings || [];
     var hard = warns.filter(function (w) { return w.severity === 'fail'; });
     if (warns.length) {
@@ -778,12 +830,24 @@
           actually needed: not "take this one" but "your power budget is
           what is stopping you".
        3. IT REPORTS TIES AS TIES. Several inputs are tagged
-          engineering-guess; a search over 300 candidates cannot resolve a
-          1% difference and must not pretend to.
+          engineering-guess; a search this size cannot resolve a 1%
+          difference and must not pretend to.
 
-     The search runs behind a button because it is ~3 s — 300 candidates,
-     each needing its own beam evaluation because the coherence loss is a
-     genuine three-way function of the LO, baseband and antenna choices.
+     The search runs behind a button because it is ~3 s — each candidate
+     needs its own beam evaluation, because the coherence loss is a genuine
+     three-way function of the LO, baseband and antenna choices.
+
+     THE SIZE OF THE SPACE IS DERIVED, NEVER TYPED. Two strings here used to
+     say "300" while the live space was 350, so the page could show both
+     numbers at once. spaceSize() below computes it the same way search()
+     does, and adding an LO option or an antenna configuration moves every
+     mention of it at once.
+
+     WHAT THIS VIEW CANNOT DO, and why the curated shortlist lives in
+     Systems instead: search() holds `state` fixed and varies only the three
+     option axes. Every candidate it returns therefore shares ONE tile
+     pitch, ONE RF bandwidth, ONE medium and ONE converter FOM. A comparison
+     across RF bandwidth is not expressible here at all.
      ===================================================================== */
   var chooserResult = null;
 
@@ -836,8 +900,11 @@
     document.getElementById('chooserRankedBy').textContent =
       chooserResult ? (M.OBJECTIVES[chooserResult.objectiveKey] || {}).label : '';
 
+
     if (!chooserResult) {
-      verdict.innerHTML = '<p class="note">Press <strong>Search the space</strong>. It evaluates 300 ' +
+      var n0 = spaceSize();
+      verdict.innerHTML = '<p class="note">Press <strong>Search the space</strong>. It evaluates ' +
+        (n0 === null ? 'every' : n0) + ' ' +
         'combinations, each with its own beam evaluation, and takes about three seconds — which is why ' +
         'it does not run on every keystroke.</p>';
       document.getElementById('chooserAttrition').textContent = '';
@@ -2872,7 +2939,13 @@
       var f = e.flat;
       var archTd = UI.elt('td', null, f.arch_lo + ' + ' + f.arch_bb);
       archTd.style.textAlign = 'left';
-      archTd.appendChild(UI.elt('small', null, f.arch_ref + ' · ' + n(e.state.tileCm, 2) + ' cm tiles · ' + n(f.g_nTilesTotal, 0) + ' tiles'));
+      /* The stylesheet only makes a <small> a block inside a .mn cell, and
+         this cell is not one — so the reference name ran straight on from the
+         baseband name with no separator ("B3 H-tree activeRFSoC CLK104").
+         Set it here, beside the textAlign this cell already sets inline. */
+      var archSub = UI.elt('small', null, f.arch_ref + ' · ' + n(e.state.tileCm, 2) + ' cm tiles · ' + n(f.g_nTilesTotal, 0) + ' tiles');
+      archSub.style.display = 'block';
+      archTd.appendChild(archSub);
       tr.appendChild(archTd);
 
       var ov = SYS.overrides(rec, DEFAULTS);
@@ -3245,6 +3318,25 @@
     tbtn('Copy link to this set', 'A permalink that carries every saved system', function () {
       X.copy(setPermalink(), 'Comparison-set link');
     });
+    /* The curated shortlist. It lives in Systems rather than in the Chooser
+       because the Chooser cannot vary a parameter — only the three option
+       axes — so a comparison across RF BANDWIDTH is not expressible there.
+       Each entry is a sparse override on today's defaults, so the set tracks
+       the model as the model improves; once loaded, each becomes an ordinary
+       saved system holding its own full state. */
+    if (window.Shortlist) {
+      var nSl = window.Shortlist.count();
+      if (view.sys.confirmShortlist) {
+        tbtn('Replace all ' + nSaved + ' with the shortlist?',
+          'Click again to delete every saved system and load the ' + nSl + ' curated ones',
+          function () { loadShortlist(); }, 'pri');
+      } else {
+        tbtn('Load the realistic shortlist (' + nSl + ')',
+          nSl + ' curated architectures spanning the LO, baseband, antenna and RF-bandwidth axes, ' +
+          'each chosen to demonstrate something no other one does',
+          function () { loadShortlist(); });
+      }
+    }
     if (nSaved) {
       if (view.sys.confirmClear) {
         tbtn('Delete all ' + nSaved + '?', 'Click again to delete every saved system', function () {
@@ -3608,6 +3700,56 @@
     X.flash(r.persisted ? 'Saved "' + name + '"' : 'Saved "' + name + '" (this session only — storage blocked)');
   }
 
+  /* Load the curated shortlist as saved systems.
+
+     It REPLACES rather than appends, and says so, because appending nine
+     systems onto an existing roster silently blows the 12-system limit and
+     leaves the reader with a truncated comparison that looks complete. The
+     confirm step is the same two-press idiom "Clear all" already uses.
+
+     Each entry's sparse override is applied over TODAY'S DEFAULTS and then
+     through clampParam, so an entry that has drifted out of a parameter's
+     legal range is snapped and the snap is reported — never silently
+     accepted. The option indices themselves are resolved by name inside
+     shortlist.js, which throws rather than remapping if an option table has
+     been reordered. */
+  function loadShortlist() {
+    if (!window.Shortlist) return;
+    var items;
+    try { items = window.Shortlist.list(); }
+    catch (e) { X.flash('Shortlist could not be built: ' + e.message); return; }
+
+    if (SYS.count() && !view.sys.confirmShortlist) {
+      view.sys.confirmShortlist = true;
+      render();
+      return;
+    }
+    view.sys.confirmShortlist = false;
+
+    SYS.clear();
+    var clampedAny = [];
+    items.forEach(function (it) {
+      var st = {};
+      Object.keys(DEFAULTS).forEach(function (k) { st[k] = DEFAULTS[k]; });
+      Object.keys(it.over).forEach(function (k) {
+        if (!(k in DEFAULTS)) {
+          clampedAny.push(it.id + ': unknown parameter "' + k + '"');
+          return;
+        }
+        var v = clampParam(k, it.over[k]);
+        if (v !== it.over[k]) clampedAny.push(it.id + ': ' + k + ' ' + it.over[k] + ' → ' + v);
+        st[k] = v;
+      });
+      var lm = M.LO_META[Math.round(st.loOption)] || {};
+      var bm = M.BB_META[Math.round(st.bbOption)] || {};
+      SYS.save(it.name, st, { lo: lm.id || '', bb: bm.id || '', note: it.demonstrates });
+    });
+    render();
+    X.flash(clampedAny.length
+      ? 'Loaded ' + items.length + ' systems, ' + clampedAny.length + ' value(s) clamped: ' + clampedAny[0]
+      : 'Loaded the ' + items.length + '-system shortlist');
+  }
+
   /* ------------------------------- routing ------------------------------- */
   function setView(name) {
     view.name = name;
@@ -3635,6 +3777,7 @@
     if (name !== 'systems') {
       view.sys.confirmDelete = null;
       view.sys.confirmClear = false;
+      view.sys.confirmShortlist = false;
       view.sys.renaming = null;
     }
     render();
@@ -3777,7 +3920,8 @@
     b.addEventListener('click', function () {
       var st = document.getElementById('chooserStatus');
       b.disabled = true;
-      st.textContent = 'searching 300 combinations…';
+      var nSp = spaceSize();
+      st.textContent = 'searching ' + (nSp === null ? 'the space' : nSp + ' combinations') + '…';
       /* yield a frame so the status actually paints before the block */
       setTimeout(function () {
         var t0 = performance.now();

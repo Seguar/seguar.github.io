@@ -28,6 +28,11 @@
 
   var C0 = 299792458;            /* m/s */
   var DEG = 180 / Math.PI;
+  /* Serial lane rate the tileSerdes block is priced at. A JESD204C/GTY-class
+     lane in a mature node; both the lane COUNT and the block's area and power
+     are quoted against this figure, so it belongs beside the block library's
+     assumption rather than as a bare literal inside evalBb. */
+  var SERDES_LANE_GBPS = 25;
 
   /* ------------------------------- units -------------------------------- */
   function db2lin(db) { return Math.pow(10, db / 10); }        /* power ratio */
@@ -520,6 +525,26 @@
   }
   function peakFactor(n) { return Math.sqrt(2 * Math.log(Math.max(n, 2))); }
 
+  /* ------------------------------------------------------------------ *
+   * B5 serial link sizing. Two rails (I and Q) at `bits` resolution and
+   * `gspsPerRail` samples per second, carried with 64b/66b line coding.
+   * ONE DIRECTION.
+   *
+   * These live here rather than inline in evalBb because the BOM in
+   * topology.js needs the same lane count that the power model uses, and
+   * the tileSerdes block is priced PER LANE. When the two disagreed the
+   * BOM booked 2 lanes while the model computed 3, so B5's SerDes area was
+   * under-counted threefold — in the one family where die area is the
+   * argument. A shared kernel is the only way that stays true.
+   * ------------------------------------------------------------------ */
+  function serdesLaneGbps(bits, gspsPerRail) {
+    return 2 * Math.max(bits, 1) * Math.max(gspsPerRail, 0) * (66 / 64);
+  }
+  function serdesLanes(bits, gspsPerRail, laneRateGbps) {
+    var rate = laneRateGbps > 0 ? laneRateGbps : SERDES_LANE_GBPS;
+    return Math.max(1, Math.ceil(serdesLaneGbps(bits, gspsPerRail) / rate));
+  }
+
   /* Random errors in S segments in series accumulate as sqrt(S).
      A daisy chain additionally accumulates the MEAN hop delay linearly. */
   function seriesRandom(perSegment, nSegments) { return perSegment * Math.sqrt(Math.max(nSegments, 0)); }
@@ -819,6 +844,8 @@
     driftResidualDeg: driftResidualDeg, optimalUpdatePeriodS: optimalUpdatePeriodS,
     quantResidualDeg: quantResidualDeg, quantResidualPs: quantResidualPs,
     rss: rss, peakFactor: peakFactor, seriesRandom: seriesRandom,
+    SERDES_LANE_GBPS: SERDES_LANE_GBPS,
+    serdesLaneGbps: serdesLaneGbps, serdesLanes: serdesLanes,
     thermalDriftDegPerK: thermalDriftDegPerK,
     bbSkewDegAtEdge: bbSkewDegAtEdge, bbRampSteerDeg: bbRampSteerDeg,
     activeTreeNoiseFactor: activeTreeNoiseFactor, treeNoisePenaltyDb: treeNoisePenaltyDb,

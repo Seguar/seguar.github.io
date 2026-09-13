@@ -387,7 +387,9 @@
     'inside the proposal\'s own 5–10 cm sub-tiling range. The tool previously opened on 4 cm, which is below that ' +
     'range, fits 7×7 = 49 tiles across only 28 cm, strands 2 dies, and costs 2.2 dB of distribution loss and ' +
     '6.7 W. Everything the pitch touches — tiles, taps, channels, elements, the in-tile lattice — moves with it, ' +
-    'so `tapsPerTile` and `chPerTile` are defaulted to match rather than left to disagree with it.',
+    'so `tapsPerTile` is defaulted to match rather than left to disagree with it — and the baseband channel ' +
+    'count is no longer defaulted at all, because it is now DERIVED from the 1:1 baseband pairing rather than ' +
+    'typed in beside it.',
     '- **The architecture defaults are the model\'s own ranking, checked rather than assumed.** A4 leads the LO ' +
     'ranking by 0.17 on a 0–1 score and holds that lead across every aperture from 10 to 60 cm, every tile pitch ' +
     'from 2 to 10 cm and every multiplier from ×2 to ×8 the tool can be set to. That is a result.',
@@ -430,9 +432,42 @@
     'hold, precisely because an isolated patch is not truncated by neighbours. Measure a real embedded patch before ' +
     'quoting any subarray directivity from this tool.',
 
+    '### The nine-system shortlist, and the null result it exists to show',
+    '- **The LO family does not move the link, and more bandwidth makes it move less.** Measured across all ' +
+    'seven LO options at C1 / B3 / 2 GHz: the same 4.00 Gb/s every time, and a headroom spread of `0.088 dB` — ' +
+    'while the inter-tile residual spans `0.147°` to `3.139°`, a 21× range. A 3.1° RMS phase error is about ' +
+    '0.013 dB of coherence loss, so the link genuinely cannot see it. The spread SHRINKS as the channel widens: ' +
+    '`0.72 dB` at 0.25 GHz, `0.088` at 2 GHz, `0.045` at 4 GHz. **Anyone ranking LO options by link margin is ' +
+    'measuring this tool\'s own noise floor.** The LO choice is decided on coherence against the 5° spec, on ' +
+    'calibration burden, on power and on risk — which is what the Decision view already weights, and why its ' +
+    'ranking is right even though it puts A1 last while A1 returns the best headroom in the set.',
+    '- **The same axis separates the BASEBAND family by about 20 dB.** Headroom spread across the five baseband ' +
+    'options is `25.15 dB` at 0.25 GHz and `19.54 dB` from 1 GHz up, and the achievable rates genuinely differ — ' +
+    'at 4 GHz B3 reaches 7 Gb/s, B4 5, B5 2, and B1 and B2 do not close the link at all. RF bandwidth is a ' +
+    'baseband question wearing an RF label: the baseband option sets both the bandwidth ceiling and the loss that ' +
+    'eats the noise budget underneath it.',
+    '- **What actually buys throughput is the antenna.** One change from C1 to a 1×4 cross-scan column takes ' +
+    'element directivity 6 → `11.15 dBi` and steps the link from QPSK to 16QAM — `4.00 → 8.00 Gb/s`, headroom ' +
+    '`2.84 → 10.95 dB`. That is `8.11 dB` from one antenna decision against `0.088 dB` from the entire LO family. ' +
+    'It costs the scan cone, and it cannot touch the in-scan grating lobe.',
+    '- **The set lives in Systems, not in the Chooser, and that is forced rather than chosen.** `search()` holds ' +
+    'the parameter state fixed and varies only the three option axes, so all 350 of its candidates share one tile ' +
+    'pitch, one RF bandwidth, one medium and one converter FOM. A comparison across RF bandwidth is not ' +
+    'expressible there. A saved system is a whole parameter state, so it is.',
+    '- **The bandwidth ladder is the regulator\'s, not a set of round numbers.** ITU-R F.2006 and ECC-REC-(05)07 ' +
+    'build every E-band channel from a 250 MHz elementary block; 2000 MHz is the widest single channel any ' +
+    'shipping radio offers; 4000 MHz exists only as 2 × 2000 by carrier aggregation. One consequence is worth ' +
+    'keeping: at the 16 channels the 1:1 pairing forces, B2\'s derived bandwidth is `4/16 = 0.250 GHz` exactly — ' +
+    'the elementary channel — where at 32 it sat below its own 0.15 GHz clamp and the formula never evaluated at ' +
+    'all. The constraint brought a dead formula back to life, and B2 still fails, on inter-tile geometry rather ' +
+    'than on bandwidth: a serial chain spreads path delay `1872 ps` beyond the TTD\'s `866 ps` range.',
+    '- **One row is included because it FAILS.** B5 books 6.67 mm² per tile against a 25 mm² budget — 27%, ' +
+    'comfortable, and completely misleading, because under 1:1 the tile is four separate dies and the converter ' +
+    'complex cannot be split across them. It is the only entry whose lesson is a floorplan.',
+
     '### The Chooser, and what its answer rests on',
-    '- **It is the only view that names a winner, so it is the most dangerous one here.** A search over 300 ' +
-    'combinations turns a pile of confidence-tagged guesses into an answer with a name, and the name is the part ' +
+    '- **It is the only view that names a winner, so it is the most dangerous one here.** A search over every ' +
+    'combination turns a pile of confidence-tagged guesses into an answer with a name, and the name is the part ' +
     'people repeat. Read the attrition table before the winner: which constraint killed how many, and how many it ' +
     'killed ALONE, is usually the more useful result — "your power budget is what is stopping you" beats "take ' +
     'this one".',
