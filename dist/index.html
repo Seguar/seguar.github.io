@@ -1087,6 +1087,7 @@ footer.foot a { color: var(--ink-2); }
 
 
 
+
 <script>
 /* ===== js/glossary.js ===== */
 /* ============================================================================
@@ -2502,6 +2503,11 @@ footer.foot a { color: var(--ink-2); }
 
   var C0 = 299792458;            /* m/s */
   var DEG = 180 / Math.PI;
+  /* Serial lane rate the tileSerdes block is priced at. A JESD204C/GTY-class
+     lane in a mature node; both the lane COUNT and the block's area and power
+     are quoted against this figure, so it belongs beside the block library's
+     assumption rather than as a bare literal inside evalBb. */
+  var SERDES_LANE_GBPS = 25;
 
   /* ------------------------------- units -------------------------------- */
   function db2lin(db) { return Math.pow(10, db / 10); }        /* power ratio */
@@ -2994,6 +3000,26 @@ footer.foot a { color: var(--ink-2); }
   }
   function peakFactor(n) { return Math.sqrt(2 * Math.log(Math.max(n, 2))); }
 
+  /* ------------------------------------------------------------------ *
+   * B5 serial link sizing. Two rails (I and Q) at `bits` resolution and
+   * `gspsPerRail` samples per second, carried with 64b/66b line coding.
+   * ONE DIRECTION.
+   *
+   * These live here rather than inline in evalBb because the BOM in
+   * topology.js needs the same lane count that the power model uses, and
+   * the tileSerdes block is priced PER LANE. When the two disagreed the
+   * BOM booked 2 lanes while the model computed 3, so B5's SerDes area was
+   * under-counted threefold — in the one family where die area is the
+   * argument. A shared kernel is the only way that stays true.
+   * ------------------------------------------------------------------ */
+  function serdesLaneGbps(bits, gspsPerRail) {
+    return 2 * Math.max(bits, 1) * Math.max(gspsPerRail, 0) * (66 / 64);
+  }
+  function serdesLanes(bits, gspsPerRail, laneRateGbps) {
+    var rate = laneRateGbps > 0 ? laneRateGbps : SERDES_LANE_GBPS;
+    return Math.max(1, Math.ceil(serdesLaneGbps(bits, gspsPerRail) / rate));
+  }
+
   /* Random errors in S segments in series accumulate as sqrt(S).
      A daisy chain additionally accumulates the MEAN hop delay linearly. */
   function seriesRandom(perSegment, nSegments) { return perSegment * Math.sqrt(Math.max(nSegments, 0)); }
@@ -3293,6 +3319,8 @@ footer.foot a { color: var(--ink-2); }
     driftResidualDeg: driftResidualDeg, optimalUpdatePeriodS: optimalUpdatePeriodS,
     quantResidualDeg: quantResidualDeg, quantResidualPs: quantResidualPs,
     rss: rss, peakFactor: peakFactor, seriesRandom: seriesRandom,
+    SERDES_LANE_GBPS: SERDES_LANE_GBPS,
+    serdesLaneGbps: serdesLaneGbps, serdesLanes: serdesLanes,
     thermalDriftDegPerK: thermalDriftDegPerK,
     bbSkewDegAtEdge: bbSkewDegAtEdge, bbRampSteerDeg: bbRampSteerDeg,
     activeTreeNoiseFactor: activeTreeNoiseFactor, treeNoisePenaltyDb: treeNoisePenaltyDb,
@@ -4561,6 +4589,14 @@ footer.foot a { color: var(--ink-2); }
       return {
         id: id, nCh: nCh, levels: 1, hops: nCh, links: links, nodes: nodes, W: W, H: H,
         bom: bomOf([
+          /* The per-channel weight is NOT optional here. B1, B3, B4 and B5 all
+             book one vector modulator per channel per rail; B2 booked none,
+             which made it look like the cheapest option in the comparison by a
+             factor of three. A daisy chain still has to apply the beamforming
+             weight before the channel reaches the shared bus — there is no
+             arrangement in which the control point disappears — so the
+             omission was a BOM defect, not a design statement. */
+          ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA, ahead of the tap'],
           ['bbTap', nCh * 2, 'one tap per channel per rail (I and Q)'],
           ['bbRootAmp', 2, 'one root amplifier per rail']
         ]),
@@ -4611,14 +4647,21 @@ footer.foot a { color: var(--ink-2); }
       nodes.push({ type: 'serdes', x: serX, y: H / 2, label: 'SerDes' });
       links.push({ x1: serX, y1: H / 2, x2: W - 14, y2: H / 2, kind: 'digital' });
       nodes.push({ type: 'out', x: W - 10, y: H / 2, label: 'lanes to RFSoC' });
+      /* The tileSerdes block is priced PER LANE, so the count has to be the
+         lane count the converters actually demand — not a placeholder 1 each
+         way. At 10 bits and 2.5 GS/s the two rails need 51.56 Gb/s, which is
+         3 lanes of 25, so this books 6 rather than 2 and B5's serial link
+         triples its die area. Same kernel as the power model. */
+      var serLanes = window.K.serdesLanes(g.adcBits, g.adcGspsPerRail);
       return {
         id: id, nCh: nCh, levels: 1, hops: 1, links: links, nodes: nodes, W: W, H: H,
+        lanesPerDir: serLanes,
         bom: bomOf([
           ['tiaSum', 2, 'one summing amplifier per rail ahead of the converter'],
           ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA'],
           ['tileAdc', 2, 'one ADC per rail — power computed from the converter FOM parameters, not from this entry'],
           ['tileDac', 2, 'one DAC per rail, TX direction'],
-          ['tileSerdes', 2, 'serial lanes to the backend, both directions'],
+          ['tileSerdes', serLanes * 2, serLanes + ' serial lane' + (serLanes === 1 ? '' : 's') + ' each way to the backend'],
           ['bbDecap', 2, 'supply decoupling for the converters and the SerDes']
         ]),
         note: 'The analog inter-tile tier does not exist: the tile combines, digitises and sends bits. ' +
@@ -4976,10 +5019,10 @@ footer.foot a { color: var(--ink-2); }
        Power is computed from the converter FOM parameters rather than
        frozen here, because the whole argument about this option turns on
        those numbers; these entries carry only the fixed overheads. */
-    tileAdc:        { name: 'Tile ADC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.9, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only. Power is NOT taken from here — it is computed as FOM · 2^bits · fs from the adcFomFjConv, adcBits and adcGspsPerRail parameters, so the reader can move the assumption that decides the option. The area is the fixed cost: ~0.9 mm² for a 2–3 GS/s pipelined or time-interleaved SAR in a mature node, which is most of a tile die.' },
-    tileDac:        { name: 'Tile DAC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.6, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only, TX direction. Same treatment as the ADC: power from the FOM parameters, area fixed here.' },
-    tileSerdes:     { name: 'SerDes lane to the backend', tech: '65nm LP CMOS', freqGHz: 25, powerMw: 0, gainDb: 0, areaMm2: 0.35, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'B5 only. Power computed from serdesMwPerGbps × the lane rate the converters demand. A 25 Gb/s JESD204C/GTY-class lane is routine in a mature node but is a serious addition to a tile that today carries only analog IQ.' },
-    tiaSum:         { name: 'Virtual-ground summing TIA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 28, gainDb: 0, areaMm2: 0.035, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B4 only. ONE transimpedance amplifier per rail per tile holding the summing node at a virtual ground, replacing the N−1 cell cascade of B3. Higher power than a single H-tree cell (18 mW) because it must hold a low impedance against the whole summing-node capacitance, but there is one of it instead of fifteen.' },
+    tileAdc:        { tileSingleton: true, name: 'Tile ADC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.9, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only. Power is NOT taken from here — it is computed as FOM · 2^bits · fs from the adcFomFjConv, adcBits and adcGspsPerRail parameters, so the reader can move the assumption that decides the option. The area is the fixed cost: ~0.9 mm² for a 2–3 GS/s pipelined or time-interleaved SAR in a mature node, which is most of a tile die.' },
+    tileDac:        { tileSingleton: true, name: 'Tile DAC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.6, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only, TX direction. Same treatment as the ADC: power from the FOM parameters, area fixed here.' },
+    tileSerdes:     { tileSingleton: true, name: 'SerDes lane to the backend', tech: '65nm LP CMOS', freqGHz: 25, powerMw: 0, gainDb: 0, areaMm2: 0.35, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'B5 only. Power computed from serdesMwPerGbps × the lane rate the converters demand. A 25 Gb/s JESD204C/GTY-class lane is routine in a mature node but is a serious addition to a tile that today carries only analog IQ.' },
+    tiaSum:         { tileSingleton: true, name: 'Virtual-ground summing TIA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 28, gainDb: 0, areaMm2: 0.035, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B4 only. ONE transimpedance amplifier per rail per tile holding the summing node at a virtual ground, replacing the N−1 cell cascade of B3. Higher power than a single H-tree cell (18 mW) because it must hold a low impedance against the whole summing-node capacitance, but there is one of it instead of fifteen.' },
     loSplit78:      { name: 'E-band 1:2 splitter', tech: 'RO3003 GCPW, on board', freqGHz: 78, powerMw: 0, gainDb: -3.5, areaMm2: 0.96, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'A PCB Wilkinson at 78 GHz is 0.8 dB better than on-chip, but every junction adds a mechanical discontinuity and an unrepeatable phase offset.' },
     loAmp78:        { name: 'E-band repeater amplifier', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 45, gainDb: 12, areaMm2: 0.08, addPnFloorDbc: -152, addPnCornerHz: 2e5, conf: 'published-literature', why: 'Gain stage needed every few centimetres of E-band line. Each one is a separate SiGe die on the board — it cannot live in the 65nm tile.' },
     ebandTransition:{ name: 'E-band board/package transition', tech: 'packaging', freqGHz: 78, powerMw: 0, gainDb: -0.9, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'Each E-band transition costs loss and, worse, an unrepeatable phase offset.' },
@@ -5009,10 +5052,10 @@ footer.foot a { color: var(--ink-2); }
     bbActiveCell:   { name: 'Baseband active combine cell', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 1.5, gainDb: 0, areaMm2: 0.004, nfDb: 12, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Current-summing cell for a DC–1 GHz rail. Both libraries independently gave ≈1.5 mW — far cheaper than a per-cell guess suggests, because power follows total load capacitance, not cell count.' },
     bbVectorMod:    { name: 'IQ vector modulator + VGA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 6, gainDb: 0, areaMm2: 0.03, nfDb: 14, conf: 'scaled-estimate', why: 'Per-channel baseband phase/amplitude weight — the beamforming control point, and where a static LO phase offset is corrected. 32 per tile per rail dominates the tile power.' },
     bbResistor:     { name: 'Resistive network arm', tech: '65nm poly resistor', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.0008, conf: 'scaled-estimate', why: 'Essentially free in area and perfectly stable — the passive network’s main virtue.' },
-    bbRootAmp:      { name: 'Baseband root amplifier', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 25, gainDb: 18, areaMm2: 0.02, nfDb: 10, conf: 'scaled-estimate', why: 'Recovers the passive network loss and drives the RFSoC ADC input.' },
+    bbRootAmp:      { tileSingleton: true, name: 'Baseband root amplifier', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 25, gainDb: 18, areaMm2: 0.02, nfDb: 10, conf: 'scaled-estimate', why: 'Recovers the passive network loss and drives the RFSoC ADC input.' },
     bbTap:          { name: 'Baseband bus tap', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 2, gainDb: -0.4, areaMm2: 0.002, conf: 'scaled-estimate', why: 'Its input capacitance is what collapses the daisy chain’s bandwidth as N grows.' },
-    bbTxDriver:     { name: 'Baseband TX-direction driver', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 60, gainDb: 12, areaMm2: 0.03, conf: 'scaled-estimate', why: 'One driver fighting the whole tree plus N pad capacitances. The passive network’s hidden cost.' },
-    bbDecap:        { name: 'Supply decoupling', tech: '65nm MOM/MOS cap', freqGHz: 0, powerMw: 0, gainDb: 0, areaMm2: 0.27, conf: 'scaled-estimate', why: 'Sized for the active cells’ current ripple. Usually the real area cost, not the cells.' }
+    bbTxDriver:     { tileSingleton: true, name: 'Baseband TX-direction driver', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 60, gainDb: 12, areaMm2: 0.03, conf: 'scaled-estimate', why: 'One driver fighting the whole tree plus N pad capacitances. The passive network’s hidden cost.' },
+    bbDecap:        { tileSingleton: true, name: 'Supply decoupling', tech: '65nm MOM/MOS cap', freqGHz: 0, powerMw: 0, gainDb: 0, areaMm2: 0.27, conf: 'scaled-estimate', why: 'Sized for the active cells’ current ripple. Usually the real area cost, not the cells.' }
   };
 
   /* ===================================================================== *
@@ -5053,8 +5096,12 @@ footer.foot a { color: var(--ink-2); }
       conf: 'measured/datasheet', why: '≈100 existing 2.5 × 2.5 mm E-band dies. Tile pitch, taps per tile and this total are independent inputs that can disagree, so the tool checks them against each other rather than letting the mismatch pass silently.' },
     { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
       conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At the 6 cm pitch 5×5 = 25 tiles fit and the 100-die inventory divides exactly: 25 × 4 = 100 placed, none stranded, no die-population gain loss. Four dies lay out as a 2×2 quad on one matched 1:4 split. At the earlier 4 cm pitch it was floor(100/49) = 2 dies per tile — 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB.' },
-    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 32, min: 2, max: 64, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 4 dies per tile that is 32, and 25 × 32 = 800 per rail. This is NOT a free parameter: it has to track the LO taps per tile, because both count the same dies.' },
+    { key: 'bbIqChPerDie', label: 'IQ channels per baseband die', units: '-', value: 4, min: 1, max: 16, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: 'THE BASEBAND PAIRING, and it REPLACES the old free "BB channels per tile" slider. One baseband die per RFIC die — 1:1, structural, not a coincidence to be checked afterwards — and the baseband die carries this many IQ channels against the RFIC die\'s 4 real RF channels per direction. At the default the two match exactly: 4 IQ channels serve 4 RF channels, so channels per tile is 4 dies × 4 = 16 and is DERIVED, never entered. The old slider let 32 be typed against a geometry that could only support 16, and nothing complained. Note what 1:1 forces: 4 IQ channels cannot serve 4 RX AND 4 TX simultaneously, so the array is half-duplex — which is the same assumption the antenna family already made by defaulting to shared radiators behind a T/R switch, now finally stated in the baseband too. Raising this above 4 does not break the pairing, but it packs more channels into the same 2.5 × 2.5 mm, and the die-utilisation check is what tells you whether they fit.' },
+    { key: 'bbDieMm', label: 'Baseband die edge', units: 'mm', value: 2.5, min: 1, max: 6, step: 0.1, group: 'Baseband',
+      conf: 'measured/datasheet', why: 'The square baseband die in TSMC 65 nm LP, matching the RFIC die it pairs with. 2.5 × 2.5 mm = 6.25 mm² is what is realistic in this process for 4 IQ channels, which sets the area budget every baseband option has to fit: 4 dies × 6.25 = 25 mm² per tile. This is the constraint the tool previously did not book at all — areaPerTileMm2 was computed, displayed with better:"low", and compared against nothing.' },
+    { key: 'bbDieUtilMaxPct', label: 'Max baseband die utilisation', units: '%', value: 70, min: 30, max: 100, step: 5, group: 'Baseband',
+      conf: 'engineering-guess', why: 'Core utilisation a mixed-signal die can actually reach once the pad ring, seal ring, routing channels and power grid are placed. 70% is already aggressive for a die carrying high-speed I/O; digital-only standard-cell blocks reach higher, and a converter-heavy floorplan reaches less. It is a guess, and it is the number that decides whether B5 survives the pairing — move it and watch.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
     { key: 'elemDirDbi', label: 'UNIT radiator directivity', units: 'dBi', value: 6, min: 0, max: 12, step: 0.5, group: 'Array & band',
@@ -5703,6 +5750,43 @@ footer.foot a { color: var(--ink-2); }
     g.nElem = g.nTilesTotal * g.elemPerTile;
     g.portsPerTile = g.elemPerTile;
     g.nPorts = g.nElem;
+
+    /* ---------------------------------------------------------------- *
+     * THE BASEBAND PAIRING — one baseband die per RFIC die, 1:1.
+     *
+     * This used to be a free slider reading 32 while the geometry could
+     * only support 16, and nothing in the tool compared the two. It is now
+     * DERIVED, so the disagreement cannot be typed in.
+     *
+     * The old 32 was not simply wrong: it counted BOTH DIRECTIONS
+     * (4 dies × (4 RX + 4 TX)), while the port count counts one. Both
+     * numbers were right about different things and neither said which,
+     * which is the worst way for two numbers to disagree. Under 1:1 the
+     * question is settled by the hardware: a baseband die with 4 IQ
+     * channels cannot serve 4 RX and 4 TX at the same moment, so the array
+     * is HALF-DUPLEX and the channel count is the one-direction count.
+     * That is not a new assumption — the antenna family already defaults
+     * to shared radiators behind a T/R switch, which is half-duplex at the
+     * aperture. It is the same assumption, finally applied to the
+     * baseband as well.
+     *
+     * "Rail" throughout this tool means I or Q, never a direction: every
+     * baseband BOM multiplies the channel count by 2 for the two rails.
+     * ---------------------------------------------------------------- */
+    g.bbDiesPerTile = g.diesPerTile;            /* 1:1 — structural, not checked */
+    g.bbIqChPerDie = Math.max(1, Math.round(g.bbIqChPerDie));
+    g.chPerTile = g.bbDiesPerTile * g.bbIqChPerDie;
+    g.bbDieAreaMm2 = g.bbDieMm * g.bbDieMm;
+    g.bbDieBudgetMm2 = g.bbDiesPerTile * g.bbDieAreaMm2;
+    g.bbDiesTotal = g.nTilesTotal * g.bbDiesPerTile;
+    /* Area the pairing spends per IQ channel. The user's anchor is 4 channels
+       on a 2.5 mm die, i.e. 1.5625 mm² each; packing more into the same die
+       is what the utilisation check has to catch. */
+    g.bbAreaPerIqChMm2 = g.bbDieAreaMm2 / g.bbIqChPerDie;
+    /* Does the baseband channel count match the RF channel count it pairs
+       with? At bbIqChPerDie = chPerDiePerDir it is exactly 1:1 per channel,
+       not merely 1:1 per die. */
+    g.bbChMatchesRf = g.bbIqChPerDie === g.chPerDiePerDir;
 
     /* ---- the radiator lattice inside one port cell ---- */
     var antTr = antTraitsOf(g.antOptionId);
@@ -6958,8 +7042,27 @@ footer.foot a { color: var(--ink-2); }
   /* Each constraint is a named predicate so the attrition table can say
      which one killed what, rather than reporting a count of survivors and
      leaving the reader to guess. */
-  function buildConstraints(q, budget) {
+  function buildConstraints(q, budget, g0) {
     var cons = [];
+    /* THE BASEBAND PAIRING IS GEOMETRY, NOT A PREFERENCE, so this constraint
+       is not behind a query flag. Under 1:1 the tile's baseband is
+       bbDiesPerTile separate dies, and a per-tile singleton cannot be sawn
+       across them: it lands whole on one die together with that die's own
+       share of the per-channel blocks. B5 stacks the entire converter and
+       SerDes complex that way and reaches 95% core utilisation of a 6.25 mm²
+       die, so it is EXCLUDED here rather than merely scored badly — a
+       floorplan that does not close is not a worse option, it is not an
+       option. Everything else sits between 4.7% and 9.3% and never notices
+       this constraint exists. */
+    if (g0) {
+      cons.push({
+        key: 'bbdie',
+        label: 'Baseband fits the ' + g0.bbDieMm.toFixed(1) + ' mm die at ≤ ' +
+          g0.bbDieUtilMaxPct.toFixed(0) + '% utilisation',
+        test: function (c) { return c.bb.dieFits !== false; },
+        distanceOf: function (c) { return c.bb.dieUtilPct - g0.bbDieUtilMaxPct; }, unit: '%'
+      });
+    }
     if (q.requireFeasible !== false) {
       /* ALL THREE families, not two. The baseband verdict was being ignored,
          so a combination whose baseband option is not realisable passed the
@@ -7047,7 +7150,9 @@ footer.foot a { color: var(--ink-2); }
     });
 
     /* ---- attrition: which constraint killed how many ---- */
-    var cons = buildConstraints(q, budget);
+    /* the die-budget params do not vary across the search, so one resolve is
+       enough to label the constraint */
+    var cons = buildConstraints(q, budget, resolve(state));
     var attrition = cons.map(function (cn) { return { key: cn.key, label: cn.label, killed: 0, soleKill: 0 }; });
     var survivors = [];
     cands.forEach(function (c) {
@@ -7059,7 +7164,10 @@ footer.foot a { color: var(--ink-2); }
     });
 
     /* ---- rank the survivors by the one chosen objective ---- */
-    var obj = OBJECTIVES[q.objective] || OBJECTIVES.margin;
+    /* OBJECTIVES.margin has not existed since the sawtooth fix renamed it to
+       `headroom`, so this fallback was dead: an unrecognised objective threw
+       on `.get` instead of degrading. Fall back to one that exists. */
+    var obj = OBJECTIVES[q.objective] || OBJECTIVES.headroom;
     survivors.forEach(function (c) { c.score = obj.get(c); });
     survivors = survivors.filter(function (c) { return isFinite(c.score); });
     survivors.sort(function (a, b) {
@@ -7249,13 +7357,28 @@ footer.foot a { color: var(--ink-2); }
     var squintLossDb = K.squintLossDb(skewRmsPs * 1e-12, g.rfBwGHz * 1e9);
 
     /* ---- power / area, per tile, BOTH rails ---- */
+    /* The per-tile TOTAL is not the binding number once the baseband is four
+       separate dies. A block whose count scales with the channel count
+       distributes evenly across them; a per-tile SINGLETON cannot be sawn in
+       four, so it lands whole on ONE die along with that die's own share of
+       the per-channel blocks. The worst die is what has to fit 6.25 mm², and
+       for B5 that is the entire converter and SerDes complex. Splitting the
+       BOM this way is the only way the tool can see the difference between
+       "1.3 mm² spread over four dies" and "5.95 mm² stacked on one". */
     var powerPerTileMw = 0, areaPerTileMm2 = 0;
+    var areaSingletonMm2 = 0, areaDistributedMm2 = 0;
     (bb.bom || []).forEach(function (b) {
       var blk = BLOCKS[b.blockKey];
       if (!blk) return;
       powerPerTileMw += blk.powerMw * b.count;
-      areaPerTileMm2 += (blk.areaMm2 || 0) * b.count;
+      var a = (blk.areaMm2 || 0) * b.count;
+      areaPerTileMm2 += a;
+      if (blk.tileSingleton) areaSingletonMm2 += a; else areaDistributedMm2 += a;
     });
+    var nBbDies = Math.max(1, g.bbDiesPerTile);
+    var worstDieAreaMm2 = areaSingletonMm2 + areaDistributedMm2 / nBbDies;
+    var dieUtilPct = 100 * worstDieAreaMm2 / Math.max(g.bbDieAreaMm2, 1e-9);
+    var dieFits = dieUtilPct <= g.bbDieUtilMaxPct;
     /* B5: the converters and the serial link dominate, and their power is
        computed from the exposed FOM parameters rather than frozen in the
        block library — the whole argument about this option turns on those
@@ -7270,8 +7393,11 @@ footer.foot a { color: var(--ink-2); }
       var fsHz = g.adcGspsPerRail * 1e9;
       var perConvMw = g.adcFomFjConv * 1e-15 * Math.pow(2, g.adcBits) * fsHz * 1e3;
       convMw = perConvMw * 4;                     /* I+Q rails x (ADC + DAC) */
-      laneGbps = 2 * g.adcBits * fsHz / 1e9 * (66 / 64);   /* 64b/66b overhead, RX */
-      lanes = Math.max(1, Math.ceil(laneGbps / 25));
+      /* Same kernel the BOM uses to COUNT the lanes, so the area the tile
+         books and the power it burns describe one serial link rather than
+         two different ones. */
+      laneGbps = K.serdesLaneGbps(g.adcBits, g.adcGspsPerRail);
+      lanes = K.serdesLanes(g.adcBits, g.adcGspsPerRail);
       serdesMw = g.serdesMwPerGbps * laneGbps * 2;         /* both directions */
       powerPerTileMw += convMw + serdesMw;
     }
@@ -7309,6 +7435,9 @@ footer.foot a { color: var(--ink-2); }
       powerTotalMw: powerTotalMw, powerPerTileMw: powerPerTileMw,
       powerFracOfArray: powerTotalMw / (g.arrayPowerW * 1000) * 100,
       areaPerTileMm2: areaPerTileMm2, bwGHz: bwGHz, iip3PenaltyDb: iip3PenaltyDb,
+      areaSingletonMm2: areaSingletonMm2, areaDistributedMm2: areaDistributedMm2,
+      worstDieAreaMm2: worstDieAreaMm2, dieUtilPct: dieUtilPct, dieFits: dieFits,
+      bbDiesPerTile: nBbDies, lanesPerDir: bb.lanesPerDir || 0,
       driftDegPerK: driftDegPerK,
       calBurdenScore: nCh, calBurdenDetail: nCh + ' per-channel baseband weights per rail; group delay must be ' +
         'measured with a two-tone or swept baseband loopback, since a single-tone phase measurement cannot ' +
@@ -7325,7 +7454,7 @@ footer.foot a { color: var(--ink-2); }
    * independent inputs, so they can disagree without anything failing —
    * which is worse than an error. Surfaced rather than silently tolerated.
    * =================================================================== */
-  function consistency(g) {
+  function consistency(g, bbRes) {
     var out = [];
 
     if (!g.aperturePitchExact) {
@@ -7361,6 +7490,57 @@ footer.foot a { color: var(--ink-2); }
           g.diePopGainDb.toFixed(2) + ' dB of array gain against a fully populated aperture. ' +
           (g.nDies % g.nTilesTotal === 0 ? '' : 'An exact fit is not possible at this tile count: ' +
             g.nDies + ' / ' + g.nTilesTotal + ' = ' + (g.nDies / g.nTilesTotal).toFixed(2) + ' dies per tile.')
+      });
+    }
+
+    /* ---- the baseband die pairing ---- */
+    /* Only checkable with a baseband result in hand, so callers that have one
+       pass it and callers that do not simply skip this check rather than
+       getting a wrong answer. searchAntConfigs deliberately passes nothing:
+       it varies only the antenna, and a failing baseband option would
+       otherwise drop every antenna configuration for an unrelated reason. */
+    if (bbRes && isFinite(bbRes.dieUtilPct)) {
+      var util = bbRes.dieUtilPct, lim = g.bbDieUtilMaxPct;
+      if (util > lim) {
+        out.push({
+          severity: 'fail',
+          message: 'The baseband does not fit its own silicon. One baseband die per RFIC die means ' +
+            g.bbDiesPerTile + ' dies of ' + g.bbDieMm.toFixed(1) + ' × ' + g.bbDieMm.toFixed(1) +
+            ' mm per tile, and a per-tile singleton cannot be spread across them — ' +
+            bbRes.areaSingletonMm2.toFixed(2) + ' mm² of it lands whole on ONE die, plus that die\'s ' +
+            (bbRes.areaDistributedMm2 / g.bbDiesPerTile).toFixed(2) + ' mm² share of the per-channel blocks, ' +
+            'giving ' + bbRes.worstDieAreaMm2.toFixed(2) + ' mm² against ' + g.bbDieAreaMm2.toFixed(2) +
+            ' mm² available: ' + util.toFixed(1) + '% core utilisation against a ' + lim.toFixed(0) +
+            '% ceiling, before the pad ring, the seal ring and the routing channels. The per-tile TOTAL of ' +
+            bbRes.areaPerTileMm2.toFixed(2) + ' mm² fits the ' + g.bbDieBudgetMm2.toFixed(1) +
+            ' mm² budget comfortably, which is exactly why a per-tile figure cannot see this. Escaping it ' +
+            'means a fifth die per tile carrying the shared blocks, and that is the 1:1 pairing broken.'
+        });
+      } else if (util > lim * 0.8) {
+        out.push({
+          severity: 'warn',
+          message: 'The baseband uses ' + util.toFixed(1) + '% of one ' + g.bbDieMm.toFixed(1) +
+            ' mm die against a ' + lim.toFixed(0) + '% ceiling — ' + bbRes.worstDieAreaMm2.toFixed(2) +
+            ' mm² on the die carrying the ' + bbRes.areaSingletonMm2.toFixed(2) +
+            ' mm² of per-tile singletons. Tight, not yet impossible.'
+        });
+      }
+    }
+    if (!g.bbChMatchesRf) {
+      out.push({
+        severity: 'warn',
+        message: 'The pairing is 1:1 by die but not by channel: ' + g.bbIqChPerDie + ' IQ baseband channels ' +
+          'against ' + g.chPerDiePerDir + ' real RF channels per direction on the die they pair with. ' +
+          (g.bbIqChPerDie > g.chPerDiePerDir
+            ? 'The surplus baseband channels have nothing to connect to, and they are being charged ' +
+              'area and power: ' + g.bbAreaPerIqChMm2.toFixed(3) + ' mm² per IQ channel against the ' +
+              (g.bbDieAreaMm2 / g.chPerDiePerDir).toFixed(3) + ' mm² the matched case allows. ' +
+              (g.bbIqChPerDie === 2 * g.chPerDiePerDir
+                ? 'At exactly 2× this is the old full-duplex reading — 4 RX plus 4 TX — which needs two ' +
+                  'baseband dies per RFIC die and so is the 1:1 pairing broken, not satisfied.'
+                : '')
+            : 'Some RF channels have no baseband behind them, so the port count the beam model uses is ' +
+              'not the count the baseband can actually weight.')
       });
     }
 
@@ -7509,7 +7689,7 @@ footer.foot a { color: var(--ink-2); }
     }
     return {
       g: g, lo: lo, bb: bb, ant: ant, selected: selected, partial: only,
-      blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g)
+      blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g, bb[g.bbOptionId])
     };
   }
 
@@ -7964,6 +8144,242 @@ footer.foot a { color: var(--ink-2); }
     resolveState: resolveState, overrides: overrides, differingKeys: differingKeys,
     evaluated: evaluated, dropCache: dropCache, stateKey: stateKey,
     encodeSet: encodeSet, decodeSet: decodeSet
+  };
+})();
+
+/* ===== js/shortlist.js ===== */
+/* ============================================================================
+   shortlist.js — nine realistic architectures, curated, for side-by-side
+   comparison in the Systems view.
+
+   WHY THIS IS NOT THE CHOOSER. search() in model.js holds the parameter state
+   fixed and varies only the three OPTION axes, so every one of its 350
+   candidates shares one tile pitch, one RF bandwidth, one medium and one
+   converter FOM. A comparison ACROSS RF BANDWIDTH is not expressible there at
+   all. A saved system is a whole parameter state, so it is — which is why the
+   shortlist loads into Systems rather than becoming a twelfth view.
+
+   WHY NINE AND NOT THE WHOLE SPACE. The space is 350 combinations before the
+   bandwidth axis multiplies it. Nothing is learned by ranking 1750 rows; the
+   question a candidacy committee asks is "which handful would you build, and
+   what does each one teach". Every entry below earns its place by
+   demonstrating something NO OTHER entry demonstrates, and that claim is
+   written down next to it so it can be argued with.
+
+   THE TWO RESULTS THE SET EXISTS TO SHOW, both measured rather than asserted:
+
+     1. THE LO FAMILY IS A NULL RESULT ON THE LINK. Across all seven LO
+        options at C1/B3/2 GHz the link returns the same 4.00 Gb/s and a
+        headroom spread of 0.088 dB, while the inter-tile residual spans
+        0.147° to 3.139° — a 21x spread that the link cannot see, because a
+        3.1° RMS phase error is about 0.013 dB of coherence loss. Worse, the
+        spread SHRINKS as the channel widens: 0.72 dB at 0.25 GHz, 0.088 at
+        2 GHz, 0.045 at 4 GHz. The LO choice is decided on coherence,
+        calibration burden, power and risk. It is not decided on throughput,
+        and a comparison that ranks LO options by link margin is measuring
+        its own noise floor.
+
+     2. THE SAME BANDWIDTH AXIS SEPARATES THE BASEBAND FAMILY BY ~20 dB.
+        Headroom spread across the five baseband options is 25.15 dB at
+        0.25 GHz and 19.54 dB from 1 GHz up, and the achievable rates
+        genuinely differ — at 4 GHz B3 delivers 7 Gb/s, B4 5, B5 2, and B1
+        and B2 do not close the link at all. So RF bandwidth is a BASEBAND
+        question wearing an RF label.
+
+   THE BANDWIDTH LADDER is the real E-band channel plan, not round numbers:
+   ITU-R F.2006 and ECC-REC-(05)07 build every channel from a 250 MHz
+   elementary block, 2000 MHz is the widest single channel any shipping radio
+   offers, and 4000 MHz exists only by carrier aggregation of 2 x 2000.
+
+   Each entry stores a SPARSE override on today's defaults, deliberately: the
+   shortlist should track the model as the model improves, the way a permalink
+   does. A saved system stores a full state and does not move. Both behaviours
+   are correct for their purpose; the Systems view says which one it is
+   looking at.
+
+   Exposes window.Shortlist.
+   ========================================================================= */
+(function () {
+  'use strict';
+
+  /* Option indices, resolved by NAME at load time rather than hard-coded, so
+     that reordering LO_META / BB_META / ANT_META can never silently turn one
+     architecture into a different one. clampParam snaps an out-of-range index
+     to the NEAREST legal value without reporting it, which is exactly how a
+     reordered table would rewrite this list into plausible nonsense. */
+  function idx(list, id) {
+    var i = list.indexOf(id);
+    if (i < 0) throw new Error('shortlist.js: no option "' + id + '" — the option tables have changed ' +
+      'and this entry must be revisited, not silently remapped.');
+    return i;
+  }
+
+  function build() {
+    var M = window.Model;
+    var LO = M.LO_IDS, BB = M.BB_IDS, ANT = M.ANT_IDS;
+
+    function S(lo, bb, ant, k, span, bw, extra) {
+      var o = {
+        loOption: idx(LO, lo), bbOption: idx(BB, bb), antOption: idx(ANT, ant),
+        radPerCh: k, rfBwGHz: bw
+      };
+      if (span !== null) o.radSpanPitch = span;
+      if (extra) Object.keys(extra).forEach(function (x) { o[x] = extra[x]; });
+      return o;
+    }
+
+    return [
+      {
+        id: 'anchor',
+        name: 'Anchor — A4 / B3 / 1 patch, 2 GHz',
+        over: S('mid-mult', 'h-tree-active', 'single-patch', 1, null, 2),
+        demonstrates: 'That the die constraint is invisible to every analog option.',
+        why: 'The tool’s own default pick, at the widest single channel a shipping E-band radio ' +
+          'offers. It is the reference every other row is read against: QPSK, 4.00 Gb/s, 2.84 dB of ' +
+          'headroom, 0.147° of inter-tile residual against a 5° spec, and 8.6% of one baseband ' +
+          'die. The 1:1 pairing costs it nothing at all — which is the point. A constraint that ' +
+          'bites everything is a modelling error; this one bites exactly one option.'
+      },
+      {
+        id: 'lo-null',
+        name: 'LO null result — A4 / B3 / 1×4 col, 2 GHz',
+        over: S('mid-mult', 'h-tree-active', 'cross-column', 4, 0, 2),
+        demonstrates: 'That the seven-option LO family is a null result on the link, and that what ' +
+          'actually moves throughput is the antenna.',
+        why: 'Identical to the anchor except for four patches per channel across the scan plane. ' +
+          'Element directivity goes 6 → 11.15 dBi, the array reaches 31.63 dBi, and the link steps ' +
+          'from QPSK to 16QAM: 4.00 → 8.00 Gb/s, headroom 2.84 → 10.95 dB. One antenna change is ' +
+          'worth 8.11 dB where the entire LO family is worth 0.088. Compare this row against the ' +
+          'anchor and against row 3, and the shape of the whole trade is on one screen.'
+      },
+      {
+        id: 'pll-tension',
+        name: 'Ranked last, best link — A1 / B3 / 1×4, 2 GHz',
+        over: S('local-pll', 'h-tree-active', 'cross-column', 4, 0, 2),
+        demonstrates: 'That the tool’s weighted ranking and its throughput point in opposite ' +
+          'directions, and why the ranking is still right.',
+        why: 'A1 finishes LAST of seven on the Decision score — 0.2700 against A4’s 0.7433 — ' +
+          'while returning the HIGHEST link headroom in the whole set at 11.38 dB. Both are true. The ' +
+          'ranking weights coherence, calibration burden, power and risk; A1’s 3.139° residual is ' +
+          'the worst here and eats 63% of the 5° spec, but 3.139° RMS is only about 0.013 dB of ' +
+          'coherence loss, so the link never notices. Anyone who picks an LO on link margin picks this ' +
+          'one. That is the trap this row exists to spring.'
+      },
+      {
+        id: 'current-mode',
+        name: 'Current-mode — A4 / B4 / 1 patch, 2 GHz',
+        over: S('mid-mult', 'current-mode', 'single-patch', 1, null, 2),
+        demonstrates: 'That the constraint’s cost to B4 is power and physics, never area.',
+        why: 'B4 is the anchor’s co-leader — 0.8612 against B3’s 0.8719, inside the 0.02 tie ' +
+          'epsilon, so the tool reports a tie rather than a winner. A virtual ground removes B1’s ' +
+          'division loss entirely (0.911 dB against 12.952) and collapses the cascade to one stage. It ' +
+          'uses 9.3% of a die, the most of any analog option, and that is still nothing. What it ' +
+          'actually pays is 2.5 GHz of summing-node bandwidth — a fixed assumption about the TIA, ' +
+          'not a curve the model recomputes — which is what caps it at 5 Gb/s when B3 reaches 7.'
+      },
+      {
+        id: 'overflow',
+        name: 'OVERFLOW — A4 / B5 digital tile, 1 GHz',
+        over: S('mid-mult', 'digital-tile', 'single-patch', 1, null, 1),
+        demonstrates: 'The 6.25 mm² trap: the only row in the set that fails, and it fails on ' +
+          'floorplan rather than on any number the tool used to report.',
+        why: 'INCLUDED BECAUSE IT FAILS. Its per-tile baseband area is 6.67 mm² against a 25 mm² ' +
+          'budget — 27%, comfortable, and completely misleading. Under 1:1 the tile is four separate ' +
+          'dies and the converter complex cannot be sawn across them: 5.71 mm² of per-tile singletons ' +
+          'land whole on ONE die plus its own 0.24 mm² share, giving 95.2% core utilisation before the ' +
+          'pad ring, the seal ring and the ~20 high-speed SerDes pads. Narrowing the channel cannot ' +
+          'rescue it, because B5’s area is bandwidth-invariant. Escaping it needs a fifth die per ' +
+          'tile, which is the pairing broken. It also takes 54.8% of the array power budget.'
+      },
+      {
+        id: 'top-rung',
+        name: 'Top rung — A4 / B1 / board radiator, 4 GHz',
+        over: S('mid-mult', 'passive-50', 'board-radiator', 1, null, 4),
+        demonstrates: 'That area is not what is scarce: the option with the emptiest die is the one ' +
+          'that loses the link.',
+        why: 'The only honest 4 GHz row in the space, and every substitution in it is forced rather ' +
+          'than chosen. 4 GHz exists only as 2 × 2000 MHz carrier aggregation, and B1 is the only ' +
+          'baseband whose bandwidth reaches 4.0 GHz unclipped — B3 clips to 3.5, B4 to 2.5, B5 to 1.0. ' +
+          'It uses 5.7% of a die, the emptiest in the set, and pays 12.95 dB of net resistive division ' +
+          'loss for the privilege, leaving 3.09 dB of headroom. C4 is required because a package patch ' +
+          'covers 4% fractional bandwidth and 71–86 GHz is 15 GHz wide.'
+      },
+      {
+        id: 'elementary',
+        name: 'Elementary channel — A4 / B2 daisy, 0.25 GHz',
+        over: S('mid-mult', 'bb-daisy', 'single-patch', 1, null, 0.25),
+        demonstrates: 'A constraint that creates an option while the geometry destroys it anyway — ' +
+          'the only row where two effects run in opposite directions.',
+        why: 'The pairing is what makes this row expressible: at 16 channels B2’s derived bandwidth ' +
+          'is 4/16 = 0.250 GHz EXACTLY, the ITU-R F.2006 elementary channel, where at 32 it sat below ' +
+          'its own 0.15 GHz clamp and the formula never evaluated. The constraint also gave B2 6.40 dB ' +
+          'of loss back. And it still does not close the link: headroom −13.75 dB, no constellation ' +
+          'at all. The killer is not bandwidth and not loss — it is that a serial inter-tile chain ' +
+          'spreads path delay 1872 ps beyond what the TTD’s 866 ps range can compensate, costing ' +
+          '11.23 dB of squint loss and saturating the beam steer. Its other apparent advantage, being ' +
+          'cheapest on power, was a BOM defect: it never booked the per-channel vector modulators.'
+      },
+      {
+        id: 'inj-lock',
+        name: 'Injection lock — A6 / B3 / 1×4 col, 2 GHz',
+        over: S('inj-lock', 'h-tree-active', 'cross-column', 4, 0, 2),
+        demonstrates: 'The one LO whose noise mechanism is not a loop bandwidth — and that even ' +
+          'that does not move the link.',
+        why: 'Injection locking has no PFD, no charge pump and no divider, and its lock corner is ' +
+          'hundreds of MHz where a PLL closes a few, so it suppresses the distribution path’s ' +
+          'additive noise over a far wider band than A4. It is also the cheapest LO in the set at ' +
+          '16.1% of array power. Its price is a new error class: the locked phase offset ' +
+          'arcsin(Δf/f_lock) differs tile to tile with process spread, giving 2.235° of residual ' +
+          'against A4’s 0.147°. Set beside row 2, which is identical but for the LO: same 8.00 Gb/s, ' +
+          'same 10.95 dB of headroom, to three figures. That is finding 1 in a single pair of rows.'
+      },
+      {
+        id: 'radial',
+        name: 'Radial feed — A7 / B4 / 1 patch, 2 GHz',
+        over: S('radial-feed', 'current-mode', 'single-patch', 1, null, 2),
+        demonstrates: 'The only architecture with zero path imbalance by construction, and the only ' +
+          'one whose dominant error is neither thermal nor static.',
+        why: 'One centre junction, every run meandered to the 16.97 cm corner radius: path imbalance ' +
+          'is identically 0 ps against A4’s 81.3, calibration range drops from 6.45 wraps to 0.44 — ' +
+          'under one wrap removes the integer ambiguity rather than shrinking it — and distribution ' +
+          'loss falls 36.5 → 22.5 dB. The zero is BOUGHT, not free: a 5×5 grid has five distinct ' +
+          'radii spreading 4.19 cm RMS, so every tile pays the longest path. Its weakness is the ' +
+          'reason it earns a column: no isolation resistors, so mismatch coupling gives ' +
+          'arcsin(Γ√(N−1)/N) = 2.249° that drifts whenever a neighbour’s match changes and no ' +
+          'per-tile LUT can hold.'
+      }
+    ];
+  }
+
+  /* Systems.save() slices a name to 48 characters WITHOUT reporting it, so a
+     name written one character too long here comes back cut mid-word as a
+     column header and nothing says why. Check it at build time instead: this
+     file's whole purpose is that nothing about these nine changes silently. */
+  var NAME_MAX = 48;
+
+  var cache = null;
+  function list() {
+    if (!cache) {
+      var built = build();
+      var over = built.filter(function (e) { return e.name.length > NAME_MAX; });
+      if (over.length) {
+        throw new Error('shortlist.js: ' + over.length + ' name(s) exceed the ' + NAME_MAX +
+          '-character limit Systems.save() silently truncates at, starting with "' +
+          over[0].name + '" (' + over[0].name.length + '). Shorten the name rather than ' +
+          'letting it be cut mid-word in a column header.');
+      }
+      var ids = built.map(function (e) { return e.id; });
+      ids.forEach(function (id, i) {
+        if (ids.indexOf(id) !== i) throw new Error('shortlist.js: duplicate id "' + id + '".');
+      });
+      cache = built;
+    }
+    return cache;
+  }
+
+  window.Shortlist = {
+    list: list,
+    count: function () { return list().length; }
   };
 })();
 
@@ -9031,15 +9447,30 @@ footer.foot a { color: var(--ink-2); }
       t.push('**Two options outside the original three, and they matter for different reasons.** B4 is not another ' +
         'topology inside the same impedance regime — it is the impedance regime, which this tool\'s own method ' +
         'note says is worth more decibels than the choice among B1–B3. Every channel drives current into one ' +
-        'virtual ground: B1\'s `' + n(20 * Math.log10(Math.max(g.chPerTile, 2)), 1) + ' dB` of voltage division ' +
+        /* 10log10, not 20log10. A matched resistive star's S21 IS a voltage
+           ratio of 1/N, but half of that is given straight back by the
+           +10log10(N) coherent array gain, and evalBb nets the two at
+           model.js:2257 with the comment "Never double-count". Printing the
+           raw 20log10 here put 30.1 dB on the same page as the model's
+           15.05 dB for the same quantity. */
+        'virtual ground: B1\'s `' + n(b1 ? b1.lossTotalDb : 10 * Math.log10(Math.max(g.chPerTile, 2)), 1) +
+        ' dB` of net division loss ' +
         'disappears, and so does the H-tree\'s cascade — one stage instead of `' +
         Math.ceil(Math.log2(Math.max(g.chPerTile, 2))) + '`, so `' + n(b4.skewIntraPs) + ' ps` of intra-tile skew ' +
         'against `' + n(b3.skewIntraPs) + ' ps`, no cascaded IIP3 penalty against `' + n(b3.iip3PenaltyDb, 1) +
         ' dB`, and `' + n(b4.nfPenaltyDb, 2) + ' dB` of noise penalty. It costs `' +
         n(b4.powerTotalMw / 1000, 2) + ' W` against the H-tree\'s `' + n(b3.powerTotalMw / 1000, 2) +
-        ' W` and gives up bandwidth (`' + n(b4.bwGHz, 1) + '` against `' + n(b3.bwGHz, 1) + ' GHz`) because the ' +
-        'summing node has to hold ' + Math.round(g.chPerTile) + ' channels\' worth of capacitance. It is a live ' +
-        'alternative to B3, not a curiosity.');
+        ' W` and gives up bandwidth (`' + n(b4.bwGHz, 1) + '` against `' + n(b3.bwGHz, 1) + ' GHz`). ' +
+        /* Say what the model actually does. B4's bwGHz is a CONSTANT 2.5 in
+           BB_TRAITS with no bwOf(), so the summing-node capacitance is the
+           REASON for the assumption, not a term computed from the channel
+           count — unlike B2, which really does derive 4/nCh. Claiming a
+           mechanism the model does not implement is the failure mode this
+           tool exists to avoid. */
+        'That figure is a fixed assumption about the TIA, not a function of the channel count: the summing node ' +
+        'holding ' + Math.round(g.chPerTile) + ' channels\' worth of capacitance is why 2.5 GHz was assumed, but ' +
+        'unlike B2\'s `4/N` the model does not recompute it as the count moves — so do not read it as a curve. ' +
+        'It is a live alternative to B3, not a curiosity.');
       t.push('B5 deletes the analog inter-tile tier outright: combine in the tile, digitise there, send bits. It ' +
         'is what a modern massive-MIMO array actually builds, so its absence would have been the most exposed ' +
         'gap in this comparison — and now that it is priced, the answer is unambiguous. The skew story is far ' +
@@ -9049,7 +9480,11 @@ footer.foot a { color: var(--ink-2); }
         n(b5.powerFracOfArray, 0) + '%` of the entire array budget, against `' +
         n(b3.powerFracOfArray, 1) + '%` for the H-tree. At `' + n(g.adcFomFjConv, 0) + ' fJ/conv-step`, `' +
         g.adcBits + ' bits` and `' + n(g.adcGspsPerRail, 1) + ' GS/s` per rail that is ' +
-        Math.round(4 * 49) + ' converters the tile process cannot host anyway. **The right way to say this in ' +
+        /* Was Math.round(4 * 49): 4 converters times the tile count of the
+           RETIRED 4 cm / 7x7 geometry, frozen as a literal. At the 6 cm
+           default there are 25 tiles, so it printed 196 where the array has
+           100. Derive it, and it can never go stale again. */
+        Math.round(4 * g.nTilesTotal) + ' converters the tile process cannot host anyway. **The right way to say this in ' +
         'the thesis is not "we did not consider digital" but "we costed it: it is ' +
         n(b5.powerTotalMw / Math.max(b3.powerTotalMw, 1), 0) + '× the analog network\'s power and the converters ' +
         'do not fit the 65 nm LP tile."** Move the converter FOM parameter and watch where the crossover lands — ' +
@@ -9119,7 +9554,7 @@ footer.foot a { color: var(--ink-2); }
         'beam-coherence argument.');
     }
     if (a6) {
-      t.push('- **Whether the free-running spread of 49 tile oscillators can be trimmed (A6).** An ' +
+      t.push('- **Whether the free-running spread of ' + g.nTilesTotal + ' tile oscillators can be trimmed (A6).** An ' +
         'injection-locked tile oscillator has no PFD, no charge pump and no divider, and its lock corner is `' +
         n(g.lockBwMHz, 0) + ' MHz` against the few a PLL can close — so it suppresses the line\'s additive noise ' +
         'over a far wider band than A4, at lower power (`' + n(a6.powerTotalMw / 1000, 2) + ' W` against `' +
@@ -10604,7 +11039,9 @@ footer.foot a { color: var(--ink-2); }
     'inside the proposal\'s own 5–10 cm sub-tiling range. The tool previously opened on 4 cm, which is below that ' +
     'range, fits 7×7 = 49 tiles across only 28 cm, strands 2 dies, and costs 2.2 dB of distribution loss and ' +
     '6.7 W. Everything the pitch touches — tiles, taps, channels, elements, the in-tile lattice — moves with it, ' +
-    'so `tapsPerTile` and `chPerTile` are defaulted to match rather than left to disagree with it.',
+    'so `tapsPerTile` is defaulted to match rather than left to disagree with it — and the baseband channel ' +
+    'count is no longer defaulted at all, because it is now DERIVED from the 1:1 baseband pairing rather than ' +
+    'typed in beside it.',
     '- **The architecture defaults are the model\'s own ranking, checked rather than assumed.** A4 leads the LO ' +
     'ranking by 0.17 on a 0–1 score and holds that lead across every aperture from 10 to 60 cm, every tile pitch ' +
     'from 2 to 10 cm and every multiplier from ×2 to ×8 the tool can be set to. That is a result.',
@@ -10647,9 +11084,42 @@ footer.foot a { color: var(--ink-2); }
     'hold, precisely because an isolated patch is not truncated by neighbours. Measure a real embedded patch before ' +
     'quoting any subarray directivity from this tool.',
 
+    '### The nine-system shortlist, and the null result it exists to show',
+    '- **The LO family does not move the link, and more bandwidth makes it move less.** Measured across all ' +
+    'seven LO options at C1 / B3 / 2 GHz: the same 4.00 Gb/s every time, and a headroom spread of `0.088 dB` — ' +
+    'while the inter-tile residual spans `0.147°` to `3.139°`, a 21× range. A 3.1° RMS phase error is about ' +
+    '0.013 dB of coherence loss, so the link genuinely cannot see it. The spread SHRINKS as the channel widens: ' +
+    '`0.72 dB` at 0.25 GHz, `0.088` at 2 GHz, `0.045` at 4 GHz. **Anyone ranking LO options by link margin is ' +
+    'measuring this tool\'s own noise floor.** The LO choice is decided on coherence against the 5° spec, on ' +
+    'calibration burden, on power and on risk — which is what the Decision view already weights, and why its ' +
+    'ranking is right even though it puts A1 last while A1 returns the best headroom in the set.',
+    '- **The same axis separates the BASEBAND family by about 20 dB.** Headroom spread across the five baseband ' +
+    'options is `25.15 dB` at 0.25 GHz and `19.54 dB` from 1 GHz up, and the achievable rates genuinely differ — ' +
+    'at 4 GHz B3 reaches 7 Gb/s, B4 5, B5 2, and B1 and B2 do not close the link at all. RF bandwidth is a ' +
+    'baseband question wearing an RF label: the baseband option sets both the bandwidth ceiling and the loss that ' +
+    'eats the noise budget underneath it.',
+    '- **What actually buys throughput is the antenna.** One change from C1 to a 1×4 cross-scan column takes ' +
+    'element directivity 6 → `11.15 dBi` and steps the link from QPSK to 16QAM — `4.00 → 8.00 Gb/s`, headroom ' +
+    '`2.84 → 10.95 dB`. That is `8.11 dB` from one antenna decision against `0.088 dB` from the entire LO family. ' +
+    'It costs the scan cone, and it cannot touch the in-scan grating lobe.',
+    '- **The set lives in Systems, not in the Chooser, and that is forced rather than chosen.** `search()` holds ' +
+    'the parameter state fixed and varies only the three option axes, so all 350 of its candidates share one tile ' +
+    'pitch, one RF bandwidth, one medium and one converter FOM. A comparison across RF bandwidth is not ' +
+    'expressible there. A saved system is a whole parameter state, so it is.',
+    '- **The bandwidth ladder is the regulator\'s, not a set of round numbers.** ITU-R F.2006 and ECC-REC-(05)07 ' +
+    'build every E-band channel from a 250 MHz elementary block; 2000 MHz is the widest single channel any ' +
+    'shipping radio offers; 4000 MHz exists only as 2 × 2000 by carrier aggregation. One consequence is worth ' +
+    'keeping: at the 16 channels the 1:1 pairing forces, B2\'s derived bandwidth is `4/16 = 0.250 GHz` exactly — ' +
+    'the elementary channel — where at 32 it sat below its own 0.15 GHz clamp and the formula never evaluated at ' +
+    'all. The constraint brought a dead formula back to life, and B2 still fails, on inter-tile geometry rather ' +
+    'than on bandwidth: a serial chain spreads path delay `1872 ps` beyond the TTD\'s `866 ps` range.',
+    '- **One row is included because it FAILS.** B5 books 6.67 mm² per tile against a 25 mm² budget — 27%, ' +
+    'comfortable, and completely misleading, because under 1:1 the tile is four separate dies and the converter ' +
+    'complex cannot be split across them. It is the only entry whose lesson is a floorplan.',
+
     '### The Chooser, and what its answer rests on',
-    '- **It is the only view that names a winner, so it is the most dangerous one here.** A search over 300 ' +
-    'combinations turns a pile of confidence-tagged guesses into an answer with a name, and the name is the part ' +
+    '- **It is the only view that names a winner, so it is the most dangerous one here.** A search over every ' +
+    'combination turns a pile of confidence-tagged guesses into an answer with a name, and the name is the part ' +
     'people repeat. Read the attrition table before the winner: which constraint killed how many, and how many it ' +
     'killed ALONE, is usually the more useful result — "your power budget is what is stopping you" beats "take ' +
     'this one".',
@@ -10850,6 +11320,7 @@ footer.foot a { color: var(--ink-2); }
     sys: {
       diffOnly: false, deltaMode: false, baseline: null,
       renaming: null, confirmDelete: null, confirmClear: false, shared: [],
+      confirmShortlist: false,
       excluded: {}
     }
   };
@@ -10886,6 +11357,20 @@ footer.foot a { color: var(--ink-2); }
      16.8 dB change would be presented as a faithful restore. Migrating
      first is the only way that stays honest. Returns the keys it moved so
      the caller can say so. */
+  /* The size of the Chooser's space, derived exactly as search() derives it:
+     the two option families times the antenna configurations that survive
+     screening. NEVER a literal — it was hard-coded as 300 in two places
+     against a live 350, so the page could show both numbers at once, and the
+     antenna count moves whenever a kAllowed set or a consistency rule
+     changes. Module scope because both the pre-search prompt and the run
+     handler need it. */
+  function spaceSize() {
+    try {
+      var kept = window.Model.searchAntConfigs(state);
+      return window.Model.LO_IDS.length * window.Model.BB_IDS.length * kept.keep.length;
+    } catch (e) { return null; }
+  }
+
   function migrateRawState(raw) {
     var moved = [];
     if (raw && Math.round(parseFloat(raw.elemModelSel)) === 2) {
@@ -10894,6 +11379,26 @@ footer.foot a { color: var(--ink-2); }
       raw.radPerCh = 64;
       raw.radSpanPitch = 1;       /* spanning: nulls on the reciprocal lattice */
       moved.push('elemModelSel=2 (retired "cell-filling nulled") → C3 cluster, K=64, spanning');
+    }
+    /* chPerTile was a free slider; it is now DERIVED from the 1:1 baseband
+       pairing as bbIqChPerDie × dies per tile. A link carrying the old key
+       would otherwise be dropped by the `k in DEFAULTS` filter and come back
+       silently at the new default — the same "faithful restore that is not
+       faithful" hazard that retiring elemModelSel=2 had. Convert it instead,
+       so an old system reproduces its own numbers, and SAY SO. The old 32
+       against 4 dies restores as 8 IQ channels per die, which is the
+       full-duplex reading; the consistency check then explains why that
+       needs two baseband dies per RFIC die rather than one. */
+    if (raw && raw.chPerTile !== undefined && raw.bbIqChPerDie === undefined) {
+      var oldCh = Math.round(parseFloat(raw.chPerTile));
+      var dies = Math.max(1, Math.round(parseFloat(raw.tapsPerTile) || DEFAULTS.tapsPerTile || 4));
+      if (isFinite(oldCh) && oldCh > 0) {
+        var perDie = Math.max(1, Math.min(16, Math.round(oldCh / dies)));
+        raw.bbIqChPerDie = perDie;
+        moved.push('chPerTile=' + oldCh + ' (retired free slider) → ' + perDie +
+          ' IQ channels per baseband die × ' + dies + ' dies = ' + (perDie * dies) + ' per tile');
+      }
+      delete raw.chPerTile;
     }
     return moved;
   }
@@ -11389,6 +11894,23 @@ footer.foot a { color: var(--ink-2); }
        stays open. */
     var wm = document.getElementById('warnMount');
     wm.textContent = '';
+    /* A MIGRATION THAT NOBODY IS TOLD ABOUT IS A SILENT STATE CHANGE, which is
+       the exact failure migrateRawState exists to prevent. view.migrated has
+       been populated since the elemModelSel retirement and rendered nowhere,
+       so a restored link quietly came back as a different system. Show it. */
+    if (view.migrated && view.migrated.length) {
+      var mb = document.createElement('div');
+      mb.className = 'callout warnc';
+      mb.style.margin = '0 0 9px';
+      var mbHead = document.createElement('strong');
+      mbHead.textContent = 'Restored from an older link: ';
+      mb.appendChild(mbHead);
+      /* textContent, not innerHTML: every value in here is parsed out of the
+         URL hash, and a hash is input from wherever it came. */
+      mb.appendChild(document.createTextNode(view.migrated.join('; ') +
+        '. The numbers below are this system’s own, not the current defaults.'));
+      wm.appendChild(mb);
+    }
     var warns = res.warnings || [];
     var hard = warns.filter(function (w) { return w.severity === 'fail'; });
     if (warns.length) {
@@ -11606,12 +12128,24 @@ footer.foot a { color: var(--ink-2); }
           actually needed: not "take this one" but "your power budget is
           what is stopping you".
        3. IT REPORTS TIES AS TIES. Several inputs are tagged
-          engineering-guess; a search over 300 candidates cannot resolve a
-          1% difference and must not pretend to.
+          engineering-guess; a search this size cannot resolve a 1%
+          difference and must not pretend to.
 
-     The search runs behind a button because it is ~3 s — 300 candidates,
-     each needing its own beam evaluation because the coherence loss is a
-     genuine three-way function of the LO, baseband and antenna choices.
+     The search runs behind a button because it is ~3 s — each candidate
+     needs its own beam evaluation, because the coherence loss is a genuine
+     three-way function of the LO, baseband and antenna choices.
+
+     THE SIZE OF THE SPACE IS DERIVED, NEVER TYPED. Two strings here used to
+     say "300" while the live space was 350, so the page could show both
+     numbers at once. spaceSize() below computes it the same way search()
+     does, and adding an LO option or an antenna configuration moves every
+     mention of it at once.
+
+     WHAT THIS VIEW CANNOT DO, and why the curated shortlist lives in
+     Systems instead: search() holds `state` fixed and varies only the three
+     option axes. Every candidate it returns therefore shares ONE tile
+     pitch, ONE RF bandwidth, ONE medium and ONE converter FOM. A comparison
+     across RF bandwidth is not expressible here at all.
      ===================================================================== */
   var chooserResult = null;
 
@@ -11664,8 +12198,11 @@ footer.foot a { color: var(--ink-2); }
     document.getElementById('chooserRankedBy').textContent =
       chooserResult ? (M.OBJECTIVES[chooserResult.objectiveKey] || {}).label : '';
 
+
     if (!chooserResult) {
-      verdict.innerHTML = '<p class="note">Press <strong>Search the space</strong>. It evaluates 300 ' +
+      var n0 = spaceSize();
+      verdict.innerHTML = '<p class="note">Press <strong>Search the space</strong>. It evaluates ' +
+        (n0 === null ? 'every' : n0) + ' ' +
         'combinations, each with its own beam evaluation, and takes about three seconds — which is why ' +
         'it does not run on every keystroke.</p>';
       document.getElementById('chooserAttrition').textContent = '';
@@ -13700,7 +14237,13 @@ footer.foot a { color: var(--ink-2); }
       var f = e.flat;
       var archTd = UI.elt('td', null, f.arch_lo + ' + ' + f.arch_bb);
       archTd.style.textAlign = 'left';
-      archTd.appendChild(UI.elt('small', null, f.arch_ref + ' · ' + n(e.state.tileCm, 2) + ' cm tiles · ' + n(f.g_nTilesTotal, 0) + ' tiles'));
+      /* The stylesheet only makes a <small> a block inside a .mn cell, and
+         this cell is not one — so the reference name ran straight on from the
+         baseband name with no separator ("B3 H-tree activeRFSoC CLK104").
+         Set it here, beside the textAlign this cell already sets inline. */
+      var archSub = UI.elt('small', null, f.arch_ref + ' · ' + n(e.state.tileCm, 2) + ' cm tiles · ' + n(f.g_nTilesTotal, 0) + ' tiles');
+      archSub.style.display = 'block';
+      archTd.appendChild(archSub);
       tr.appendChild(archTd);
 
       var ov = SYS.overrides(rec, DEFAULTS);
@@ -14073,6 +14616,25 @@ footer.foot a { color: var(--ink-2); }
     tbtn('Copy link to this set', 'A permalink that carries every saved system', function () {
       X.copy(setPermalink(), 'Comparison-set link');
     });
+    /* The curated shortlist. It lives in Systems rather than in the Chooser
+       because the Chooser cannot vary a parameter — only the three option
+       axes — so a comparison across RF BANDWIDTH is not expressible there.
+       Each entry is a sparse override on today's defaults, so the set tracks
+       the model as the model improves; once loaded, each becomes an ordinary
+       saved system holding its own full state. */
+    if (window.Shortlist) {
+      var nSl = window.Shortlist.count();
+      if (view.sys.confirmShortlist) {
+        tbtn('Replace all ' + nSaved + ' with the shortlist?',
+          'Click again to delete every saved system and load the ' + nSl + ' curated ones',
+          function () { loadShortlist(); }, 'pri');
+      } else {
+        tbtn('Load the realistic shortlist (' + nSl + ')',
+          nSl + ' curated architectures spanning the LO, baseband, antenna and RF-bandwidth axes, ' +
+          'each chosen to demonstrate something no other one does',
+          function () { loadShortlist(); });
+      }
+    }
     if (nSaved) {
       if (view.sys.confirmClear) {
         tbtn('Delete all ' + nSaved + '?', 'Click again to delete every saved system', function () {
@@ -14436,6 +14998,56 @@ footer.foot a { color: var(--ink-2); }
     X.flash(r.persisted ? 'Saved "' + name + '"' : 'Saved "' + name + '" (this session only — storage blocked)');
   }
 
+  /* Load the curated shortlist as saved systems.
+
+     It REPLACES rather than appends, and says so, because appending nine
+     systems onto an existing roster silently blows the 12-system limit and
+     leaves the reader with a truncated comparison that looks complete. The
+     confirm step is the same two-press idiom "Clear all" already uses.
+
+     Each entry's sparse override is applied over TODAY'S DEFAULTS and then
+     through clampParam, so an entry that has drifted out of a parameter's
+     legal range is snapped and the snap is reported — never silently
+     accepted. The option indices themselves are resolved by name inside
+     shortlist.js, which throws rather than remapping if an option table has
+     been reordered. */
+  function loadShortlist() {
+    if (!window.Shortlist) return;
+    var items;
+    try { items = window.Shortlist.list(); }
+    catch (e) { X.flash('Shortlist could not be built: ' + e.message); return; }
+
+    if (SYS.count() && !view.sys.confirmShortlist) {
+      view.sys.confirmShortlist = true;
+      render();
+      return;
+    }
+    view.sys.confirmShortlist = false;
+
+    SYS.clear();
+    var clampedAny = [];
+    items.forEach(function (it) {
+      var st = {};
+      Object.keys(DEFAULTS).forEach(function (k) { st[k] = DEFAULTS[k]; });
+      Object.keys(it.over).forEach(function (k) {
+        if (!(k in DEFAULTS)) {
+          clampedAny.push(it.id + ': unknown parameter "' + k + '"');
+          return;
+        }
+        var v = clampParam(k, it.over[k]);
+        if (v !== it.over[k]) clampedAny.push(it.id + ': ' + k + ' ' + it.over[k] + ' → ' + v);
+        st[k] = v;
+      });
+      var lm = M.LO_META[Math.round(st.loOption)] || {};
+      var bm = M.BB_META[Math.round(st.bbOption)] || {};
+      SYS.save(it.name, st, { lo: lm.id || '', bb: bm.id || '', note: it.demonstrates });
+    });
+    render();
+    X.flash(clampedAny.length
+      ? 'Loaded ' + items.length + ' systems, ' + clampedAny.length + ' value(s) clamped: ' + clampedAny[0]
+      : 'Loaded the ' + items.length + '-system shortlist');
+  }
+
   /* ------------------------------- routing ------------------------------- */
   function setView(name) {
     view.name = name;
@@ -14463,6 +15075,7 @@ footer.foot a { color: var(--ink-2); }
     if (name !== 'systems') {
       view.sys.confirmDelete = null;
       view.sys.confirmClear = false;
+      view.sys.confirmShortlist = false;
       view.sys.renaming = null;
     }
     render();
@@ -14605,7 +15218,8 @@ footer.foot a { color: var(--ink-2); }
     b.addEventListener('click', function () {
       var st = document.getElementById('chooserStatus');
       b.disabled = true;
-      st.textContent = 'searching 300 combinations…';
+      var nSp = spaceSize();
+      st.textContent = 'searching ' + (nSp === null ? 'the space' : nSp + ' combinations') + '…';
       /* yield a frame so the status actually paints before the block */
       setTimeout(function () {
         var t0 = performance.now();
