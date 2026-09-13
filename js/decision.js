@@ -268,15 +268,30 @@
       t.push('**Two options outside the original three, and they matter for different reasons.** B4 is not another ' +
         'topology inside the same impedance regime — it is the impedance regime, which this tool\'s own method ' +
         'note says is worth more decibels than the choice among B1–B3. Every channel drives current into one ' +
-        'virtual ground: B1\'s `' + n(20 * Math.log10(Math.max(g.chPerTile, 2)), 1) + ' dB` of voltage division ' +
+        /* 10log10, not 20log10. A matched resistive star's S21 IS a voltage
+           ratio of 1/N, but half of that is given straight back by the
+           +10log10(N) coherent array gain, and evalBb nets the two at
+           model.js:2257 with the comment "Never double-count". Printing the
+           raw 20log10 here put 30.1 dB on the same page as the model's
+           15.05 dB for the same quantity. */
+        'virtual ground: B1\'s `' + n(b1 ? b1.lossTotalDb : 10 * Math.log10(Math.max(g.chPerTile, 2)), 1) +
+        ' dB` of net division loss ' +
         'disappears, and so does the H-tree\'s cascade — one stage instead of `' +
         Math.ceil(Math.log2(Math.max(g.chPerTile, 2))) + '`, so `' + n(b4.skewIntraPs) + ' ps` of intra-tile skew ' +
         'against `' + n(b3.skewIntraPs) + ' ps`, no cascaded IIP3 penalty against `' + n(b3.iip3PenaltyDb, 1) +
         ' dB`, and `' + n(b4.nfPenaltyDb, 2) + ' dB` of noise penalty. It costs `' +
         n(b4.powerTotalMw / 1000, 2) + ' W` against the H-tree\'s `' + n(b3.powerTotalMw / 1000, 2) +
-        ' W` and gives up bandwidth (`' + n(b4.bwGHz, 1) + '` against `' + n(b3.bwGHz, 1) + ' GHz`) because the ' +
-        'summing node has to hold ' + Math.round(g.chPerTile) + ' channels\' worth of capacitance. It is a live ' +
-        'alternative to B3, not a curiosity.');
+        ' W` and gives up bandwidth (`' + n(b4.bwGHz, 1) + '` against `' + n(b3.bwGHz, 1) + ' GHz`). ' +
+        /* Say what the model actually does. B4's bwGHz is a CONSTANT 2.5 in
+           BB_TRAITS with no bwOf(), so the summing-node capacitance is the
+           REASON for the assumption, not a term computed from the channel
+           count — unlike B2, which really does derive 4/nCh. Claiming a
+           mechanism the model does not implement is the failure mode this
+           tool exists to avoid. */
+        'That figure is a fixed assumption about the TIA, not a function of the channel count: the summing node ' +
+        'holding ' + Math.round(g.chPerTile) + ' channels\' worth of capacitance is why 2.5 GHz was assumed, but ' +
+        'unlike B2\'s `4/N` the model does not recompute it as the count moves — so do not read it as a curve. ' +
+        'It is a live alternative to B3, not a curiosity.');
       t.push('B5 deletes the analog inter-tile tier outright: combine in the tile, digitise there, send bits. It ' +
         'is what a modern massive-MIMO array actually builds, so its absence would have been the most exposed ' +
         'gap in this comparison — and now that it is priced, the answer is unambiguous. The skew story is far ' +
@@ -286,7 +301,11 @@
         n(b5.powerFracOfArray, 0) + '%` of the entire array budget, against `' +
         n(b3.powerFracOfArray, 1) + '%` for the H-tree. At `' + n(g.adcFomFjConv, 0) + ' fJ/conv-step`, `' +
         g.adcBits + ' bits` and `' + n(g.adcGspsPerRail, 1) + ' GS/s` per rail that is ' +
-        Math.round(4 * 49) + ' converters the tile process cannot host anyway. **The right way to say this in ' +
+        /* Was Math.round(4 * 49): 4 converters times the tile count of the
+           RETIRED 4 cm / 7x7 geometry, frozen as a literal. At the 6 cm
+           default there are 25 tiles, so it printed 196 where the array has
+           100. Derive it, and it can never go stale again. */
+        Math.round(4 * g.nTilesTotal) + ' converters the tile process cannot host anyway. **The right way to say this in ' +
         'the thesis is not "we did not consider digital" but "we costed it: it is ' +
         n(b5.powerTotalMw / Math.max(b3.powerTotalMw, 1), 0) + '× the analog network\'s power and the converters ' +
         'do not fit the 65 nm LP tile."** Move the converter FOM parameter and watch where the crossover lands — ' +
@@ -356,7 +375,7 @@
         'beam-coherence argument.');
     }
     if (a6) {
-      t.push('- **Whether the free-running spread of 49 tile oscillators can be trimmed (A6).** An ' +
+      t.push('- **Whether the free-running spread of ' + g.nTilesTotal + ' tile oscillators can be trimmed (A6).** An ' +
         'injection-locked tile oscillator has no PFD, no charge pump and no divider, and its lock corner is `' +
         n(g.lockBwMHz, 0) + ' MHz` against the few a PLL can close — so it suppresses the line\'s additive noise ' +
         'over a far wider band than A4, at lower power (`' + n(a6.powerTotalMw / 1000, 2) + ' W` against `' +

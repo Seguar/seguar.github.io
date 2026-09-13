@@ -67,6 +67,26 @@
       raw.radSpanPitch = 1;       /* spanning: nulls on the reciprocal lattice */
       moved.push('elemModelSel=2 (retired "cell-filling nulled") → C3 cluster, K=64, spanning');
     }
+    /* chPerTile was a free slider; it is now DERIVED from the 1:1 baseband
+       pairing as bbIqChPerDie × dies per tile. A link carrying the old key
+       would otherwise be dropped by the `k in DEFAULTS` filter and come back
+       silently at the new default — the same "faithful restore that is not
+       faithful" hazard that retiring elemModelSel=2 had. Convert it instead,
+       so an old system reproduces its own numbers, and SAY SO. The old 32
+       against 4 dies restores as 8 IQ channels per die, which is the
+       full-duplex reading; the consistency check then explains why that
+       needs two baseband dies per RFIC die rather than one. */
+    if (raw && raw.chPerTile !== undefined && raw.bbIqChPerDie === undefined) {
+      var oldCh = Math.round(parseFloat(raw.chPerTile));
+      var dies = Math.max(1, Math.round(parseFloat(raw.tapsPerTile) || DEFAULTS.tapsPerTile || 4));
+      if (isFinite(oldCh) && oldCh > 0) {
+        var perDie = Math.max(1, Math.min(16, Math.round(oldCh / dies)));
+        raw.bbIqChPerDie = perDie;
+        moved.push('chPerTile=' + oldCh + ' (retired free slider) → ' + perDie +
+          ' IQ channels per baseband die × ' + dies + ' dies = ' + (perDie * dies) + ' per tile');
+      }
+      delete raw.chPerTile;
+    }
     return moved;
   }
 
@@ -561,6 +581,23 @@
        stays open. */
     var wm = document.getElementById('warnMount');
     wm.textContent = '';
+    /* A MIGRATION THAT NOBODY IS TOLD ABOUT IS A SILENT STATE CHANGE, which is
+       the exact failure migrateRawState exists to prevent. view.migrated has
+       been populated since the elemModelSel retirement and rendered nowhere,
+       so a restored link quietly came back as a different system. Show it. */
+    if (view.migrated && view.migrated.length) {
+      var mb = document.createElement('div');
+      mb.className = 'callout warnc';
+      mb.style.margin = '0 0 9px';
+      var mbHead = document.createElement('strong');
+      mbHead.textContent = 'Restored from an older link: ';
+      mb.appendChild(mbHead);
+      /* textContent, not innerHTML: every value in here is parsed out of the
+         URL hash, and a hash is input from wherever it came. */
+      mb.appendChild(document.createTextNode(view.migrated.join('; ') +
+        '. The numbers below are this system’s own, not the current defaults.'));
+      wm.appendChild(mb);
+    }
     var warns = res.warnings || [];
     var hard = warns.filter(function (w) { return w.severity === 'fail'; });
     if (warns.length) {

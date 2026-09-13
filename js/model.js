@@ -69,10 +69,10 @@
        Power is computed from the converter FOM parameters rather than
        frozen here, because the whole argument about this option turns on
        those numbers; these entries carry only the fixed overheads. */
-    tileAdc:        { name: 'Tile ADC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.9, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only. Power is NOT taken from here — it is computed as FOM · 2^bits · fs from the adcFomFjConv, adcBits and adcGspsPerRail parameters, so the reader can move the assumption that decides the option. The area is the fixed cost: ~0.9 mm² for a 2–3 GS/s pipelined or time-interleaved SAR in a mature node, which is most of a tile die.' },
-    tileDac:        { name: 'Tile DAC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.6, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only, TX direction. Same treatment as the ADC: power from the FOM parameters, area fixed here.' },
-    tileSerdes:     { name: 'SerDes lane to the backend', tech: '65nm LP CMOS', freqGHz: 25, powerMw: 0, gainDb: 0, areaMm2: 0.35, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'B5 only. Power computed from serdesMwPerGbps × the lane rate the converters demand. A 25 Gb/s JESD204C/GTY-class lane is routine in a mature node but is a serious addition to a tile that today carries only analog IQ.' },
-    tiaSum:         { name: 'Virtual-ground summing TIA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 28, gainDb: 0, areaMm2: 0.035, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B4 only. ONE transimpedance amplifier per rail per tile holding the summing node at a virtual ground, replacing the N−1 cell cascade of B3. Higher power than a single H-tree cell (18 mW) because it must hold a low impedance against the whole summing-node capacitance, but there is one of it instead of fifteen.' },
+    tileAdc:        { tileSingleton: true, name: 'Tile ADC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.9, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only. Power is NOT taken from here — it is computed as FOM · 2^bits · fs from the adcFomFjConv, adcBits and adcGspsPerRail parameters, so the reader can move the assumption that decides the option. The area is the fixed cost: ~0.9 mm² for a 2–3 GS/s pipelined or time-interleaved SAR in a mature node, which is most of a tile die.' },
+    tileDac:        { tileSingleton: true, name: 'Tile DAC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.6, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only, TX direction. Same treatment as the ADC: power from the FOM parameters, area fixed here.' },
+    tileSerdes:     { tileSingleton: true, name: 'SerDes lane to the backend', tech: '65nm LP CMOS', freqGHz: 25, powerMw: 0, gainDb: 0, areaMm2: 0.35, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'B5 only. Power computed from serdesMwPerGbps × the lane rate the converters demand. A 25 Gb/s JESD204C/GTY-class lane is routine in a mature node but is a serious addition to a tile that today carries only analog IQ.' },
+    tiaSum:         { tileSingleton: true, name: 'Virtual-ground summing TIA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 28, gainDb: 0, areaMm2: 0.035, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B4 only. ONE transimpedance amplifier per rail per tile holding the summing node at a virtual ground, replacing the N−1 cell cascade of B3. Higher power than a single H-tree cell (18 mW) because it must hold a low impedance against the whole summing-node capacitance, but there is one of it instead of fifteen.' },
     loSplit78:      { name: 'E-band 1:2 splitter', tech: 'RO3003 GCPW, on board', freqGHz: 78, powerMw: 0, gainDb: -3.5, areaMm2: 0.96, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'A PCB Wilkinson at 78 GHz is 0.8 dB better than on-chip, but every junction adds a mechanical discontinuity and an unrepeatable phase offset.' },
     loAmp78:        { name: 'E-band repeater amplifier', tech: 'SiGe BiCMOS', freqGHz: 78, powerMw: 45, gainDb: 12, areaMm2: 0.08, addPnFloorDbc: -152, addPnCornerHz: 2e5, conf: 'published-literature', why: 'Gain stage needed every few centimetres of E-band line. Each one is a separate SiGe die on the board — it cannot live in the 65nm tile.' },
     ebandTransition:{ name: 'E-band board/package transition', tech: 'packaging', freqGHz: 78, powerMw: 0, gainDb: -0.9, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'engineering-guess', why: 'Each E-band transition costs loss and, worse, an unrepeatable phase offset.' },
@@ -102,10 +102,10 @@
     bbActiveCell:   { name: 'Baseband active combine cell', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 1.5, gainDb: 0, areaMm2: 0.004, nfDb: 12, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Current-summing cell for a DC–1 GHz rail. Both libraries independently gave ≈1.5 mW — far cheaper than a per-cell guess suggests, because power follows total load capacitance, not cell count.' },
     bbVectorMod:    { name: 'IQ vector modulator + VGA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 6, gainDb: 0, areaMm2: 0.03, nfDb: 14, conf: 'scaled-estimate', why: 'Per-channel baseband phase/amplitude weight — the beamforming control point, and where a static LO phase offset is corrected. 32 per tile per rail dominates the tile power.' },
     bbResistor:     { name: 'Resistive network arm', tech: '65nm poly resistor', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.0008, conf: 'scaled-estimate', why: 'Essentially free in area and perfectly stable — the passive network’s main virtue.' },
-    bbRootAmp:      { name: 'Baseband root amplifier', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 25, gainDb: 18, areaMm2: 0.02, nfDb: 10, conf: 'scaled-estimate', why: 'Recovers the passive network loss and drives the RFSoC ADC input.' },
+    bbRootAmp:      { tileSingleton: true, name: 'Baseband root amplifier', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 25, gainDb: 18, areaMm2: 0.02, nfDb: 10, conf: 'scaled-estimate', why: 'Recovers the passive network loss and drives the RFSoC ADC input.' },
     bbTap:          { name: 'Baseband bus tap', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 2, gainDb: -0.4, areaMm2: 0.002, conf: 'scaled-estimate', why: 'Its input capacitance is what collapses the daisy chain’s bandwidth as N grows.' },
-    bbTxDriver:     { name: 'Baseband TX-direction driver', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 60, gainDb: 12, areaMm2: 0.03, conf: 'scaled-estimate', why: 'One driver fighting the whole tree plus N pad capacitances. The passive network’s hidden cost.' },
-    bbDecap:        { name: 'Supply decoupling', tech: '65nm MOM/MOS cap', freqGHz: 0, powerMw: 0, gainDb: 0, areaMm2: 0.27, conf: 'scaled-estimate', why: 'Sized for the active cells’ current ripple. Usually the real area cost, not the cells.' }
+    bbTxDriver:     { tileSingleton: true, name: 'Baseband TX-direction driver', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 60, gainDb: 12, areaMm2: 0.03, conf: 'scaled-estimate', why: 'One driver fighting the whole tree plus N pad capacitances. The passive network’s hidden cost.' },
+    bbDecap:        { tileSingleton: true, name: 'Supply decoupling', tech: '65nm MOM/MOS cap', freqGHz: 0, powerMw: 0, gainDb: 0, areaMm2: 0.27, conf: 'scaled-estimate', why: 'Sized for the active cells’ current ripple. Usually the real area cost, not the cells.' }
   };
 
   /* ===================================================================== *
@@ -146,8 +146,12 @@
       conf: 'measured/datasheet', why: '≈100 existing 2.5 × 2.5 mm E-band dies. Tile pitch, taps per tile and this total are independent inputs that can disagree, so the tool checks them against each other rather than letting the mismatch pass silently.' },
     { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
       conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At the 6 cm pitch 5×5 = 25 tiles fit and the 100-die inventory divides exactly: 25 × 4 = 100 placed, none stranded, no die-population gain loss. Four dies lay out as a 2×2 quad on one matched 1:4 split. At the earlier 4 cm pitch it was floor(100/49) = 2 dies per tile — 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB.' },
-    { key: 'chPerTile', label: 'BB channels per tile', units: '-', value: 32, min: 2, max: 64, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: 'Each die exposes 4 RX + 4 TX IQ ports, so channels per tile per rail = 8 × dies per tile. At 4 dies per tile that is 32, and 25 × 32 = 800 per rail. This is NOT a free parameter: it has to track the LO taps per tile, because both count the same dies.' },
+    { key: 'bbIqChPerDie', label: 'IQ channels per baseband die', units: '-', value: 4, min: 1, max: 16, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: 'THE BASEBAND PAIRING, and it REPLACES the old free "BB channels per tile" slider. One baseband die per RFIC die — 1:1, structural, not a coincidence to be checked afterwards — and the baseband die carries this many IQ channels against the RFIC die\'s 4 real RF channels per direction. At the default the two match exactly: 4 IQ channels serve 4 RF channels, so channels per tile is 4 dies × 4 = 16 and is DERIVED, never entered. The old slider let 32 be typed against a geometry that could only support 16, and nothing complained. Note what 1:1 forces: 4 IQ channels cannot serve 4 RX AND 4 TX simultaneously, so the array is half-duplex — which is the same assumption the antenna family already made by defaulting to shared radiators behind a T/R switch, now finally stated in the baseband too. Raising this above 4 does not break the pairing, but it packs more channels into the same 2.5 × 2.5 mm, and the die-utilisation check is what tells you whether they fit.' },
+    { key: 'bbDieMm', label: 'Baseband die edge', units: 'mm', value: 2.5, min: 1, max: 6, step: 0.1, group: 'Baseband',
+      conf: 'measured/datasheet', why: 'The square baseband die in TSMC 65 nm LP, matching the RFIC die it pairs with. 2.5 × 2.5 mm = 6.25 mm² is what is realistic in this process for 4 IQ channels, which sets the area budget every baseband option has to fit: 4 dies × 6.25 = 25 mm² per tile. This is the constraint the tool previously did not book at all — areaPerTileMm2 was computed, displayed with better:"low", and compared against nothing.' },
+    { key: 'bbDieUtilMaxPct', label: 'Max baseband die utilisation', units: '%', value: 70, min: 30, max: 100, step: 5, group: 'Baseband',
+      conf: 'engineering-guess', why: 'Core utilisation a mixed-signal die can actually reach once the pad ring, seal ring, routing channels and power grid are placed. 70% is already aggressive for a die carrying high-speed I/O; digital-only standard-cell blocks reach higher, and a converter-heavy floorplan reaches less. It is a guess, and it is the number that decides whether B5 survives the pairing — move it and watch.' },
     { key: 'scanDegMax', label: 'Max scan angle', units: 'deg', value: 60, min: 0, max: 75, step: 5, group: 'Array & band',
       conf: 'published-literature', why: 'The proposal evaluates squint at 60°, where it exceeds the beamwidth.' },
     { key: 'elemDirDbi', label: 'UNIT radiator directivity', units: 'dBi', value: 6, min: 0, max: 12, step: 0.5, group: 'Array & band',
@@ -796,6 +800,43 @@
     g.nElem = g.nTilesTotal * g.elemPerTile;
     g.portsPerTile = g.elemPerTile;
     g.nPorts = g.nElem;
+
+    /* ---------------------------------------------------------------- *
+     * THE BASEBAND PAIRING — one baseband die per RFIC die, 1:1.
+     *
+     * This used to be a free slider reading 32 while the geometry could
+     * only support 16, and nothing in the tool compared the two. It is now
+     * DERIVED, so the disagreement cannot be typed in.
+     *
+     * The old 32 was not simply wrong: it counted BOTH DIRECTIONS
+     * (4 dies × (4 RX + 4 TX)), while the port count counts one. Both
+     * numbers were right about different things and neither said which,
+     * which is the worst way for two numbers to disagree. Under 1:1 the
+     * question is settled by the hardware: a baseband die with 4 IQ
+     * channels cannot serve 4 RX and 4 TX at the same moment, so the array
+     * is HALF-DUPLEX and the channel count is the one-direction count.
+     * That is not a new assumption — the antenna family already defaults
+     * to shared radiators behind a T/R switch, which is half-duplex at the
+     * aperture. It is the same assumption, finally applied to the
+     * baseband as well.
+     *
+     * "Rail" throughout this tool means I or Q, never a direction: every
+     * baseband BOM multiplies the channel count by 2 for the two rails.
+     * ---------------------------------------------------------------- */
+    g.bbDiesPerTile = g.diesPerTile;            /* 1:1 — structural, not checked */
+    g.bbIqChPerDie = Math.max(1, Math.round(g.bbIqChPerDie));
+    g.chPerTile = g.bbDiesPerTile * g.bbIqChPerDie;
+    g.bbDieAreaMm2 = g.bbDieMm * g.bbDieMm;
+    g.bbDieBudgetMm2 = g.bbDiesPerTile * g.bbDieAreaMm2;
+    g.bbDiesTotal = g.nTilesTotal * g.bbDiesPerTile;
+    /* Area the pairing spends per IQ channel. The user's anchor is 4 channels
+       on a 2.5 mm die, i.e. 1.5625 mm² each; packing more into the same die
+       is what the utilisation check has to catch. */
+    g.bbAreaPerIqChMm2 = g.bbDieAreaMm2 / g.bbIqChPerDie;
+    /* Does the baseband channel count match the RF channel count it pairs
+       with? At bbIqChPerDie = chPerDiePerDir it is exactly 1:1 per channel,
+       not merely 1:1 per die. */
+    g.bbChMatchesRf = g.bbIqChPerDie === g.chPerDiePerDir;
 
     /* ---- the radiator lattice inside one port cell ---- */
     var antTr = antTraitsOf(g.antOptionId);
@@ -2051,8 +2092,27 @@
   /* Each constraint is a named predicate so the attrition table can say
      which one killed what, rather than reporting a count of survivors and
      leaving the reader to guess. */
-  function buildConstraints(q, budget) {
+  function buildConstraints(q, budget, g0) {
     var cons = [];
+    /* THE BASEBAND PAIRING IS GEOMETRY, NOT A PREFERENCE, so this constraint
+       is not behind a query flag. Under 1:1 the tile's baseband is
+       bbDiesPerTile separate dies, and a per-tile singleton cannot be sawn
+       across them: it lands whole on one die together with that die's own
+       share of the per-channel blocks. B5 stacks the entire converter and
+       SerDes complex that way and reaches 95% core utilisation of a 6.25 mm²
+       die, so it is EXCLUDED here rather than merely scored badly — a
+       floorplan that does not close is not a worse option, it is not an
+       option. Everything else sits between 4.7% and 9.3% and never notices
+       this constraint exists. */
+    if (g0) {
+      cons.push({
+        key: 'bbdie',
+        label: 'Baseband fits the ' + g0.bbDieMm.toFixed(1) + ' mm die at ≤ ' +
+          g0.bbDieUtilMaxPct.toFixed(0) + '% utilisation',
+        test: function (c) { return c.bb.dieFits !== false; },
+        distanceOf: function (c) { return c.bb.dieUtilPct - g0.bbDieUtilMaxPct; }, unit: '%'
+      });
+    }
     if (q.requireFeasible !== false) {
       /* ALL THREE families, not two. The baseband verdict was being ignored,
          so a combination whose baseband option is not realisable passed the
@@ -2140,7 +2200,9 @@
     });
 
     /* ---- attrition: which constraint killed how many ---- */
-    var cons = buildConstraints(q, budget);
+    /* the die-budget params do not vary across the search, so one resolve is
+       enough to label the constraint */
+    var cons = buildConstraints(q, budget, resolve(state));
     var attrition = cons.map(function (cn) { return { key: cn.key, label: cn.label, killed: 0, soleKill: 0 }; });
     var survivors = [];
     cands.forEach(function (c) {
@@ -2152,7 +2214,10 @@
     });
 
     /* ---- rank the survivors by the one chosen objective ---- */
-    var obj = OBJECTIVES[q.objective] || OBJECTIVES.margin;
+    /* OBJECTIVES.margin has not existed since the sawtooth fix renamed it to
+       `headroom`, so this fallback was dead: an unrecognised objective threw
+       on `.get` instead of degrading. Fall back to one that exists. */
+    var obj = OBJECTIVES[q.objective] || OBJECTIVES.headroom;
     survivors.forEach(function (c) { c.score = obj.get(c); });
     survivors = survivors.filter(function (c) { return isFinite(c.score); });
     survivors.sort(function (a, b) {
@@ -2342,13 +2407,28 @@
     var squintLossDb = K.squintLossDb(skewRmsPs * 1e-12, g.rfBwGHz * 1e9);
 
     /* ---- power / area, per tile, BOTH rails ---- */
+    /* The per-tile TOTAL is not the binding number once the baseband is four
+       separate dies. A block whose count scales with the channel count
+       distributes evenly across them; a per-tile SINGLETON cannot be sawn in
+       four, so it lands whole on ONE die along with that die's own share of
+       the per-channel blocks. The worst die is what has to fit 6.25 mm², and
+       for B5 that is the entire converter and SerDes complex. Splitting the
+       BOM this way is the only way the tool can see the difference between
+       "1.3 mm² spread over four dies" and "5.95 mm² stacked on one". */
     var powerPerTileMw = 0, areaPerTileMm2 = 0;
+    var areaSingletonMm2 = 0, areaDistributedMm2 = 0;
     (bb.bom || []).forEach(function (b) {
       var blk = BLOCKS[b.blockKey];
       if (!blk) return;
       powerPerTileMw += blk.powerMw * b.count;
-      areaPerTileMm2 += (blk.areaMm2 || 0) * b.count;
+      var a = (blk.areaMm2 || 0) * b.count;
+      areaPerTileMm2 += a;
+      if (blk.tileSingleton) areaSingletonMm2 += a; else areaDistributedMm2 += a;
     });
+    var nBbDies = Math.max(1, g.bbDiesPerTile);
+    var worstDieAreaMm2 = areaSingletonMm2 + areaDistributedMm2 / nBbDies;
+    var dieUtilPct = 100 * worstDieAreaMm2 / Math.max(g.bbDieAreaMm2, 1e-9);
+    var dieFits = dieUtilPct <= g.bbDieUtilMaxPct;
     /* B5: the converters and the serial link dominate, and their power is
        computed from the exposed FOM parameters rather than frozen in the
        block library — the whole argument about this option turns on those
@@ -2363,8 +2443,11 @@
       var fsHz = g.adcGspsPerRail * 1e9;
       var perConvMw = g.adcFomFjConv * 1e-15 * Math.pow(2, g.adcBits) * fsHz * 1e3;
       convMw = perConvMw * 4;                     /* I+Q rails x (ADC + DAC) */
-      laneGbps = 2 * g.adcBits * fsHz / 1e9 * (66 / 64);   /* 64b/66b overhead, RX */
-      lanes = Math.max(1, Math.ceil(laneGbps / 25));
+      /* Same kernel the BOM uses to COUNT the lanes, so the area the tile
+         books and the power it burns describe one serial link rather than
+         two different ones. */
+      laneGbps = K.serdesLaneGbps(g.adcBits, g.adcGspsPerRail);
+      lanes = K.serdesLanes(g.adcBits, g.adcGspsPerRail);
       serdesMw = g.serdesMwPerGbps * laneGbps * 2;         /* both directions */
       powerPerTileMw += convMw + serdesMw;
     }
@@ -2402,6 +2485,9 @@
       powerTotalMw: powerTotalMw, powerPerTileMw: powerPerTileMw,
       powerFracOfArray: powerTotalMw / (g.arrayPowerW * 1000) * 100,
       areaPerTileMm2: areaPerTileMm2, bwGHz: bwGHz, iip3PenaltyDb: iip3PenaltyDb,
+      areaSingletonMm2: areaSingletonMm2, areaDistributedMm2: areaDistributedMm2,
+      worstDieAreaMm2: worstDieAreaMm2, dieUtilPct: dieUtilPct, dieFits: dieFits,
+      bbDiesPerTile: nBbDies, lanesPerDir: bb.lanesPerDir || 0,
       driftDegPerK: driftDegPerK,
       calBurdenScore: nCh, calBurdenDetail: nCh + ' per-channel baseband weights per rail; group delay must be ' +
         'measured with a two-tone or swept baseband loopback, since a single-tone phase measurement cannot ' +
@@ -2418,7 +2504,7 @@
    * independent inputs, so they can disagree without anything failing —
    * which is worse than an error. Surfaced rather than silently tolerated.
    * =================================================================== */
-  function consistency(g) {
+  function consistency(g, bbRes) {
     var out = [];
 
     if (!g.aperturePitchExact) {
@@ -2454,6 +2540,57 @@
           g.diePopGainDb.toFixed(2) + ' dB of array gain against a fully populated aperture. ' +
           (g.nDies % g.nTilesTotal === 0 ? '' : 'An exact fit is not possible at this tile count: ' +
             g.nDies + ' / ' + g.nTilesTotal + ' = ' + (g.nDies / g.nTilesTotal).toFixed(2) + ' dies per tile.')
+      });
+    }
+
+    /* ---- the baseband die pairing ---- */
+    /* Only checkable with a baseband result in hand, so callers that have one
+       pass it and callers that do not simply skip this check rather than
+       getting a wrong answer. searchAntConfigs deliberately passes nothing:
+       it varies only the antenna, and a failing baseband option would
+       otherwise drop every antenna configuration for an unrelated reason. */
+    if (bbRes && isFinite(bbRes.dieUtilPct)) {
+      var util = bbRes.dieUtilPct, lim = g.bbDieUtilMaxPct;
+      if (util > lim) {
+        out.push({
+          severity: 'fail',
+          message: 'The baseband does not fit its own silicon. One baseband die per RFIC die means ' +
+            g.bbDiesPerTile + ' dies of ' + g.bbDieMm.toFixed(1) + ' × ' + g.bbDieMm.toFixed(1) +
+            ' mm per tile, and a per-tile singleton cannot be spread across them — ' +
+            bbRes.areaSingletonMm2.toFixed(2) + ' mm² of it lands whole on ONE die, plus that die\'s ' +
+            (bbRes.areaDistributedMm2 / g.bbDiesPerTile).toFixed(2) + ' mm² share of the per-channel blocks, ' +
+            'giving ' + bbRes.worstDieAreaMm2.toFixed(2) + ' mm² against ' + g.bbDieAreaMm2.toFixed(2) +
+            ' mm² available: ' + util.toFixed(1) + '% core utilisation against a ' + lim.toFixed(0) +
+            '% ceiling, before the pad ring, the seal ring and the routing channels. The per-tile TOTAL of ' +
+            bbRes.areaPerTileMm2.toFixed(2) + ' mm² fits the ' + g.bbDieBudgetMm2.toFixed(1) +
+            ' mm² budget comfortably, which is exactly why a per-tile figure cannot see this. Escaping it ' +
+            'means a fifth die per tile carrying the shared blocks, and that is the 1:1 pairing broken.'
+        });
+      } else if (util > lim * 0.8) {
+        out.push({
+          severity: 'warn',
+          message: 'The baseband uses ' + util.toFixed(1) + '% of one ' + g.bbDieMm.toFixed(1) +
+            ' mm die against a ' + lim.toFixed(0) + '% ceiling — ' + bbRes.worstDieAreaMm2.toFixed(2) +
+            ' mm² on the die carrying the ' + bbRes.areaSingletonMm2.toFixed(2) +
+            ' mm² of per-tile singletons. Tight, not yet impossible.'
+        });
+      }
+    }
+    if (!g.bbChMatchesRf) {
+      out.push({
+        severity: 'warn',
+        message: 'The pairing is 1:1 by die but not by channel: ' + g.bbIqChPerDie + ' IQ baseband channels ' +
+          'against ' + g.chPerDiePerDir + ' real RF channels per direction on the die they pair with. ' +
+          (g.bbIqChPerDie > g.chPerDiePerDir
+            ? 'The surplus baseband channels have nothing to connect to, and they are being charged ' +
+              'area and power: ' + g.bbAreaPerIqChMm2.toFixed(3) + ' mm² per IQ channel against the ' +
+              (g.bbDieAreaMm2 / g.chPerDiePerDir).toFixed(3) + ' mm² the matched case allows. ' +
+              (g.bbIqChPerDie === 2 * g.chPerDiePerDir
+                ? 'At exactly 2× this is the old full-duplex reading — 4 RX plus 4 TX — which needs two ' +
+                  'baseband dies per RFIC die and so is the 1:1 pairing broken, not satisfied.'
+                : '')
+            : 'Some RF channels have no baseband behind them, so the port count the beam model uses is ' +
+              'not the count the baseband can actually weight.')
       });
     }
 
@@ -2602,7 +2739,7 @@
     }
     return {
       g: g, lo: lo, bb: bb, ant: ant, selected: selected, partial: only,
-      blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g)
+      blocks: BLOCKS, refSources: REF_SOURCES, warnings: consistency(g, bb[g.bbOptionId])
     };
   }
 

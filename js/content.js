@@ -387,7 +387,9 @@
     'inside the proposal\'s own 5–10 cm sub-tiling range. The tool previously opened on 4 cm, which is below that ' +
     'range, fits 7×7 = 49 tiles across only 28 cm, strands 2 dies, and costs 2.2 dB of distribution loss and ' +
     '6.7 W. Everything the pitch touches — tiles, taps, channels, elements, the in-tile lattice — moves with it, ' +
-    'so `tapsPerTile` and `chPerTile` are defaulted to match rather than left to disagree with it.',
+    'so `tapsPerTile` is defaulted to match rather than left to disagree with it — and the baseband channel ' +
+    'count is no longer defaulted at all, because it is now DERIVED from the 1:1 baseband pairing rather than ' +
+    'typed in beside it.',
     '- **The architecture defaults are the model\'s own ranking, checked rather than assumed.** A4 leads the LO ' +
     'ranking by 0.17 on a 0–1 score and holds that lead across every aperture from 10 to 60 cm, every tile pitch ' +
     'from 2 to 10 cm and every multiplier from ×2 to ×8 the tool can be set to. That is a result.',
