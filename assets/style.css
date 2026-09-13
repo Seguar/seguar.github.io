@@ -502,6 +502,39 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--ink-
    under 4.5:1 — and this is the cell that most needs reading anyway. */
 .budget .cell.bind .d, .budget .cell.bind .n small { color: var(--ink-2); }
 
+/* ---------- hardware map: drawing beside inspector ----------
+   The map's viewBox is taller than wide and the element is capped at 76vh, so
+   preserveAspectRatio letterboxes it horizontally — the wider the window, the
+   more empty band. The inspector lives in that band. The drawing keeps
+   flex:1 and min-width:0 so it still gets everything the aside does not take,
+   and because it is HEIGHT-bound at these sizes, taking 340px off its width
+   does not shrink it at all. */
+.mapsplit { display: flex; align-items: stretch; gap: 0; }
+.mapsplit > .chartbox { flex: 1 1 auto; min-width: 0; }
+.mapsplit > .mapside {
+  flex: 0 0 340px; min-width: 0;
+  border-left: 1px solid var(--rule);
+  max-height: 76vh; overflow-y: auto;
+}
+.mapside-h {
+  padding: 10px 13px; font-size: 13px; font-weight: 650;
+  border-bottom: 1px solid var(--rule); background: var(--bg-sunken);
+  display: flex; align-items: center; gap: 8px;
+}
+.mapside-h .tag {
+  font: 10.5px var(--mono); color: var(--ink-3); font-weight: 400;
+  border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px;
+}
+/* Below this the band is no longer wide enough to give away: the drawing
+   would start losing width to the aside, so they stack instead. */
+@media (max-width: 1300px) {
+  .mapsplit { display: block; }
+  .mapsplit > .mapside {
+    flex: none; border-left: 0; border-top: 1px solid var(--rule);
+    max-height: none; overflow-y: visible;
+  }
+}
+
 /* ---------- charts ---------- */
 .chartbox { padding: 8px 6px 0; }
 svg.chart { display: block; width: 100%; height: auto; overflow: visible; }

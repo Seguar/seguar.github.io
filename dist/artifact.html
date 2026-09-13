@@ -524,6 +524,39 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--ink-
    under 4.5:1 — and this is the cell that most needs reading anyway. */
 .budget .cell.bind .d, .budget .cell.bind .n small { color: var(--ink-2); }
 
+/* ---------- hardware map: drawing beside inspector ----------
+   The map's viewBox is taller than wide and the element is capped at 76vh, so
+   preserveAspectRatio letterboxes it horizontally — the wider the window, the
+   more empty band. The inspector lives in that band. The drawing keeps
+   flex:1 and min-width:0 so it still gets everything the aside does not take,
+   and because it is HEIGHT-bound at these sizes, taking 340px off its width
+   does not shrink it at all. */
+.mapsplit { display: flex; align-items: stretch; gap: 0; }
+.mapsplit > .chartbox { flex: 1 1 auto; min-width: 0; }
+.mapsplit > .mapside {
+  flex: 0 0 340px; min-width: 0;
+  border-left: 1px solid var(--rule);
+  max-height: 76vh; overflow-y: auto;
+}
+.mapside-h {
+  padding: 10px 13px; font-size: 13px; font-weight: 650;
+  border-bottom: 1px solid var(--rule); background: var(--bg-sunken);
+  display: flex; align-items: center; gap: 8px;
+}
+.mapside-h .tag {
+  font: 10.5px var(--mono); color: var(--ink-3); font-weight: 400;
+  border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px;
+}
+/* Below this the band is no longer wide enough to give away: the drawing
+   would start losing width to the aside, so they stack instead. */
+@media (max-width: 1300px) {
+  .mapsplit { display: block; }
+  .mapsplit > .mapside {
+    flex: none; border-left: 0; border-top: 1px solid var(--rule);
+    max-height: none; overflow-y: visible;
+  }
+}
+
 /* ---------- charts ---------- */
 .chartbox { padding: 8px 6px 0; }
 svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
@@ -707,7 +740,25 @@ footer.foot a { color: var(--ink-2); }
           <div class="pk-bar" id="pickerMount"></div>
           <div class="pk-bar hidden" id="warnMount"></div>
           <div class="toolbar" id="mapToolbar"></div>
-          <div class="chartbox" id="mapMount"></div>
+          <!-- The drawing and the tile inspector share a row, because the
+               drawing cannot use the width anyway. The map is capped at 76vh
+               so the whole floorplan stays visible at once, and its viewBox is
+               taller than it is wide (716 x 865 — the array plus the backend
+               strip above and the source strip below), so `meet` letterboxes
+               it: measured at a 1440 px viewport the panel was 1020 px wide
+               and the drawing occupied 566, leaving 454 px of empty margin —
+               45% of the panel, and WORSE the wider the screen got. Putting
+               the inspector in that band costs the drawing nothing (it stays
+               height-bound) and puts the tile's numbers beside the tile you
+               clicked instead of a scroll away. Below ~1300 px the band is no
+               longer wide enough to spare, and the two stack. -->
+          <div class="mapsplit">
+            <div class="chartbox" id="mapMount"></div>
+            <aside class="mapside">
+              <div class="mapside-h">Selected tile <span class="tag">click the map</span></div>
+              <div id="inspectorMount"></div>
+            </aside>
+          </div>
           <div id="mapLegend"></div>
           <div class="body">
             <p class="note" id="mapNote"></p>
@@ -715,10 +766,6 @@ footer.foot a { color: var(--ink-2); }
         </section>
 
         <div class="chartgrid">
-          <section class="panel">
-            <h2>Selected tile <span class="tag">click the map</span></h2>
-            <div class="body flush" id="inspectorMount"></div>
-          </section>
           <section class="panel">
             <h2>Baseband network <span class="tag">inside one tile</span></h2>
             <div class="chartbox" id="bbDiagramMount"></div>
@@ -10248,7 +10295,32 @@ footer.foot a { color: var(--ink-2); }
       applyCrop();
       scheduleCommit();
     }
+    /* Client coordinates -> a fraction of the CURRENT viewBox.
+
+       This used to be (clientX - rect.left) / rect.width, which is a fraction
+       of the ELEMENT BOX — and the element box is not the drawing. The map is
+       drawn with preserveAspectRatio "xMidYMid meet" inside a box capped at
+       76vh, so it is letterboxed: measured at the default desktop size the
+       box is 640 x 653 px while the drawing occupies 540 x 653, leaving 50 px
+       of dead band on each side. A cursor on the left edge of the drawing
+       therefore reported fx = 0.078 instead of 0, so zoom-at-cursor anchored
+       about 8% off and the map crept out from under the pointer as it zoomed.
+
+       getScreenCTM() is the browser's own client-to-user transform. It
+       already accounts for the viewBox, preserveAspectRatio and any CSS
+       scaling, so unlike hand-rolled arithmetic it cannot fall out of step
+       with them when one of those changes. */
     function fracOf(e) {
+      var m = svg.getScreenCTM && svg.getScreenCTM();
+      if (m && m.a && svg.createSVGPoint) {
+        var p = svg.createSVGPoint();
+        p.x = e.clientX; p.y = e.clientY;
+        var u = p.matrixTransform(m.inverse());
+        return {
+          fx: Math.max(0, Math.min(1, (u.x - cur.vx) / cur.vw)),
+          fy: Math.max(0, Math.min(1, (u.y - cur.vy) / cur.vh))
+        };
+      }
       var b = svg.getBoundingClientRect();
       if (!b.width || !b.height) return { fx: 0.5, fy: 0.5 };
       return {
@@ -10289,7 +10361,14 @@ footer.foot a { color: var(--ink-2); }
       drag.moved = true;
       dragMoved = true;
       svg.style.cursor = 'grabbing';
-      var unitsPerPx = cur.vw / b.width;
+      /* User units per CSS pixel, from the browser's own transform. This was
+         cur.vw / b.width, which ignores the same letterbox fracOf did: at the
+         default desktop size that is 716/640 = 1.119 against a true
+         1/0.7548 = 1.325, so the map moved at 84% of hand speed and slid
+         behind the cursor throughout every drag. `meet` scales both axes
+         equally, so m.a serves for x and y alike. */
+      var ctm = svg.getScreenCTM && svg.getScreenCTM();
+      var unitsPerPx = (ctm && ctm.a) ? 1 / ctm.a : cur.vw / b.width;
       cur.vx = drag.vx - dx * unitsPerPx;
       cur.vy = drag.vy - dy * unitsPerPx;
       clampCrop();
@@ -15332,14 +15411,21 @@ footer.foot a { color: var(--ink-2); }
           why: 'in the tables below', plain: true });
         return keep;
       }
+      /* COUNT BEFORE TRIMMING. The header summarises how many strengths and
+         costs were FOUND, not how many lines survived the cut — and trim()
+         appends a "+N more" placeholder, so counting afterwards both
+         under-reported the real total and counted that placeholder as a
+         strength. At the defaults that printed "13 strengths" over a list
+         holding 12 real ones and a "+2 more", a number contradicting the
+         list directly beneath it. */
+      totalPro += pros.length; totalCon += cons.length;
+
       pros = trim(pros); cons = trim(cons);
 
       /* the option's own stated verdict — qualitative, and the one thing here
          that is not derived from a ranking */
       var risk = cur.riskLevel || '';
       var feas = cur.feasibility || '';
-
-      totalPro += pros.length; totalCon += cons.length;
 
       var card = UI.elt('section', 'panel');
       card.style.margin = '0';
