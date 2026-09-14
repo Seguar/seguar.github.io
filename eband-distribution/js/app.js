@@ -4033,7 +4033,8 @@
         if (items.length <= 4) return items;
         var keep = items.slice(0, 4);
         keep.push({ lab: '+' + (items.length - 4) + ' more', val: '',
-          why: 'in the tables below', plain: true });
+          why: (mountId === 'mapProsConsMount') ? 'in the Compare view' : 'in the tables below',
+          plain: true });
         return keep;
       }
       /* COUNT BEFORE TRIMMING. The header summarises how many strengths and
@@ -4118,8 +4119,12 @@
 
     var foot = UI.elt('p', 'note');
     foot.style.cssText = 'margin:12px 0 0;font-size:11.5px';
+    /* "the tables below" is only true on Compare. This panel is mounted on the
+       Hardware map as well, where the comparison tables are a view away, so
+       the sentence pointed the reader at something that was not there. */
+    var whereTables = (mountId === 'mapProsConsMount') ? 'the Compare view’s tables' : 'the tables below';
     foot.textContent = 'Derived, not written: each line ranks the SELECTED option against every option in its ' +
-      'family on the metrics the tables below use, and only the top two and bottom two of a field are listed. ' +
+      'family on the metrics ' + whereTables + ' use, and only the top two and bottom two of a field are listed. ' +
       'A metric whose spread across the field is under 0.5% is dropped rather than credited — being "best" on ' +
       'a flat row is noise. A requirement that is missed is listed as a cost whatever the rank, because ' +
       'best-in-field does not mean it passes. The field includes every option, so a "best of 7" can still be ' +
