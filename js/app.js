@@ -775,6 +775,10 @@
         view.zoom = 1; view.panXCm = undefined; view.panYCm = undefined; render();
       }, 'zoom to fit the whole aperture');
     }
+    /* the way in to the tile view, from the tile you have already selected */
+    var sp2 = document.createElement('span'); sp2.className = 'sp'; tb.appendChild(sp2);
+    zoomBtn('Inside this tile →', function () { setView('tile'); syncHash(); },
+      'Open the selected tile on its own, with the silicon it contains');
 
     var tm = TILE_METRICS.filter(function (m) { return m.key === view.tileMetric; })[0];
     var mapInfo = window.Diagram.renderMap(document.getElementById('mapMount'), built, {
@@ -857,6 +861,159 @@
        ranking here is against the full field exactly as it is on Compare —
        the two panels cannot disagree. */
     renderProsCons(res, budget, 'mapProsConsMount', 'mapProsConsHdr');
+  }
+
+  /* =====================================================================
+     INSIDE A TILE — the tile plan, the silicon, and the block table.
+
+     The plan is renderMap CROPPED, not a second renderer. That matters:
+     a new one would have to re-earn the port-cell parallelogram (which
+     exists because elemDx x elemDy claimed 225 mm² where a sheared cell is
+     450), the per-axis radiator cap, and the screen-space size floors whose
+     comment records a 2.81 mm die drawn under a legend saying 2.5 mm. It
+     also means the LOD machinery sees a genuine visible-tile count and
+     turns the dies, taps and tooltips on by itself.
+
+     A consequence, stated rather than hidden: the crop shows the NEIGHBOURS
+     of the selected tile. That is correct — the port lattice is continuous
+     across a tile edge at the same 1.50 cm spacing — but it does mean the
+     panel is not a picture of one tile in isolation, and the note says so.
+     =================================================================== */
+  function renderTileView(res, budget) {
+    var g = res.g;
+    var built = res.selected;
+    var tiles = built.grid.tiles;
+    if (view.selected >= tiles.length) view.selected = 0;
+    var t = tiles[view.selected];
+    var bbRes = res.bb[g.bbOptionId];
+
+    /* ---- toolbar: which tile, and the same layer toggles as the map ---- */
+    var tb = document.getElementById('tileToolbar');
+    tb.textContent = '';
+    function tbtn2(label, title, fn, cls) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn' + (cls ? ' ' + cls : '');
+      b.textContent = label; b.title = title;
+      b.addEventListener('click', fn); tb.appendChild(b); return b;
+    }
+    var lab = UI.elt('span', 'pk-lab', 'tile');
+    lab.style.minWidth = '0';
+    tb.appendChild(lab);
+    tbtn2('◀', 'previous tile', function () {
+      view.selected = (view.selected - 1 + tiles.length) % tiles.length; render();
+    });
+    var who = UI.elt('span', null, 'r' + t.r + ' c' + t.c + '  (' + (t.i + 1) + ' of ' + tiles.length + ')');
+    who.style.cssText = 'font:12px var(--mono);color:var(--ink-2);min-width:112px;text-align:center';
+    tb.appendChild(who);
+    tbtn2('▶', 'next tile', function () {
+      view.selected = (view.selected + 1) % tiles.length; render();
+    });
+    var sp = document.createElement('span'); sp.className = 'sp'; tb.appendChild(sp);
+    tbtn2('Show on the whole board', 'Open the Hardware map with this tile still selected', function () {
+      setView('map'); syncHash();
+    });
+
+    /* ---- the plan, cropped to this tile ---- */
+    var tm = TILE_METRICS.filter(function (m) { return m.key === view.tileMetric; })[0];
+    var info = window.Diagram.renderMap(document.getElementById('tileMapMount'), built, {
+      tileMetric: view.tileMetric, tileMetricLabel: tm ? tm.label : view.tileMetric,
+      selected: view.selected, sourceLabel: g.refName,
+      showBlocks: view.showBlocks, showLo: view.showLo,
+      showBb: view.showBb, showDies: view.showDies, showAnts: view.showAnts,
+      apertureSpecCm: g.apertureCm,
+      /* the crop, in centimetres — the tile plus a little board around it */
+      fitRectCm: { x: t.x, y: t.y, w: t.w, h: t.h, padCm: Math.max(0.4, t.w * 0.10) }
+    }, function (i) { view.selected = i; render(); });
+    window.Diagram.renderLegend(document.getElementById('tileMapLegend'), built, info);
+    window.Diagram.renderInspector(document.getElementById('tileInspectorMount'), built, view.selected, g);
+
+    document.getElementById('tilePlanHdr').textContent =
+      n(t.w, 2) + ' × ' + n(t.h, 2) + ' cm · ' + g.portsPerTile + ' ports · ' +
+      g.diesPerTile + ' RFIC + ' + g.bbDiesPerTile + ' baseband dies';
+
+    document.getElementById('tileNote').innerHTML =
+      'This is the Hardware map cropped to one tile, not a second drawing — so every glyph, ' +
+      'every size floor and every tooltip is the one the board uses. <strong>The neighbours are ' +
+      'visible on purpose:</strong> the port lattice runs at the same <span class="kv">' +
+      n(g.elemDxCm, 2) + ' cm</span> across a tile edge as inside it, so a tile is a packaging ' +
+      'boundary and not a lattice boundary — which is exactly why the grating lobes are set by the ' +
+      'port pitch and not by the tile pitch. ' +
+      '<strong>The four dies are drawn where the topology routes them</strong>, a 2×2 quad on one ' +
+      'matched split with <span class="kv">' + n(t.tapRoutedCm, 1) + ' cm</span> of ' +
+      n(g.fLoGHz, 0) + ' GHz fan-out; the baseband dies are NOT placed, because the model does not ' +
+      'place them — it pairs them 1:1 and books their area, which is what the panel below shows.';
+
+    /* ---- the silicon ---- */
+    window.Diagram.renderTileSilicon(document.getElementById('tileSiliconMount'), bbRes, g, view);
+    document.getElementById('tileSiliconHdr').textContent =
+      (M.BB_META[Math.round(state.bbOption)] || {}).short + ' · worst die ' +
+      n(bbRes.dieUtilPct, 1) + '% of ' + n(g.bbDieAreaMm2, 2) + ' mm²';
+    document.getElementById('tileSiliconNote').innerHTML =
+      '<strong>Areas are real; the arrangement is not a floorplan.</strong> Each band is one block ' +
+      'from the bill of materials, its height set by <span class="kv">area ÷ ' + n(g.bbDieMm, 1) +
+      ' mm</span> so the drawn dimension is linear in the quantity being claimed — no placement, no ' +
+      'routing and no pad ring has been done, and none is implied. A per-tile SINGLETON cannot be ' +
+      'split across the ' + g.bbDiesPerTile + ' dies, so it lands whole on one of them: that is why ' +
+      'die 1 differs from the rest, and why <span class="kv">' + n(bbRes.dieUtilPct, 1) + '%</span> ' +
+      'is the number that matters rather than the ' + n(bbRes.areaPerTileMm2, 2) + ' mm² per-tile total. ' +
+      '<strong>The RFIC die is empty because the model has nothing to put in it:</strong> it carries ' +
+      'the 2.5 mm size, ' + g.chPerDiePerDir + ' real RF channels per direction, one LO tap and a ' +
+      'lumped <span class="kv">' + n(g.rficGainDb, 0) + ' dB</span> of gain used only as a divisor in ' +
+      'the baseband noise penalty. There is no block library for its interior, so the edges are drawn ' +
+      'as brackets — the counts are known, the pin positions are not.';
+
+    /* ---- the block table ---- */
+    renderBbDieTable(bbRes, g);
+    window.Diagram.renderBbDiagram(document.getElementById('tileBbDiagramMount'), built);
+  }
+
+  /* One row per block, from the same dieBlocks the drawing reads, so the
+     table and the picture cannot disagree. */
+  function renderBbDieTable(bbRes, g) {
+    var tbl = document.getElementById('bbDieTable');
+    tbl.textContent = '';
+    var nD = Math.max(1, g.bbDiesPerTile);
+    var thead = document.createElement('thead');
+    var htr = document.createElement('tr');
+    ['Block', 'mm² each', 'per tile', 'on the worst die', 'mm² there'].forEach(function (h, i) {
+      var th = UI.elt('th', null, h);
+      if (i === 0) th.style.textAlign = 'left';
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr); tbl.appendChild(thead);
+    var tb = document.createElement('tbody');
+    (bbRes.dieBlocks || []).slice().sort(function (a, b) {
+      return b.areaOnWorstDieMm2 - a.areaOnWorstDieMm2;
+    }).forEach(function (b) {
+      var tr = document.createElement('tr');
+      var nm = UI.elt('td', 'mn');
+      nm.appendChild(document.createTextNode(b.name));
+      nm.appendChild(UI.elt('small', null,
+        b.singleton ? 'per-tile singleton — cannot be split across the dies'
+                    : 'per-channel — divides across the ' + nD + ' dies'));
+      tr.appendChild(nm);
+      tr.appendChild(UI.elt('td', 'v', n(b.areaEachMm2, 4)));
+      tr.appendChild(UI.elt('td', 'v', String(b.countPerTile)));
+      var cnt = UI.elt('td', 'v', b.divides ? String(b.countOnWorstDie) : n(b.countOnWorstDie, 1) + ' *');
+      if (!b.divides) cnt.title = b.countPerTile + ' does not divide by ' + nD +
+        ' dies — this row is an AREA share, not an instance count';
+      tr.appendChild(cnt);
+      tr.appendChild(UI.elt('td', 'v', n(b.areaOnWorstDieMm2, 4)));
+      tb.appendChild(tr);
+    });
+    var tot = document.createElement('tr');
+    tot.className = 'sect';
+    var tl = UI.elt('td', null, 'Worst die total');
+    tot.appendChild(tl);
+    tot.appendChild(UI.elt('td', null, ''));
+    tot.appendChild(UI.elt('td', null, ''));
+    tot.appendChild(UI.elt('td', null, ''));
+    tot.appendChild(UI.elt('td', 'v', n(bbRes.worstDieAreaMm2, 4)));
+    tb.appendChild(tot);
+    tbl.appendChild(tb);
+    document.getElementById('bbDieTableHdr').textContent =
+      n(bbRes.areaSingletonMm2, 3) + ' mm² of singletons + ' +
+      n(bbRes.areaDistributedMm2 / nD, 3) + ' mm² share = ' + n(bbRes.worstDieAreaMm2, 3) + ' mm²';
   }
 
   /* =====================================================================
@@ -2588,6 +2745,7 @@
     }
 
     if (view.name === 'map') renderMapView(res, budget);
+    if (view.name === 'tile') renderTileView(res, budget);
     if (view.name === 'compare') renderCompare(res, budget, dec);
     if (view.name === 'phasenoise') renderPn(res, budget);
     if (view.name === 'beam') renderBeam(res, budget);
@@ -4244,6 +4402,8 @@
     ant:    { id: 'antTable',   title: 'Antenna arrangement comparison',         file: 'antenna-arrangement.csv' },
     assume: { id: 'assumeTable', title: 'Parameter provenance',                  file: 'assumptions.csv' },
     bom:    { id: 'bomMount',   title: 'Hardware bill of materials',             file: 'bom.csv' },
+    /* the slug must contain no hyphen: parseSpec splits on the LAST one */
+    bbdie:  { id: 'bbDieTable', title: 'What is on the baseband die',            file: 'baseband-die.csv' },
     sys:      { id: 'sysMetricMount', title: 'Saved systems — results',          file: 'systems-results.csv' },
     sysparam: { id: 'sysParamMount',  title: 'Saved systems — differing inputs', file: 'systems-inputs.csv' },
     sysreq:   { id: 'sysReqMount',    title: 'Saved systems — derived requirement', file: 'systems-requirement.csv' },

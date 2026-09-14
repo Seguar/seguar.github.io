@@ -432,6 +432,37 @@
     'hold, precisely because an isolated patch is not truncated by neighbours. Measure a real embedded patch before ' +
     'quoting any subarray directivity from this tool.',
 
+    '### The die drawings, and the line between what is known and what is drawn',
+    '- **The baseband die is area-true; it is not a floorplan.** Every band on it is one block from the ' +
+    'bill of materials, its height set by `area ÷ die edge`, so the single dimension that varies is linear in ' +
+    'the single quantity being asserted — and the utilisation ceiling is then a real line at `70%` ' +
+    'of the die rather than a number in a caption. A treemap would have been ' +
+    'area-exact too, and was rejected for looking like a placement. **No placement, no routing and no pad ring ' +
+    'has been done for this die**, and the drawing is arranged so that none is implied.',
+    '- **The RFIC die is drawn empty because the model has nothing to put in it.** It carries four facts: the ' +
+    '2.5 × 2.5 mm size, `4` real RF channels per direction, one LO tap, and a ' +
+    'lumped `30 dB` of gain that is used only as a divisor in the baseband noise ' +
+    'penalty. There is no block library for its interior. Three things were deliberately NOT drawn: a stage ' +
+    'chain (LNA, mixer, phase shifter — none of which this tool models), an arrow carrying the ' +
+    '30 dB across the die (an arrow in one edge and out the other is a topology claim, and ' +
+    'that figure is a scalar, not a partition), and discrete pins (no pad list exists anywhere here, so the ' +
+    'edges are brackets: the counts are known, the positions are not).',
+    '- **Both dies are in ONE svg, and that is structural rather than tidy.** "Drawn to the same scale" ' +
+    'asserted in a caption is not the same scale: the chart grid is `auto-fit minmax` and an svg is `width:100%`, ' +
+    'so two separate drawings would render at different pixels-per-millimetre at most window widths and the ' +
+    'comparison the panel exists to make would quietly be false.',
+    '- **The tile plan is the Hardware map cropped, not a second renderer.** So every glyph, size floor and ' +
+    'tooltip is the one the board uses, and the level-of-detail machinery sees a real visible-tile count. The ' +
+    'cost is stated on the panel: the neighbours are visible. That is correct rather than sloppy — the port ' +
+    'lattice runs at the same `1.50 cm` across a tile edge as inside one, which is why the ' +
+    'grating lobes are set by the port pitch and not the tile pitch.',
+    '- **A defect this view exposed, which had been live at every zoom.** The map divides its text size by the ' +
+    'zoom so captions hold a constant size — and applied it as a `font-size` ATTRIBUTE, which a stylesheet ' +
+    'declaration beats. The compensation was computed correctly and then discarded. It was invisible at 1× ' +
+    'because 10.5/1 is exactly the stylesheet value, and nothing else in the tool renders at a fixed high zoom; ' +
+    'the cropped tile does, at 4.7×, where the aperture caption came out `50 px` tall against an intended 10.5. ' +
+    'Now applied as an inline style.',
+
     '### The nine-system shortlist, and the null result it exists to show',
     '- **The LO family does not move the link, and more bandwidth makes it move less.** Measured across all ' +
     'seven LO options at C1 / B3 / 2 GHz: the same 4.00 Gb/s every time, and a headroom spread of `0.088 dB` — ' +

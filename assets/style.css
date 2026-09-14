@@ -534,11 +534,11 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--ink-
    baseband)"). Here the value is a sentence, not a column of figures, so it
    should wrap; auto layout then fits the table to the rail at any width,
    including the stacked full-width case below 1300px. */
-.mapside #inspectorMount table.grid { width: 100%; }
-.mapside #inspectorMount table.grid td {
+.mapside .inspector table.grid { width: 100%; }
+.mapside .inspector table.grid td {
   white-space: normal; overflow-wrap: break-word; padding: 5px 9px;
 }
-.mapside #inspectorMount table.grid td:first-child { min-width: 0; }
+.mapside .inspector table.grid td:first-child { min-width: 0; }
 /* No width floor on the value column: measured with and without one, auto
    layout gives the same 119/205 split in the rail either way, and a floor
    only distorted the stacked full-width case into a 735px value column. */

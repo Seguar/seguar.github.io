@@ -34,6 +34,7 @@
     <span class="sub">LO / reference distribution &amp; baseband split-combine &mdash; 71&ndash;86&nbsp;GHz tiled array</span>
     <nav>
       <a href="#" class="navlink on" data-view="map">Hardware map</a>
+      <a href="#" class="navlink" data-view="tile">Inside a tile</a>
       <a href="#" class="navlink" data-view="compare">Compare</a>
       <a href="#" class="navlink" data-view="phasenoise">Phase noise</a>
       <a href="#" class="navlink" data-view="beam">TX / RX beam</a>
@@ -142,7 +143,7 @@
             <div class="chartbox" id="mapMount"></div>
             <aside class="mapside">
               <div class="mapside-h">Selected tile <span class="tag">click the map</span></div>
-              <div id="inspectorMount"></div>
+              <div class="inspector" id="inspectorMount"></div>
             </aside>
           </div>
           <div id="mapLegend"></div>
@@ -182,6 +183,60 @@
             <button class="btn" data-copy="bom-md" type="button">Copy as Markdown</button>
             <button class="btn" data-dl="bom-csv" type="button">Download CSV</button>
           </div>
+        </section>
+      </div>
+
+      <!-- ---- INSIDE A TILE ---- -->
+      <!-- One view, not three. The nav is already eleven flat links and
+           setView toggles sections by id with no nesting, so three more would
+           wrap the bar — and worse, the honest content of the RFIC panel IS
+           its contrast with the baseband panel beside it. Two dies of the same
+           size at the same scale, one packed from ten cited areas and one
+           empty, is a single argument; a navigation boundary would destroy
+           it. -->
+      <div class="view hidden" id="view-tile">
+        <p class="viewintro"><span class="scope one">this build</span><span>One tile of the panel, and the silicon inside it. The plan is the same drawing as the Hardware map, cropped to the selected tile; the dies below it are drawn to the same scale as each other.</span></p>
+
+        <section class="panel">
+          <h2>One tile <span class="tag">cropped from the board, not redrawn</span>
+            <span class="grow" id="tilePlanHdr"></span></h2>
+          <div class="toolbar" id="tileToolbar"></div>
+          <div class="mapsplit">
+            <div class="chartbox" id="tileMapMount"></div>
+            <aside class="mapside">
+              <div class="mapside-h">This tile <span class="tag">every tier</span></div>
+              <div class="inspector" id="tileInspectorMount"></div>
+            </aside>
+          </div>
+          <div id="tileMapLegend"></div>
+          <div class="body"><p class="note" id="tileNote"></p></div>
+        </section>
+
+        <!-- Both dies in ONE svg. Two svgs cannot be guaranteed to render at
+             the same px-per-mm — .chartgrid is auto-fit minmax and svg.chart
+             is width:100%, so equal scale asserted in a caption is not equal
+             scale. In one viewBox it is structural. -->
+        <section class="panel">
+          <h2>The silicon in one tile <span class="tag">areas are real; placement is not</span>
+            <span class="grow" id="tileSiliconHdr"></span></h2>
+          <div class="toolbar" id="tileSiliconToolbar"></div>
+          <div class="chartbox" id="tileSiliconMount"></div>
+          <div class="body"><p class="note" id="tileSiliconNote"></p></div>
+        </section>
+
+        <section class="panel">
+          <h2>What is on the baseband die <span class="tag">block by block, from the bill of materials</span>
+            <span class="grow" id="bbDieTableHdr"></span></h2>
+          <div class="tscroll"><table class="grid" id="bbDieTable"></table></div>
+          <div class="toolbar">
+            <button class="btn" data-copy="bbdie-md" type="button">Copy as Markdown</button>
+            <button class="btn" data-dl="bbdie-csv" type="button">Download CSV</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Baseband network <span class="tag">inside one tile</span></h2>
+          <div class="chartbox" id="tileBbDiagramMount"></div>
         </section>
       </div>
 
