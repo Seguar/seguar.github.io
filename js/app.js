@@ -903,7 +903,7 @@
     var QAM_NAMES = ['anything that closes', 'QPSK', '16QAM', '64QAM', '256QAM'];
     var RISKS = ['low', 'medium', 'high'];
     var OBJ_KEYS = ['rate', 'headroom', 'power', 'residual', 'repeaters', 'radiators'];
-    var objKey = OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'margin';
+    var objKey = OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'headroom';
     var qi = Math.round(state.cnMinQamSel);
 
     document.getElementById('chooserQuestion').textContent =
@@ -3861,7 +3861,7 @@
           lives.
      =================================================================== */
   /* field, label, direction, formatting, and an optional spec to test. */
-  function prosConsSpecs(budget) {
+  function prosConsSpecs(budget, g) {
     return {
       lo: [
         { f: 'interTileResidualDeg', lab: 'inter-tile residual', u: '°', dec: 3, better: 'low', spec: budget.sigSpecDeg },
@@ -3880,7 +3880,13 @@
         { f: 'lossTotalDb', lab: 'combine loss', u: 'dB', dec: 2, better: 'low' },
         { f: 'powerPerTileMw', lab: 'power per tile', u: ' mW', dec: 0, better: 'low' },
         { f: 'skewRmsPs', lab: 'skew', u: ' ps', dec: 1, better: 'low' },
-        { f: 'dieUtilPct', lab: 'worst baseband die utilisation', u: '%', dec: 1, better: 'low' }
+        /* This one carries its spec, unlike the other ranked rows: the model
+           HARD-FAILS a build whose worst baseband die exceeds the ceiling, so
+           without it a 95.2% die could be reported by its rank alone and read
+           as merely unflattering rather than as the thing that disqualifies
+           the option. */
+        { f: 'dieUtilPct', lab: 'worst baseband die utilisation', u: '%', dec: 1, better: 'low',
+          spec: g.bbDieUtilMaxPct }
       ],
       ant: [
         { f: 'dElDbi', lab: 'element directivity', u: ' dBi', dec: 2, better: 'high' },
@@ -3909,7 +3915,7 @@
     var mount = document.getElementById(mountId || 'prosConsMount');
     if (!mount) return;
     mount.textContent = '';
-    var SPECS = prosConsSpecs(budget);
+    var SPECS = prosConsSpecs(budget, res.g);
 
     var families = [
       { key: 'lo', title: 'LO / reference', ids: M.LO_IDS, meta: M.LO_META, set: res.lo, cur: res.g.loOptionId },
@@ -3955,7 +3961,11 @@
         if (s.spec !== undefined && isFinite(s.spec)) {
           var ok = s.better === 'high' ? v >= s.spec : v <= s.spec;
           if (!ok) {
-            cons.push({ lab: s.lab, val: shown,
+            /* ord: -1 sorts a spec failure ABOVE every ranked cost, which is
+               where it belongs. It also has to be PRESENT: trim() sorts on
+               a.ord - b.ord, and an entry without one made that comparator
+               return NaN, which leaves the ordering up to the engine. */
+            cons.push({ lab: s.lab, val: shown, ord: -1,
               why: 'misses the ' + n(s.spec, s.dec) + s.u + ' requirement' });
             return;
           }
@@ -3977,15 +3987,25 @@
 
         scored.push({ lab: s.lab, val: shown, rank: rank, N: N, bestTxt: bestTxt });
 
-        if (rank === 1) {
+        /* THE WORST TEST RUNS FIRST. A metric can satisfy rank === 2 and be
+           TIED WORST at the same time — four options at [1,2,2,2] with the
+           selected one on 2 gives betterThan 1, sameAs 3, so rank 2 and
+           rank+sameAs-1 = 4 = N. With the rank-2 branch ahead of it, that
+           was filed under ADVANTAGES as "2nd of 4", which is the exact
+           opposite of true. rank === 1 cannot collide the same way: being
+           both best and worst means every value is equal, and the flat-field
+           test above has already dropped that row. */
+        var isWorst = rank + sameAs - 1 === N;
+        var isSecondWorst = rank + sameAs - 1 === N - 1;
+        if (isWorst) {
+          cons.push({ lab: s.lab, val: shown, ord: 0,
+            why: (tie ? 'tied worst' : 'worst') + ' of ' + N + ' — best is ' + bestTxt });
+        } else if (rank === 1) {
           pros.push({ lab: s.lab, val: shown, ord: 0,
             why: (tie ? 'tied best' : 'best') + ' of ' + N + ' — worst is ' + worstTxt });
         } else if (rank === 2 && N >= 4) {
           pros.push({ lab: s.lab, val: shown, ord: 1, why: '2nd of ' + N + ' — best is ' + bestTxt });
-        } else if (rank + sameAs - 1 === N) {
-          cons.push({ lab: s.lab, val: shown, ord: 0,
-            why: (tie ? 'tied worst' : 'worst') + ' of ' + N + ' — best is ' + bestTxt });
-        } else if (rank + sameAs - 1 === N - 1 && N >= 4) {
+        } else if (isSecondWorst && N >= 4) {
           cons.push({ lab: s.lab, val: shown, ord: 1, why: '2nd worst of ' + N + ' — best is ' + bestTxt });
         }
       });
@@ -4163,15 +4183,16 @@
       else if (r.persisted === false) unpersisted++;
     });
     render();
-    var msg;
-    if (failed.length) {
-      msg = 'Loaded ' + (items.length - failed.length) + ' of ' + items.length +
-        ' — ' + failed.length + ' could not be saved, starting with "' + failed[0] + '"';
-    } else {
-      msg = 'Loaded the ' + items.length + '-system shortlist';
-      if (unpersisted) msg += ' (this session only — storage blocked)';
-      if (clampedAny.length) msg += ', ' + clampedAny.length + ' value(s) clamped: ' + clampedAny[0];
-    }
+    /* Every condition is reported, not just the first one that fires. The
+       previous shape put the clamp report inside the else, so a save failure
+       silently swallowed the news that a value had also been clamped — which
+       is the same class of omission the failure report was added to fix. */
+    var msg = failed.length
+      ? 'Loaded ' + (items.length - failed.length) + ' of ' + items.length +
+        ' — ' + failed.length + ' could not be saved, starting with "' + failed[0] + '"'
+      : 'Loaded the ' + items.length + '-system shortlist';
+    if (unpersisted) msg += ' (this session only — storage blocked)';
+    if (clampedAny.length) msg += '; ' + clampedAny.length + ' value(s) clamped: ' + clampedAny[0];
     X.flash(msg);
   }
 
@@ -4359,7 +4380,7 @@
           var OBJ_KEYS = ['rate', 'headroom', 'power', 'residual', 'repeaters', 'radiators'];
           var qi = Math.round(state.cnMinQamSel);
           chooserResult = M.search(state, {
-            objective: OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'margin',
+            objective: OBJ_KEYS[Math.round(state.cnObjectiveSel)] || 'headroom',
             rangeKm: res.g.linkRangeKm, rainRateMmH: res.g.rainRateMmH,
             minQamOrder: QAM_ORDERS[qi], minQamName: QAM_NAMES[qi],
             maxResidualDeg: state.cnMaxResidualDeg,
