@@ -669,7 +669,14 @@
       });
       wm.appendChild(box);
     }
-    wm.classList.toggle('hidden', !warns.length);
+    /* The container holds TWO things now, so it cannot be shown on the count
+       of one of them. Keying this on warns.length alone meant a migration
+       that produced no consistency warnings — the ordinary case — built the
+       banner into a still-hidden box and showed the reader nothing, which is
+       the very silent state change the banner was added to prevent. It went
+       unnoticed because the state it was first tested against (B5) fails the
+       die check, so a warning happened to be un-hiding the box for it. */
+    wm.classList.toggle('hidden', !warns.length && !(view.migrated && view.migrated.length));
   }
 
   /* =====================================================================
