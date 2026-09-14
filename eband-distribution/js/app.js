@@ -91,6 +91,20 @@
        against 4 dies restores as 8 IQ channels per die, which is the
        full-duplex reading; the consistency check then explains why that
        needs two baseband dies per RFIC die rather than one. */
+    /* nDies was "RFIC dies in the array" and is now derived from tiles ×
+       taps. The same figure survives as dieInventory, which is what it always
+       meant — how many exist, not how many the array contains — so an old
+       link's value is carried across rather than dropped by the
+       `k in DEFAULTS` filter and silently replaced by the new default. */
+    if (raw && raw.nDies !== undefined && raw.dieInventory === undefined) {
+      var oldDies = Math.round(parseFloat(raw.nDies));
+      if (isFinite(oldDies) && oldDies > 0) {
+        raw.dieInventory = oldDies;
+        moved.push('nDies=' + oldDies + ' (the array’s die count is now derived from tiles × taps) ' +
+          '→ kept as the available-die inventory');
+      }
+      delete raw.nDies;
+    }
     if (raw && raw.chPerTile !== undefined && raw.bbIqChPerDie === undefined) {
       var oldCh = Math.round(parseFloat(raw.chPerTile));
       var dies = Math.max(1, Math.round(parseFloat(raw.tapsPerTile) || DEFAULTS.tapsPerTile || 4));
@@ -2885,7 +2899,9 @@
     o.g_tileCols = g.tileCols;
     o.g_nTilesTotal = g.nTilesTotal;
     o.g_effApertureCm = g.effApertureCm;
-    o.g_diesPlaced = g.diesPlaced;
+    o.g_nDies = g.nDies;                /* derived: tiles x taps */
+    o.g_diesPlaced = g.diesPlaced;      /* capped by the stated inventory */
+    o.g_diesShort = g.diesShort;
     o.g_nElem = g.nElem;
     o.g_elemDxLam = g.elemDxLam;
     /* The lattice's lobe count exists whatever the layout mode, because it
@@ -2975,7 +2991,7 @@
           return n(v, 1) + (r.g_pitchExact === 'exact' ? '' : ' (−' + n(r.g_marginCm, 2) + ' cm/side)');
         }
       },
-      { name: 'Dies placed', field: 'g_diesPlaced', dec: 0 },
+      { name: 'RFIC dies', sub: 'derived from tiles x taps per tile', field: 'g_nDies', dec: 0 },
       { name: 'Radiating elements', field: 'g_nElem', dec: 0 },
       {
         name: 'Element lattice', field: 'g_elemDxLam', units: 'λ', dec: 2, noDelta: true,
