@@ -5268,8 +5268,8 @@ footer.foot a { color: var(--ink-2); }
       conf: 'measured/datasheet', why: '30 × 30 cm array class from the proposal. This is D in the beamwidth 0.886·λ/D, and it is a hard system spec — the tile pitch is the design choice that has to fit inside it.' },
     { key: 'tileCm', label: 'Tile pitch', units: 'cm', value: 6, min: 0.25, max: 15, step: 0.25, group: 'Array & band',
       conf: 'published-literature', why: 'Centre-to-centre tile spacing; with abutting square tiles it equals the tile edge. "Pitch" rather than "side" or "size" because a spacing is what the grid is built from, and "size" for a 2-D module reads as an area. The default is the pitch that is OPTIMAL FOR THE 30 cm APERTURE, not a round number: 6 cm divides 30 exactly (5×5 = 25 tiles filling the whole aperture), sits inside the proposal\'s own 5–10 cm sub-tiling range (§4.5), and gives 173 ps of residual intra-tile delay at 60° against the ~200 ps target. The earlier 4 cm default is BELOW that range and does not divide 30 cm: it fits 7×7 = 49 tiles across 28 cm and throws away the outer 2 cm in each direction.' },
-    { key: 'nDies', label: 'RFIC dies in the array', units: '-', value: 100, min: 4, max: 4000, step: 1, group: 'Array & band',
-      conf: 'measured/datasheet', why: '≈100 existing 2.5 × 2.5 mm E-band dies. Tile pitch, taps per tile and this total are independent inputs that can disagree, so the tool checks them against each other rather than letting the mismatch pass silently.' },
+    { key: 'dieInventory', label: 'RFIC dies available', units: '-', value: 100, min: 4, max: 4000, step: 1, group: 'Array & band',
+      conf: 'measured/datasheet', why: 'AN INVENTORY, NOT A DIMENSION, and it REPLACES the old "RFIC dies in the array" input. ≈100 existing 2.5 × 2.5 mm E-band dies. How many dies the array CONTAINS is not a free choice — it is tiles × taps per tile, so it is now derived and cannot be typed into disagreement with the geometry. What this number does is bound it: if the aperture and the tile pitch demand more dies than exist, that is a procurement fact the tool should state rather than a term to be balanced against. It enters no equation. The only quantity it touches is the population shortfall, which is reported and deliberately NOT applied to the array gain — under-populating a panel really would cost gain, but modelling a half-built array is a different question from choosing an architecture for a whole one.' },
     { key: 'tapsPerTile', label: 'LO taps per tile', units: '-', value: 4, min: 1, max: 32, step: 1, group: 'Array & band',
       conf: 'scaled-estimate', why: 'One LO tap per RFIC die. At the 6 cm pitch 5×5 = 25 tiles fit and the 100-die inventory divides exactly: 25 × 4 = 100 placed, none stranded, no die-population gain loss. Four dies lay out as a 2×2 quad on one matched 1:4 split. At the earlier 4 cm pitch it was floor(100/49) = 2 dies per tile — 98 placed, 2 spare, costing 10log10(98/100) = −0.09 dB.' },
     { key: 'bbIqChPerDie', label: 'IQ channels per baseband die', units: '-', value: 4, min: 1, max: 16, step: 1, group: 'Array & band',
@@ -5883,8 +5883,30 @@ footer.foot a { color: var(--ink-2); }
     g.snapCoarseCm = g.apertureCm / g.tileCols;
     g.snapFineCm = g.apertureCm / (g.tileCols + 1);
     g.loTapsTotal = g.nTilesTotal * Math.round(g.tapsPerTile);
-    g.diesPlaced = Math.min(g.loTapsTotal, Math.round(g.nDies));
-    g.diePopGainDb = 10 * Math.log10(Math.max(g.diesPlaced, 1) / Math.max(Math.round(g.nDies), 1));
+    /* ---------------------------------------------------------------- *
+     * HOW MANY RFIC DIES THE ARRAY CONTAINS IS DERIVED, NOT ENTERED.
+     *
+     * One die per LO tap, one tap per die: the count is tiles × taps per
+     * tile and nothing else. It used to be a free parameter sitting beside
+     * the tile pitch and the tap count, agreeing with them at the defaults
+     * only because 5×5×4 happens to be 100 — move the aperture, the pitch
+     * or the taps and the three drifted apart, with the tool reduced to
+     * nagging about a disagreement it could simply not have.
+     *
+     * The ~100-die figure did not disappear; it became what it always was,
+     * an INVENTORY. It bounds the geometry rather than describing it, and
+     * it enters no equation.
+     * ---------------------------------------------------------------- */
+    g.nDies = g.loTapsTotal;
+    g.dieInventory = Math.round(g.dieInventory);
+    g.diesPlaced = Math.min(g.nDies, g.dieInventory);
+    g.diesShort = Math.max(0, g.nDies - g.dieInventory);
+    /* What a shortfall WOULD cost, reported and not applied. An array you
+       cannot finish populating really does lose this much peak gain, but
+       that is a question about a half-built panel; the comparison this tool
+       exists to make is between architectures for a whole one, and silently
+       docking every metric by it would confuse the two. */
+    g.diePopGainDb = 10 * Math.log10(Math.max(g.diesPlaced, 1) / Math.max(g.nDies, 1));
 
     /* ---------------------------------------------------------------- *
      * THE ELEMENT LATTICE — the geometry that actually radiates.
@@ -7667,24 +7689,28 @@ footer.foot a { color: var(--ink-2); }
       });
     }
 
-    var taps = g.nTilesTotal * Math.round(g.tapsPerTile);
-    if (taps > g.nDies + 0.5) {
+    /* The die count no longer disagrees with the geometry, because it IS the
+       geometry — so the only question left is procurement: does the array
+       this aperture and pitch describe need more dies than exist?
+
+       The old pair of checks is gone with the free parameter. One of them was
+       wrong anyway: it warned that spare inventory "costs X dB of array gain
+       against a fully populated aperture", which confuses two different
+       things. Having dies left over on a shelf costs nothing; under-filling
+       a panel costs gain. With the count derived the aperture is always fully
+       populated at the chosen pitch, and the surviving question is whether
+       you can buy it. */
+    if (g.diesShort > 0) {
       out.push({
         severity: 'fail',
-        message: g.nTilesTotal + ' tiles × ' + Math.round(g.tapsPerTile) + ' LO taps = ' + taps +
-          ' taps, but only ' + g.nDies + ' RFIC dies exist — ' + (taps / g.nDies).toFixed(2) +
-          '× over the inventory. The die count is a hard limit, not a design variable. At this tile count the ' +
-          'inventory allows ' + Math.floor(g.nDies / g.nTilesTotal) + ' dies per tile. Distribution power and ' +
-          'the BOM scale with the tap count, so leaving this inflates M6.'
-      });
-    } else if (taps < g.nDies - 0.5) {
-      out.push({
-        severity: 'warn',
-        message: g.nTilesTotal + ' tiles × ' + Math.round(g.tapsPerTile) + ' LO taps places ' + taps + ' of the ' +
-          g.nDies + ' available dies, leaving ' + (g.nDies - taps) + ' spare and costing ' +
-          g.diePopGainDb.toFixed(2) + ' dB of array gain against a fully populated aperture. ' +
-          (g.nDies % g.nTilesTotal === 0 ? '' : 'An exact fit is not possible at this tile count: ' +
-            g.nDies + ' / ' + g.nTilesTotal + ' = ' + (g.nDies / g.nTilesTotal).toFixed(2) + ' dies per tile.')
+        message: 'This geometry needs ' + g.nDies + ' RFIC dies — ' + g.nTilesTotal + ' tiles × ' +
+          Math.round(g.tapsPerTile) + ' per tile — against a stated inventory of ' + g.dieInventory +
+          '. It is ' + g.diesShort + ' short, ' + (g.nDies / Math.max(g.dieInventory, 1)).toFixed(2) +
+          '× over. That is a procurement limit, not a design variable: the way out is a coarser tile ' +
+          'pitch, fewer taps per tile, or a smaller aperture, all of which reduce the count this ' +
+          'geometry demands. Populating only ' + g.diesPlaced + ' of them would cost ' +
+          Math.abs(g.diePopGainDb).toFixed(2) + ' dB of peak gain — a figure this tool REPORTS and does ' +
+          'not apply, because every other number on the page describes a whole array.'
       });
     }
 
@@ -12006,6 +12032,20 @@ footer.foot a { color: var(--ink-2); }
        against 4 dies restores as 8 IQ channels per die, which is the
        full-duplex reading; the consistency check then explains why that
        needs two baseband dies per RFIC die rather than one. */
+    /* nDies was "RFIC dies in the array" and is now derived from tiles ×
+       taps. The same figure survives as dieInventory, which is what it always
+       meant — how many exist, not how many the array contains — so an old
+       link's value is carried across rather than dropped by the
+       `k in DEFAULTS` filter and silently replaced by the new default. */
+    if (raw && raw.nDies !== undefined && raw.dieInventory === undefined) {
+      var oldDies = Math.round(parseFloat(raw.nDies));
+      if (isFinite(oldDies) && oldDies > 0) {
+        raw.dieInventory = oldDies;
+        moved.push('nDies=' + oldDies + ' (the array’s die count is now derived from tiles × taps) ' +
+          '→ kept as the available-die inventory');
+      }
+      delete raw.nDies;
+    }
     if (raw && raw.chPerTile !== undefined && raw.bbIqChPerDie === undefined) {
       var oldCh = Math.round(parseFloat(raw.chPerTile));
       var dies = Math.max(1, Math.round(parseFloat(raw.tapsPerTile) || DEFAULTS.tapsPerTile || 4));
@@ -14800,7 +14840,9 @@ footer.foot a { color: var(--ink-2); }
     o.g_tileCols = g.tileCols;
     o.g_nTilesTotal = g.nTilesTotal;
     o.g_effApertureCm = g.effApertureCm;
-    o.g_diesPlaced = g.diesPlaced;
+    o.g_nDies = g.nDies;                /* derived: tiles x taps */
+    o.g_diesPlaced = g.diesPlaced;      /* capped by the stated inventory */
+    o.g_diesShort = g.diesShort;
     o.g_nElem = g.nElem;
     o.g_elemDxLam = g.elemDxLam;
     /* The lattice's lobe count exists whatever the layout mode, because it
@@ -14890,7 +14932,7 @@ footer.foot a { color: var(--ink-2); }
           return n(v, 1) + (r.g_pitchExact === 'exact' ? '' : ' (−' + n(r.g_marginCm, 2) + ' cm/side)');
         }
       },
-      { name: 'Dies placed', field: 'g_diesPlaced', dec: 0 },
+      { name: 'RFIC dies', sub: 'derived from tiles x taps per tile', field: 'g_nDies', dec: 0 },
       { name: 'Radiating elements', field: 'g_nElem', dec: 0 },
       {
         name: 'Element lattice', field: 'g_elemDxLam', units: 'λ', dec: 2, noDelta: true,
