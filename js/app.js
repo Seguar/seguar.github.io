@@ -3436,8 +3436,21 @@
        Each entry is a sparse override on today's defaults, so the set tracks
        the model as the model improves; once loaded, each becomes an ordinary
        saved system holding its own full state. */
+    /* count() builds the list, and build() THROWS by design — on a retired
+       option id, a duplicate id, or a name past the 48 characters
+       Systems.save silently truncates at. Throwing is right: the alternative
+       is clampParam quietly remapping a stale index onto a neighbouring
+       architecture. But this call sits in the middle of renderSystems, so an
+       uncaught throw here takes the WHOLE VIEW down over one bad entry. Catch
+       it, keep the view, and put the error where a reader can act on it. */
+    var nSl = null, slErr = null;
     if (window.Shortlist) {
-      var nSl = window.Shortlist.count();
+      try { nSl = window.Shortlist.count(); }
+      catch (e) { slErr = e && e.message ? e.message : String(e); }
+    }
+    if (slErr) {
+      tbtn('Shortlist unavailable', slErr, function () { X.flash(slErr); }).disabled = true;
+    } else if (window.Shortlist) {
       if (view.sys.confirmShortlist) {
         tbtn('Replace all ' + nSaved + ' with the shortlist?',
           'Click again to delete every saved system and load the ' + nSl + ' curated ones',
@@ -4118,7 +4131,7 @@
     view.sys.confirmShortlist = false;
 
     SYS.clear();
-    var clampedAny = [];
+    var clampedAny = [], failed = [], unpersisted = 0;
     items.forEach(function (it) {
       var st = {};
       Object.keys(DEFAULTS).forEach(function (k) { st[k] = DEFAULTS[k]; });
@@ -4133,12 +4146,26 @@
       });
       var lm = M.LO_META[Math.round(st.loOption)] || {};
       var bm = M.BB_META[Math.round(st.bbOption)] || {};
-      SYS.save(it.name, st, { lo: lm.id || '', bb: bm.id || '', note: it.demonstrates });
+      /* save() CAN FAIL, and this loop runs after a clear(). At the
+         12-system limit it returns {ok:false, reason:'full'}, and in a
+         private window it returns {ok:true, persisted:false}. Ignoring that
+         left a half-loaded roster with the previous set already deleted,
+         under a flash that said all nine had loaded. */
+      var r = SYS.save(it.name, st, { lo: lm.id || '', bb: bm.id || '', note: it.demonstrates });
+      if (!r || !r.ok) failed.push(it.name + (r && r.reason === 'full' ? ' (at the limit)' : ''));
+      else if (r.persisted === false) unpersisted++;
     });
     render();
-    X.flash(clampedAny.length
-      ? 'Loaded ' + items.length + ' systems, ' + clampedAny.length + ' value(s) clamped: ' + clampedAny[0]
-      : 'Loaded the ' + items.length + '-system shortlist');
+    var msg;
+    if (failed.length) {
+      msg = 'Loaded ' + (items.length - failed.length) + ' of ' + items.length +
+        ' — ' + failed.length + ' could not be saved, starting with "' + failed[0] + '"';
+    } else {
+      msg = 'Loaded the ' + items.length + '-system shortlist';
+      if (unpersisted) msg += ' (this session only — storage blocked)';
+      if (clampedAny.length) msg += ', ' + clampedAny.length + ' value(s) clamped: ' + clampedAny[0];
+    }
+    X.flash(msg);
   }
 
   /* ------------------------------- routing ------------------------------- */
