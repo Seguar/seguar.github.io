@@ -231,9 +231,30 @@
     function Y(cm) { return PAD + (cm + marg + TOP_CM) * scale; }
 
     /* ---- zoom / pan: crop the viewBox, leave the coordinate map alone ---- */
-    var Z = Math.max(1, view.zoom || 1);
-    var cxCm = view.panXCm === undefined ? apCm / 2 : view.panXCm;
-    var cyCm = view.panYCm === undefined ? apCm / 2 : view.panYCm;
+    /* A caller may ask for a RECTANGLE IN CENTIMETRES instead of a zoom and a
+       centre — the single-tile view does, passing one tile's own {x,y,w,h}.
+       It is expressed as a zoom so that everything downstream is unchanged:
+       the same clamp keeps it inside the drawing, the same visCm drives the
+       same culling, and lodFor sees a genuine visible-tile count and turns
+       the dies, taps and tooltips on by itself. A second renderer would have
+       had to re-earn the cell parallelogram, the per-axis radiator cap and
+       the screen-space size floors, each of which exists because it once got
+       drawn wrong. */
+    var Z, cxCm, cyCm;
+    if (view.fitRectCm) {
+      var fr = view.fitRectCm;
+      var padCm = (fr.padCm === undefined ? 0.35 : fr.padCm);
+      var needCm = Math.max(fr.w, fr.h) + padCm * 2;
+      /* W/scale is the drawing's full width in cm including its board margin;
+         the zoom that makes `needCm` fill the shorter axis is their ratio */
+      Z = Math.max(1, Math.min(64, Math.min(W, H) / scale / Math.max(needCm, 1e-6)));
+      cxCm = fr.x + fr.w / 2;
+      cyCm = fr.y + fr.h / 2;
+    } else {
+      Z = Math.max(1, view.zoom || 1);
+      cxCm = view.panXCm === undefined ? apCm / 2 : view.panXCm;
+      cyCm = view.panYCm === undefined ? apCm / 2 : view.panYCm;
+    }
     var vw = W / Z, vh = H / Z;
     var vx = X(cxCm) - vw / 2, vy = Y(cyCm) - vh / 2;
     /* keep the crop inside the drawing so panning cannot wander off it */
@@ -280,6 +301,16 @@
       g2.setAttribute('transform', 'translate(' + X(x).toFixed(1) + ',' + Y(y).toFixed(1) + ') scale(' + (1 / Z).toFixed(4) + ')');
       return g2;
     }
+    /* Text is drawn in viewBox units, so it has to be divided by the zoom to
+       hold a constant size on screen. That division is applied as an INLINE
+       STYLE and not as a font-size attribute, because the stylesheet's
+       `svg.chart text { font: 10.5px … }` is a CSS declaration and beats a
+       presentation attribute — so the compensation was computed correctly and
+       then thrown away, and every caption grew with the zoom. It was
+       invisible at Z = 1, where 10.5/1 is exactly the stylesheet value, and
+       it went unnoticed because nothing else renders at a fixed high zoom;
+       the cropped single-tile view does, at Z ≈ 4.7, where the aperture
+       caption came out 50 px tall. */
     var fs = function (px) { return (px / Z).toFixed(2); };
 
     /* ---- panel spec (dashed) and populated area (solid) ---- */
@@ -295,7 +326,7 @@
       fill: 'var(--bg-sunken)', stroke: 'var(--rule-strong)', 'stroke-width': 1.4, rx: 3
     })));
     svg.appendChild(el('text', {
-      x: X(apCm / 2), y: Y(-marg) - 12 / Z, 'text-anchor': 'middle', fill: 'var(--ink-3)', 'font-size': fs(10.5)
+      x: X(apCm / 2), y: Y(-marg) - 12 / Z, 'text-anchor': 'middle', fill: 'var(--ink-3)', style: 'font-size:' + fs(10.5) + 'px'
     }, (marg > 1e-6
         ? apSpec.toFixed(1) + ' cm panel · ' + grid.rows + '×' + grid.cols + ' = ' + grid.nTiles +
           ' tiles at ' + grid.tileCm.toFixed(2) + ' cm pitch · ' + apCm.toFixed(1) + ' cm populated (' +
@@ -346,7 +377,7 @@
 
       if (t.hop && lod.tier === 'full') tileG.appendChild(el('text', {
         x: X(t.x + t.w) - 4 / Z, y: Y(t.y) + 11 / Z, 'text-anchor': 'end',
-        'font-size': fs(9), fill: 'var(--ink-3)'
+        style: 'font-size:' + fs(9) + 'px', fill: 'var(--ink-3)'
       }, t.hop));
     });
     svg.appendChild(tileG);
@@ -504,7 +535,7 @@
 
       svg.appendChild(el('text', {
         x: X(bbi.root.x), y: Y(bbi.root.y) - 17 / Z, 'text-anchor': 'middle',
-        fill: 'var(--s3)', 'font-size': fs(10.5)
+        fill: 'var(--s3)', style: 'font-size:' + fs(10.5) + 'px'
       }, 'baseband backend · ' + bbi.kind + ' · ' + bbi.totalRoutedCm.toFixed(0) + ' cm routed'));
     }
 
@@ -555,7 +586,7 @@
       var src = lo.net.source;
       svg.appendChild(el('text', {
         x: X(src.x), y: Y(src.y) + 25 / Z, 'text-anchor': 'middle',
-        fill: 'var(--ink-2)', 'font-size': fs(10.5)
+        fill: 'var(--ink-2)', style: 'font-size:' + fs(10.5) + 'px'
       }, (view.sourceLabel || 'source') + ' · ' +
          (lo.distFreqHz >= 1e9 ? (lo.distFreqHz / 1e9).toFixed(2) + ' GHz' : (lo.distFreqHz / 1e6).toFixed(0) + ' MHz') +
          ' on the board'));
@@ -1108,12 +1139,170 @@
     mount.appendChild(p);
   }
 
+  /* ====================================================================== *
+   * THE SILICON IN ONE TILE — the tile's baseband dies and one RFIC die,
+   * drawn in ONE svg so that "same scale" is structural rather than
+   * asserted. Two separate svgs cannot be held to the same px-per-mm:
+   * .chartgrid is auto-fit minmax and svg.chart is width:100%, so equal
+   * scale in a caption would be a claim the layout does not keep.
+   *
+   * THE BASEBAND DIE IS DRAWN AS BANDS, deliberately, and not as a treemap
+   * or a floorplan. A band's HEIGHT is area / dieEdge, so the one dimension
+   * that varies is linear in the one quantity being asserted, and the
+   * utilisation ceiling is then a real horizontal line at that fraction of
+   * the die rather than a number in a caption. A treemap would be
+   * area-exact too, but it looks like a placement, and no placement has
+   * been done.
+   *
+   * THE RFIC DIE IS DRAWN EMPTY. The model carries four facts about it —
+   * 2.5 x 2.5 mm, four real channels per direction, one LO tap, and a
+   * lumped 30 dB of gain used only as a divisor in the baseband noise
+   * penalty. There is no block library for its interior, so there is
+   * nothing to draw there, and an empty box beside a packed one at the same
+   * size says that better than any footnote. What crosses its edges is
+   * drawn as a BRACKET per edge, not as discrete pins: the channel count
+   * and the 1:1 pairing support "these cross here somewhere", and no pad
+   * list exists anywhere in this tool to support more than that.
+   * ==================================================================== */
+  function renderTileSilicon(mount, bbRes, g, view) {
+    mount.textContent = '';
+    var dieMm = g.bbDieMm;
+    var nDies = Math.max(1, g.bbDiesPerTile);
+    var PX = 118;                                  /* px per mm, both dies */
+    var dieW = dieMm * PX / 2.5;                   /* keep 2.5 mm ≈ 118 px */
+    var GAP = 26, LEFT = 54, TOP = 58, LABEL = 46;
+    var perRow = nDies + 1;                        /* baseband dies + one RFIC */
+    var W = LEFT + perRow * (dieW + GAP) + 210;
+    var H = TOP + dieW + LABEL + 76;
+    var svg = el('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H,
+      preserveAspectRatio: 'xMidYMid meet', role: 'img' });
+
+    var blocks = bbRes.dieBlocks || [];
+    var singles = blocks.filter(function (b) { return b.singleton; });
+    var spread = blocks.filter(function (b) { return !b.singleton; });
+    var spreadArea = spread.reduce(function (a, b) { return a + b.areaOnWorstDieMm2; }, 0);
+    var singleArea = singles.reduce(function (a, b) { return a + b.areaOnWorstDieMm2; }, 0);
+    var dieArea = g.bbDieAreaMm2;
+    var COL = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s6)', 'var(--s5)'];
+
+    /* one band per block, height linear in area */
+    function drawDie(x, y, carriesSingletons, dieIdx) {
+      var gEl = el('g', null);
+      var used = spreadArea + (carriesSingletons ? singleArea : 0);
+      var util = 100 * used / Math.max(dieArea, 1e-9);
+
+      gEl.appendChild(el('rect', { x: x, y: y, width: dieW, height: dieW,
+        fill: 'var(--bg-sunken)', stroke: 'var(--rule-strong)', 'stroke-width': 1.4 }));
+
+      var list = (carriesSingletons ? singles.concat(spread) : spread)
+        .filter(function (b) { return b.areaOnWorstDieMm2 > 0; })
+        .slice().sort(function (a, b) { return b.areaOnWorstDieMm2 - a.areaOnWorstDieMm2; });
+      var cy = y + dieW, ci = 0;
+      list.forEach(function (b) {
+        var hPx = (b.areaOnWorstDieMm2 / Math.max(dieArea, 1e-9)) * dieW;
+        var col = COL[ci++ % COL.length];
+        var overflowsHere = cy - hPx < y;
+        var top = Math.max(y, cy - hPx);
+        var band = el('rect', { x: x, y: top, width: dieW, height: Math.max(0.7, cy - top),
+          fill: col, 'fill-opacity': b.singleton ? 0.85 : 0.45, stroke: 'none' });
+        band.appendChild(el('title', null,
+          b.name + '\n' + b.areaOnWorstDieMm2.toFixed(4) + ' mm² on this die' +
+          (b.singleton
+            ? '\nper-TILE singleton: all ' + b.countPerTile + ' land on this one die'
+            : '\n' + b.countPerTile + ' per tile / ' + nDies + ' dies = ' +
+              b.countOnWorstDie + (b.divides ? '' : '  (does not divide — this is AREA, not a count)')) +
+          '\n' + b.areaEachMm2 + ' mm² each'));
+        gEl.appendChild(band);
+        cy -= hPx;
+        if (overflowsHere) {
+          /* what will not fit is drawn OUTSIDE the die, above it, so the die
+             square never rescales to accommodate an overflow — the square is
+             the silicon and it does not grow */
+          var over = el('rect', { x: x, y: y - (hPx - (cy + hPx - y)) - 2, width: dieW,
+            height: Math.max(1, (hPx - (cy + hPx - y))), fill: 'var(--fail)', 'fill-opacity': 0.3,
+            stroke: 'var(--fail)', 'stroke-width': 1, 'stroke-dasharray': '3 2' });
+          gEl.appendChild(over);
+        }
+      });
+
+      /* the utilisation ceiling, a real line at its real height */
+      var ceilY = y + dieW * (1 - g.bbDieUtilMaxPct / 100);
+      var cl = el('line', { x1: x - 5, y1: ceilY, x2: x + dieW + 5, y2: ceilY,
+        stroke: 'var(--s5)', 'stroke-width': 1.4, 'stroke-dasharray': '5 3' });
+      cl.appendChild(el('title', null, g.bbDieUtilMaxPct + '% core-utilisation ceiling'));
+      gEl.appendChild(cl);
+
+      gEl.appendChild(el('text', { x: x + dieW / 2, y: y + dieW + 15, 'text-anchor': 'middle',
+        fill: 'var(--ink-2)', 'font-size': 11 },
+        'BB die ' + (dieIdx + 1) + (carriesSingletons ? ' — carries the singletons' : '')));
+      var pct = el('text', { x: x + dieW / 2, y: y + dieW + 29, 'text-anchor': 'middle',
+        'font-size': 11.5, fill: util > g.bbDieUtilMaxPct ? 'var(--fail)' : 'var(--ink-3)' },
+        util.toFixed(1) + '% of ' + dieArea.toFixed(2) + ' mm²');
+      gEl.appendChild(pct);
+      svg.appendChild(gEl);
+    }
+
+    for (var d = 0; d < nDies; d++) {
+      drawDie(LEFT + d * (dieW + GAP), TOP, d === 0, d);
+    }
+
+    /* ---- the RFIC die: same size, same scale, and empty ---- */
+    var rx = LEFT + nDies * (dieW + GAP) + 18;
+    svg.appendChild(el('line', { x1: rx - 12, y1: TOP - 14, x2: rx - 12, y2: TOP + dieW + 34,
+      stroke: 'var(--rule-strong)', 'stroke-width': 1 }));
+    var rg = el('g', null);
+    rg.appendChild(el('rect', { x: rx, y: TOP, width: dieW, height: dieW,
+      fill: 'var(--bg-sunken)', stroke: 'var(--ink-3)', 'stroke-width': 1.4,
+      'stroke-dasharray': '5 3' }));
+    ['no internal block', 'library — the model', 'does not know what', 'is in here'].forEach(function (ln, i) {
+      rg.appendChild(el('text', { x: rx + dieW / 2, y: TOP + dieW / 2 - 20 + i * 13,
+        'text-anchor': 'middle', 'font-size': 10.5, fill: 'var(--ink-3)' }, ln));
+    });
+    /* brackets, not pins: the counts are known, the positions are not */
+    function bracket(x1, y1, x2, y2, label, lx, ly, anchor) {
+      rg.appendChild(el('path', { d: 'M' + x1 + ' ' + y1 + ' L' + x2 + ' ' + y2,
+        stroke: 'var(--s2)', 'stroke-width': 2.4, fill: 'none' }));
+      rg.appendChild(el('text', { x: lx, y: ly, 'text-anchor': anchor || 'middle',
+        'font-size': 10, fill: 'var(--s2)' }, label));
+    }
+    bracket(rx - 4, TOP + 6, rx - 4, TOP + dieW - 6,
+      g.chPerDiePerDir + ' RF channels', rx - 8, TOP + dieW / 2 - 4, 'end');
+    bracket(rx + dieW + 4, TOP + 6, rx + dieW + 4, TOP + dieW - 6,
+      g.bbIqChPerDie + ' IQ pairs', rx + dieW + 8, TOP + dieW / 2 - 4, 'start');
+    var loY = TOP + dieW + 4;
+    bracket(rx + 6, loY, rx + dieW - 6, loY, '1 LO tap at ' + g.fLoGHz + ' GHz',
+      rx + dieW / 2, loY + 13, 'middle');
+    rg.appendChild(el('text', { x: rx + dieW / 2, y: TOP + dieW + 29, 'text-anchor': 'middle',
+      'font-size': 11.5, fill: 'var(--ink-3)' }, 'RFIC die — ' + (2.5).toFixed(1) + ' × 2.5 mm SiGe'));
+    svg.appendChild(rg);
+
+    /* ---- scale bar and headings ---- */
+    svg.appendChild(el('text', { x: LEFT, y: 22, 'font-size': 12, fill: 'var(--ink-2)',
+      'font-weight': 600 }, nDies + ' baseband dies (65 nm LP) — packed from real areas'));
+    svg.appendChild(el('text', { x: rx, y: 22, 'font-size': 12, fill: 'var(--ink-2)',
+      'font-weight': 600 }, 'one RFIC die — a boundary'));
+    svg.appendChild(el('text', { x: LEFT, y: 40, 'font-size': 10.5, fill: 'var(--ink-3)' },
+      'band height = area ÷ ' + dieMm + ' mm, stacked from the bottom · dashed red line = ' +
+      g.bbDieUtilMaxPct + '% ceiling'));
+    var sbY = TOP + dieW + LABEL + 22;
+    svg.appendChild(el('line', { x1: LEFT, y1: sbY, x2: LEFT + dieW, y2: sbY,
+      stroke: 'var(--ink-3)', 'stroke-width': 1.2 }));
+    svg.appendChild(el('line', { x1: LEFT, y1: sbY - 4, x2: LEFT, y2: sbY + 4, stroke: 'var(--ink-3)' }));
+    svg.appendChild(el('line', { x1: LEFT + dieW, y1: sbY - 4, x2: LEFT + dieW, y2: sbY + 4, stroke: 'var(--ink-3)' }));
+    svg.appendChild(el('text', { x: LEFT + dieW / 2, y: sbY + 15, 'text-anchor': 'middle',
+      'font-size': 10.5, fill: 'var(--ink-3)' }, dieMm + ' mm — both dies at this scale'));
+
+    mount.appendChild(svg);
+    return { util: 100 * (spreadArea + singleArea) / Math.max(dieArea, 1e-9) };
+  }
+
   window.Diagram = {
     renderMap: renderMap,
     renderLegend: renderLegend,
     renderInspector: renderInspector,
     renderBom: renderBom,
     renderBbDiagram: renderBbDiagram,
+    renderTileSilicon: renderTileSilicon,
     rampColor: rampColor,
     bandOf: bandOf
   };

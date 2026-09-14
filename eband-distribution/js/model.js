@@ -2417,6 +2417,15 @@
        "1.3 mm² spread over four dies" and "5.95 mm² stacked on one". */
     var powerPerTileMw = 0, areaPerTileMm2 = 0;
     var areaSingletonMm2 = 0, areaDistributedMm2 = 0;
+    var nBbDies = Math.max(1, g.bbDiesPerTile);
+    /* Per-block, per-die rows, so a drawing and a table of this die read from
+       ONE derivation rather than each re-deriving the split and drifting. A
+       singleton lands whole on one die; everything else divides by the die
+       count — and that quotient is often FRACTIONAL (B1's 90 resistor arms
+       over 4 dies is 22.5), which is why this carries an area and not an
+       instance count. Rounding it to look like a count would be inventing a
+       floorplan decision the model has not made. */
+    var dieBlocks = [];
     (bb.bom || []).forEach(function (b) {
       var blk = BLOCKS[b.blockKey];
       if (!blk) return;
@@ -2424,8 +2433,19 @@
       var a = (blk.areaMm2 || 0) * b.count;
       areaPerTileMm2 += a;
       if (blk.tileSingleton) areaSingletonMm2 += a; else areaDistributedMm2 += a;
+      dieBlocks.push({
+        key: b.blockKey, name: blk.name, where: b.where,
+        singleton: !!blk.tileSingleton,
+        areaEachMm2: blk.areaMm2 || 0,
+        countPerTile: b.count,
+        areaPerTileMm2: a,
+        /* what this block puts on the WORST die: all of it if it cannot be
+           split, its share if it can */
+        countOnWorstDie: blk.tileSingleton ? b.count : b.count / nBbDies,
+        areaOnWorstDieMm2: blk.tileSingleton ? a : a / nBbDies,
+        divides: blk.tileSingleton || (b.count % nBbDies === 0)
+      });
     });
-    var nBbDies = Math.max(1, g.bbDiesPerTile);
     var worstDieAreaMm2 = areaSingletonMm2 + areaDistributedMm2 / nBbDies;
     var dieUtilPct = 100 * worstDieAreaMm2 / Math.max(g.bbDieAreaMm2, 1e-9);
     var dieFits = dieUtilPct <= g.bbDieUtilMaxPct;
@@ -2486,7 +2506,7 @@
       areaPerTileMm2: areaPerTileMm2, bwGHz: bwGHz, iip3PenaltyDb: iip3PenaltyDb,
       areaSingletonMm2: areaSingletonMm2, areaDistributedMm2: areaDistributedMm2,
       worstDieAreaMm2: worstDieAreaMm2, dieUtilPct: dieUtilPct, dieFits: dieFits,
-      bbDiesPerTile: nBbDies,
+      bbDiesPerTile: nBbDies, dieBlocks: dieBlocks,
       driftDegPerK: driftDegPerK,
       calBurdenScore: nCh, calBurdenDetail: nCh + ' per-channel baseband weights per rail; group delay must be ' +
         'measured with a two-tone or swept baseband loopback, since a single-tone phase measurement cannot ' +
