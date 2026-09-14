@@ -150,7 +150,8 @@
         why: 'The only honest 4 GHz row in the space, and every substitution in it is forced rather ' +
           'than chosen. 4 GHz exists only as 2 × 2000 MHz carrier aggregation, and B1 is the only ' +
           'baseband whose bandwidth reaches 4.0 GHz unclipped — B3 clips to 3.5, B4 to 2.5, B5 to 1.0. ' +
-          'It uses 5.7% of a die, the emptiest in the set, and pays 12.95 dB of net resistive division ' +
+          'It uses 5.7% of a die — the emptiest of the options that still close a link, though B2 ' +
+          'below it is emptier still at 4.7% — and pays 12.95 dB of net resistive division ' +
           'loss for the privilege, leaving 3.09 dB of headroom. C4 is required because a package patch ' +
           'covers 4% fractional bandwidth and 71–86 GHz is 15 GHz wide.'
       },
@@ -178,7 +179,8 @@
         why: 'Injection locking has no PFD, no charge pump and no divider, and its lock corner is ' +
           'hundreds of MHz where a PLL closes a few, so it suppresses the distribution path’s ' +
           'additive noise over a far wider band than A4. It is also the cheapest LO in the set at ' +
-          '16.1% of array power. Its price is a new error class: the locked phase offset ' +
+          '9.9% of the array budget — the LO alone, which is what this sentence is about; the whole ' +
+          'build including the baseband is 16.1%. Its price is a new error class: the locked phase offset ' +
           'arcsin(Δf/f_lock) differs tile to tile with process spread, giving 2.235° of residual ' +
           'against A4’s 0.147°. Set beside row 2, which is identical but for the LO: same 8.00 Gb/s, ' +
           'same 10.95 dB of headroom, to three figures. That is finding 1 in a single pair of rows.'

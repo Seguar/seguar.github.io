@@ -2438,7 +2438,7 @@
          lanes  = ceil(2 rails · bits · fs / lane rate)
 
        Two rails, and both directions: an ADC and a DAC per rail per tile. */
-    var convMw = 0, serdesMw = 0, laneGbps = 0, lanes = 0;
+    var convMw = 0, serdesMw = 0, laneGbps = 0;
     if (trB.digital) {
       var fsHz = g.adcGspsPerRail * 1e9;
       var perConvMw = g.adcFomFjConv * 1e-15 * Math.pow(2, g.adcBits) * fsHz * 1e3;
@@ -2447,7 +2447,6 @@
          books and the power it burns describe one serial link rather than
          two different ones. */
       laneGbps = K.serdesLaneGbps(g.adcBits, g.adcGspsPerRail);
-      lanes = K.serdesLanes(g.adcBits, g.adcGspsPerRail);
       serdesMw = g.serdesMwPerGbps * laneGbps * 2;         /* both directions */
       powerPerTileMw += convMw + serdesMw;
     }
@@ -2575,6 +2574,21 @@
             ' mm² of per-tile singletons. Tight, not yet impossible.'
         });
       }
+    }
+    /* Deriving the channel count removed a floor the old parameter carried.
+       chPerTile was a PARAM with min 2; bbIqChPerDie and tapsPerTile both have
+       min 1, so their product can be 1 — and Topo.buildBb raises it to 2
+       without saying so (topology.js: Math.max(2, ...)). Every number the
+       baseband reports would then describe a 2-channel tile that the geometry
+       says has 1. Say it rather than let the drawing and the model disagree. */
+    if (g.chPerTile < 2) {
+      out.push({
+        severity: 'warn',
+        message: 'The pairing derives ' + g.chPerTile + ' baseband channel per tile (' +
+          g.bbIqChPerDie + ' IQ channel on ' + g.bbDiesPerTile + ' die), but the baseband network ' +
+          'needs at least two to combine anything, so it is evaluated at 2. Every baseband number ' +
+          'below describes that 2-channel tile, not the 1-channel one this geometry asks for.'
+      });
     }
     if (!g.bbChMatchesRf) {
       out.push({
