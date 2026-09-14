@@ -26,6 +26,51 @@
   }
 
   /* ------------------------- frequency -> line style -------------------- */
+  /* Union the axis-aligned links that lie on the same line at the same
+     frequency, so a conductor shared by a parent feed and a child feed is
+     drawn once instead of twice. Anything not axis aligned, or on a
+     different line or band, passes through untouched. Level-of-detail
+     filtering happens BEFORE this, so a merge cannot smuggle a deep branch
+     past the LOD by inheriting a shallower level. */
+  function mergeCollinearRuns(list) {
+    var out = [], byKey = {};
+    list.forEach(function (L) {
+      var vert = Math.abs(L.x2 - L.x1) < 1e-9;
+      var horiz = Math.abs(L.y2 - L.y1) < 1e-9;
+      if (!vert && !horiz) { out.push(L); return; }
+      var fixed = vert ? L.x1 : L.y1;
+      var key = (vert ? 'V' : 'H') + '|' + fixed.toFixed(4) + '|' +
+        (L.freqHz || 0) + '|' + (L.bidir ? 1 : 0);
+      var a = vert ? Math.min(L.y1, L.y2) : Math.min(L.x1, L.x2);
+      var b = vert ? Math.max(L.y1, L.y2) : Math.max(L.x1, L.x2);
+      (byKey[key] = byKey[key] || []).push({ a: a, b: b, L: L, vert: vert, fixed: fixed });
+    });
+    function emit(c) {
+      var o = { freqHz: c.L.freqHz, bidir: c.L.bidir,
+                kind: c.trunk ? 'trunk' : 'branch', level: c.level };
+      if (c.vert) { o.x1 = c.fixed; o.y1 = c.a; o.x2 = c.fixed; o.y2 = c.b; }
+      else { o.x1 = c.a; o.y1 = c.fixed; o.x2 = c.b; o.y2 = c.fixed; }
+      return o;
+    }
+    Object.keys(byKey).forEach(function (k) {
+      var arr = byKey[k].sort(function (p, q) { return p.a - q.a; });
+      var cur = null;
+      arr.forEach(function (s) {
+        if (cur && s.a <= cur.b + 1e-9) {
+          cur.b = Math.max(cur.b, s.b);
+          cur.level = Math.min(cur.level, s.L.level || 0);
+          cur.trunk = cur.trunk || s.L.kind === 'trunk';
+        } else {
+          if (cur) out.push(emit(cur));
+          cur = { a: s.a, b: s.b, vert: s.vert, fixed: s.fixed, L: s.L,
+                  level: s.L.level || 0, trunk: s.L.kind === 'trunk' };
+        }
+      });
+      if (cur) out.push(emit(cur));
+    });
+    return out;
+  }
+
   function bandOf(fHz) {
     if (!isFinite(fHz)) return 'ref';
     if (fHz < 2e9) return 'ref';
@@ -542,14 +587,33 @@
     /* ---- LO / reference tier, weighted and coloured by frequency ---- */
     if (view.showLo !== false) {
       var linkG = el('g');
-      lo.net.links.forEach(function (L) {
-        if (!segVisible(L.x1, L.y1, L.x2, L.y2)) return;
-        if ((L.level || 0) > lod.links) return;
+      /* MERGE THE RUNS THAT SHARE COPPER BEFORE DRAWING THEM.
+         A corporate feed routes parent-to-child through box centres, and a
+         child's feed frequently retraces part of its parent's — the same
+         physical trace, emitted as two links. Drawn twice they are one line
+         to the eye, and the point where the shorter one stops looks like a
+         junction with no splitter on it: measured at the defaults, 11 pairs
+         of collinear segments overlapped, which is most of what makes the
+         tree look like it splits for no reason. Merging is not cosmetic
+         licence — two runs at the same frequency on the same line ARE one
+         conductor, and the model already charges the length once per path.
+         The merged run takes the SHALLOWEST level of its parts, because the
+         copper nearest the source is what it physically is. */
+      var drawLinks = mergeCollinearRuns(lo.net.links.filter(function (L) {
+        return (L.level || 0) <= lod.links && segVisible(L.x1, L.y1, L.x2, L.y2);
+      }));
+      var deepest = Math.max(1, lo.net.maxLevel || 1);
+      drawLinks.forEach(function (L) {
         var st = BAND_STYLE[bandOf(L.freqHz)];
+        /* taper with depth so the hierarchy is readable at a glance: the
+           trunk is full weight, the last branch about half. Without it every
+           one of 87 segments had the same weight and the tree read as a web. */
+        var depth = Math.min(L.level || 0, deepest) / deepest;
+        var w = Math.max(0.85, st.w * (1 - 0.45 * depth));
         linkG.appendChild(nss(el('line', {
           x1: X(L.x1), y1: Y(L.y1), x2: X(L.x2), y2: Y(L.y2),
-          stroke: st.stroke, 'stroke-width': st.w, 'stroke-linecap': 'round',
-          'stroke-opacity': L.kind === 'trunk' ? 1 : 0.85
+          stroke: st.stroke, 'stroke-width': w, 'stroke-linecap': 'round',
+          'stroke-opacity': L.kind === 'trunk' ? 1 : 0.9 - 0.2 * depth
         })));
         /* A round-trip-stabilised line carries the return on the same
            trace. Drawn as a dashed companion stroke offset by a couple of
@@ -569,6 +633,26 @@
         }
       });
       svg.appendChild(linkG);
+
+      /* EVERY SPLIT GETS A MARK, even when the block layer is off. A feed
+         that changes direction with nothing drawn at the corner reads as an
+         unexplained kink, and a tree of 24 splitters drawn as bare corners
+         is most of why this looked arbitrary. The full glyph is still the
+         block layer's job; this is the minimum that says "a splitter is
+         here". */
+      if (!wantBlocks) {
+        var jg = el('g');
+        lo.net.nodes.forEach(function (n2) {
+          if (n2.type !== 'split') return;
+          if (!segVisible(n2.x, n2.y, n2.x, n2.y)) return;
+          var stj = BAND_STYLE[bandOf(n2.freqHz)];
+          jg.appendChild(nss(el('circle', {
+            cx: X(n2.x), cy: Y(n2.y), r: 2.2 / Z,
+            fill: 'var(--bg-panel)', stroke: stj.stroke, 'stroke-width': 1.2
+          })));
+        });
+        svg.appendChild(jg);
+      }
 
       if (wantBlocks) {
         var nodeG = el('g');
