@@ -552,6 +552,23 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--ink-
   font: 10.5px var(--mono); color: var(--ink-3); font-weight: 400;
   border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px;
 }
+/* The inspector is a two-column table in a 340px rail, and table.grid is
+   dimensioned for the WIDE comparison tables: a 200px floor under the label
+   column, and nowrap on every cell so columns of figures stay on one line.
+   In the rail those two together made the table 674px inside a 324px box —
+   350px of overflow, a horizontal scrollbar, and values cut mid-value ("32 (4"
+   for a row that reads "32 (4 RX + 4 TX per die, each an IQ pair at
+   baseband)"). Here the value is a sentence, not a column of figures, so it
+   should wrap; auto layout then fits the table to the rail at any width,
+   including the stacked full-width case below 1300px. */
+.mapside #inspectorMount table.grid { width: 100%; }
+.mapside #inspectorMount table.grid td {
+  white-space: normal; overflow-wrap: break-word; padding: 5px 9px;
+}
+.mapside #inspectorMount table.grid td:first-child { min-width: 0; }
+/* No width floor on the value column: measured with and without one, auto
+   layout gives the same 119/205 split in the rail either way, and a floor
+   only distorted the stacked full-width case into a 735px value column. */
 /* Below this the band is no longer wide enough to give away: the drawing
    would start losing width to the aside, so they stack instead. */
 @media (max-width: 1300px) {
