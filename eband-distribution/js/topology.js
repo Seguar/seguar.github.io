@@ -877,7 +877,6 @@
       var serLanes = window.K.serdesLanes(g.adcBits, g.adcGspsPerRail);
       return {
         id: id, nCh: nCh, levels: 1, hops: 1, links: links, nodes: nodes, W: W, H: H,
-        lanesPerDir: serLanes,
         bom: bomOf([
           ['tiaSum', 2, 'one summing amplifier per rail ahead of the converter'],
           ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA'],

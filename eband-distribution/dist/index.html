@@ -529,6 +529,39 @@ table.grid td.best::after { content: " \25C0"; font-size: 8px; color: var(--ink-
    under 4.5:1 — and this is the cell that most needs reading anyway. */
 .budget .cell.bind .d, .budget .cell.bind .n small { color: var(--ink-2); }
 
+/* ---------- hardware map: drawing beside inspector ----------
+   The map's viewBox is taller than wide and the element is capped at 76vh, so
+   preserveAspectRatio letterboxes it horizontally — the wider the window, the
+   more empty band. The inspector lives in that band. The drawing keeps
+   flex:1 and min-width:0 so it still gets everything the aside does not take,
+   and because it is HEIGHT-bound at these sizes, taking 340px off its width
+   does not shrink it at all. */
+.mapsplit { display: flex; align-items: stretch; gap: 0; }
+.mapsplit > .chartbox { flex: 1 1 auto; min-width: 0; }
+.mapsplit > .mapside {
+  flex: 0 0 340px; min-width: 0;
+  border-left: 1px solid var(--rule);
+  max-height: 76vh; overflow-y: auto;
+}
+.mapside-h {
+  padding: 10px 13px; font-size: 13px; font-weight: 650;
+  border-bottom: 1px solid var(--rule); background: var(--bg-sunken);
+  display: flex; align-items: center; gap: 8px;
+}
+.mapside-h .tag {
+  font: 10.5px var(--mono); color: var(--ink-3); font-weight: 400;
+  border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px;
+}
+/* Below this the band is no longer wide enough to give away: the drawing
+   would start losing width to the aside, so they stack instead. */
+@media (max-width: 1300px) {
+  .mapsplit { display: block; }
+  .mapsplit > .mapside {
+    flex: none; border-left: 0; border-top: 1px solid var(--rule);
+    max-height: none; overflow-y: visible;
+  }
+}
+
 /* ---------- charts ---------- */
 .chartbox { padding: 8px 6px 0; }
 svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
@@ -712,7 +745,25 @@ footer.foot a { color: var(--ink-2); }
           <div class="pk-bar" id="pickerMount"></div>
           <div class="pk-bar hidden" id="warnMount"></div>
           <div class="toolbar" id="mapToolbar"></div>
-          <div class="chartbox" id="mapMount"></div>
+          <!-- The drawing and the tile inspector share a row, because the
+               drawing cannot use the width anyway. The map is capped at 76vh
+               so the whole floorplan stays visible at once, and its viewBox is
+               taller than it is wide (716 x 865 — the array plus the backend
+               strip above and the source strip below), so `meet` letterboxes
+               it: measured at a 1440 px viewport the panel was 1020 px wide
+               and the drawing occupied 566, leaving 454 px of empty margin —
+               45% of the panel, and WORSE the wider the screen got. Putting
+               the inspector in that band costs the drawing nothing (it stays
+               height-bound) and puts the tile's numbers beside the tile you
+               clicked instead of a scroll away. Below ~1300 px the band is no
+               longer wide enough to spare, and the two stack. -->
+          <div class="mapsplit">
+            <div class="chartbox" id="mapMount"></div>
+            <aside class="mapside">
+              <div class="mapside-h">Selected tile <span class="tag">click the map</span></div>
+              <div id="inspectorMount"></div>
+            </aside>
+          </div>
           <div id="mapLegend"></div>
           <div class="body">
             <p class="note" id="mapNote"></p>
@@ -720,10 +771,6 @@ footer.foot a { color: var(--ink-2); }
         </section>
 
         <div class="chartgrid">
-          <section class="panel">
-            <h2>Selected tile <span class="tag">click the map</span></h2>
-            <div class="body flush" id="inspectorMount"></div>
-          </section>
           <section class="panel">
             <h2>Baseband network <span class="tag">inside one tile</span></h2>
             <div class="chartbox" id="bbDiagramMount"></div>
@@ -4698,7 +4745,6 @@ footer.foot a { color: var(--ink-2); }
       var serLanes = window.K.serdesLanes(g.adcBits, g.adcGspsPerRail);
       return {
         id: id, nCh: nCh, levels: 1, hops: 1, links: links, nodes: nodes, W: W, H: H,
-        lanesPerDir: serLanes,
         bom: bomOf([
           ['tiaSum', 2, 'one summing amplifier per rail ahead of the converter'],
           ['bbVectorMod', nCh * 2, 'per-channel IQ vector modulator / VGA'],
@@ -5062,7 +5108,7 @@ footer.foot a { color: var(--ink-2); }
        Power is computed from the converter FOM parameters rather than
        frozen here, because the whole argument about this option turns on
        those numbers; these entries carry only the fixed overheads. */
-    tileAdc:        { tileSingleton: true, name: 'Tile ADC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.9, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only. Power is NOT taken from here — it is computed as FOM · 2^bits · fs from the adcFomFjConv, adcBits and adcGspsPerRail parameters, so the reader can move the assumption that decides the option. The area is the fixed cost: ~0.9 mm² for a 2–3 GS/s pipelined or time-interleaved SAR in a mature node, which is most of a tile die.' },
+    tileAdc:        { tileSingleton: true, name: 'Tile ADC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.9, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only. Power is NOT taken from here — it is computed as FOM · 2^bits · fs from the adcFomFjConv, adcBits and adcGspsPerRail parameters, so the reader can move the assumption that decides the option. The area is the fixed cost: ~0.9 mm² for a 2–3 GS/s pipelined or time-interleaved SAR in a mature node, which is 14% of one 2.5 × 2.5 mm baseband die on its own. It used to say "most of a tile die", written before the die had a stated size; now that bbDieMm fixes it at 6.25 mm² the honest figure is smaller than that — and beside the point, because what actually breaks B5 is that the ADCs, the DACs, the SerDes and their decap are all per-TILE singletons that cannot be spread across the four dies, so they land on one together and reach 95%.' },
     tileDac:        { tileSingleton: true, name: 'Tile DAC, per rail', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.6, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B5 only, TX direction. Same treatment as the ADC: power from the FOM parameters, area fixed here.' },
     tileSerdes:     { tileSingleton: true, name: 'SerDes lane to the backend', tech: '65nm LP CMOS', freqGHz: 25, powerMw: 0, gainDb: 0, areaMm2: 0.35, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'published-literature', why: 'B5 only. Power computed from serdesMwPerGbps × the lane rate the converters demand. A 25 Gb/s JESD204C/GTY-class lane is routine in a mature node but is a serious addition to a tile that today carries only analog IQ.' },
     tiaSum:         { tileSingleton: true, name: 'Virtual-ground summing TIA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 28, gainDb: 0, areaMm2: 0.035, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'B4 only. ONE transimpedance amplifier per rail per tile holding the summing node at a virtual ground, replacing the N−1 cell cascade of B3. Higher power than a single H-tree cell (18 mW) because it must hold a low impedance against the whole summing-node capacitance, but there is one of it instead of fifteen.' },
@@ -5093,7 +5139,7 @@ footer.foot a { color: var(--ink-2); }
     midTransition:  { name: 'Mid-frequency transition', tech: 'packaging', freqGHz: 19.5, powerMw: 0, gainDb: -0.25, areaMm2: 0, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'A 20 GHz transition is routine; an E-band one is not.' },
 
     bbActiveCell:   { name: 'Baseband active combine cell', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 1.5, gainDb: 0, areaMm2: 0.004, nfDb: 12, addPnFloorDbc: 0, addPnCornerHz: 0, conf: 'scaled-estimate', why: 'Current-summing cell for a DC–1 GHz rail. Both libraries independently gave ≈1.5 mW — far cheaper than a per-cell guess suggests, because power follows total load capacitance, not cell count.' },
-    bbVectorMod:    { name: 'IQ vector modulator + VGA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 6, gainDb: 0, areaMm2: 0.03, nfDb: 14, conf: 'scaled-estimate', why: 'Per-channel baseband phase/amplitude weight — the beamforming control point, and where a static LO phase offset is corrected. 32 per tile per rail dominates the tile power.' },
+    bbVectorMod:    { name: 'IQ vector modulator + VGA', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 6, gainDb: 0, areaMm2: 0.03, nfDb: 14, conf: 'scaled-estimate', why: 'Per-channel baseband phase/amplitude weight — the beamforming control point, and where a static LO phase offset is corrected. ONE PER CHANNEL PER RAIL, so the count follows the baseband pairing rather than being fixed here: at the default 4 IQ channels on each of 4 baseband dies that is 16 per rail and 32 per tile, and it dominates the tile power. This text said a flat "32 per tile per rail" until the 1:1 pairing halved the channel count and left it asserting twice what the model computes.' },
     bbResistor:     { name: 'Resistive network arm', tech: '65nm poly resistor', freqGHz: 1, powerMw: 0, gainDb: 0, areaMm2: 0.0008, conf: 'scaled-estimate', why: 'Essentially free in area and perfectly stable — the passive network’s main virtue.' },
     bbRootAmp:      { tileSingleton: true, name: 'Baseband root amplifier', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 25, gainDb: 18, areaMm2: 0.02, nfDb: 10, conf: 'scaled-estimate', why: 'Recovers the passive network loss and drives the RFSoC ADC input.' },
     bbTap:          { name: 'Baseband bus tap', tech: '65nm LP CMOS', freqGHz: 1, powerMw: 2, gainDb: -0.4, areaMm2: 0.002, conf: 'scaled-estimate', why: 'Its input capacitance is what collapses the daisy chain’s bandwidth as N grows.' },
@@ -7480,7 +7526,7 @@ footer.foot a { color: var(--ink-2); }
       areaPerTileMm2: areaPerTileMm2, bwGHz: bwGHz, iip3PenaltyDb: iip3PenaltyDb,
       areaSingletonMm2: areaSingletonMm2, areaDistributedMm2: areaDistributedMm2,
       worstDieAreaMm2: worstDieAreaMm2, dieUtilPct: dieUtilPct, dieFits: dieFits,
-      bbDiesPerTile: nBbDies, lanesPerDir: bb.lanesPerDir || 0,
+      bbDiesPerTile: nBbDies,
       driftDegPerK: driftDegPerK,
       calBurdenScore: nCh, calBurdenDetail: nCh + ' per-channel baseband weights per rail; group delay must be ' +
         'measured with a two-tone or swept baseband loopback, since a single-tone phase measurement cannot ' +
@@ -10253,7 +10299,32 @@ footer.foot a { color: var(--ink-2); }
       applyCrop();
       scheduleCommit();
     }
+    /* Client coordinates -> a fraction of the CURRENT viewBox.
+
+       This used to be (clientX - rect.left) / rect.width, which is a fraction
+       of the ELEMENT BOX — and the element box is not the drawing. The map is
+       drawn with preserveAspectRatio "xMidYMid meet" inside a box capped at
+       76vh, so it is letterboxed: measured at the default desktop size the
+       box is 640 x 653 px while the drawing occupies 540 x 653, leaving 50 px
+       of dead band on each side. A cursor on the left edge of the drawing
+       therefore reported fx = 0.078 instead of 0, so zoom-at-cursor anchored
+       about 8% off and the map crept out from under the pointer as it zoomed.
+
+       getScreenCTM() is the browser's own client-to-user transform. It
+       already accounts for the viewBox, preserveAspectRatio and any CSS
+       scaling, so unlike hand-rolled arithmetic it cannot fall out of step
+       with them when one of those changes. */
     function fracOf(e) {
+      var m = svg.getScreenCTM && svg.getScreenCTM();
+      if (m && m.a && svg.createSVGPoint) {
+        var p = svg.createSVGPoint();
+        p.x = e.clientX; p.y = e.clientY;
+        var u = p.matrixTransform(m.inverse());
+        return {
+          fx: Math.max(0, Math.min(1, (u.x - cur.vx) / cur.vw)),
+          fy: Math.max(0, Math.min(1, (u.y - cur.vy) / cur.vh))
+        };
+      }
       var b = svg.getBoundingClientRect();
       if (!b.width || !b.height) return { fx: 0.5, fy: 0.5 };
       return {
@@ -10294,7 +10365,14 @@ footer.foot a { color: var(--ink-2); }
       drag.moved = true;
       dragMoved = true;
       svg.style.cursor = 'grabbing';
-      var unitsPerPx = cur.vw / b.width;
+      /* User units per CSS pixel, from the browser's own transform. This was
+         cur.vw / b.width, which ignores the same letterbox fracOf did: at the
+         default desktop size that is 716/640 = 1.119 against a true
+         1/0.7548 = 1.325, so the map moved at 84% of hand speed and slid
+         behind the cursor throughout every drag. `meet` scales both axes
+         equally, so m.a serves for x and y alike. */
+      var ctm = svg.getScreenCTM && svg.getScreenCTM();
+      var unitsPerPx = (ctm && ctm.a) ? 1 / ctm.a : cur.vw / b.width;
       cur.vx = drag.vx - dx * unitsPerPx;
       cur.vy = drag.vy - dy * unitsPerPx;
       clampCrop();
@@ -12010,7 +12088,14 @@ footer.foot a { color: var(--ink-2); }
       });
       wm.appendChild(box);
     }
-    wm.classList.toggle('hidden', !warns.length);
+    /* The container holds TWO things now, so it cannot be shown on the count
+       of one of them. Keying this on warns.length alone meant a migration
+       that produced no consistency warnings — the ordinary case — built the
+       banner into a still-hidden box and showed the reader nothing, which is
+       the very silent state change the banner was added to prevent. It went
+       unnoticed because the state it was first tested against (B5) fails the
+       die check, so a warning happened to be un-hiding the box for it. */
+    wm.classList.toggle('hidden', !warns.length && !(view.migrated && view.migrated.length));
   }
 
   /* =====================================================================
@@ -14777,8 +14862,21 @@ footer.foot a { color: var(--ink-2); }
        Each entry is a sparse override on today's defaults, so the set tracks
        the model as the model improves; once loaded, each becomes an ordinary
        saved system holding its own full state. */
+    /* count() builds the list, and build() THROWS by design — on a retired
+       option id, a duplicate id, or a name past the 48 characters
+       Systems.save silently truncates at. Throwing is right: the alternative
+       is clampParam quietly remapping a stale index onto a neighbouring
+       architecture. But this call sits in the middle of renderSystems, so an
+       uncaught throw here takes the WHOLE VIEW down over one bad entry. Catch
+       it, keep the view, and put the error where a reader can act on it. */
+    var nSl = null, slErr = null;
     if (window.Shortlist) {
-      var nSl = window.Shortlist.count();
+      try { nSl = window.Shortlist.count(); }
+      catch (e) { slErr = e && e.message ? e.message : String(e); }
+    }
+    if (slErr) {
+      tbtn('Shortlist unavailable', slErr, function () { X.flash(slErr); }).disabled = true;
+    } else if (window.Shortlist) {
       if (view.sys.confirmShortlist) {
         tbtn('Replace all ' + nSaved + ' with the shortlist?',
           'Click again to delete every saved system and load the ' + nSl + ' curated ones',
@@ -15337,14 +15435,21 @@ footer.foot a { color: var(--ink-2); }
           why: 'in the tables below', plain: true });
         return keep;
       }
+      /* COUNT BEFORE TRIMMING. The header summarises how many strengths and
+         costs were FOUND, not how many lines survived the cut — and trim()
+         appends a "+N more" placeholder, so counting afterwards both
+         under-reported the real total and counted that placeholder as a
+         strength. At the defaults that printed "13 strengths" over a list
+         holding 12 real ones and a "+2 more", a number contradicting the
+         list directly beneath it. */
+      totalPro += pros.length; totalCon += cons.length;
+
       pros = trim(pros); cons = trim(cons);
 
       /* the option's own stated verdict — qualitative, and the one thing here
          that is not derived from a ranking */
       var risk = cur.riskLevel || '';
       var feas = cur.feasibility || '';
-
-      totalPro += pros.length; totalCon += cons.length;
 
       var card = UI.elt('section', 'panel');
       card.style.margin = '0';
@@ -15452,7 +15557,7 @@ footer.foot a { color: var(--ink-2); }
     view.sys.confirmShortlist = false;
 
     SYS.clear();
-    var clampedAny = [];
+    var clampedAny = [], failed = [], unpersisted = 0;
     items.forEach(function (it) {
       var st = {};
       Object.keys(DEFAULTS).forEach(function (k) { st[k] = DEFAULTS[k]; });
@@ -15467,12 +15572,26 @@ footer.foot a { color: var(--ink-2); }
       });
       var lm = M.LO_META[Math.round(st.loOption)] || {};
       var bm = M.BB_META[Math.round(st.bbOption)] || {};
-      SYS.save(it.name, st, { lo: lm.id || '', bb: bm.id || '', note: it.demonstrates });
+      /* save() CAN FAIL, and this loop runs after a clear(). At the
+         12-system limit it returns {ok:false, reason:'full'}, and in a
+         private window it returns {ok:true, persisted:false}. Ignoring that
+         left a half-loaded roster with the previous set already deleted,
+         under a flash that said all nine had loaded. */
+      var r = SYS.save(it.name, st, { lo: lm.id || '', bb: bm.id || '', note: it.demonstrates });
+      if (!r || !r.ok) failed.push(it.name + (r && r.reason === 'full' ? ' (at the limit)' : ''));
+      else if (r.persisted === false) unpersisted++;
     });
     render();
-    X.flash(clampedAny.length
-      ? 'Loaded ' + items.length + ' systems, ' + clampedAny.length + ' value(s) clamped: ' + clampedAny[0]
-      : 'Loaded the ' + items.length + '-system shortlist');
+    var msg;
+    if (failed.length) {
+      msg = 'Loaded ' + (items.length - failed.length) + ' of ' + items.length +
+        ' — ' + failed.length + ' could not be saved, starting with "' + failed[0] + '"';
+    } else {
+      msg = 'Loaded the ' + items.length + '-system shortlist';
+      if (unpersisted) msg += ' (this session only — storage blocked)';
+      if (clampedAny.length) msg += ', ' + clampedAny.length + ' value(s) clamped: ' + clampedAny[0];
+    }
+    X.flash(msg);
   }
 
   /* ------------------------------- routing ------------------------------- */

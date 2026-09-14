@@ -598,7 +598,32 @@
       applyCrop();
       scheduleCommit();
     }
+    /* Client coordinates -> a fraction of the CURRENT viewBox.
+
+       This used to be (clientX - rect.left) / rect.width, which is a fraction
+       of the ELEMENT BOX — and the element box is not the drawing. The map is
+       drawn with preserveAspectRatio "xMidYMid meet" inside a box capped at
+       76vh, so it is letterboxed: measured at the default desktop size the
+       box is 640 x 653 px while the drawing occupies 540 x 653, leaving 50 px
+       of dead band on each side. A cursor on the left edge of the drawing
+       therefore reported fx = 0.078 instead of 0, so zoom-at-cursor anchored
+       about 8% off and the map crept out from under the pointer as it zoomed.
+
+       getScreenCTM() is the browser's own client-to-user transform. It
+       already accounts for the viewBox, preserveAspectRatio and any CSS
+       scaling, so unlike hand-rolled arithmetic it cannot fall out of step
+       with them when one of those changes. */
     function fracOf(e) {
+      var m = svg.getScreenCTM && svg.getScreenCTM();
+      if (m && m.a && svg.createSVGPoint) {
+        var p = svg.createSVGPoint();
+        p.x = e.clientX; p.y = e.clientY;
+        var u = p.matrixTransform(m.inverse());
+        return {
+          fx: Math.max(0, Math.min(1, (u.x - cur.vx) / cur.vw)),
+          fy: Math.max(0, Math.min(1, (u.y - cur.vy) / cur.vh))
+        };
+      }
       var b = svg.getBoundingClientRect();
       if (!b.width || !b.height) return { fx: 0.5, fy: 0.5 };
       return {
@@ -639,7 +664,14 @@
       drag.moved = true;
       dragMoved = true;
       svg.style.cursor = 'grabbing';
-      var unitsPerPx = cur.vw / b.width;
+      /* User units per CSS pixel, from the browser's own transform. This was
+         cur.vw / b.width, which ignores the same letterbox fracOf did: at the
+         default desktop size that is 716/640 = 1.119 against a true
+         1/0.7548 = 1.325, so the map moved at 84% of hand speed and slid
+         behind the cursor throughout every drag. `meet` scales both axes
+         equally, so m.a serves for x and y alike. */
+      var ctm = svg.getScreenCTM && svg.getScreenCTM();
+      var unitsPerPx = (ctm && ctm.a) ? 1 / ctm.a : cur.vw / b.width;
       cur.vx = drag.vx - dx * unitsPerPx;
       cur.vy = drag.vy - dy * unitsPerPx;
       clampCrop();

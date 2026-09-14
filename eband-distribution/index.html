@@ -126,7 +126,25 @@
           <div class="pk-bar" id="pickerMount"></div>
           <div class="pk-bar hidden" id="warnMount"></div>
           <div class="toolbar" id="mapToolbar"></div>
-          <div class="chartbox" id="mapMount"></div>
+          <!-- The drawing and the tile inspector share a row, because the
+               drawing cannot use the width anyway. The map is capped at 76vh
+               so the whole floorplan stays visible at once, and its viewBox is
+               taller than it is wide (716 x 865 — the array plus the backend
+               strip above and the source strip below), so `meet` letterboxes
+               it: measured at a 1440 px viewport the panel was 1020 px wide
+               and the drawing occupied 566, leaving 454 px of empty margin —
+               45% of the panel, and WORSE the wider the screen got. Putting
+               the inspector in that band costs the drawing nothing (it stays
+               height-bound) and puts the tile's numbers beside the tile you
+               clicked instead of a scroll away. Below ~1300 px the band is no
+               longer wide enough to spare, and the two stack. -->
+          <div class="mapsplit">
+            <div class="chartbox" id="mapMount"></div>
+            <aside class="mapside">
+              <div class="mapside-h">Selected tile <span class="tag">click the map</span></div>
+              <div id="inspectorMount"></div>
+            </aside>
+          </div>
           <div id="mapLegend"></div>
           <div class="body">
             <p class="note" id="mapNote"></p>
@@ -134,10 +152,6 @@
         </section>
 
         <div class="chartgrid">
-          <section class="panel">
-            <h2>Selected tile <span class="tag">click the map</span></h2>
-            <div class="body flush" id="inspectorMount"></div>
-          </section>
           <section class="panel">
             <h2>Baseband network <span class="tag">inside one tile</span></h2>
             <div class="chartbox" id="bbDiagramMount"></div>
