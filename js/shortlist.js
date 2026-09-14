@@ -207,6 +207,25 @@
      name written one character too long here comes back cut mid-word as a
      column header and nothing says why. Check it at build time instead: this
      file's whole purpose is that nothing about these nine changes silently. */
+  /* WHAT EACH FIELD IS FOR, because two of the five are not rendered and an
+     audit reasonably read them as dead payload:
+
+       name          the saved system's name, and the comparison column header
+       over          the sparse parameter override, applied over DEFAULTS
+       demonstrates  shown in the Systems roster as the row's note (capped by
+                     Systems.save at 240 characters)
+       why           NOT RENDERED. It is the argument for the entry, kept here
+                     next to the entry it defends so that changing one without
+                     the other is visibly wrong in review. It ships in the
+                     bundle at ~2.5 kB, which is the price of keeping the
+                     reasoning and the numbers in the same place; the Compare
+                     and ledger prose is where a reader meets the same
+                     argument.
+       id            stable key, also the duplicate check below
+
+     If `why` ever needs to reach the page, the roster row is its home — but
+     Systems.save stores no field for it, so that is a change to systems.js
+     and not a one-liner here. */
   var NAME_MAX = 48;
 
   var cache = null;
