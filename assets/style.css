@@ -570,6 +570,21 @@ svg.chart.map {
      an in-flight pan gets a pointercancel that endDrag already handles. */
   touch-action: pan-y;
 }
+/* THE MAP'S DECORATION MUST NOT EAT THE TILE CLICK.
+   Every glyph in an SVG is hit-testable by default, so the routing traces,
+   the LO/baseband nodes and the labels drawn OVER the tiles were intercepting
+   clicks meant for the tile underneath: measured at the default build, 8 of
+   the 20 visible tiles could not be selected at any of five sample points,
+   because a line or a node sat on top. These four tag types carry no <title>
+   and no handler anywhere in the map — 412 elements, 0 tooltips, 0 cursors —
+   so making them transparent to the pointer costs nothing and gives every
+   tile its whole area back. The tile rects, the block glyphs and the port
+   cells keep their hit testing; they are the things with something to say. */
+svg.chart.map line,
+svg.chart.map circle,
+svg.chart.map path,
+svg.chart.map text { pointer-events: none; }
+
 svg.chart text { font: 10.5px var(--sans); fill: var(--ink-3); }
 svg.chart text.axlabel { font-size: 11px; fill: var(--ink-2); }
 svg.chart .gl { stroke: var(--grid); stroke-width: 1; }

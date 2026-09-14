@@ -254,6 +254,10 @@
     }
 
     var dragMoved = false;   /* set by the pan handler; suppresses the click */
+    /* Every tile rect, kept so the click can be resolved by GEOMETRY rather
+       than by whatever happened to be on top. See the delegated handler at
+       the end of this function. */
+    var tileEls = [];
     var shown = grid.tiles.filter(tileVisible);
     var t0lod = grid.tiles[0];
     var radsPerTile = t0lod && t0lod.rads ? t0lod.rads.length : 0;
@@ -333,7 +337,11 @@
           (t.m ? ('loss ' + t.m.lossDb.toFixed(1) + ' dB, skew ' + t.m.skewPs.toFixed(1) + ' ps, ' +
                   'static offset ' + t.m.wraps.toFixed(1) + ' wraps, drift ' + t.m.driftDeg.toFixed(1) + '°, power ' + t.m.powerMw.toFixed(0) + ' mW') : '')));
       }
-      r.addEventListener('click', function () { if (!dragMoved) onSelect(t.i); });
+      /* No per-rect click listener: the tile is frequently NOT the topmost
+         element at the point the reader aims at, so a listener here only
+         fires when nothing is drawn over it. Resolved by geometry instead,
+         once, at the end of this function. */
+      tileEls.push({ el: r, i: t.i });
       tileG.appendChild(r);
 
       if (t.hop && lod.tier === 'full') tileG.appendChild(el('text', {
@@ -379,7 +387,11 @@
           if (fx > wx + 1e-9 || fy > wy + 1e-9) antFloored = true;
           antG.appendChild(el('rect', {
             x: X(a.x) - fx / 2, y: Y(a.y) - fy / 2, width: fx, height: fy,
-            fill: antCol, 'fill-opacity': 0.55, stroke: 'none'
+            fill: antCol, 'fill-opacity': 0.55, stroke: 'none',
+            /* a filled rect IS hit-testable, and these sit on top of the
+               tile; they carry no tooltip, so they would only ever have
+               swallowed the tile's click */
+            'pointer-events': 'none'
           }));
         });
         /* The port's CELL, drawn as the rectangle it actually is. This was a
@@ -417,6 +429,12 @@
             (t.cellXCm * 10).toFixed(2) + ' × ' + (t.cellYCm * 10).toFixed(2) + ' mm\n' +
             t.radPerPort + ' radiator' + (t.radPerPort === 1 ? '' : 's') + ' behind it, fed in fixed phase\n' +
             'the beamformer cannot see inside this cell'));
+          /* The cell keeps its tooltip, so it cannot be made transparent to
+             the pointer like the rest of the decoration — but its dashed
+             stroke lies across the tile, and a click landing there did
+             nothing at all. A port belongs to exactly one tile, so send the
+             click where the reader plainly meant it to go. */
+          c.style.cursor = 'pointer';
           antG.appendChild(c);
         });
       });
@@ -686,6 +704,38 @@
     }
     svg.addEventListener('pointerup', endDrag);
     svg.addEventListener('pointercancel', endDrag);
+
+    /* ------------------------------------------------------------------ *
+     * SELECTING A TILE, RESOLVED BY GEOMETRY.
+     *
+     * This used to be a click listener on each tile rect, which only fires
+     * when the rect is the topmost thing under the pointer — and on this
+     * drawing it very often is not. Everything the map layers over the
+     * tiles is hit-testable: the routing traces, the port cells, the
+     * radiator patches, and a block glyph sitting at dead centre of every
+     * tile. Measured on the default build, EIGHT of the twenty visible
+     * tiles could not be selected at any of five sample points, and the
+     * single most natural place to aim — the middle of the tile — was
+     * covered on all of them by the per-tile multiplier glyph.
+     *
+     * Exempting each offender in turn does not hold: the glyphs and the
+     * port cells carry tooltips, so they cannot simply be made transparent
+     * to the pointer, and any layer added later would reintroduce the bug
+     * silently. So the click is resolved against the tile RECTANGLES
+     * instead of against the paint order. Whatever is drawn on top, a click
+     * inside a tile selects that tile, and the decoration keeps its hover.
+     * ------------------------------------------------------------------ */
+    svg.addEventListener('click', function (e) {
+      if (dragMoved) return;                 /* that was a pan, not a click */
+      for (var i = 0; i < tileEls.length; i++) {
+        var r = tileEls[i].el.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right &&
+            e.clientY >= r.top && e.clientY <= r.bottom) {
+          onSelect(tileEls[i].i);
+          return;
+        }
+      }
+    });
 
     /* ---- colour-scale legend + what the LOD dropped ---- */
     var sc = document.createElement('div');
