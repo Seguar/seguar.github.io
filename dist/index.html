@@ -675,6 +675,83 @@ footer.foot a { color: var(--ink-2); }
   font-size: 12.5px; z-index: 90; box-shadow: 0 4px 14px rgba(0,0,0,.22);
 }
 
+/* ---------- the start page ----------
+   The landing view. Everything here exists to make the first screen answer
+   "what is this, what did it conclude, where do I click" and nothing else.
+
+   The three chrome elements that make every other view dense are hidden:
+   the 101-control parameter rail, the derived-requirement banner and the
+   context bar. The rail needs BOTH halves of this rule - display:none alone
+   leaves `main` auto-placed into the 330px track, so the whole page renders
+   a third of its width. */
+body[data-view="start"] .cols { grid-template-columns: minmax(0, 1fr); }
+body[data-view="start"] .cols > aside.params { display: none; }
+body[data-view="start"] .ctxbar { display: none; }
+
+.start { max-width: 900px; padding: 4px 0 0; }
+.start h2 {
+  margin: 22px 0 10px; font-size: 19px; font-weight: 650;
+  letter-spacing: -0.01em; line-height: 1.3; color: var(--ink);
+}
+.start h3 {
+  margin: 26px 0 11px; font-size: 13.5px; font-weight: 650;
+  letter-spacing: 0.01em; color: var(--ink);
+}
+.startlede { margin: 0; max-width: 72ch; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
+
+/* The verdict line. `is` carries the live clause; the LIVE pill marks it as
+   recomputed rather than written, because every other sentence on this page
+   is a fixed definition and the reader cannot otherwise tell them apart. */
+.startverdict {
+  margin: 16px 0 0; max-width: 78ch; font-size: 13.5px; line-height: 1.6; color: var(--ink);
+  padding: 11px 13px; border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent); border-radius: 6px; background: var(--bg-panel);
+}
+.startverdict .lv {
+  font: 500 9.5px var(--mono); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft);
+  border-radius: 3px; padding: 2px 5px; margin-right: 8px; vertical-align: 1px;
+}
+.startverdict b { font-weight: 650; }
+/* A tie is not a verdict, so it does not get the verdict's accent rule. */
+.startverdict .tie { color: var(--warn); font-weight: 650; }
+.startverdict.failc { border-left-color: var(--fail); background: var(--fail-soft); }
+.startverdict.failc .lv { color: var(--fail); background: transparent; border: 1px solid var(--fail); }
+
+.startgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+a.startcard {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 13px 14px 11px; border: 1px solid var(--rule); border-radius: 8px;
+  background: var(--bg-panel); text-decoration: none; color: inherit;
+}
+/* No colour transition here, deliberately. A transition whose endpoint is a
+   var() latches at its start value when the variable itself changes, so
+   fading the card on hover also left all three cards painted light over a
+   dark page after the theme button was pressed — measured, not theorised.
+   Everything else in this stylesheet transitions only `transform`. */
+a.startcard:hover { border-color: var(--rule-strong); background: var(--bg-hover); }
+a.startcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a.startcard .sw {
+  font: 500 10px var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3);
+}
+a.startcard .sq { font-size: 14.5px; font-weight: 650; line-height: 1.3; color: var(--ink); }
+/* flex:1 so the three rules along the card feet line up whatever the copy */
+a.startcard .sd { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); flex: 1 1 auto; }
+a.startcard .sg {
+  display: flex; justify-content: space-between; gap: 10px; align-items: baseline;
+  margin-top: 3px; padding-top: 8px; border-top: 1px solid var(--rule);
+  font: 11.5px var(--mono); color: var(--ink-3);
+}
+a.startcard .sgo { color: var(--accent); font-weight: 500; }
+a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
+
+.startmore { margin: 20px 0 0; max-width: 78ch; font-size: 12.5px; line-height: 1.55; color: var(--ink-3); }
+
+@media (max-width: 640px) {
+  .start h2 { font-size: 17px; }
+  .startgrid { grid-template-columns: minmax(0, 1fr); }
+}
+
 </style>
 </head>
 <body>
@@ -684,7 +761,8 @@ footer.foot a { color: var(--ink-2); }
     <h1>E-Band Distribution Comparison Tool</h1>
     <span class="sub">LO / reference distribution &amp; baseband split-combine &mdash; 71&ndash;86&nbsp;GHz tiled array</span>
     <nav>
-      <a href="#" class="navlink on" data-view="map">Hardware map</a>
+      <a href="#" class="navlink on" data-view="start">Start</a>
+      <a href="#" class="navlink" data-view="map">Hardware map</a>
       <a href="#" class="navlink" data-view="tile">Inside a tile</a>
       <a href="#" class="navlink" data-view="compare">Compare</a>
       <a href="#" class="navlink" data-view="phasenoise">Phase noise</a>
@@ -765,8 +843,68 @@ footer.foot a { color: var(--ink-2); }
     <!-- ===================== results column ===================== -->
     <main>
 
+      <!-- ---- START ----
+           The landing page, and the only view that assumes nothing. The tool
+           opens here when the URL asks for nothing in particular; a link that
+           carries a configuration still opens on the Hardware map, because a
+           configured link was sent to show a BUILD and a landing page shows
+           none (see loadState in js/app.js).
+
+           Deliberately: no option codes, no metric names, no units, and no
+           class that glossify() marks up (.prose, .note, .viewintro, .budget,
+           table.grid) - so not one dotted glossary underline appears here.
+           Nothing on this page needs decoding. The parameter rail, the
+           derived-requirement banner and the context bar are all hidden by
+           body[data-view="start"] in the stylesheet: they are the complication
+           this view exists to defer. -->
+      <div class="view" id="view-start">
+        <div class="start">
+          <h2>One array. Three families of architecture. <span id="stCand">16</span> candidates.</h2>
+          <p class="startlede">How a clean reference reaches every tile, how the baseband is split out
+            and summed back again, and what sits behind each RF port &mdash; every candidate costed
+            against one model of a 71&ndash;86&nbsp;GHz tiled array, from the same
+            <span id="stParams">101</span> parameters.</p>
+
+          <!-- The one live thing above the first click. Filled by renderStart();
+               replaced wholesale by a failure callout when the configuration in
+               the link cannot be built. -->
+          <div id="stVerdict"></div>
+
+          <h3>Where do you want to start?</h3>
+          <div class="startgrid">
+            <a href="#" class="startcard" data-view="decision">
+              <span class="sw">If you are reviewing it</span>
+              <span class="sq">What did you decide, and why?</span>
+              <span class="sd">The written recommendation, regenerated from the current numbers every
+                time you open it &mdash; with the scoring weights laid out as the arguable judgement
+                they are, not as physics.</span>
+              <span class="sg"><span>2 minutes</span><span class="sgo">Decision &rarr;</span></span>
+            </a>
+            <a href="#" class="startcard" data-view="map">
+              <span class="sw">If you are building it</span>
+              <span class="sq">What is it, physically?</span>
+              <span class="sd">The board: where the source sits, how the trunks branch, what lands at
+                each tile and what it costs. Also the only place to change the architecture, so it is
+                where you will spend the time.</span>
+              <span class="sg"><span>5 minutes, or all day</span><span class="sgo">Hardware map &rarr;</span></span>
+            </a>
+            <a href="#" class="startcard" data-view="compare">
+              <span class="sw">If you do not believe it</span>
+              <span class="sq">Were the other options really costed?</span>
+              <span class="sd">Every option against the same metrics &mdash; the ones that lost as well
+                as the one that won, and the ones the score cannot tell apart.</span>
+              <span class="sg"><span>5 minutes</span><span class="sgo">Compare &rarr;</span></span>
+            </a>
+          </div>
+
+          <p class="startmore">Those are three of <span id="stViews">12</span> views; the rest are in the
+            bar above. If you already know what you want &mdash; the beam pattern, the link budget, the
+            phase-noise overlays, the sweeps, your own saved systems &mdash; go straight there.</p>
+        </div>
+      </div>
+
       <!-- ---- HARDWARE MAP ---- -->
-      <div class="view" id="view-map">
+      <div class="view hidden" id="view-map">
         <p class="viewintro"><span class="scope one">this build</span><span>The board this build actually is: where the source sits, how the trunks and branches route, what lands at each tile and what it costs. Click any tile to inspect both tiers for it.</span></p>
         <!-- The case selector lives INSIDE the map panel, directly above the
              drawing it changes. It used to be a separate 1215 px panel above
@@ -921,7 +1059,7 @@ footer.foot a { color: var(--ink-2); }
 
         <section class="panel">
           <h2>LO / reference distribution <span class="tag">family A</span>
-            <span class="grow">6 options &times; required metrics</span></h2>
+            <span class="grow">7 options &times; required metrics</span></h2>
           <div class="tscroll tall"><table class="grid sticky1" id="loTable"></table></div>
           <div class="toolbar">
             <button class="btn" data-copy="lo-md" type="button">Copy as Markdown</button>
@@ -969,7 +1107,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- PHASE NOISE ---- -->
       <div class="view hidden" id="view-phasenoise">
-        <p class="viewintro"><span class="scope all">all options</span><span>Three L(f) overlays for all six LO options: absolute per tile, the inter-tile differential that decides the architecture, and the array output after uncorrelated noise averages down.</span></p>
+        <p class="viewintro"><span class="scope all">all options</span><span>Three L(f) overlays for all seven LO options: absolute per tile, the inter-tile differential that decides the architecture, and the array output after uncorrelated noise averages down.</span></p>
         <section class="panel">
           <h2>Absolute L(f) at the E-band carrier <span class="tag">M1</span>
             <span class="grow">what one tile's LO looks like</span></h2>
@@ -1045,7 +1183,7 @@ footer.foot a { color: var(--ink-2); }
 
       <!-- ---- SWEEPS ---- -->
       <div class="view hidden" id="view-sweeps">
-        <p class="viewintro"><span class="scope all">all options</span><span>How the answer moves when one parameter does. Each curve recomputes the full model at every point, for all six options.</span></p>
+        <p class="viewintro"><span class="scope all">all options</span><span>How the answer moves when one parameter does. Each curve recomputes the full model at every point, for all seven options.</span></p>
         <section class="panel">
           <h2>Design sweeps <span class="grow">each curve recomputes from the current parameter set</span></h2>
           <div class="body">
@@ -11952,8 +12090,18 @@ footer.foot a { color: var(--ink-2); }
   var DEFAULTS = {};
   M.PARAMS.forEach(function (p) { DEFAULTS[p.key] = p.value; });
   var state = {};
+  /* Where a URL that asks for nothing in particular lands. It is also the one
+     view syncHash omits from the hash, so this name and that omission must
+     stay the same string — see syncHash. */
+  var DEFAULT_VIEW = 'start';
+  /* The view a hash that carries a CONFIGURATION but no explicit `_v` lands
+     on. Every permalink this tool ever produced is of that shape — neither
+     syncHash nor the Copy permalink button emitted `_v` while sitting on the
+     map, because the map used to be the default — so without this, adding a
+     landing page would silently redirect every link already sent. */
+  var CONFIGURED_VIEW = 'map';
   var view = {
-    name: 'map', selected: 0, tileMetric: 'skewPs',
+    name: DEFAULT_VIEW, selected: 0, tileMetric: 'skewPs',
     showBlocks: true, showLo: true, showBb: true, showDies: true, showAnts: true,
     /* Systems view: transient UI state only. The saved systems themselves
        live in localStorage via window.Systems; `shared` holds systems that
@@ -12065,11 +12213,16 @@ footer.foot a { color: var(--ink-2); }
     Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
     var over = X.decodeState(location.hash);
     view.migrated = migrateRawState(over);
+    /* `sawView`: the link named a view outright. `sawConfig`: the link carries
+       a build — a parameter override or a shared comparison set — whether or
+       not it named a view. The two together decide where a hash with no `_v`
+       lands; see the resolution below the loop. */
+    var sawView = false, sawConfig = false;
     Object.keys(over).forEach(function (k) {
       /* A view name out of a URL is untrusted input like any other: an
          unknown one would hide every panel and leave a blank page. */
       if (k === '_v') {
-        if (document.getElementById('view-' + over[k])) view.name = over[k];
+        if (document.getElementById('view-' + over[k])) { view.name = over[k]; sawView = true; }
         return;
       }
       /* A comparison set carried in the link is decoded but NOT stored: it
@@ -12079,12 +12232,22 @@ footer.foot a { color: var(--ink-2); }
       if (k === '_sys') {
         try { view.sys.shared = window.Systems.decodeSet(over[k], DEFAULTS, clampParam); }
         catch (e) { view.sys.shared = []; }
+        sawConfig = true;
         return;
       }
       if (!(k in DEFAULTS)) return;
       var v = parseFloat(over[k]);
-      if (isFinite(v)) state[k] = clampParam(k, v);
+      if (isFinite(v)) { state[k] = clampParam(k, v); sawConfig = true; }
     });
+
+    /* A hash that carries a configuration but never named a view is a link to
+       a BUILD, and the landing page shows no build — so it opens where it
+       always did. This is what keeps every permalink already sent working:
+       neither syncHash nor the Copy permalink button emitted `_v` while the
+       map was the default, so "parameters, no view" is precisely the shape of
+       a map link. An empty hash conveys no intent at all, and only that
+       reaches the start page. */
+    if (!sawView && sawConfig) view.name = CONFIGURED_VIEW;
   }
 
   /* A hash is input from wherever it came — a hand-edited link, a truncated
@@ -12121,10 +12284,18 @@ footer.foot a { color: var(--ink-2); }
        opened on the Hardware map however carefully they had navigated to the
        chart they wanted to show. The map is the default, so it is omitted and
        links stay short. */
-    var o = overrides();
-    if (view.name && view.name !== 'map') o._v = view.name;
-    var s = X.encodeState(o);
+    var s = X.encodeState(withView(overrides()));
     history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
+  }
+
+  /* Stamp the current view into a parameter set, unless it is the view a bare
+     URL already lands on. The sentinel MUST track DEFAULT_VIEW: while it said
+     'map' and the default was 'map', sitting on the map wrote no `_v` and the
+     hash round-tripped correctly. With a landing page in front, the same code
+     would wipe the hash on the map and send a refresh back to the start. */
+  function withView(o) {
+    if (view.name && view.name !== DEFAULT_VIEW) o._v = view.name;
+    return o;
   }
 
   /* stamp a reference preset into the editable PN fields */
@@ -14659,6 +14830,89 @@ footer.foot a { color: var(--ink-2); }
     }
   }
 
+  /* ======================= START — the landing page =======================
+
+     The only view that assumes the reader knows nothing. Four of its five
+     blocks are fixed prose in index.html; this fills the counts and the one
+     live sentence.
+
+     The sentence BRANCHES rather than asserts. js/decision.js carries a tie
+     threshold precisely so that a refusal to choose can be rendered as a
+     refusal, and the landing page is the last place that should quietly
+     promote a tie to a verdict — at today's defaults the LO family has a
+     real winner and the baseband family does not, and the page has to be
+     able to say both, and to say the opposite if a parameter moves.
+
+     A hard inconsistency replaces the sentence outright. Decision.build
+     never looks at res.warnings — it gates on each option's own meetsSpec
+     and infeasible — so it returns a pick that looks just as confident for a
+     geometry nobody can build. This filter is the only thing standing
+     between that and a confident lie on the first screen. */
+  function renderStart(res, dec) {
+    function put(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+    put('stCand', M.LO_IDS.length + M.BB_IDS.length + M.ANT_IDS.length);
+    put('stParams', M.PARAMS.length);
+    /* a DOM read, so a view added later cannot make this sentence lie */
+    put('stViews', Math.max(1, document.querySelectorAll('.view').length - 1));
+
+    var mount = document.getElementById('stVerdict');
+    if (!mount) return;
+    mount.textContent = '';
+
+    /* text and <b> fragments, built rather than interpolated */
+    function say(parent, s) { parent.appendChild(document.createTextNode(s)); }
+    function strong(parent, s) { parent.appendChild(UI.elt('b', null, s)); }
+    function names(set) {
+      return set.map(function (o) { return o.name; });
+    }
+    function joinInto(parent, list) {
+      list.forEach(function (nm, i) {
+        if (i) say(parent, i === list.length - 1 ? ' and ' : ', ');
+        strong(parent, nm);
+      });
+    }
+
+    var hard = (res.warnings || []).filter(function (w) { return w.severity === 'fail'; });
+    mount.className = 'startverdict' + (hard.length ? ' failc' : '');
+    mount.appendChild(UI.elt('span', 'lv', hard.length ? 'cannot build' : 'live'));
+
+    if (hard.length) {
+      say(mount, 'This link carries a configuration that ');
+      strong(mount, 'cannot be built');
+      say(mount, ' — ' + (hard.length === 1 ? 'one thing does' : hard.length + ' things do') +
+        ' not add up, so every number behind these doors describes an array that does not exist. ' +
+        'The hardware map names it, and the parameter column beside the map is where you fix it.');
+      return;
+    }
+
+    var loTied = (dec.loTied && dec.loTied.length > 1) ? dec.loTied : null;
+    var bbTied = (dec.bbTied && dec.bbTied.length > 1) ? dec.bbTied : null;
+
+    if (loTied) {
+      say(mount, 'Right now it will not choose how the reference reaches every tile: ');
+      joinInto(mount, names(loTied));
+      say(mount, ' are ');
+      mount.appendChild(UI.elt('span', 'tie', 'too close to separate'));
+      say(mount, '. ');
+    } else {
+      say(mount, 'Right now it picks ');
+      strong(mount, dec.loPick ? dec.loPick.name : '—');
+      say(mount, ' to get the reference to every tile. ');
+    }
+
+    if (bbTied) {
+      say(mount, 'For splitting and combining the baseband it will not choose either: ');
+      joinInto(mount, names(bbTied));
+      say(mount, ' are ');
+      mount.appendChild(UI.elt('span', 'tie', 'too close to separate'));
+      say(mount, '.');
+    } else {
+      say(mount, 'For splitting and combining the baseband it picks ');
+      strong(mount, dec.bbPick ? dec.bbPick.name : '—');
+      say(mount, '.');
+    }
+  }
+
   function render() {
     var res = M.evaluate(state);
     var budget = window.Budget.derive(res.g, '64QAM');
@@ -14699,6 +14953,7 @@ footer.foot a { color: var(--ink-2); }
         .forEach(function (el2) { window.Glossary.mark(el2); });
     }
 
+    if (view.name === 'start') renderStart(res, dec);
     if (view.name === 'map') renderMapView(res, budget);
     if (view.name === 'tile') renderTileView(res, budget);
     if (view.name === 'compare') renderCompare(res, budget, dec);
@@ -16337,7 +16592,7 @@ footer.foot a { color: var(--ink-2); }
        because each system has its own derived requirement and that comparison
        has its own panel inside the view. */
     document.getElementById('budgetPanel').classList.toggle('hidden',
-      name === 'assumptions' || name === 'method' || name === 'systems');
+      name === 'assumptions' || name === 'method' || name === 'systems' || name === 'start');
     /* clear the two-step confirmations when leaving, so returning to the
        view never finds a primed Delete button */
     if (name !== 'systems') {
@@ -16431,7 +16686,9 @@ footer.foot a { color: var(--ink-2); }
 
   document.addEventListener('click', function (e) {
     var t = e.target;
-    var a = t.closest ? t.closest('.navlink') : null;
+    /* The start page's route cards are navigation too, and carry the same
+       data-view, so they ride the same delegate rather than a second one. */
+    var a = t.closest ? t.closest('.navlink, a.startcard') : null;
     /* syncHash so the address bar always names the view you are looking at —
        otherwise a link copied from Phase noise reopens on the Hardware map. */
     if (a) { e.preventDefault(); setView(a.getAttribute('data-view')); syncHash(); return; }
@@ -16454,7 +16711,11 @@ footer.foot a { color: var(--ink-2); }
     X.flash('Reset to defaults');
   });
   document.getElementById('permaBtn').addEventListener('click', function () {
-    X.copy(X.permalink(overrides()), 'Permalink');
+    /* Through withView, so a permalink copied from Compare reopens on Compare.
+       It never carried `_v` before, which is the bug the comment on syncHash
+       complains about; with a landing page in front it would also have meant a
+       copied link from a defaults build landing on the start page. */
+    X.copy(X.permalink(withView(overrides())), 'Permalink');
   });
   document.getElementById('saveSysBtn').addEventListener('click', function () { saveCurrentSystem(); });
   document.getElementById('saveName').addEventListener('keydown', function (e) {
