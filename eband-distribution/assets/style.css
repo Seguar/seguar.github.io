@@ -647,3 +647,80 @@ footer.foot a { color: var(--ink-2); }
   background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 6px;
   font-size: 12.5px; z-index: 90; box-shadow: 0 4px 14px rgba(0,0,0,.22);
 }
+
+/* ---------- the start page ----------
+   The landing view. Everything here exists to make the first screen answer
+   "what is this, what did it conclude, where do I click" and nothing else.
+
+   The three chrome elements that make every other view dense are hidden:
+   the 101-control parameter rail, the derived-requirement banner and the
+   context bar. The rail needs BOTH halves of this rule - display:none alone
+   leaves `main` auto-placed into the 330px track, so the whole page renders
+   a third of its width. */
+body[data-view="start"] .cols { grid-template-columns: minmax(0, 1fr); }
+body[data-view="start"] .cols > aside.params { display: none; }
+body[data-view="start"] .ctxbar { display: none; }
+
+.start { max-width: 900px; padding: 4px 0 0; }
+.start h2 {
+  margin: 22px 0 10px; font-size: 19px; font-weight: 650;
+  letter-spacing: -0.01em; line-height: 1.3; color: var(--ink);
+}
+.start h3 {
+  margin: 26px 0 11px; font-size: 13.5px; font-weight: 650;
+  letter-spacing: 0.01em; color: var(--ink);
+}
+.startlede { margin: 0; max-width: 72ch; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
+
+/* The verdict line. `is` carries the live clause; the LIVE pill marks it as
+   recomputed rather than written, because every other sentence on this page
+   is a fixed definition and the reader cannot otherwise tell them apart. */
+.startverdict {
+  margin: 16px 0 0; max-width: 78ch; font-size: 13.5px; line-height: 1.6; color: var(--ink);
+  padding: 11px 13px; border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent); border-radius: 6px; background: var(--bg-panel);
+}
+.startverdict .lv {
+  font: 500 9.5px var(--mono); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft);
+  border-radius: 3px; padding: 2px 5px; margin-right: 8px; vertical-align: 1px;
+}
+.startverdict b { font-weight: 650; }
+/* A tie is not a verdict, so it does not get the verdict's accent rule. */
+.startverdict .tie { color: var(--warn); font-weight: 650; }
+.startverdict.failc { border-left-color: var(--fail); background: var(--fail-soft); }
+.startverdict.failc .lv { color: var(--fail); background: transparent; border: 1px solid var(--fail); }
+
+.startgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+a.startcard {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 13px 14px 11px; border: 1px solid var(--rule); border-radius: 8px;
+  background: var(--bg-panel); text-decoration: none; color: inherit;
+}
+/* No colour transition here, deliberately. A transition whose endpoint is a
+   var() latches at its start value when the variable itself changes, so
+   fading the card on hover also left all three cards painted light over a
+   dark page after the theme button was pressed — measured, not theorised.
+   Everything else in this stylesheet transitions only `transform`. */
+a.startcard:hover { border-color: var(--rule-strong); background: var(--bg-hover); }
+a.startcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a.startcard .sw {
+  font: 500 10px var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3);
+}
+a.startcard .sq { font-size: 14.5px; font-weight: 650; line-height: 1.3; color: var(--ink); }
+/* flex:1 so the three rules along the card feet line up whatever the copy */
+a.startcard .sd { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); flex: 1 1 auto; }
+a.startcard .sg {
+  display: flex; justify-content: space-between; gap: 10px; align-items: baseline;
+  margin-top: 3px; padding-top: 8px; border-top: 1px solid var(--rule);
+  font: 11.5px var(--mono); color: var(--ink-3);
+}
+a.startcard .sgo { color: var(--accent); font-weight: 500; }
+a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
+
+.startmore { margin: 20px 0 0; max-width: 78ch; font-size: 12.5px; line-height: 1.55; color: var(--ink-3); }
+
+@media (max-width: 640px) {
+  .start h2 { font-size: 17px; }
+  .startgrid { grid-template-columns: minmax(0, 1fr); }
+}

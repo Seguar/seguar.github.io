@@ -33,7 +33,8 @@
     <h1>E-Band Distribution Comparison Tool</h1>
     <span class="sub">LO / reference distribution &amp; baseband split-combine &mdash; 71&ndash;86&nbsp;GHz tiled array</span>
     <nav>
-      <a href="#" class="navlink on" data-view="map">Hardware map</a>
+      <a href="#" class="navlink on" data-view="start">Start</a>
+      <a href="#" class="navlink" data-view="map">Hardware map</a>
       <a href="#" class="navlink" data-view="tile">Inside a tile</a>
       <a href="#" class="navlink" data-view="compare">Compare</a>
       <a href="#" class="navlink" data-view="phasenoise">Phase noise</a>
@@ -114,8 +115,68 @@
     <!-- ===================== results column ===================== -->
     <main>
 
+      <!-- ---- START ----
+           The landing page, and the only view that assumes nothing. The tool
+           opens here when the URL asks for nothing in particular; a link that
+           carries a configuration still opens on the Hardware map, because a
+           configured link was sent to show a BUILD and a landing page shows
+           none (see loadState in js/app.js).
+
+           Deliberately: no option codes, no metric names, no units, and no
+           class that glossify() marks up (.prose, .note, .viewintro, .budget,
+           table.grid) - so not one dotted glossary underline appears here.
+           Nothing on this page needs decoding. The parameter rail, the
+           derived-requirement banner and the context bar are all hidden by
+           body[data-view="start"] in the stylesheet: they are the complication
+           this view exists to defer. -->
+      <div class="view" id="view-start">
+        <div class="start">
+          <h2>One array. Three families of architecture. <span id="stCand">16</span> candidates.</h2>
+          <p class="startlede">How a clean reference reaches every tile, how the baseband is split out
+            and summed back again, and what sits behind each RF port &mdash; every candidate costed
+            against one model of a 71&ndash;86&nbsp;GHz tiled array, from the same
+            <span id="stParams">101</span> parameters.</p>
+
+          <!-- The one live thing above the first click. Filled by renderStart();
+               replaced wholesale by a failure callout when the configuration in
+               the link cannot be built. -->
+          <div id="stVerdict"></div>
+
+          <h3>Where do you want to start?</h3>
+          <div class="startgrid">
+            <a href="#" class="startcard" data-view="decision">
+              <span class="sw">If you are reviewing it</span>
+              <span class="sq">What did you decide, and why?</span>
+              <span class="sd">The written recommendation, regenerated from the current numbers every
+                time you open it &mdash; with the scoring weights laid out as the arguable judgement
+                they are, not as physics.</span>
+              <span class="sg"><span>2 minutes</span><span class="sgo">Decision &rarr;</span></span>
+            </a>
+            <a href="#" class="startcard" data-view="map">
+              <span class="sw">If you are building it</span>
+              <span class="sq">What is it, physically?</span>
+              <span class="sd">The board: where the source sits, how the trunks branch, what lands at
+                each tile and what it costs. Also the only place to change the architecture, so it is
+                where you will spend the time.</span>
+              <span class="sg"><span>5 minutes, or all day</span><span class="sgo">Hardware map &rarr;</span></span>
+            </a>
+            <a href="#" class="startcard" data-view="compare">
+              <span class="sw">If you do not believe it</span>
+              <span class="sq">Were the other options really costed?</span>
+              <span class="sd">Every option against the same metrics &mdash; the ones that lost as well
+                as the one that won, and the ones the score cannot tell apart.</span>
+              <span class="sg"><span>5 minutes</span><span class="sgo">Compare &rarr;</span></span>
+            </a>
+          </div>
+
+          <p class="startmore">Those are three of <span id="stViews">12</span> views; the rest are in the
+            bar above. If you already know what you want &mdash; the beam pattern, the link budget, the
+            phase-noise overlays, the sweeps, your own saved systems &mdash; go straight there.</p>
+        </div>
+      </div>
+
       <!-- ---- HARDWARE MAP ---- -->
-      <div class="view" id="view-map">
+      <div class="view hidden" id="view-map">
         <p class="viewintro"><span class="scope one">this build</span><span>The board this build actually is: where the source sits, how the trunks and branches route, what lands at each tile and what it costs. Click any tile to inspect both tiers for it.</span></p>
         <!-- The case selector lives INSIDE the map panel, directly above the
              drawing it changes. It used to be a separate 1215 px panel above
@@ -270,7 +331,7 @@
 
         <section class="panel">
           <h2>LO / reference distribution <span class="tag">family A</span>
-            <span class="grow">6 options &times; required metrics</span></h2>
+            <span class="grow">7 options &times; required metrics</span></h2>
           <div class="tscroll tall"><table class="grid sticky1" id="loTable"></table></div>
           <div class="toolbar">
             <button class="btn" data-copy="lo-md" type="button">Copy as Markdown</button>
@@ -318,7 +379,7 @@
 
       <!-- ---- PHASE NOISE ---- -->
       <div class="view hidden" id="view-phasenoise">
-        <p class="viewintro"><span class="scope all">all options</span><span>Three L(f) overlays for all six LO options: absolute per tile, the inter-tile differential that decides the architecture, and the array output after uncorrelated noise averages down.</span></p>
+        <p class="viewintro"><span class="scope all">all options</span><span>Three L(f) overlays for all seven LO options: absolute per tile, the inter-tile differential that decides the architecture, and the array output after uncorrelated noise averages down.</span></p>
         <section class="panel">
           <h2>Absolute L(f) at the E-band carrier <span class="tag">M1</span>
             <span class="grow">what one tile's LO looks like</span></h2>
@@ -394,7 +455,7 @@
 
       <!-- ---- SWEEPS ---- -->
       <div class="view hidden" id="view-sweeps">
-        <p class="viewintro"><span class="scope all">all options</span><span>How the answer moves when one parameter does. Each curve recomputes the full model at every point, for all six options.</span></p>
+        <p class="viewintro"><span class="scope all">all options</span><span>How the answer moves when one parameter does. Each curve recomputes the full model at every point, for all seven options.</span></p>
         <section class="panel">
           <h2>Design sweeps <span class="grow">each curve recomputes from the current parameter set</span></h2>
           <div class="body">

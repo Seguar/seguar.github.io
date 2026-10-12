@@ -11,8 +11,18 @@
   var DEFAULTS = {};
   M.PARAMS.forEach(function (p) { DEFAULTS[p.key] = p.value; });
   var state = {};
+  /* Where a URL that asks for nothing in particular lands. It is also the one
+     view syncHash omits from the hash, so this name and that omission must
+     stay the same string — see syncHash. */
+  var DEFAULT_VIEW = 'start';
+  /* The view a hash that carries a CONFIGURATION but no explicit `_v` lands
+     on. Every permalink this tool ever produced is of that shape — neither
+     syncHash nor the Copy permalink button emitted `_v` while sitting on the
+     map, because the map used to be the default — so without this, adding a
+     landing page would silently redirect every link already sent. */
+  var CONFIGURED_VIEW = 'map';
   var view = {
-    name: 'map', selected: 0, tileMetric: 'skewPs',
+    name: DEFAULT_VIEW, selected: 0, tileMetric: 'skewPs',
     showBlocks: true, showLo: true, showBb: true, showDies: true, showAnts: true,
     /* Systems view: transient UI state only. The saved systems themselves
        live in localStorage via window.Systems; `shared` holds systems that
@@ -124,11 +134,16 @@
     Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
     var over = X.decodeState(location.hash);
     view.migrated = migrateRawState(over);
+    /* `sawView`: the link named a view outright. `sawConfig`: the link carries
+       a build — a parameter override or a shared comparison set — whether or
+       not it named a view. The two together decide where a hash with no `_v`
+       lands; see the resolution below the loop. */
+    var sawView = false, sawConfig = false;
     Object.keys(over).forEach(function (k) {
       /* A view name out of a URL is untrusted input like any other: an
          unknown one would hide every panel and leave a blank page. */
       if (k === '_v') {
-        if (document.getElementById('view-' + over[k])) view.name = over[k];
+        if (document.getElementById('view-' + over[k])) { view.name = over[k]; sawView = true; }
         return;
       }
       /* A comparison set carried in the link is decoded but NOT stored: it
@@ -138,12 +153,22 @@
       if (k === '_sys') {
         try { view.sys.shared = window.Systems.decodeSet(over[k], DEFAULTS, clampParam); }
         catch (e) { view.sys.shared = []; }
+        sawConfig = true;
         return;
       }
       if (!(k in DEFAULTS)) return;
       var v = parseFloat(over[k]);
-      if (isFinite(v)) state[k] = clampParam(k, v);
+      if (isFinite(v)) { state[k] = clampParam(k, v); sawConfig = true; }
     });
+
+    /* A hash that carries a configuration but never named a view is a link to
+       a BUILD, and the landing page shows no build — so it opens where it
+       always did. This is what keeps every permalink already sent working:
+       neither syncHash nor the Copy permalink button emitted `_v` while the
+       map was the default, so "parameters, no view" is precisely the shape of
+       a map link. An empty hash conveys no intent at all, and only that
+       reaches the start page. */
+    if (!sawView && sawConfig) view.name = CONFIGURED_VIEW;
   }
 
   /* A hash is input from wherever it came — a hand-edited link, a truncated
@@ -180,10 +205,18 @@
        opened on the Hardware map however carefully they had navigated to the
        chart they wanted to show. The map is the default, so it is omitted and
        links stay short. */
-    var o = overrides();
-    if (view.name && view.name !== 'map') o._v = view.name;
-    var s = X.encodeState(o);
+    var s = X.encodeState(withView(overrides()));
     history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
+  }
+
+  /* Stamp the current view into a parameter set, unless it is the view a bare
+     URL already lands on. The sentinel MUST track DEFAULT_VIEW: while it said
+     'map' and the default was 'map', sitting on the map wrote no `_v` and the
+     hash round-tripped correctly. With a landing page in front, the same code
+     would wipe the hash on the map and send a refresh back to the start. */
+  function withView(o) {
+    if (view.name && view.name !== DEFAULT_VIEW) o._v = view.name;
+    return o;
   }
 
   /* stamp a reference preset into the editable PN fields */
@@ -2718,6 +2751,89 @@
     }
   }
 
+  /* ======================= START — the landing page =======================
+
+     The only view that assumes the reader knows nothing. Four of its five
+     blocks are fixed prose in index.html; this fills the counts and the one
+     live sentence.
+
+     The sentence BRANCHES rather than asserts. js/decision.js carries a tie
+     threshold precisely so that a refusal to choose can be rendered as a
+     refusal, and the landing page is the last place that should quietly
+     promote a tie to a verdict — at today's defaults the LO family has a
+     real winner and the baseband family does not, and the page has to be
+     able to say both, and to say the opposite if a parameter moves.
+
+     A hard inconsistency replaces the sentence outright. Decision.build
+     never looks at res.warnings — it gates on each option's own meetsSpec
+     and infeasible — so it returns a pick that looks just as confident for a
+     geometry nobody can build. This filter is the only thing standing
+     between that and a confident lie on the first screen. */
+  function renderStart(res, dec) {
+    function put(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+    put('stCand', M.LO_IDS.length + M.BB_IDS.length + M.ANT_IDS.length);
+    put('stParams', M.PARAMS.length);
+    /* a DOM read, so a view added later cannot make this sentence lie */
+    put('stViews', Math.max(1, document.querySelectorAll('.view').length - 1));
+
+    var mount = document.getElementById('stVerdict');
+    if (!mount) return;
+    mount.textContent = '';
+
+    /* text and <b> fragments, built rather than interpolated */
+    function say(parent, s) { parent.appendChild(document.createTextNode(s)); }
+    function strong(parent, s) { parent.appendChild(UI.elt('b', null, s)); }
+    function names(set) {
+      return set.map(function (o) { return o.name; });
+    }
+    function joinInto(parent, list) {
+      list.forEach(function (nm, i) {
+        if (i) say(parent, i === list.length - 1 ? ' and ' : ', ');
+        strong(parent, nm);
+      });
+    }
+
+    var hard = (res.warnings || []).filter(function (w) { return w.severity === 'fail'; });
+    mount.className = 'startverdict' + (hard.length ? ' failc' : '');
+    mount.appendChild(UI.elt('span', 'lv', hard.length ? 'cannot build' : 'live'));
+
+    if (hard.length) {
+      say(mount, 'This link carries a configuration that ');
+      strong(mount, 'cannot be built');
+      say(mount, ' — ' + (hard.length === 1 ? 'one thing does' : hard.length + ' things do') +
+        ' not add up, so every number behind these doors describes an array that does not exist. ' +
+        'The hardware map names it, and the parameter column beside the map is where you fix it.');
+      return;
+    }
+
+    var loTied = (dec.loTied && dec.loTied.length > 1) ? dec.loTied : null;
+    var bbTied = (dec.bbTied && dec.bbTied.length > 1) ? dec.bbTied : null;
+
+    if (loTied) {
+      say(mount, 'Right now it will not choose how the reference reaches every tile: ');
+      joinInto(mount, names(loTied));
+      say(mount, ' are ');
+      mount.appendChild(UI.elt('span', 'tie', 'too close to separate'));
+      say(mount, '. ');
+    } else {
+      say(mount, 'Right now it picks ');
+      strong(mount, dec.loPick ? dec.loPick.name : '—');
+      say(mount, ' to get the reference to every tile. ');
+    }
+
+    if (bbTied) {
+      say(mount, 'For splitting and combining the baseband it will not choose either: ');
+      joinInto(mount, names(bbTied));
+      say(mount, ' are ');
+      mount.appendChild(UI.elt('span', 'tie', 'too close to separate'));
+      say(mount, '.');
+    } else {
+      say(mount, 'For splitting and combining the baseband it picks ');
+      strong(mount, dec.bbPick ? dec.bbPick.name : '—');
+      say(mount, '.');
+    }
+  }
+
   function render() {
     var res = M.evaluate(state);
     var budget = window.Budget.derive(res.g, '64QAM');
@@ -2758,6 +2874,7 @@
         .forEach(function (el2) { window.Glossary.mark(el2); });
     }
 
+    if (view.name === 'start') renderStart(res, dec);
     if (view.name === 'map') renderMapView(res, budget);
     if (view.name === 'tile') renderTileView(res, budget);
     if (view.name === 'compare') renderCompare(res, budget, dec);
@@ -4396,7 +4513,7 @@
        because each system has its own derived requirement and that comparison
        has its own panel inside the view. */
     document.getElementById('budgetPanel').classList.toggle('hidden',
-      name === 'assumptions' || name === 'method' || name === 'systems');
+      name === 'assumptions' || name === 'method' || name === 'systems' || name === 'start');
     /* clear the two-step confirmations when leaving, so returning to the
        view never finds a primed Delete button */
     if (name !== 'systems') {
@@ -4490,7 +4607,9 @@
 
   document.addEventListener('click', function (e) {
     var t = e.target;
-    var a = t.closest ? t.closest('.navlink') : null;
+    /* The start page's route cards are navigation too, and carry the same
+       data-view, so they ride the same delegate rather than a second one. */
+    var a = t.closest ? t.closest('.navlink, a.startcard') : null;
     /* syncHash so the address bar always names the view you are looking at —
        otherwise a link copied from Phase noise reopens on the Hardware map. */
     if (a) { e.preventDefault(); setView(a.getAttribute('data-view')); syncHash(); return; }
@@ -4513,7 +4632,11 @@
     X.flash('Reset to defaults');
   });
   document.getElementById('permaBtn').addEventListener('click', function () {
-    X.copy(X.permalink(overrides()), 'Permalink');
+    /* Through withView, so a permalink copied from Compare reopens on Compare.
+       It never carried `_v` before, which is the bug the comment on syncHash
+       complains about; with a landing page in front it would also have meant a
+       copied link from a defaults build landing on the start page. */
+    X.copy(X.permalink(withView(overrides())), 'Permalink');
   });
   document.getElementById('saveSysBtn').addEventListener('click', function () { saveCurrentSystem(); });
   document.getElementById('saveName').addEventListener('keydown', function (e) {
