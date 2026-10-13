@@ -502,6 +502,118 @@ svg .clickable:focus-visible { filter: drop-shadow(0 0 3px var(--card)) drop-sha
   #carrier .car-lbl { min-width: 0; flex-basis: 100%; }
 }
 
+/* ---- chain.css ---- */
+/* chain.css: Daisy-chain option stage (prefix dch-) */
+#chain [hidden] { display: none !important; }
+
+/* ---- intro: option cards, recommendation, corrections ---- */
+#chain .dch-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+#chain .dch-opt { min-width: 0; display: grid; gap: 4px; align-content: start; padding: 12px 16px; border-radius: 12px; background: var(--zone); border: 1px solid var(--line); }
+#chain .dch-opt-on { background: var(--clk-t); border-color: var(--clk); }
+#chain .dch-opt-k { font: 600 12px/1.3 var(--sans); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+#chain .dch-opt-on .dch-opt-k { color: var(--clk); }
+#chain .dch-rec { background: var(--paper); border-left: 4px solid var(--clk); }
+#chain .dch-fix { background: var(--warn-t); border-left: 4px solid var(--warn); }
+#chain .dch-list { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 88ch; }
+#chain .dch-list li { padding-left: 2px; min-width: 0; }
+#chain .dch-list li::marker { color: var(--muted); }
+#chain .dch-h4 { font: 600 15px/1.3 var(--sans); margin: 4px 0 0; }
+
+/* ---- topology toolbar and diagram ---- */
+#chain .dch-bar { align-items: flex-end; }
+#chain .dch-bar .field { min-width: 0; }
+#chain svg .dch-tc { fill: var(--clk); }
+#chain svg .dch-tv { fill: var(--ctl); }
+#chain svg .dch-bw { font-weight: 700; }
+#chain svg .dch-dash { stroke-dasharray: 6 3; }
+#chain svg .dch-hit { fill: transparent; stroke: none; }
+#chain svg .dch-pill rect { stroke-width: 1.4; }
+#chain svg .dch-ok rect { fill: var(--clk-t); stroke: var(--clk); }
+#chain svg .dch-mg rect { fill: var(--warn-t); stroke: var(--warn); }
+#chain svg .dch-rk rect { fill: var(--pwr-t); stroke: var(--pwr); }
+#chain svg .dch-na rect { fill: var(--zone); stroke: var(--muted); stroke-dasharray: 3 3; }
+#chain svg .dch-na text { fill: var(--muted); }
+#chain svg .dch-lost line { stroke: var(--muted); stroke-dasharray: 3 4; }
+#chain svg .dch-lost rect.fc { stroke: var(--muted); }
+#chain svg .dch-lost text { fill: var(--muted); }
+#chain svg .dch-off > :not(.dch-pill) { opacity: .38; }
+#chain svg .dch-nr > .box { stroke-dasharray: 6 4; }
+
+#chain .dch-sw-clk { border-top-color: var(--clk); }
+#chain .dch-sw-ctl { border-top-color: var(--ctl); }
+#chain .dch-sw-pwr { border-top-color: var(--pwr); }
+#chain .dch-key { display: inline-block; width: 22px; height: 12px; border-radius: 4px; border: 1.4px solid; box-sizing: border-box; flex: none; }
+#chain .dch-key-ok { background: var(--clk-t); border-color: var(--clk); }
+#chain .dch-key-mg { background: var(--warn-t); border-color: var(--warn); }
+#chain .dch-key-rk { background: var(--pwr-t); border-color: var(--pwr); }
+#chain .dch-key-na { background: var(--zone); border-color: var(--muted); border-style: dashed; }
+#chain .dch-key-guard { background: var(--warn-t); border-color: var(--warn-t); }
+#chain .dch-key-mk { width: 4px; border-radius: 1px; background: var(--clk); border-color: var(--clk); }
+
+#chain .dch-dead { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+#chain .dch-deadbtn[aria-pressed="true"] { background: var(--pwr-t); border-color: var(--pwr); color: var(--pwr); }
+#chain .dch-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; min-width: 0; }
+#chain .dch-check input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--card); }
+#chain .dch-check input:focus-visible { outline: 2px solid var(--card); outline-offset: 2px; }
+#chain .dch-check input:disabled, #chain .dch-check input:disabled + span { cursor: default; color: var(--muted); }
+
+/* ---- simulator ---- */
+#chain .dch-sim { gap: 14px; }
+#chain .dch-ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 20px; align-items: start; }
+#chain .dch-ctl > * { min-width: 0; }
+#chain .dch-ctl output { font: 600 13.5px var(--mono); color: var(--ink); }
+#chain .dch-ctl .field label { font: inherit; color: inherit; }
+#chain .dch-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+#chain .dch-out { display: grid; gap: 12px; min-width: 0; }
+#chain .dch-out > * { min-width: 0; }
+#chain .dch-one { font-size: 15px; padding: 10px 14px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); }
+#chain .dch-kv-ok b { color: var(--clk); }
+#chain .dch-kv-marginal b { color: var(--warn); }
+#chain .dch-kv-fail b { color: var(--pwr); }
+#chain .dch-verdict { font-size: 15.5px; padding: 10px 14px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--line); max-width: none; }
+#chain .dch-verdict:empty { display: none; }
+#chain .dch-v-ok { border-left-color: var(--clk); }
+#chain .dch-v-marginal { border-left-color: var(--warn); }
+#chain .dch-v-fail { border-left-color: var(--pwr); }
+#chain .dch-strip { background: var(--paper); }
+#chain .dch-strip svg { min-width: 620px; }
+#chain svg .dch-bar { fill: var(--zone); stroke: var(--line); stroke-width: 1; }
+#chain svg .dch-guard { fill: var(--warn-t); }
+#chain svg .dch-tick { stroke: var(--line); stroke-width: 1; }
+#chain svg .dch-mk line { stroke: var(--clk); stroke-width: 2.4; }
+#chain svg .dch-mk path { fill: var(--clk); }
+#chain svg .dch-mk-mg line { stroke: var(--warn); }
+#chain svg .dch-mk-mg path { fill: var(--warn); }
+#chain svg .dch-mk-rk line { stroke: var(--pwr); }
+#chain svg .dch-mk-rk path { fill: var(--pwr); }
+#chain .dch-anim .dch-mk { transition: transform .35s ease; }
+#chain .dch-mt { min-width: 860px; }
+#chain .dch-flag { display: inline-block; font: 600 12px/1.3 var(--sans); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+#chain .dch-flag-ok { color: var(--clk); background: var(--clk-t); }
+#chain .dch-flag-marginal { color: var(--warn); background: var(--warn-t); }
+#chain .dch-flag-risk { color: var(--pwr); background: var(--pwr-t); }
+#chain .dch-why { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
+
+/* ---- static tables ---- */
+#chain .dch-res table { min-width: 640px; }
+#chain .dch-cmp table { min-width: 900px; }
+#chain .dch-cmp tbody th { font: 600 13.5px/1.35 var(--sans); color: var(--ink); }
+#chain .dch-cmp .dch-col-on { background: var(--clk-t); }
+#chain .dch-cmp thead .dch-col-on { color: var(--clk); }
+#chain .dch-hw table { min-width: 700px; }
+
+/* ---- popover content (the popover lives outside the section) ---- */
+.core-pop .dch-pt { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.core-pop .dch-pt th { font: 600 12px/1.35 var(--sans); color: var(--muted); text-align: left; padding: 5px 10px 5px 0; white-space: nowrap; vertical-align: top; border-bottom: 1px solid var(--line); }
+.core-pop .dch-pt td { padding: 5px 0; line-height: 1.4; border-bottom: 1px solid var(--line); vertical-align: top; }
+
+@media (max-width: 560px) {
+  #chain .dch-ctl { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #chain .dch-anim .dch-mk { transition: none; }
+}
+
 /* ---- concept.css ---- */
 /* concept.css: Overview tour + clickable blocks, System module hover and array-size picker. */
 
@@ -1176,13 +1288,14 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <p class="core-map-ph">Timing &amp; control</p>
       <ol start="7">
         <li><a href="#sync" data-goto="sync" data-core-stage="sync">Sync &amp; timing</a></li>
+        <li><a href="#chain" data-goto="chain" data-core-stage="chain">Daisy-chain option</a></li>
         <li><a href="#gpio" data-goto="gpio" data-core-stage="gpio">GPIO</a></li>
         <li><a href="#plan" data-goto="plan" data-core-stage="plan">Clocks &amp; power</a></li>
       </ol>
     </div>
     <div class="core-map-col" data-phase="build">
       <p class="core-map-ph">Build &amp; scale</p>
-      <ol start="10">
+      <ol start="11">
         <li><a href="#mech" data-goto="mech" data-core-stage="mech">Mechanics</a></li>
         <li><a href="#scaling" data-goto="scaling" data-core-stage="scaling">Scaling</a></li>
         <li><a href="#bom" data-goto="bom" data-core-stage="bom">Carrier parts</a></li>
@@ -1315,6 +1428,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   <div class="step">Concept</div>
   <h2>System: four modules, one sync unit, one PC</h2>
   <p>Every module gets the reference, SYSREF and trigger over its own phase-matched cable from the sync unit, so no module depends on another. The PC only uploads patterns, sets DC levels and reads back status.</p>
+  <p class="note">This is option 1, with a separate sync unit. Option 2 drops the box and daisy-chains the modules: see <a href="#chain" data-goto="chain">Daisy-chain option</a>. Your choice there carries through power, rack height and the 3D model.</p>
   <div class="legend">
     <span><i class="sw" style="border-color:var(--clk)"></i>REF / SYSREF / TRIG</span>
     <span><i class="sw" style="border-color:var(--pwr)"></i>12 V</span>
@@ -1556,8 +1670,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <g class="hw-blk" id="hw-blk-lmk" data-hw-block="lmk">
       <rect class="zc" x="40" y="540" width="200" height="120" rx="8"/>
       <text class="b" x="52" y="559">LMK04828 + VCXO</text>
-      <text x="52" y="576">J66 SMA: ext. REF → CLKin1</text>
-      <text x="52" y="592">J35 SMA: SYSREF → CLKin0</text>
+      <text x="52" y="576">J66 via J67 → CLKin0: SYSREF</text>
+      <text x="52" y="592">J35 SMA → CLKin1: ext. REF</text>
       <text x="52" y="608">J32 SMA: clock out</text>
       <text x="52" y="624">→ DAC_REFCLK, DAC/PL SYSREF</text>
       <text class="s" x="52" y="645">SYNC/SYSREF_REQ from FPGA</text>
@@ -1650,7 +1764,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <rect class="zc" x="790" y="400" width="250" height="140" rx="10"/>
       <text class="b" x="804" y="419">Clock &amp; sync</text>
       <text x="804" y="436">SMA in: REF, SYSREF, TRIG</text>
-      <text x="804" y="452">fan-out → card J66 / J35</text>
+      <text x="804" y="452">fan-out → card J35 / J66</text>
       <text x="804" y="468">jitter-cleaner PLL makes the</text>
       <text x="804" y="484">156.25 MHz GTY reference</text>
       <text x="804" y="500">TRIG → PERST# / J65 GPIO</text>
@@ -1658,7 +1772,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     </g>
 
     <path class="clk" d="M790 530 H200 V538" marker-end="url(#bc)"/>
-    <text class="s" x="252" y="526" style="fill:var(--clk)">SMA jumpers → J66 REF, J35 SYSREF</text>
+    <text class="s" x="252" y="526" style="fill:var(--clk)">SMA jumpers → J35 REF, J66 SYSREF</text>
 
     <path class="ctl" d="M415 669 H520 V522" marker-end="url(#bk)"/>
     <text class="s" x="526" y="662" style="fill:var(--ctl)">J65 ribbon (I²C, GPIO)</text>
@@ -1733,7 +1847,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <tbody>
       <tr id="hw-f-gtyedge" data-hw-find="gtyedge" data-hw-status="card"><td>GTY to the edge</td><td>TX0–3 fitted through 0.22 µF. TX4–7 go to QSFP2 through 0 Ω; the edge capacitors for lanes 4–7 are not fitted.</td><td>Only 4 of 8 one-bit channels reach the carrier</td><td>Rework 8 capacitors per card: fit C632–35 and C1022–25, remove the QSFP2 TX links. The RX side is not needed. See the checklist below.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-card">Rework on card</span></div></td></tr>
       <tr id="hw-f-gtyref" data-hw-find="gtyref" data-hw-status="carrier"><td>GTY reference</td><td>The SI5341 runs from its own 48 MHz oscillator and makes 156.25 / 125 MHz for the GTY quads. The edge PCIE_CLK pins go to quad A refclk1 through 10 nF.</td><td>The GTYs drift against the DACs and against other modules</td><td>The carrier drives a locked 156.25 MHz into PCIE_CLK; quad B shares it. Fallback: lock the SI5341 through its unused IN2 input (rework).</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-carrier">Fixed on carrier</span></div></td></tr>
-      <tr id="hw-f-clock" data-hw-find="clock" data-hw-status="ok"><td>Clock / SYSREF</td><td>LMK04828 + VCXO. J66 SMA: external reference. J35 SMA: SYSREF in. J32: clock out. The FPGA drives SYNC/SYSREF_REQ.</td><td>Multi-board sync works without using GPIO for SYSREF</td><td>The carrier fans the sync unit's REF and SYSREF out to J66 and J35 over matched cables</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-ok">OK as is</span></div></td></tr>
+      <tr id="hw-f-clock" data-hw-find="clock" data-hw-status="carrier"><td>Clock / SYSREF</td><td>LMK04828 + 19.2 MHz VCXO. J66 SMA goes through jumper J67 to CLKin0, the only input that can feed the SYSREF path (J67 pin 1 is the on-card 10 MHz TCXO). J35 SMA goes to CLKin1. Both inputs have 49.9 Ω DC shunts. J32 is a DC-coupled LVPECL clock out. The FPGA drives SYNC/SYSREF_REQ.</td><td>Multi-board sync works without GPIO, but the inputs are the other way round from the silkscreen labels and need DC blocks</td><td>The carrier sends REF to J35 and SYSREF to J66 (J67 set to 2-3), each through a DC block, over matched cables. The <a href="#chain" data-goto="chain">Daisy-chain option</a> needs only one 5 MHz cable per card.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-carrier">Fixed on carrier</span></div></td></tr>
       <tr id="hw-f-dac" data-hw-find="dac" data-hw-status="card"><td>DAC outputs</td><td>0.1 µF → TCM2-63WX+ → 0.1 µF → SSMC J44–51. Unfitted resistor options sit around each balun.</td><td>30 MHz lowest frequency, set by the balun (the capacitors alone allow ≈ 32 kHz)</td><td>Swap to UWB2-50E, or bypass to one leg. Build both versions to compare, as suggested in the requirements review.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-card">Rework on card</span></div></td></tr>
       <tr id="hw-f-gpio" data-hw-find="gpio" data-hw-status="ok"><td>GPIO</td><td>J65 2×10 header: 10 GPIO (3.3 V) + I²C. J64 PPS in. PERST# on the edge goes to an FPGA pin.</td><td>Enough for carrier control and a trigger</td><td>J65 ribbon carries the control bus; PERST# carries the trigger through the slot</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-ok">OK as is</span></div></td></tr>
       <tr id="hw-f-power" data-hw-find="power" data-hw-status="ok"><td>Power</td><td>12 V through the edge fingers and the P3 connector. The VCCINT regulator is rated 40 A.</td><td>The card runs from the carrier's 12 V</td><td>Feed the slot 12 V pins (≤ 66 W by the PCIe spec) and/or cable to P3. Check the real card power in XPE.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-ok">OK as is</span></div></td></tr>
@@ -2024,7 +2138,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <g class="car-cmp" data-ref="U20"><rect class="zc" x="110" y="722" width="105" height="56" rx="6"/>
     <text class="b mid" x="162" y="742">U20</text><text class="m mid" x="162" y="756">LMK1C1104</text><text class="s mid" x="162" y="770">1:4 buffer</text></g>
     <line class="clk" x1="215" y1="738" x2="373" y2="738" marker-end="url(#dc)"/>
-    <g class="car-net" data-net="REF_CARD"><rect class="fc" x="375" y="729" width="95" height="18" rx="9"/><text class="m mid" x="422" y="742" style="fill:var(--clk)">J32 → card J66</text></g>
+    <g class="car-net" data-net="REF_CARD"><rect class="fc" x="375" y="729" width="95" height="18" rx="9"/><text class="m mid" x="422" y="742" style="fill:var(--clk)">J32 → card J35</text></g>
     <path class="clk" d="M215 762 H300 V788" marker-end="url(#dc)"/>
     <g class="car-cmp" data-ref="U21"><rect class="zc" x="250" y="790" width="110" height="60" rx="6"/>
     <text class="b mid" x="305" y="810">U21</text><text class="m mid" x="305" y="824">LMK04828</text><text class="s mid" x="305" y="838">jitter cleaner</text></g>
@@ -2037,7 +2151,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <text class="b mid" x="162" y="878">U22</text><text class="s mid" x="162" y="893">LVDS fan-out</text></g>
     <path class="clk" d="M215 870 H280 V852" marker-end="url(#dc)"/>
     <line class="clk" x1="215" y1="890" x2="373" y2="890" marker-end="url(#dc)"/>
-    <g class="car-net" data-net="SYSREF_CARD"><rect class="fc" x="375" y="881" width="95" height="18" rx="9"/><text class="m mid" x="422" y="894" style="fill:var(--clk)">J33 → card J35</text></g>
+    <g class="car-net" data-net="SYSREF_CARD"><rect class="fc" x="375" y="881" width="95" height="18" rx="9"/><text class="m mid" x="422" y="894" style="fill:var(--clk)">J33 → card J66</text></g>
     <g class="car-cmp car-bb" data-ref="J28"><text class="s" x="40" y="946">J28 TRIG IN</text>
     <circle class="connc" cx="50" cy="960" r="6"/></g>
     <line class="clk" x1="56" y1="960" x2="108" y2="960" marker-end="url(#dc)"/>
@@ -2432,11 +2546,11 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     </g>
     <g data-tim="link-ref">
       <line class="clk" x1="545" y1="205" x2="623" y2="205" marker-end="url(#sc)"/>
-      <text class="s mid" x="584" y="199" style="fill:var(--clk)">J32 → J66</text>
+      <text class="s mid" x="584" y="199" style="fill:var(--clk)">J32 → J35</text>
     </g>
     <g data-tim="link-sysref">
       <line class="clk" x1="545" y1="260" x2="623" y2="260" marker-end="url(#sc)"/>
-      <text class="s mid" x="584" y="254" style="fill:var(--clk)">J33 → J35</text>
+      <text class="s mid" x="584" y="254" style="fill:var(--clk)">J33 → J66</text>
     </g>
     <g data-tim="link-perst">
       <line class="clk" x1="545" y1="360" x2="623" y2="360" marker-end="url(#sc)"/>
@@ -2456,7 +2570,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <text class="b" x="637" y="189">LMK04828 (card)</text>
       <text x="637" y="206">PLL1 locks VCXO to REF</text>
       <text x="637" y="222">PLL2 → DAC_REFCLK, PL_CLK</text>
-      <text x="637" y="238">SYSREF re-clocked from J35</text>
+      <text x="637" y="238">SYSREF in on J66 (CLKin0)</text>
       <text class="s" x="637" y="262">the FPGA can also request</text>
       <text class="s" x="637" y="275">SYSREF via the SYNC pin</text>
       <line class="clk" x1="725" y1="285" x2="725" y2="303" marker-end="url(#sc)"/>
@@ -2509,7 +2623,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <ol class="tim-steps" id="tim-steps">
         <li data-tim-step="0">The sync unit locks its LMK04832 to the OCXO and starts SYSREF.</li>
         <li data-tim-step="1">On each carrier, U21 locks to REF and aligns to SYSREF. The GTY clock is now frequency-locked to the shared reference.</li>
-        <li data-tim-step="2">On each card, the LMK04828 locks to REF on J66 and re-clocks SYSREF from J35.</li>
+        <li data-tim-step="2">On each card, the LMK04828 locks to REF on J35 (CLKin1) and takes SYSREF on J66 (CLKin0, jumper J67 set to 2-3).</li>
         <li data-tim-step="3">Each card runs RF-DAC multi-tile sync and reports the measured latency to the PC.</li>
         <li data-tim-step="4">The PC sets one common target latency for all 32 DACs, so every card pads to the slowest.</li>
         <li data-tim-step="5">GTY lanes come up with TX buffer bypass and phase alignment; the PL loads the patterns.</li>
@@ -2529,7 +2643,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         <thead><tr><th>Option</th><th>How</th><th>Verdict</th></tr></thead>
         <tbody>
           <tr><td>A · Star</td><td>Dedicated sync unit, one cable set per module</td><td>Recommended: equal delays, no module depends on another</td></tr>
-          <tr><td>B · Daisy chain</td><td>Card J32 clock out → next card's J66</td><td>Jitter and delay build up along the chain, and SYSREF still needs its own path</td></tr>
+          <tr><td>B · Daisy chain</td><td>Card J32 clock out → next card's J66</td><td>Works with one clock per hop if every module derives its own SYSREF; delay and drift add up per hop. See the <a href="#chain" data-goto="chain">Daisy-chain option</a></td></tr>
           <tr><td>C · Master card</td><td>One card's LMK feeds the others through a fan-out</td><td>No extra OCXO, but the master's own path differs from the rest</td></tr>
           <tr><td>D · PPS only</td><td>GNSS PPS into each card's J64</td><td>Fine for time-stamps, far too coarse for ps alignment</td></tr>
         </tbody>
@@ -2587,6 +2701,412 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <p class="tim-readout" id="tim-sk-verdict" aria-live="polite"></p>
     <p class="note">Calibration measures the fixed cable, trace and MTS delays once and trims them with bit shifts, the TX phase interpolator and DAC fine delay. The after-calibration figures keep 10 % of those three terms and leave part-to-part and drift at full size. The checks use the worst case.</p>
   </div>
+</section>
+
+<!-- ================= CHAIN ================= -->
+<section class="sheet stage" id="chain" data-stage-title="Daisy-chain option" data-phase="timing" data-teaser="Two to eight modules in a line, no sync unit.">
+  <div class="step"></div>
+  <h2>Daisy-chain option</h2>
+  <p class="lede">The daisy chain removes the sync unit. One module is the master. It holds the reference oscillator and launches the trigger. Every other module takes the reference and the trigger from its neighbour and passes a copy on.</p>
+
+  <div class="dch-opts">
+    <div class="dch-opt">
+      <p class="dch-opt-k">Option 1</p>
+      <p><b>Sync unit (star).</b> One box sends REF, SYSREF and TRIG to every module over phase-matched cables. It is described in <a href="#sync" data-goto="sync">Sync &amp; timing</a>.</p>
+    </div>
+    <div class="dch-opt dch-opt-on">
+      <p class="dch-opt-k">Option 2 · this stage</p>
+      <p><b>Daisy chain.</b> No box. The modules pass one clock and the trigger along a line of short cables, and every carrier is the same board with a master strap.</p>
+    </div>
+  </div>
+
+  <h3>One clock does both jobs</h3>
+  <p>The chain carries a single 5&nbsp;MHz clock, the SYSREF rate. Each module locks its two LMK04828s to it in nested zero-delay mode, with the SYSREF divider as the feedback. The divider then has one fixed phase to the incoming edge, so every module makes its own SYSREF. No SYSREF cable runs between modules, and no module samples another module's SYSREF.</p>
+  <p class="note">Modules are numbered from the master: module k sits k hops after module 0. A 1.25&nbsp;MHz chain clock would also fix the phase of U21's 156.25&nbsp;MHz GTY clock, which takes one of 4 values against a 5&nbsp;MHz edge. This stage uses 5&nbsp;MHz to match Sync &amp; timing.</p>
+
+  <div class="panel dch-rec">
+    <h3>Recommendation</h3>
+    <ul class="dch-list">
+      <li><b>Use the derived SYSREF in every topology.</b> It removes the SYSREF cable, every sampling window between modules and the LMK04832 output limit. It needs only LMK settings, proven on one card first.</li>
+      <li><b>2 to 4 modules: chain B1.</b> No box, 1U and about 10&nbsp;W saved, 2(N − 1) short cables, identical carriers with a master strap.</li>
+      <li><b>8 modules: a star.</b> Keep the sync unit, or build the master star: the master carrier with two 1:8 fan-outs. Seven hops drift about 52&nbsp;ps at ΔT = 5&nbsp;°C with α = 1.5&nbsp;ps/°C per hop (to measure).</li>
+      <li><b>Card-only chain:</b> for bring-up of two bare cards, or for DAC-only modules. It cannot lock the one-bit outputs.</li>
+      <li><b>Design every carrier chain-capable.</b> The extra parts are small, and the same board then works in a star, a chain and a master star.</li>
+    </ul>
+  </div>
+
+  <div class="panel dch-fix">
+    <h3>Corrections this study found</h3>
+    <ol class="dch-list">
+      <li>The card inputs are the other way round: J66 goes through jumper J67 (pin 3) to CLKin0, and J35 goes to CLKin1.</li>
+      <li>Only CLKin0 can feed the LMK04828 SYSREF path, so SYSREF goes into J66 with J67 on 2-3 and REF into J35, which swaps the roles of carrier J32 and J33.</li>
+      <li>Both card inputs have a 49.9&nbsp;Ω DC shunt to ground, so every carrier output into them needs a series 0.1&nbsp;µF DC block.</li>
+      <li>Card J32 is a DC-coupled LVPECL output (SDCLKOUT5), so a J32 → J66 link needs an inline SMA DC block.</li>
+      <li>REF must be a square wave: CLKin needs at least 0.15&nbsp;V/ns, and a 1&nbsp;Vpp 10&nbsp;MHz sine gives only 0.031&nbsp;V/ns.</li>
+    </ol>
+    <p class="note">The <a href="#findings" data-goto="findings">Card findings</a> stage carries these corrections.</p>
+  </div>
+
+  <h3>Topology</h3>
+  <p>Pick a topology and a module count, then click a module, a link or the 12&nbsp;V feed for its details. The module count is shared with the whole page. To make a topology the system choice, press <b>Use this for the whole page</b>: <a href="#scaling" data-goto="scaling">Scaling</a>, <a href="#plan" data-goto="plan">Clocks &amp; power</a> and <a href="#mech" data-goto="mech">Mechanics</a>, including its 3D rack and bench views, then follow it.</p>
+  <div class="toolbar dch-js dch-bar" id="dch-topobar" hidden>
+    <div class="field">
+      <span id="dch-topo-lbl">Topology</span>
+      <div class="seg" role="radiogroup" aria-labelledby="dch-topo-lbl" id="dch-topo">
+        <button type="button" role="radio" aria-checked="true" id="dch-topo-b1" data-dch-topo="b1">Chain B1</button>
+        <button type="button" role="radio" aria-checked="false" id="dch-topo-b2" data-dch-topo="b2">Chain B2</button>
+        <button type="button" role="radio" aria-checked="false" id="dch-topo-a" data-dch-topo="a">Card-only</button>
+        <button type="button" role="radio" aria-checked="false" id="dch-topo-c" data-dch-topo="c">Master star</button>
+        <button type="button" role="radio" aria-checked="false" id="dch-topo-star" data-dch-topo="star">Sync unit</button>
+      </div>
+    </div>
+    <div class="field">
+      <span id="dch-dn-lbl">Modules</span>
+      <div class="seg" role="radiogroup" aria-labelledby="dch-dn-lbl" id="dch-dn">
+        <button type="button" role="radio" aria-checked="false" id="dch-dn-1" data-dch-dn="1">1</button>
+        <button type="button" role="radio" aria-checked="false" id="dch-dn-2" data-dch-dn="2">2</button>
+        <button type="button" role="radio" aria-checked="true" id="dch-dn-4" data-dch-dn="4">4</button>
+        <button type="button" role="radio" aria-checked="false" id="dch-dn-8" data-dch-dn="8">8</button>
+      </div>
+    </div>
+  </div>
+  <p class="note dch-js" id="dch-topo-note" aria-live="polite" hidden></p>
+
+  <div class="draw w2 dch-draw">
+  <svg id="dch-svg" viewBox="0 0 1100 470" role="img" aria-label="Chain B1 with 4 modules: the master on the left, 5 MHz clock and TRIG links between neighbours, delay pills and a 12 V star feed">
+<!-- dch-svg:start -->
+<defs><marker id="dch-ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--clk)"/></marker><marker id="dch-av" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--ctl)"/></marker><marker id="dch-ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--pwr)"/></marker><marker id="dch-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--muted)"/></marker></defs>
+<text class="t" x="24" y="28">Chain B1 · carrier-relayed, derived SYSREF</text>
+<text class="s end" x="1076" y="28">4 modules · 3 hops · 6 short timing cables</text>
+<text class="s mid" x="550" y="58">Module 0 is the master. Y1 sets the reference and its FPGA launches TRIG.</text>
+<text class="s mid" x="550" y="74">Every other module takes the 5 MHz clock and TRIG from its left neighbour and passes a copy on.</text>
+<text class="s mid" x="550" y="90">Each module makes its own SYSREF from the 5 MHz clock, so no SYSREF cable runs between modules.</text>
+<text class="s mid" x="550" y="112">Each hop: 1.44 ns cable + 1.50 ns U20 = 2.94 ns</text>
+<g class="dch-mod" data-dch-mod="0">
+<rect class="box" x="46" y="154" width="180" height="198" rx="8"/>
+<rect class="zk" x="54" y="162" width="164" height="80" rx="6"/>
+<text class="b mid" x="136" y="180">Module 0 · master</text>
+<text class="mid" x="136" y="197">HamGeek card · U46</text>
+<text class="s mid" x="136" y="213">5 MHz in on card J35</text>
+<text class="s mid" x="136" y="229">launches TRIG</text>
+<rect class="zc" x="54" y="250" width="164" height="94" rx="6"/>
+<text class="b mid" x="136" y="268">Carrier</text>
+<text class="mid" x="136" y="285">U20 · U21 · U24</text>
+<text class="s mid" x="136" y="301">U21 makes the 5 MHz</text>
+<rect class="fc" x="90" y="322" width="92" height="16" rx="5"/>
+<text class="m mid" x="136" y="334">Y1 TCXO 10 MHz</text>
+<circle class="dc" cx="226" cy="290" r="3"/>
+<circle class="dv" cx="226" cy="330" r="3"/>
+<circle class="fv" cx="216" cy="154" r="9"/>
+<text class="b mid" x="216" y="158">M</text>
+<line class="ctl" x1="64" y1="236" x2="64" y2="262" marker-end="url(#dch-av)"/>
+<g class="dch-pill dch-ok"><rect x="96" y="362" width="80" height="18" rx="6"/><text class="m mid" x="136" y="375">D = 0.0 ns</text></g>
+</g>
+<g class="dch-mod" data-dch-mod="1">
+<rect class="box" x="322" y="154" width="180" height="198" rx="8"/>
+<rect class="zk" x="330" y="162" width="164" height="80" rx="6"/>
+<text class="b mid" x="412" y="180">Module 1</text>
+<text class="mid" x="412" y="197">HamGeek card · U46</text>
+<text class="s mid" x="412" y="213">5 MHz in on card J35</text>
+<text class="s mid" x="412" y="229">makes its own SYSREF</text>
+<rect class="zc" x="330" y="250" width="164" height="94" rx="6"/>
+<text class="b mid" x="412" y="268">Carrier</text>
+<text class="mid" x="412" y="285">U20 · U21 · U24</text>
+<text class="s mid" x="412" y="301">relays REF and TRIG</text>
+<text class="s mid" x="412" y="317">U21 → 156.25 MHz GTY</text>
+<circle class="dc" cx="322" cy="290" r="3"/>
+<circle class="dv" cx="322" cy="330" r="3"/>
+<circle class="dc" cx="502" cy="290" r="3"/>
+<circle class="dv" cx="502" cy="330" r="3"/>
+<g class="dch-pill dch-ok"><rect x="372" y="362" width="80" height="18" rx="6"/><text class="m mid" x="412" y="375">D = 2.9 ns</text></g>
+</g>
+<g class="dch-mod" data-dch-mod="2">
+<rect class="box" x="598" y="154" width="180" height="198" rx="8"/>
+<rect class="zk" x="606" y="162" width="164" height="80" rx="6"/>
+<text class="b mid" x="688" y="180">Module 2</text>
+<text class="mid" x="688" y="197">HamGeek card · U46</text>
+<text class="s mid" x="688" y="213">5 MHz in on card J35</text>
+<text class="s mid" x="688" y="229">makes its own SYSREF</text>
+<rect class="zc" x="606" y="250" width="164" height="94" rx="6"/>
+<text class="b mid" x="688" y="268">Carrier</text>
+<text class="mid" x="688" y="285">U20 · U21 · U24</text>
+<text class="s mid" x="688" y="301">relays REF and TRIG</text>
+<text class="s mid" x="688" y="317">U21 → 156.25 MHz GTY</text>
+<circle class="dc" cx="598" cy="290" r="3"/>
+<circle class="dv" cx="598" cy="330" r="3"/>
+<circle class="dc" cx="778" cy="290" r="3"/>
+<circle class="dv" cx="778" cy="330" r="3"/>
+<g class="dch-pill dch-ok"><rect x="648" y="362" width="80" height="18" rx="6"/><text class="m mid" x="688" y="375">D = 5.9 ns</text></g>
+</g>
+<g class="dch-mod" data-dch-mod="3">
+<rect class="box" x="874" y="154" width="180" height="198" rx="8"/>
+<rect class="zk" x="882" y="162" width="164" height="80" rx="6"/>
+<text class="b mid" x="964" y="180">Module 3</text>
+<text class="mid" x="964" y="197">HamGeek card · U46</text>
+<text class="s mid" x="964" y="213">5 MHz in on card J35</text>
+<text class="s mid" x="964" y="229">makes its own SYSREF</text>
+<rect class="zc" x="882" y="250" width="164" height="94" rx="6"/>
+<text class="b mid" x="964" y="268">Carrier</text>
+<text class="mid" x="964" y="285">U20 · U21 · U24</text>
+<text class="s mid" x="964" y="301">relays REF and TRIG</text>
+<text class="s mid" x="964" y="317">U21 → 156.25 MHz GTY</text>
+<circle class="dc" cx="874" cy="290" r="3"/>
+<circle class="dv" cx="874" cy="330" r="3"/>
+<g class="dch-pill dch-ok"><rect x="924" y="362" width="80" height="18" rx="6"/><text class="m mid" x="964" y="375">D = 8.8 ns</text></g>
+</g>
+<g class="dch-link" data-dch-link="1">
+<title>Hop 1: 1.44 ns cable + 1.50 ns U20 = 2.94 ns</title>
+<rect class="dch-hit" x="226" y="274" width="96" height="80"/>
+<line class="clk" x1="226" y1="290" x2="321" y2="290" marker-end="url(#dch-ac)"/>
+<line class="ctl" x1="226" y1="330" x2="321" y2="330" marker-end="url(#dch-av)"/>
+<text class="s mid dch-tc" x="274" y="284">5 MHz J29 → J26</text>
+<text class="s mid dch-tv" x="274" y="324">TRIG J35 → J28</text>
+<text class="s mid" x="274" y="346">2.94 ns</text>
+</g>
+<g class="dch-link" data-dch-link="2">
+<title>Hop 2: 1.44 ns cable + 1.50 ns U20 = 2.94 ns</title>
+<rect class="dch-hit" x="502" y="274" width="96" height="80"/>
+<line class="clk" x1="502" y1="290" x2="597" y2="290" marker-end="url(#dch-ac)"/>
+<line class="ctl" x1="502" y1="330" x2="597" y2="330" marker-end="url(#dch-av)"/>
+<text class="s mid dch-tc" x="550" y="284">5 MHz J29 → J26</text>
+<text class="s mid dch-tv" x="550" y="324">TRIG J35 → J28</text>
+<text class="s mid" x="550" y="346">2.94 ns</text>
+</g>
+<g class="dch-link" data-dch-link="3">
+<title>Hop 3: 1.44 ns cable + 1.50 ns U20 = 2.94 ns</title>
+<rect class="dch-hit" x="778" y="274" width="96" height="80"/>
+<line class="clk" x1="778" y1="290" x2="873" y2="290" marker-end="url(#dch-ac)"/>
+<line class="ctl" x1="778" y1="330" x2="873" y2="330" marker-end="url(#dch-av)"/>
+<text class="s mid dch-tc" x="826" y="284">5 MHz J29 → J26</text>
+<text class="s mid dch-tv" x="826" y="324">TRIG J35 → J28</text>
+<text class="s mid" x="826" y="346">2.94 ns</text>
+</g>
+<g class="dch-psu" data-dch-psu="1">
+<rect class="dch-hit" x="208" y="382" width="840" height="80"/>
+<line class="pwrb" x1="214" y1="408" x2="1042" y2="408"/>
+<line class="pwrb" x1="550" y1="408" x2="550" y2="418"/>
+<line class="pwr" x1="214" y1="408" x2="214" y2="353" marker-end="url(#dch-ap)"/>
+<circle class="dp" cx="214" cy="408" r="3"/>
+<rect class="fp" x="191" y="384" width="46" height="15" rx="5"/>
+<text class="m mid" x="214" y="395">4.55 A</text>
+<line class="pwr" x1="490" y1="408" x2="490" y2="353" marker-end="url(#dch-ap)"/>
+<circle class="dp" cx="490" cy="408" r="3"/>
+<rect class="fp" x="467" y="384" width="46" height="15" rx="5"/>
+<text class="m mid" x="490" y="395">4.55 A</text>
+<line class="pwr" x1="766" y1="408" x2="766" y2="353" marker-end="url(#dch-ap)"/>
+<circle class="dp" cx="766" cy="408" r="3"/>
+<rect class="fp" x="743" y="384" width="46" height="15" rx="5"/>
+<text class="m mid" x="766" y="395">4.55 A</text>
+<line class="pwr" x1="1042" y1="408" x2="1042" y2="353" marker-end="url(#dch-ap)"/>
+<circle class="dp" cx="1042" cy="408" r="3"/>
+<rect class="fp" x="1019" y="384" width="46" height="15" rx="5"/>
+<text class="m mid" x="1042" y="395">4.55 A</text>
+<rect class="zp" x="400" y="418" width="300" height="42" rx="8"/>
+<text class="b mid" x="550" y="435">12 V PSU · star feed</text>
+<text class="s mid" x="550" y="451">4 × 4.55 A = 18.2 A · do not chain 12 V</text>
+</g>
+<!-- dch-svg:end -->
+  </svg>
+  </div>
+  <div class="legend">
+    <span><i class="sw dch-sw-clk"></i>5 MHz chain clock or REF</span>
+    <span><i class="sw d dch-sw-clk"></i>SYSREF (B2 and the sync unit)</span>
+    <span><i class="sw d dch-sw-ctl"></i>TRIG</span>
+    <span><i class="sw dch-sw-pwr"></i>12 V star feed</span>
+    <span><i class="dch-key dch-key-ok"></i>D = delay from the master, ok</span>
+    <span><i class="dch-key dch-key-mg"></i>marginal</span>
+    <span><i class="dch-key dch-key-rk"></i>at risk</span>
+    <span><i class="dch-key dch-key-na"></i>off or no reference</span>
+  </div>
+  <div class="toolbar dch-js" id="dch-deadbar" hidden>
+    <span class="note" id="dch-dead-lbl">Power off a module:</span>
+    <div class="dch-dead" id="dch-dead" role="group" aria-labelledby="dch-dead-lbl"></div>
+    <label class="dch-check"><input type="checkbox" id="dch-always"><span>Relay buffers on an always-on rail</span></label>
+  </div>
+  <p class="note dch-js" id="dch-dead-note" aria-live="polite" hidden></p>
+  <p class="note">The pills show each module's delay from the master, coloured by the chain simulator below for its current settings. In a star every module sees the same delay.</p>
+
+  <h3>Chain simulator</h3>
+  <p>The model follows one SYSREF edge down the chain. It adds the cable and buffer delay per hop, places each module's SYSREF capture inside its 4&nbsp;ns PL clock period, and adds up drift, jitter and the TRIG lead. Mismatch between buffers comes from a fixed seed, so the same settings always give the same result.</p>
+  <div class="panel dch-sim dch-js" id="dch-sim" hidden>
+    <div class="dch-ctl">
+      <div class="field">
+        <span id="dch-n-lbl">Modules</span>
+        <div class="seg" role="radiogroup" aria-labelledby="dch-n-lbl" id="dch-n">
+          <button type="button" role="radio" aria-checked="false" id="dch-n-2" data-dch-n="2">2</button>
+          <button type="button" role="radio" aria-checked="true" id="dch-n-4" data-dch-n="4">4</button>
+          <button type="button" role="radio" aria-checked="false" id="dch-n-8" data-dch-n="8">8</button>
+        </div>
+      </div>
+      <div class="field">
+        <span id="dch-mode-lbl">SYSREF transport</span>
+        <div class="seg" role="radiogroup" aria-labelledby="dch-mode-lbl" id="dch-mode">
+          <button type="button" role="radio" aria-checked="true" id="dch-mode-derived" data-dch-mode="derived">Derived from REF</button>
+          <button type="button" role="radio" aria-checked="false" id="dch-mode-reclock" data-dch-mode="reclock">Re-clocked per hop</button>
+          <button type="button" role="radio" aria-checked="false" id="dch-mode-buffered" data-dch-mode="buffered">Buffered</button>
+        </div>
+      </div>
+      <label class="field"><span>Hop cable: <output id="dch-cable-out" for="dch-cable">300 mm</output></span>
+        <input type="range" id="dch-cable" min="100" max="1500" step="50" value="300" aria-describedby="dch-cable-hint">
+        <span class="hint" id="dch-cable-hint">1.44 ns at 4.8 ps/mm</span>
+      </label>
+      <div class="field">
+        <span><label for="dch-tbuf">Buffer delay per hop</label>: <output id="dch-tbuf-out" for="dch-tbuf">1500 ps</output></span>
+        <input type="range" id="dch-tbuf" min="300" max="3000" step="25" value="1500">
+        <div class="dch-quick">
+          <button type="button" class="btn sm" id="dch-tbuf-typ">LMK1C1104 typ 1.5 ns</button>
+          <button type="button" class="btn sm" id="dch-tbuf-max">max 2.0 ns</button>
+          <button type="button" class="btn sm" id="dch-tbuf-lvds">LVDS 0.575 ns</button>
+        </div>
+      </div>
+      <div class="field">
+        <span>Trims</span>
+        <label class="dch-check"><input type="checkbox" id="dch-autotrim" checked aria-describedby="dch-autotrim-hint"><span>Trim each hop / module</span></label>
+        <span class="hint" id="dch-autotrim-hint">Re-clocked: U21 DDLY + ADLY, 50 ps grid. Buffered: card PL_CLK, 25 ps.</span>
+      </div>
+      <label class="field"><span>SYSREF delay trim: <output id="dch-sysdly-out" for="dch-sysdly">0 ps</output></span>
+        <input type="range" id="dch-sysdly" min="-1500" max="1500" step="25" value="0" aria-describedby="dch-sysdly-hint">
+        <span class="hint" id="dch-sysdly-hint">Moves the target away from mid-window</span>
+      </label>
+      <label class="field"><span>Temperature change ΔT: <output id="dch-dt-out" for="dch-dt">5 °C</output></span>
+        <input type="range" id="dch-dt" min="0" max="20" step="1" value="5">
+      </label>
+      <label class="field"><span>Buffer drift α: <output id="dch-alpha-out" for="dch-alpha">1.5 ps/°C</output></span>
+        <input type="range" id="dch-alpha" min="0" max="4" step="0.1" value="1.5" aria-describedby="dch-alpha-hint">
+        <span class="hint" id="dch-alpha-hint">Per hop. Not in the datasheet. Measure it.</span>
+      </label>
+      <div class="field">
+        <span id="dch-mis-lbl">Mismatch</span>
+        <div class="seg" role="radiogroup" aria-labelledby="dch-mis-lbl" id="dch-mis">
+          <button type="button" role="radio" aria-checked="true" id="dch-mis-typ" data-dch-mis="typ">Typical</button>
+          <button type="button" role="radio" aria-checked="false" id="dch-mis-worst" data-dch-mis="worst">Worst case</button>
+        </div>
+        <span class="hint">±125 ps per hop, from 250 ps part-to-part</span>
+      </div>
+    </div>
+    <div class="toolbar"><button type="button" class="btn sm ghost" id="dch-reset">Reset the simulator</button></div>
+    <p class="note" id="dch-mode-note"></p>
+
+    <p class="dch-one" id="dch-one" hidden>A single module needs no sync. Pick 2, 4 or 8 modules to run the chain.</p>
+    <div class="dch-out" id="dch-out">
+      <div class="kpis">
+        <div class="kpi"><b id="dch-k-delay">8.82 ns</b><span>Last module delay</span></div>
+        <div class="kpi"><b id="dch-k-margin">2000 ps</b><span id="dch-k-margin-l">Worst capture margin</span></div>
+        <div class="kpi"><b id="dch-k-drift">22.5 ps</b><span id="dch-k-drift-l">Drift at last module</span></div>
+        <div class="kpi"><b id="dch-k-jit">106 fs</b><span>Reference jitter at last module, before PLL1</span></div>
+        <div class="kpi dch-kv" id="dch-k-vbox"><b id="dch-k-verdict">Works</b><span>Verdict</span></div>
+      </div>
+      <p class="dch-verdict" id="dch-verdict" aria-live="polite"></p>
+      <div class="draw dch-strip">
+        <svg id="dch-strip" viewBox="0 0 760 150" role="img" aria-label="SYSREF capture position in the 4 ns PL clock period for each module"></svg>
+      </div>
+      <div class="legend">
+        <span><i class="dch-key dch-key-guard"></i>500 ps guard at a PL clock edge (60 ps at a VCO edge)</span>
+        <span><i class="dch-key dch-key-mk"></i>SYSREF capture point</span>
+      </div>
+      <div class="tbl"><table class="dch-mt">
+        <thead><tr><th>Module</th><th>Role</th><th>Delay D<sub>k</sub></th><th>Start offset</th><th>Margin</th><th>Flag</th><th>Trim</th><th>Drift</th><th>Jitter REF / SYSREF</th><th>TRIG lead</th></tr></thead>
+        <tbody id="dch-tbody"></tbody>
+      </table></div>
+      <p class="note" id="dch-star"></p>
+    </div>
+  </div>
+
+  <h4 class="dch-h4">Reference results</h4>
+  <p class="note">Seed 7, typical mismatch, 300&nbsp;mm hops, 1.5&nbsp;ns buffers, α = 1.5&nbsp;ps/°C per hop (to measure), ΔT = 5&nbsp;°C, guards of 500&nbsp;ps and 60&nbsp;ps (to measure).</p>
+  <div class="tbl dch-res"><table>
+    <thead><tr><th>SYSREF transport</th><th>4 modules</th><th>8 modules</th></tr></thead>
+    <tbody>
+      <tr><td>Derived (B1)</td><td><span class="ok">Works</span>: margin 2000 ps, drift 22.5 ps</td><td><span class="bad">Fails on drift</span>: 52.5 ps. Marginal at ΔT = 3 °C, works at α = 0.5 ps/°C</td></tr>
+      <tr><td>Re-clocked, constant trims</td><td><span class="bad">Fails</span>: hop 1 re-clocks 35 ps from a VCO edge</td><td><span class="bad">Fails</span></td></tr>
+      <tr><td>Re-clocked, per-hop trims</td><td><span class="ok">Works</span>: PL margin ≥ 1900 ps, VCO margin ≥ 135 ps</td><td><span class="bad">Fails on drift only</span></td></tr>
+      <tr><td>Buffered, no trims</td><td><span class="bad">Fails</span>: module 2 sits 55 ps from a PL edge</td><td><span class="bad">Fails</span>: modules 2 and 6 at 55 and 159 ps</td></tr>
+      <tr><td>Buffered, per-module PL_CLK trims</td><td><span class="ok">Works</span>: margin ≥ 1990 ps</td><td><span class="bad">Fails on drift only</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>What builds up along a chain</h3>
+  <div class="grid2">
+    <div>
+      <p><b>Delay and drift.</b> Each hop adds a buffer and a cable, about 3&nbsp;ns: 1.44&nbsp;ns of 300&nbsp;mm coax plus 1.50&nbsp;ns of LMK1C1104. With eight modules the last one runs 21&nbsp;ns behind the master. That delay is fixed, so calibration removes it with a start offset in 4&nbsp;ns steps plus a fine trim. Drift is different. Every buffer in the path drifts with temperature, and the last module sees the sum: k·α·ΔT, 22.5&nbsp;ps at four modules and 52.5&nbsp;ps at eight.</p>
+      <p><b>Jitter does not build up.</b> Each buffer adds about 20&nbsp;fs. The PLL1 loop of the next LMK04828 filters it out. Every module's output jitter is set by its own LMK04828 and DAC PLL, about 100&nbsp;fs, whether it sits first or eighth.</p>
+      <p><b>Trigger.</b> The trigger only has to land inside one 200&nbsp;ns SYSREF period. The master launches it 100&nbsp;ns after a SYSREF edge. Trigger and reference pass the same kind of buffer at every hop, so the trigger stays near the middle of the window on every module, at 100&nbsp;ns ± 5&nbsp;ns.</p>
+    </div>
+    <div>
+      <p><b>Re-clocking per hop.</b> U21 can sample SYSREF on its 400&nbsp;ps VCO grid and send it on with 50&nbsp;ps trims. That adds a sampling point at every hop. An edge within about 60&nbsp;ps of a VCO edge can slip one VCO cycle between power-ups, so every hop needs a trim. An untrimmed point lands that close 30&nbsp;% of the time, so with seven hops one needs a trim 92&nbsp;% of the time. The derived SYSREF needs none.</p>
+      <p><b>Failure.</b> A chain depends on every module before it. If a module loses power, the modules after it lose the reference. Running the relay buffers from an always-on rail, or fitting a bypass relay, keeps the chain alive.</p>
+      <p><b>Card only.</b> The HamGeek card can chain on its own: J32 of one card into J66 of the next, through a DC block. That keeps the DAC outputs aligned. It cannot lock the one-bit outputs, because their GTY reference has to come from the carrier.</p>
+    </div>
+  </div>
+  <p><b>Which one.</b> For two to four modules the chain is the simpler system: no box, short cables, identical carriers. For eight modules the drift over seven hops uses most of the 50&nbsp;ps budget, so a star wins: the sync unit, or a master module with a 1:8 fan-out. The chain saves the sync unit, 1U of rack and about 10&nbsp;W, and replaces 3N phase-matched cables with 2(N − 1) short ones: 6 instead of 12 at four modules.</p>
+
+  <h3>Comparison</h3>
+  <div class="tbl dch-cmp"><table id="dch-cmp">
+    <thead><tr><th></th><th>Sync unit star (Option 1)</th><th>Chain B1, derived SYSREF</th><th>Chain B2, re-clocked SYSREF</th><th>Card-only chain A1</th><th>Master star C</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Parts and cost</th><td>+ box, ≈ $700 to 1500 (estimate)</td><td>no box; + ≈ $15 to 30 per carrier, + Y1 on the master (estimate)</td><td>as B1, + SYSREF OUT and more U21 outputs</td><td>no box, carrier sync parts not fitted; + DC blocks</td><td>no box; master + two 1:8 buffers + 16 SMA, ≈ $60 to 120 (estimate)</td></tr>
+      <tr><th scope="row">Timing cables</th><td>3N phase-matched (N with derived SYSREF, plus TRIG)</td><td>2(N − 1) short, equal length</td><td>3(N − 1)</td><td>(N − 1) coax + (N − 1) ribbons</td><td>2N equal length, incl. the master loop</td></tr>
+      <tr><th scope="row">Rack space</th><td>+ 1U</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+      <tr><th scope="row">Power</th><td>+ 10 W</td><td>≈ + 0.2 W</td><td>≈ + 0.3 W</td><td>≈ 0</td><td>≈ + 0.5 W</td></tr>
+      <tr><th scope="row">Skew after calibration</th><td>tens of ps (MTS residual)</td><td>tens of ps + drift k·α·ΔT: 22 ps at N = 4, 52 ps at N = 8 (α to measure)</td><td>as B1 + ±25 ps trim residual per hop</td><td>as B1 for the DACs; one-bit not locked</td><td>as the star</td></tr>
+      <tr><th scope="row">Jitter at the outputs</th><td>≈ 100 fs</td><td>≈ 100 fs; the chain adds &lt; 1 fs after PLL1</td><td>≈ 100 fs</td><td>≈ 100 fs</td><td>≈ 100 fs</td></tr>
+      <tr><th scope="row">Sampling points between modules</th><td>1 per module (none with derived SYSREF)</td><td>none</td><td>2 per hop</td><td>none</td><td>none</td></tr>
+      <tr><th scope="row">Robustness</th><td>the box is a single point; modules independent</td><td>master is a single point; a dead module cuts the rest unless the relay has an always-on rail or a bypass</td><td>as B1</td><td>worst: a dead card cuts the chain, no bypass</td><td>master is a single point; slaves independent</td></tr>
+      <tr><th scope="row">8 modules</th><td>LMK04832 out of outputs with REF + SYSREF (16 &gt; 14); fine with derived SYSREF (8)</td><td>works; 20.6 ns delay; limited by drift</td><td>works; limited by drift; most trims</td><td>7 PLL hops; no GTY lock</td><td>works; 1:8 buffers</td></tr>
+      <tr><th scope="row">Risk</th><td>low</td><td>medium: nested zero-delay repeatability, buffer drift</td><td>medium-high: per-hop trims, two windows per hop</td><td>high</td><td>low-medium</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Prefer a star when modules sit far apart, at 8 modules, when one module must be serviced while the others run, or when the skew target is below about 30 ps without re-calibration. Prefer the chain when space, cabling and cost dominate and N ≤ 4. Use the card-only chain on the lab bench.</p>
+
+  <h3>What to add to the carrier</h3>
+  <p>Refdes continue the carrier numbering. Carrier J35 and J36 are new connectors; the HamGeek SMA is always called "card J35".</p>
+  <div class="tbl dch-hw"><table>
+    <thead><tr><th>Refdes</th><th>Part (first candidate)</th><th>Fitted on</th><th>Function</th></tr></thead>
+    <tbody>
+      <tr><td class="r">J29</td><td>SMA (existing)</td><td>all</td><td>Becomes REF OUT: U20's 4th output, the chain clock to the next module. No hardware change.</td></tr>
+      <tr><td class="r">J35</td><td>SMA</td><td>all</td><td>TRIG OUT to the next module</td></tr>
+      <tr><td class="r">J36</td><td>SMA</td><td>not fitted (B2 only)</td><td>SYSREF OUT from a U21 SDCLKout</td></tr>
+      <tr><td class="r">J37, J38</td><td>RJ45 with magnetics</td><td>Ethernet option E2</td><td>ETH IN, ETH OUT</td></tr>
+      <tr><td class="r">J39</td><td>RJ45</td><td>Ethernet option E2</td><td>Short patch to the card's bracket RJ45</td></tr>
+      <tr><td class="r">J40</td><td>SMA</td><td>master, option</td><td>RET IN for the ring-return drift monitor</td></tr>
+      <tr><td class="r">J41</td><td>SMA</td><td>master, option</td><td>External 10 MHz in (must be squared) to U21 CLKin1, auto-switch with Y1</td></tr>
+      <tr><td class="r">Y1</td><td>10 MHz TCXO, 3.3 V CMOS, ±0.5 ppm class; OCXO footprint alongside</td><td>master</td><td>Root reference into U21 CLKin1</td></tr>
+      <tr><td class="r">JP1</td><td>3-pin strap or 0 Ω pair</td><td>all</td><td>U20 input: J26 (slave) or U21 OSCout 5 MHz (master)</td></tr>
+      <tr><td class="r">JP2</td><td>3-pin strap or 0 Ω pair</td><td>all</td><td>U24 input: U23 TRIG IN (slave) or the card FPGA via J31 / J65 IO4 (master)</td></tr>
+      <tr><td class="r">U24</td><td>LMK1C1104</td><td>all</td><td>TRIG fan-out: PERST#, J31 IO3, J35 TRIG OUT, spare</td></tr>
+      <tr><td class="r">U25</td><td>KSZ9896C, or KSZ9893 + U26 GbE PHY</td><td>Ethernet option E2</td><td>3-port GbE switch</td></tr>
+      <tr><td class="r">U58</td><td>3.3 V always-on regulator from 12 V, ahead of U50</td><td>all</td><td>Powers U20, U23, U24 and U25, so a module with its main rails off still relays</td></tr>
+      <tr><td class="r">K1, K2</td><td>DPDT signal relays, bypass when not powered</td><td>option</td><td>REF and TRIG bypass for an unpowered module</td></tr>
+      <tr><td class="r">C (series)</td><td>0.1 µF</td><td>all</td><td>DC blocks on carrier J32 and J33 into the card's 49.9 Ω inputs</td></tr>
+      <tr><td class="r">U23</td><td>universal-input receiver, LVCMOS or LVDS (changed)</td><td>all</td><td>Accepts TRIG from a sync unit (LVDS) or from a neighbour (LVCMOS on coax)</td></tr>
+      <tr><td class="r">J65 IO5</td><td>strap readback</td><td>all</td><td>The FPGA reads MASTER or SLAVE</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="grid2">
+    <div>
+      <h3>12 V: a star, never a chain</h3>
+      <p>Each module draws <span id="dch-amps">4.55 A</span> at 12&nbsp;V. Chained through eight modules the first link would carry <span id="dch-amps8">36.4 A</span>, and with 0.3&nbsp;m links of 12&nbsp;AWG the last module would see about 1.16&nbsp;V less (contacts to measure). Feed every J30 from a distribution bar or a bus bar on the base plate: 1&nbsp;m of 16&nbsp;AWG drops only 0.12&nbsp;V.</p>
+    </div>
+    <div>
+      <h3>Ethernet</h3>
+      <p>Keep the external switch with N + 1 ports (option E1): a dead module never cuts the others off. Option E2 puts a 3-port GbE switch on every carrier (U25, J37 to J39). It saves the switch and the star of patch cables, costs about 1&nbsp;W per carrier (to measure) and adds about 12&nbsp;µs per hop, which does not matter for control. The two RS-485 ports on each card can carry a slow backup link along the chain.</p>
+    </div>
+  </div>
+
+  <h3>Open questions to check on hardware</h3>
+  <ul class="dch-list">
+    <li>Continuity on a delivered card: J66 → J67 pin 3 → CLKin0, J35 → CLKin1, the default J67 position, R344 and R348 fitted.</li>
+    <li>Nested zero-delay with the SYSREF divider as feedback and a 5 MHz PFD on the card's existing PLL1 loop filter: lock, stability, lock time. Simulate in PLLatinum Sim first.</li>
+    <li>Phase repeatability over at least 20 power cycles: card PL_CLK and PL_SYSREF against the 5 MHz edge, and U21's 156.25 MHz (4 states at 5 MHz, 1 at 1.25 MHz).</li>
+    <li>Zero-delay input-to-output offset of U21 and U46, and its temperature coefficient.</li>
+    <li>Buffer drift α of the LMK1C1104 per hop, and the chain drift over warm-up and a 5 to 10 °C swing.</li>
+    <li>J32 through a DC block: amplitude and slew at J66.</li>
+    <li>MTS latency reports across power cycles in a chain, and whether a forced capture slip shows up in them.</li>
+    <li>Whether the HamGeek boot firmware programs U46, and whether our firmware can own its SPI completely.</li>
+    <li>A squaring circuit for a lab 10 MHz sine on the master, with CLKin slew ≥ 0.5 V/ns.</li>
+  </ul>
+  <p>The hop cables run between neighbouring rear panels: 250&nbsp;mm on the bench and about 450&nbsp;mm between rack shelves (estimate). <a href="#mech" data-goto="mech">Mechanics</a> shows the panels; <a href="#sync" data-goto="sync">Sync &amp; timing</a> has the star for comparison.</p>
 </section>
 
 <!-- ================= GPIO ================= -->
@@ -2742,7 +3262,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <div class="tbl"><table>
         <thead><tr><th>Signal</th><th>Value</th><th>How it relates</th></tr></thead>
         <tbody>
-          <tr><td>Shared reference</td><td class="n">10 MHz</td><td>Sync unit → each carrier → card J66</td></tr>
+          <tr><td>Shared reference</td><td class="n">10 MHz</td><td>Sync unit → each carrier → card J35</td></tr>
           <tr><td>SYSREF</td><td class="n">5 MHz</td><td>One SYSREF period = 2 pulse periods</td></tr>
           <tr><td>GTY reference</td><td class="n">156.25 MHz</td><td>Carrier U21; same value as the card's SI5341 default</td></tr>
           <tr><td>GTY line rate</td><td class="n">20 Gb/s</td><td>QPLL0 VCO 10 GHz = 64 × 156.25 MHz; 50 ps per bit</td></tr>
@@ -3371,7 +3891,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <tr><td class="r">J26–J29</td><td>REF in, SYSREF in, TRIG in, SYNC out</td><td>SMA</td><td class="n">4</td></tr>
       <tr><td class="r">J30, J34</td><td>12 V input; 12 V cable to card P3</td><td>2-pin terminal block; matching cable header</td><td class="n">2</td></tr>
       <tr><td class="r">J31</td><td>Ribbon to the card's J65 header</td><td>2×10, 2.54 mm</td><td class="n">1</td></tr>
-      <tr><td class="r">J32, J33</td><td>REF and SYSREF jumpers to card J66 / J35</td><td>SMA + matched cables</td><td class="n">2</td></tr>
+      <tr><td class="r">J32, J33</td><td>REF and SYSREF jumpers to card J35 / J66, each with a DC block</td><td>SMA + matched cables</td><td class="n">2</td></tr>
       <tr class="grp" data-bld-grp="bit"><td colspan="4">One-bit channel (×8)</td></tr>
       <tr><td class="r">U1, U2</td><td>Gain block per leg, ≈ 16 dB, P1dB ≥ 20 dBm</td><td>HMC788A-class (check low-frequency use)</td><td class="n">16</td></tr>
       <tr><td class="r">L1, L2, L5</td><td>Bias chokes and bias tee, staged for low frequency</td><td>Coilcraft conical 4 µH + 100 µH + 1 mH</td><td class="n">24 sets</td></tr>
@@ -3422,7 +3942,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
               <h4>Tasks</h4>
               <ul class="rm-tasks">
                 <li>Bring up one HamGeek card: power, JTAG, PCIe and the RF-DAC tiles.</li>
-                <li>Lock the LMK04828 to an external 10 MHz REF on J66 and check that J35 takes SYSREF.</li>
+                <li>Lock the LMK04828 to an external REF on J35 (CLKin1) and check that J66 reaches CLKin0 through J67 for SYSREF.</li>
                 <li>Run GTY TX0–3 at 20 Gb/s raw from a 156.25 MHz refclk on the PCIE_CLK pins.</li>
                 <li>Do the TX4–7 rework (fit C632–35 and C1022–25, remove the QSFP2 0 Ω parts) and repeat the 20 Gb/s test.</li>
                 <li>Measure the card DAC path (0.1 µF, TCM2-63WX+, SSMC) from 100 kHz to 6 GHz.</li>
@@ -3433,7 +3953,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
               <h4>Open items</h4>
               <ul class="rm-items">
                 <li><input type="checkbox" id="rm-i-gty" data-rm-item><label for="rm-i-gty"><span class="tag r">Rework</span><span>GTY TX4–7 to the PCIe edge (8 capacitors per card). Ask HamGeek whether they can ship cards with this option fitted.</span></label></li>
-                <li><input type="checkbox" id="rm-i-j35" data-rm-item><label for="rm-i-j35"><span class="tag v">Check</span><span>That J35 really reaches LMK CLKin0 as an external SYSREF input, and which LMK04828 modes the HamGeek firmware supports. The PDF text is ambiguous around the SMA attenuator.</span></label></li>
+                <li><input type="checkbox" id="rm-i-j35" data-rm-item><label for="rm-i-j35"><span class="tag v">Check</span><span>That J66 reaches LMK CLKin0 through J67 (the SYSREF-capable input) and J35 reaches CLKin1, and which LMK04828 modes the HamGeek firmware supports. Check on a delivered card with a continuity test.</span></label></li>
                 <li><input type="checkbox" id="rm-i-quadb" data-rm-item><label for="rm-i-quadb"><span class="tag v">Check</span><span>That GTY quad B can use quad A's refclk1 (PCIE_CLK) for QPLL0 at 20 Gb/s, and that the 10 nF edge coupling passes 156.25 MHz cleanly (UG578 refclk-sharing rules).</span></label></li>
                 <li><input type="checkbox" id="rm-i-bypass" data-rm-item><label for="rm-i-bypass"><span class="tag v">Check</span><span>Whether the unfitted resistors around each TCM2-63WX+ allow a clean single-leg bypass, and how the DAC output gets its DC bias in that case.</span></label></li>
               </ul>
@@ -3610,7 +4130,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     { id: 'pwr', label: 'Power' }, { id: 'ctl', label: 'Control' }
   ];
   var MODULE_CHOICES = [1, 2, 4, 8];
-  var PERSISTED = { modules: true, dacOnly: true, layer: true };
+  var PERSISTED = { modules: true, dacOnly: true, layer: true, syncTopology: true };
   var SPY_LINE = 0.35;          // a stage is "current" once its top passes 35 % of the viewport
   var DWELL_MS = 1200;          // time on a stage before it counts as visited
 
@@ -3666,8 +4186,11 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   }
 
   /* The shared system model (CONTRACT §6). Pure; PA.calc feeds it the state. */
-  function calcWith(modules, dacOnly, cardPowerW, cardPrice) {
+  /* syncTopology: 'unit' = separate sync unit (star), 'chain' = modules daisy-chained,
+     'master' = the master module's carrier fans out to the others (star, no box). */
+  function calcWith(modules, dacOnly, cardPowerW, cardPrice, syncTopology) {
     var m = Math.max(1, Math.round(Number(modules)) || 1);
+    var topo = syncTopology === 'chain' || syncTopology === 'master' ? syncTopology : 'unit';
     var dac = !!dacOnly;
     var card = Number(cardPowerW);
     if (!(card > 0)) card = 32;
@@ -3678,8 +4201,10 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     var sub = card + bitAfe + dacAfe + ctl;
     var loss = round6(0.08 * sub);
     var total = round6(sub + loss);
-    var syncNeeded = m >= 2;
-    var syncW = syncNeeded ? 10 : 0;
+    var multi = m >= 2;
+    var syncNeeded = multi && topo === 'unit';          // a separate sync-unit box
+    // chain: ≈ 0.2 W of relay buffers per module; master star: ≈ 0.5 W of fan-out on the master
+    var syncW = !multi ? 0 : topo === 'unit' ? 10 : topo === 'chain' ? round6(0.2 * m) : 0.5;
     var systemW = round6(m * total + syncW);
     var syncOutputs = syncNeeded ? 2 * m : 0;
     return {
@@ -3689,7 +4214,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       syncW: syncW, systemW: systemW,
       psuW: 50 * Math.ceil(round6(1.3 * systemW / 50)),
       cardCost: m * price,
-      syncNeeded: syncNeeded, syncOutputs: syncOutputs, lmkOk: syncOutputs <= 14,
+      syncTopology: topo, syncNeeded: syncNeeded, syncOutputs: syncOutputs, lmkOk: syncOutputs <= 14,
+      chainHops: multi && topo === 'chain' ? m - 1 : 0,
       switchPorts: m + 1,
       rackU: (syncNeeded ? 1 : 0) + 4 * Math.ceil(m / 2) + 2,
       benchWidthMm: 170 * m
@@ -3705,9 +4231,10 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     dacOnly: function (v) { return typeof v === 'string' ? v === 'true' : !!v; },
     layer: function (v) { return LAYERS.some(function (l) { return l.id === v; }) ? v : undefined; },
     cardPrice: function (v) { v = Number(v); return isFinite(v) && v >= 0 ? v : undefined; },
-    cardPowerW: function (v) { v = Number(v); return isFinite(v) && v > 0 ? v : undefined; }
+    cardPowerW: function (v) { v = Number(v); return isFinite(v) && v > 0 ? v : undefined; },
+    syncTopology: function (v) { return v === 'unit' || v === 'chain' || v === 'master' ? v : undefined; }
   };
-  var state = { modules: 4, dacOnly: false, layer: 'all', cardPrice: 2100, cardPowerW: 32 };
+  var state = { modules: 4, dacOnly: false, layer: 'all', cardPrice: 2100, cardPowerW: 32, syncTopology: 'unit' };
   Object.keys(PERSISTED).forEach(function (k) {
     var saved = store(k);
     if (saved === undefined) return;
@@ -3920,7 +4447,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     fmt: fmt,
     calc: function (modules, dacOnly) {
       return calcWith(modules == null ? state.modules : modules,
-        dacOnly == null ? state.dacOnly : dacOnly, state.cardPowerW, state.cardPrice);
+        dacOnly == null ? state.dacOnly : dacOnly, state.cardPowerW, state.cardPrice, state.syncTopology);
     }
   };
   window.PA = PA;
@@ -4382,6 +4909,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     on('modules', paintSummary);
     on('dacOnly', paintSummary);
     on('cardPowerW', paintSummary);
+    on('syncTopology', paintSummary);
 
     doc.addEventListener('click', onDocClick);
     doc.addEventListener('keydown', onKey);
@@ -4589,7 +5117,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       if (price && document.activeElement !== price) price.value = String(PA.get('cardPrice'));
 
       kpi('bld-k-out', String(c.outputs), c.dacCh + ' DAC + ' + c.bitCh + ' one-bit outputs');
-      kpi('bld-k-sync', c.syncNeeded ? 'Yes' : 'No', 'sync unit needed');
+      var topoWord = c.modules < 2 ? 'None' : c.syncTopology === 'chain' ? 'Chain' : c.syncTopology === 'master' ? 'Master' : 'Sync unit';
+      kpi('bld-k-sync', topoWord, c.modules < 2 ? 'no sync needed' : 'sync: set in Daisy-chain option');
       var lmk = kpi('bld-k-lmk', c.syncOutputs + ' / ' + LMK_OUTPUTS, 'LMK04832 outputs used');
       if (lmk) lmk.classList.toggle('bad', !c.lmkOk);
       kpi('bld-k-sw', String(c.switchPorts), 'Ethernet switch ports');
@@ -4608,6 +5137,10 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         } else if (c.syncNeeded) {
           text = 'REF and SYSREF for each module use ' + c.syncOutputs + ' of the ' + LMK_OUTPUTS +
             ' LMK04832 outputs, ' + (LMK_OUTPUTS - c.syncOutputs) + ' spare.';
+        } else if (m >= 2 && c.syncTopology === 'chain') {
+          text = 'Daisy chain: no sync unit. The master module holds the oscillator and each module passes the 5 MHz clock and TRIG to the next (' + c.chainHops + (c.chainHops === 1 ? ' hop' : ' hops') + ').';
+        } else if (m >= 2 && c.syncTopology === 'master') {
+          text = 'Master-module star: the master carrier fans the 5 MHz clock and TRIG out to every module. No separate box.';
         } else {
           text = 'One module needs no sync unit: it runs from the card’s own LMK04828 or a lab 10 MHz into J26.';
         }
@@ -4638,7 +5171,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 
     cfg.hidden = false;
     render();
-    ['modules', 'dacOnly', 'cardPrice', 'cardPowerW'].forEach(function (k) { PA.on(k, render); });
+    ['modules', 'dacOnly', 'cardPrice', 'cardPowerW', 'syncTopology'].forEach(function (k) { PA.on(k, render); });
   }
 
   /* ================= CARRIER PARTS (BOM) ================= */
@@ -4904,8 +5437,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     SSMC_IN: 'DAC output from the card SSMC connectors (J44–J51) over a jumper into carrier J2–J9.',
     OUT_BIT: 'One-bit outputs to the front-panel SMA connectors J18–J25.',
     OUT_DAC: 'DAC outputs to the front-panel SMA connectors J10–J17.',
-    REF_CARD: '10 MHz from U20 over the J32 SMA jumper to card J66, the LMK04828 external reference (CLKin1).',
-    SYSREF_CARD: '5 MHz SYSREF from U22 over the J33 SMA jumper to card J35 (CLKin0, to verify).'
+    REF_CARD: '10 MHz from U20 over the J32 SMA jumper and a DC block to card J35, the LMK04828 CLKin1.',
+    SYSREF_CARD: '5 MHz SYSREF from U22 over the J33 SMA jumper and a DC block to card J66, which reaches CLKin0 through jumper J67.'
   };
 
   /* ---------------- Parts ---------------- */
@@ -4975,7 +5508,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     J31: { t: 'J31 · 2×10 ribbon to card J65', f: 'Card GPIO and I²C to the carrier.', p: '2×10 header and ribbon cable.',
       k: ['RESERVER_IO0–9, 3.3 V HD bank', 'IO0–2 SPI + LE, IO3 TRIG, IO4 ALERT#, IO5 AFE_EN, IO6 PG, IO7 CAL_SEL', 'SCL / SDA to all I²C parts'],
       w: 'The card has no other free GPIO for the DC levels, attenuators and monitoring.' },
-    J32: { t: 'J32, J33 · SMA jumpers to card', f: 'REF to card J66 and SYSREF to card J35.', p: 'SMA jack plus short coax.',
+    J32: { t: 'J32, J33 · SMA jumpers to card', f: 'REF to card J35 (CLKin1) and SYSREF to card J66 (CLKin0 via J67), each through a DC block.', p: 'SMA jack plus short coax.',
       k: ['J32: 10 MHz to LMK04828 CLKin1', 'J33: 5 MHz to CLKin0 (to verify)', 'Equal length on every module'],
       w: 'The card LMK04828 then locks to the same reference as the carrier.' },
     J34: { t: 'J34 · 12 V to card P3', f: 'Second 12 V path to the card.', p: 'Cable to card P3.',
@@ -5026,12 +5559,12 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       k: ['Shunt to ground at the output'], w: 'The SMA is exposed on the front panel.' },
 
     U20: { t: 'U20 · reference buffer', f: 'Splits the 10 MHz REF four ways.', p: 'LMK1C1104.' + CHECK,
-      k: ['1:4', 'Outputs: J32 to card J66, U21, J29 SYNC out, one spare'], w: 'Card, carrier PLL and monitor output all see the same edge.' },
+      k: ['1:4', 'Outputs: J32 to card J35, U21, J29 SYNC out, one spare'], w: 'Card, carrier PLL and monitor output all see the same edge.' },
     U21: { t: 'U21 · jitter cleaner', f: 'Makes the GTY reference from the 10 MHz REF.', p: 'LMK04828.' + CHECK,
       k: ['Zero-delay mode: 10 MHz → 156.25 MHz', '156.25 MHz × 64 = 10 GHz QPLL0 VCO', 'SYSREF in from U22'],
       w: 'Zero-delay keeps the refclk phase fixed to REF across power cycles, so the one-bit lanes line up between modules.' },
     U22: { t: 'U22 · SYSREF fan-out', f: 'Splits SYSREF to U21 and to the card.', p: NONE + ' LVDS fan-out buffer.',
-      k: ['5 MHz', 'Outputs: U21 and J33 to card J35'], w: 'Card and carrier align to the same SYSREF edge.' },
+      k: ['5 MHz', 'Outputs: U21 and J33 to card J66'], w: 'Card and carrier align to the same SYSREF edge.' },
     U23: { t: 'U23 · trigger receiver', f: 'Receives TRIG and drives two copies.', p: NONE + ' LVDS receiver.',
       k: ['TRIG_PERST to FPGA pin D9', 'TRIG_GPIO to J31 IO3'], w: 'Two paths into the FPGA; keep the one with the lower skew.' },
 
@@ -5290,6 +5823,1204 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     setCh(1);
     paintNets();
     if (tools) tools.hidden = false;
+  }
+
+  PA.ready(init);
+})();
+
+</script>
+<script>
+/* ---- chain.js ---- */
+/* chain.js: Daisy-chain option stage (prefix dch-): topology diagram with dead-module toggles,
+   and the chain simulator. The block between the dch-model markers is pure (no DOM, no PA):
+   page_src/_out/chain_test.js extracts and tests it against the reference model, and
+   page_src/_out/chain_gen.js uses it to write the static diagram into sections/07b_chain.html. */
+(function () {
+  'use strict';
+  var PA = window.PA;
+  if (!PA || typeof PA.ready !== 'function') return;
+
+  /* dch-model:start (pure functions; page_src/_out/chain_test.js extracts and tests this block) */
+  var DCH = (function () {
+    'use strict';
+
+    /* ---------- chain model (port of page_src/_out/daisy_scratch/daisy_sim.js) ---------- */
+    /* All times in ps unless the name says ns. */
+    var K = {
+      V_COAX: 4.8,        // ps/mm, PTFE coax (VF ~0.69)
+      T_PL: 4000,         // PL clock 250 MHz
+      T_SYS: 200000,      // SYSREF 5 MHz
+      T_VCO: 400,         // U21 VCO 2500 MHz
+      G_PL: 500,          // guard at a PL capture edge (unverified)
+      G_VCO: 60,          // guard at a VCO re-clock edge (unverified)
+      STEP_FINE: 50,      // combined U21 SDCLKout DDLY half-step (200) + ADLY (150) grid
+      STEP_PL: 25,        // card LMK DCLKout8 ADLY step used to recentre PL_CLK (buffered mode)
+      SIG_SRC: 100,       // fs, LMK04828 output jitter class
+      SIG_BUF: 20,        // fs, LMK1C1104 additive jitter max (3.3 V)
+      SIG_SYSBUF: 60,     // fs, LMK1D1204 additive jitter max
+      SIG_VCO: 100        // fs, re-clocked edge jitter (U21 class)
+    };
+    var DEFAULTS = { n: 4, cableMm: 300, tBufRef: 1500, tBufTrig: 1500, tBufSys: 575, tZd: 0,
+      mode: 'derived', trim: 0, autoTrim: true, mis: 125, seed: 7, worst: false, alpha: 1.5, dT: 5 };
+
+    // deterministic pseudo-random mismatch in [-m, +m]
+    function mismatch(k, m, seed, worst) {
+      if (worst) return m;
+      var x = (seed * 9301 + k * 49297 + 233280) % 233280;
+      x = (x * 9301 + 49297) % 233280;
+      return Math.round((x / 233280 * 2 - 1) * m);
+    }
+    function mod(a, n) { return ((a % n) + n) % n; }
+    function edgeMargin(p, T) { var q = mod(p, T); return Math.min(q, T - q); }
+
+    /* o: { n, cableMm, tBufRef, tBufTrig, tBufSys, tZd, mode: 'derived'|'reclock'|'buffered',
+            trim, autoTrim, mis, seed, worst, alpha, dT } */
+    function simulate(o) {
+      var n = o.n, tc = o.cableMm * K.V_COAX;
+      var target = K.T_PL / 2 + o.trim;
+      var mods = [];
+      var D = 0, Dtrig = 0, p = target, sigRef2 = K.SIG_SRC * K.SIG_SRC, sigSys2 = sigRef2;
+      var masterTrim = 0, j, c, r, k;
+      if (o.mode === 'reclock' && o.autoTrim && n > 1) {   // master picks its SYSREF launch so hop 1 re-clocks cleanly
+        var d1 = (o.cableMm * K.V_COAX + 650) - (o.cableMm * K.V_COAX + o.tBufRef + o.tZd) + mismatch(1, o.mis, o.seed, o.worst);
+        for (j = 0; j <= 8; j++) {
+          c = (j % 2 ? 1 : -1) * Math.ceil(j / 2) * K.STEP_FINE;
+          r = mod(target + c + d1, K.T_VCO);
+          if (Math.min(r, K.T_VCO - r) >= 2 * K.G_VCO) { masterTrim = c; break; }
+        }
+        p = target + masterTrim;
+      }
+      for (k = 0; k < n; k++) {
+        var row = { k: k, rho: null, rhoMargin: null, rhoFlag: null, trimK: k === 0 ? masterTrim : 0 };
+        if (k > 0) {
+          var eps = mismatch(k, o.mis, o.seed, o.worst);
+          var dClk = tc + o.tBufRef + o.tZd;               // chain clock hop (U20 + cable), ZD-aligned local grid
+          var dTrig = tc + o.tBufTrig + mismatch(k + 17, o.mis, o.seed, o.worst);
+          D += dClk; Dtrig += dTrig;
+          sigRef2 += K.SIG_BUF * K.SIG_BUF;
+          if (o.mode === 'buffered') {
+            var dSysB = tc + o.tBufSys;
+            p = p + (dSysB - dClk) + eps;                    // walks against the local grid
+            sigSys2 += K.SIG_SYSBUF * K.SIG_SYSBUF;
+          } else if (o.mode === 'reclock') {
+            var dSys = tc + 650;                             // U21 CLKin0 -> SDCLKout path, 0.65 ns typ
+            var pin = p + (dSys - dClk) + eps;               // arrival at hop k vs hop-k grid
+            var rho = mod(pin, K.T_VCO);                     // position inside the VCO period
+            row.rho = rho; row.rhoMargin = Math.min(rho, K.T_VCO - rho);
+            row.rhoFlag = row.rhoMargin < K.G_VCO ? 'risk' : (row.rhoMargin < 2 * K.G_VCO ? 'marginal' : 'ok');
+            var prc = pin + (rho === 0 ? 0 : K.T_VCO - rho); // snaps to the next VCO edge
+            var dk;
+            if (o.autoTrim) {
+              // per-hop DDLY/ADLY trim: land near the target AND keep the next hop's re-clock edge clear
+              var base = Math.round((target - prc) / K.STEP_FINE) * K.STEP_FINE;
+              var nextDelta = (k < n - 1) ? (dSys - dClk) + mismatch(k + 1, o.mis, o.seed, o.worst) : null;
+              var best = base, bestScore = -1;
+              for (j = 0; j <= 8; j++) {
+                c = base + (j % 2 ? 1 : -1) * Math.ceil(j / 2) * K.STEP_FINE;   // 0, -50, +50, -100, ...
+                if (nextDelta === null) { best = base; break; }
+                r = mod(prc + c + nextDelta, K.T_VCO);
+                var m = Math.min(r, K.T_VCO - r);
+                if (m >= 2 * K.G_VCO) { best = c; break; }
+                if (m > bestScore) { bestScore = m; best = c; }
+              }
+              dk = best;
+            } else {
+              dk = Math.round((-(dSys - dClk) - K.T_VCO / 2) / K.STEP_FINE) * K.STEP_FINE; // nominal constant
+            }
+            row.trimK = dk;
+            p = prc + dk;
+            sigSys2 = K.SIG_VCO * K.SIG_VCO;                 // re-clock resets edge jitter
+          } else {                                           // derived: each module sets SYSREF vs PL_CLK by config
+            p = target;
+            sigSys2 = K.SIG_SRC * K.SIG_SRC;
+          }
+        }
+        var pc = p;
+        if (o.mode === 'buffered' && o.autoTrim) {           // recentre by shifting this module's PL_CLK
+          var corr = Math.round((target - mod(p, K.T_PL)) / K.STEP_PL) * K.STEP_PL;
+          row.trimK = corr; pc = mod(p, K.T_PL) + corr;
+        }
+        row.phase = mod(pc, K.T_PL);
+        row.margin = edgeMargin(pc, K.T_PL);
+        row.flag = row.margin < K.G_PL ? 'risk' : row.margin < 2 * K.G_PL ? 'marginal' : 'ok';
+        row.delayNs = D / 1000;
+        row.driftPs = k * o.alpha * o.dT;
+        row.driftRssPs = Math.sqrt(k) * o.alpha * o.dT;
+        row.jitRefFs = Math.sqrt(sigRef2);
+        row.jitSysFs = Math.sqrt(sigSys2);
+        row.trigLeadNs = (K.T_SYS / 2 - (Dtrig - D)) / 1000;  // lead before the module's next SYSREF edge
+        mods.push(row);
+      }
+      var Dmax = mods[n - 1].delayNs * 1000;
+      mods.forEach(function (rw) {
+        var off = Dmax - rw.delayNs * 1000;                // delay this module's start by off
+        rw.offCycles = Math.floor(off / K.T_PL);
+        rw.offResidPs = Math.round(off - rw.offCycles * K.T_PL);
+      });
+      var worstMargin = Math.min.apply(null, mods.map(function (rw) { return rw.margin; }));
+      var worstRho = o.mode === 'reclock' ? Math.min.apply(null, mods.filter(function (rw) { return rw.rho !== null; })
+        .map(function (rw) { return rw.rhoMargin; }).concat([K.T_VCO])) : null;
+      var maxDrift = mods[n - 1].driftPs;
+      var trigOk = mods.every(function (rw) { return rw.trigLeadNs > 20 && rw.trigLeadNs < 180; });
+      var verdict = 'ok';
+      if (worstMargin < K.G_PL || (worstRho !== null && worstRho < K.G_VCO) || !trigOk || maxDrift > 50) verdict = 'fail';
+      else if (worstMargin < 2 * K.G_PL || (worstRho !== null && worstRho < 2 * K.G_VCO) || maxDrift > 25) verdict = 'marginal';
+      return { mods: mods, worstMargin: worstMargin, worstRho: worstRho, maxDrift: maxDrift, lastDelayNs: mods[n - 1].delayNs, verdict: verdict };
+    }
+
+    // Star reference for the comparison line: every module sits one star cable + one buffer from the root,
+    // so the delays are equal and buffer drift is common mode (relative drift ~0).
+    function star(o) {
+      var d = (o.starCableMm * K.V_COAX + o.tBufRef) / 1000;
+      return { delayNs: d, spreadNs: 0, driftPs: 0 };
+    }
+
+    /* ---------- number formatting (no grouping; Unicode minus) ---------- */
+    function fix(x, d) {
+      x = Number(x);
+      if (!isFinite(x)) return '–';
+      var p = Math.pow(10, d || 0);
+      var s = (Math.round(Math.abs(x) * p + 1e-9) / p).toFixed(d || 0);
+      return (x < 0 && /[1-9]/.test(s) ? '−' : '') + s;
+    }
+    function num(x, d) {
+      var s = fix(x, d);
+      return d ? s.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '') : s;
+    }
+
+    /* Per-module flag: worst of PL capture, VCO re-clock, TRIG lead and drift. */
+    function modFlag(r) {
+      var lvl = 0, why = [];
+      function bump(l, w) { if (l > lvl) lvl = l; if (l > 0 && why.indexOf(w) < 0) why.push(w); }
+      if (r.margin < K.G_PL) bump(2, 'PL capture'); else if (r.margin < 2 * K.G_PL) bump(1, 'PL capture');
+      if (r.rhoMargin !== null && r.rhoMargin !== undefined) {
+        if (r.rhoMargin < K.G_VCO) bump(2, 'VCO re-clock'); else if (r.rhoMargin < 2 * K.G_VCO) bump(1, 'VCO re-clock');
+      }
+      if (!(r.trigLeadNs > 20 && r.trigLeadNs < 180)) bump(2, 'TRIG lead');
+      if (r.driftPs > 50) bump(2, 'drift'); else if (r.driftPs > 25) bump(1, 'drift');
+      return { flag: ['ok', 'marginal', 'risk'][lvl], why: why };
+    }
+
+    function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    /* Verdict sentence for a simulate() result. */
+    function verdict(res, o) {
+      var mods = res.mods, n = mods.length, i, iM = 0, iR = -1, iT = -1;
+      for (i = 1; i < n; i++) if (mods[i].margin < mods[iM].margin) iM = i;
+      for (i = 0; i < n; i++) if (mods[i].rhoMargin !== null && (iR < 0 || mods[i].rhoMargin < mods[iR].rhoMargin)) iR = i;
+      for (i = 0; i < n; i++) if (iT < 0 && !(mods[i].trigLeadNs > 20 && mods[i].trigLeadNs < 180)) iT = i;
+      var mTxt = 'module ' + iM + ' captures SYSREF ' + num(mods[iM].margin, 0) + ' ps from a PL clock edge';
+      var rTxt = iR >= 0 ? 'hop ' + iR + ' re-clocks SYSREF ' + num(mods[iR].rhoMargin, 0) + ' ps from a U21 VCO edge' : '';
+      var tTxt = iT >= 0 ? 'TRIG reaches module ' + iT + ' ' + num(mods[iT].trigLeadNs, 1) +
+        ' ns before its next SYSREF edge, outside the 20 to 180 ns window' : '';
+      var dTxt = 'drift at module ' + (n - 1) + ' is ' + num(res.maxDrift, 1) + ' ps';
+      var label, text;
+      if (res.verdict === 'fail') {
+        label = 'Fails';
+        if (res.worstMargin < K.G_PL) text = cap(mTxt) + '. It can start one 4 ns cycle early or late after a power cycle.';
+        else if (res.worstRho !== null && res.worstRho < K.G_VCO) text = cap(rTxt) + '. It can slip one 400 ps VCO cycle between power-ups, and every module after it moves with it.';
+        else if (iT >= 0) text = cap(tTxt) + '.';
+        else text = cap(dTxt) + ', more than one 50 ps bit. Use a star or measure α.';
+      } else if (res.verdict === 'marginal') {
+        label = 'Marginal';
+        var why = res.worstMargin < 2 * K.G_PL ? mTxt
+          : (res.worstRho !== null && res.worstRho < 2 * K.G_VCO) ? rTxt
+          : dTxt + ', more than half of a 50 ps bit';
+        text = 'Works after calibration. Re-check skew after warm-up: ' + why + '.';
+      } else {
+        label = 'Works';
+        text = o && o.mode === 'reclock'
+          ? 'Works. Every PL capture sits at least 1 ns from a clock edge, every re-clock at least 120 ps from a VCO edge, and drift stays under 25 ps.'
+          : 'Works. Every capture sits at least 1 ns from a clock edge and drift stays under 25 ps.';
+      }
+      return { level: res.verdict, label: label, text: text };
+    }
+
+    /* ---------- topology diagram (SVG markup string) ---------- */
+    var VW = 1100;
+    var GEO = { 1: [240, 0], 2: [230, 230], 4: [180, 96], 8: [114, 20] };   // [box width, gap]
+    var FT = 154, FB = 352, YC = 290, YS = 310, YT = 330, YAC = 200, YAT = 226, YP = 362, YBUS = 408;
+    var TOPOS = ['b1', 'b2', 'a', 'c', 'star'];
+    var TITLE = {
+      b1: 'Chain B1 · carrier-relayed, derived SYSREF',
+      b2: 'Chain B2 · SYSREF re-clocked at every hop',
+      a: 'Card-only chain A1 · card J32 → next card J66',
+      c: 'Master star C · fan-out on the master carrier',
+      star: 'Sync unit star · Option 1, the current design'
+    };
+    var PILL = { ok: 'ok', marginal: 'mg', risk: 'rk' };
+
+    function isChain(topo) { return topo === 'b1' || topo === 'b2' || topo === 'a'; }
+    function esc(s) {
+      return String(s).replace(/[&<>"]/g, function (ch) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch];
+      });
+    }
+    function T(cls, x, y, s) { return '<text class="' + cls + '" x="' + x + '" y="' + y + '">' + esc(s) + '</text>'; }
+    function Ln(cls, x1, y1, x2, y2, mk) {
+      return '<line class="' + cls + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"' +
+        (mk ? ' marker-end="url(#dch-a' + mk + ')"' : '') + '/>';
+    }
+    function R(cls, x, y, w, h, rx) {
+      return '<rect' + (cls ? ' class="' + cls + '"' : '') + ' x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"' +
+        (rx ? ' rx="' + rx + '"' : '') + '/>';
+    }
+    function Dot(cls, x, y) { return '<circle class="' + cls + '" cx="' + x + '" cy="' + y + '" r="3"/>'; }
+    var DEFS = '<defs>' + [['c', 'clk'], ['v', 'ctl'], ['p', 'pwr'], ['g', 'muted']].map(function (m) {
+      return '<marker id="dch-a' + m[0] + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
+        '<path d="M0,0L10,5L0,10z" style="fill:var(--' + m[1] + ')"/></marker>';
+    }).join('') + '</defs>';
+
+    function layout(n) {
+      var gg = GEO[n] || GEO[4], w = gg[0], g = gg[1];
+      var x0 = Math.round((VW - (n * w + (n - 1) * g)) / 2);
+      return { w: w, g: g, x0: x0, x: function (k) { return x0 + k * (w + g); } };
+    }
+
+    /* Which modules are powered off and which lose the reference (chains only). */
+    function reach(topo, n, dead, alwaysOn) {
+      var off = [], lost = [], cut = -1, ch = n > 1 && isChain(topo), k;
+      for (k = 0; k < n; k++) {
+        off[k] = n > 1 && k > 0 && !!(dead && dead[k]);
+        lost[k] = ch && cut >= 0;
+        if (ch && cut < 0 && off[k] && (topo === 'a' || !alwaysOn)) cut = k;
+      }
+      return { off: off, lost: lost, cut: cut };
+    }
+
+    function hop(topo, cableMm, tbuf) {
+      var cab = cableMm * K.V_COAX / 1000, buf = tbuf / 1000;
+      return { cable: fix(cab, 2), buf: fix(buf, 2), total: fix(cab + buf, 2),
+        what: topo === 'a' ? 'card U46 path' : 'U20' };
+    }
+
+    function modText(topo, k, n, isM, nar) {
+      function p(a, b) { return nar ? b : a; }
+      var cardL = p('HamGeek card · U46', 'Card · U46');
+      var gty = p('U21 → 156.25 MHz GTY', '156.25 MHz GTY');
+      var own = p('makes its own SYSREF', 'own SYSREF');
+      var y1 = 'Y1 TCXO 10 MHz';
+      if (n < 2) return { card: [cardL, 'own reference', 'no sync needed'], zone: 'zc', parts: 'U21 · local clock', s1: gty, s2: '', badge: '' };
+      if (topo === 'b1') return { card: [cardL, p('5 MHz in on card J35', '5 MHz on J35'), isM ? 'launches TRIG' : own], zone: 'zc',
+        parts: 'U20 · U21 · U24', s1: isM ? p('U21 makes the 5 MHz', '5 MHz from U21') : p('relays REF and TRIG', 'relays REF, TRIG'),
+        s2: isM ? '' : gty, badge: isM ? y1 : '' };
+      if (topo === 'b2') return { card: [cardL, p('REF J35 · SYSREF J66', 'J35 + J66 in'), isM ? 'launches TRIG' : 're-clocks SYSREF'], zone: 'zc',
+        parts: p('U20 · U21 · U22 · U24', 'U20 U21 U22 U24'), s1: isM ? p('U21 launches SYSREF', 'launches SYSREF') : p('U21 re-clocks SYSREF', 're-clocks SYSREF'),
+        s2: isM ? '' : gty, badge: isM ? y1 : '' };
+      if (topo === 'a') return { card: [cardL, isM ? p('U48 TCXO, J67 on 1-2', 'U48 TCXO') : p('J66 in · J32 out', 'J66 in, J32 out'), isM ? 'launches TRIG' : own],
+        zone: 'zone', parts: p('no carrier relay', 'no carrier'), s1: '', s2: '', badge: '' };
+      if (topo === 'c') {
+        if (isM) return { card: [cardL, p('5 MHz in on card J35', '5 MHz on J35'), 'launches TRIG'], zone: 'zc',
+          parts: p('U21 + two 1:8 fan-outs', '1:8 fan-outs'), s1: p('drives every module', 'drives all'), s2: '', badge: y1 };
+        return { card: [cardL, p('5 MHz in on card J35', '5 MHz on J35'), own], zone: 'zc',
+          parts: 'U20 · U21 · U24', s1: 'REF and TRIG in', s2: gty, badge: '' };
+      }
+      return { card: [cardL, p('REF J35 · SYSREF J66', 'J35 + J66 in'), 're-clocks SYSREF'], zone: 'zc',
+        parts: p('U20 · U21 · U22 · U23', 'U20 U21 U22 U23'), s1: p('REF, SYSREF, TRIG in', '3 cables in'), s2: gty, badge: '' };
+    }
+
+    function subtitle(topo, n) {
+      if (n < 2) return 'no links, no sync';
+      if (topo === 'b1') return n + ' modules · ' + (n - 1) + ' hops · ' + 2 * (n - 1) + ' short timing cables';
+      if (topo === 'b2') return n + ' modules · ' + (n - 1) + ' hops · ' + 3 * (n - 1) + ' timing cables';
+      if (topo === 'a') return n + ' cards · ' + (n - 1) + ' coax + ' + (n - 1) + ' ribbons';
+      if (topo === 'c') return n + ' modules · ' + 2 * n + ' equal-length cables, incl. the master loop';
+      return n + ' modules · ' + 3 * n + ' phase-matched cables + a 1U box';
+    }
+
+    /* c: { topo, n, rows: [{delayNs, flag}] | null, dead: {k:true}, alwaysOn, ampsN, cableMm, tbuf } */
+    function diagram(c) {
+      var n = GEO[c.n] ? c.n : 4, topo = TITLE[c.topo] ? c.topo : 'b1';
+      var L = layout(n), w = L.w, g = L.g, nar = w < 150, wide = g >= 90;
+      var ch = n > 1 && isChain(topo), hasM = n > 1 && (isChain(topo) || topo === 'c');
+      var st = reach(topo, n, c.dead, c.alwaysOn);
+      var hp = hop(topo, c.cableMm, c.tbuf);
+      var o = [DEFS], k, x, cx;
+
+      o.push(T('t', 24, 28, n > 1 ? TITLE[topo] : 'One module'));
+      o.push(T('s end', 1076, 28, subtitle(topo, n)));
+
+      /* top zone */
+      var top = [];
+      if (n < 2) {
+        o.push(T('b mid', 550, 74, 'A single module needs no sync.'));
+        o.push(T('s mid', 550, 92, 'Its LMK04828s lock to the card’s own reference.'));
+      } else if (topo === 'b1' || topo === 'b2') {
+        top.push('Module 0 is the master. Y1 sets the reference and its FPGA launches TRIG.');
+        top.push(topo === 'b1'
+          ? 'Every other module takes the 5 MHz clock and TRIG from its left neighbour and passes a copy on.'
+          : 'Every other module takes REF, SYSREF and TRIG from its left neighbour and passes a copy on.');
+        top.push(topo === 'b1'
+          ? 'Each module makes its own SYSREF from the 5 MHz clock, so no SYSREF cable runs between modules.'
+          : 'U21 re-clocks SYSREF on its 400 ps VCO grid at every hop and needs a trim per hop.');
+      } else if (topo === 'a') {
+        top.push('Card 0 is the master. Its U48 TCXO (J67 on 1-2) is the root and its FPGA launches TRIG.');
+        top.push('Card J32 drives the next card’s J66 through a DC block. TRIG goes FPGA to FPGA over J65.');
+        top.push('The one-bit GTY outputs cannot lock: their reference has to come from a carrier.');
+      } else if (topo === 'c') {
+        top.push('Module 0 carries the sync function: Y1, U21 and two 1:8 fan-outs (LMK1C1108 class, to confirm).');
+        top.push('Equal-length cables go to every module, including a loop back into the master’s own J26 and J28.');
+      }
+      top.forEach(function (s, i) { o.push(T('s mid', 550, 58 + 16 * i, s)); });
+      if (ch) {
+        var ports = topo === 'a' ? ' · J32 → J66, TRIG over J65'
+          : topo === 'b2' ? ' · 5 MHz J29 → J26, SYSREF J36 → J27, TRIG J35 → J28' : ' · 5 MHz J29 → J26, TRIG J35 → J28';
+        o.push(T('s mid', 550, 112, 'Each hop: ' + hp.cable + ' ns cable + ' + hp.buf + ' ns ' + hp.what + ' = ' + hp.total + ' ns' + (wide ? '' : ports)));
+      }
+
+      /* star buses (drawn before the modules so the arrows end on the frames) */
+      if (n > 1 && topo === 'star') {
+        o.push('<g class="dch-hub" data-dch-hub="unit">' + R('zc', 400, 40, 300, 50, 8) +
+          T('b mid', 550, 59, 'Sync unit') + T('s mid', 550, 77, 'OCXO 10 MHz → LMK04832 · TRIG re-timer · 1U, ≈ 10 W') + '</g>');
+        var buses = [
+          { y: 102, dx: 62, cls: 'clk', mk: 'c', sx: 530, dot: 'dc', tc: 'dch-tc', lab: 'REF 10 MHz' },
+          { y: 114, dx: 48, cls: 'clk dch-dash', mk: 'c', sx: 550, dot: 'dc', tc: 'dch-tc', lab: 'SYSREF 5 MHz' },
+          { y: 126, dx: 34, cls: 'ctl', mk: 'v', sx: 570, dot: 'dv', tc: 'dch-tv', lab: 'TRIG' }];
+        o.push('<g class="dch-link" data-dch-link="bus"><title>Sync unit to every module: REF, SYSREF and TRIG</title>');
+        o.push(R('dch-hit', L.x(0), 94, L.x(n - 1) + w - L.x(0), 58));
+        var labX = L.x(0) + w - buses[0].dx - 8;        // all bus labels end left of the first REF drop
+        buses.forEach(function (b) {
+          var xs = [], i;
+          for (i = 0; i < n; i++) xs.push(L.x(i) + w - b.dx);
+          var lo = Math.min(b.sx, xs[0]), hi = Math.max(b.sx, xs[n - 1]);
+          o.push(Ln(b.cls, b.sx, 90, b.sx, b.y));
+          o.push(Ln(b.cls, lo, b.y, hi, b.y));
+          o.push(Dot(b.dot, b.sx, b.y));
+          xs.forEach(function (xx) { o.push(Ln(b.cls, xx, b.y, xx, FT - 1, b.mk)); o.push(Dot(b.dot, xx, b.y)); });
+          if (n <= 4) o.push(T('s end ' + b.tc, labX, b.y + 3, b.lab));
+        });
+        o.push('</g>');
+      }
+      if (n > 1 && topo === 'c') {
+        var xm = L.x(0);
+        o.push('<g class="dch-link" data-dch-link="bus"><title>Fan-out cables from the master to every module</title>');
+        o.push(R('dch-hit', xm, 98, L.x(n - 1) + w - xm, 54));
+        [{ y: 104, ux: xm + 16, dx: 48, cls: 'clk', mk: 'c', dot: 'dc' },
+         { y: 118, ux: xm + 30, dx: 34, cls: 'ctl', mk: 'v', dot: 'dv' }].forEach(function (b) {
+          var hi = L.x(n - 1) + w - b.dx, i;
+          o.push(Ln(b.cls, b.ux, FT, b.ux, b.y));
+          o.push(Dot(b.dot, b.ux, FT));
+          o.push(Ln(b.cls, b.ux, b.y, hi, b.y));
+          for (i = 0; i < n; i++) {
+            var xx = L.x(i) + w - b.dx;
+            o.push(Ln(b.cls, xx, b.y, xx, FT - 1, b.mk));
+            o.push(Dot(b.dot, xx, b.y));
+          }
+        });
+        o.push('</g>');
+      }
+
+      /* modules */
+      for (k = 0; k < n; k++) {
+        x = L.x(k); cx = x + w / 2;
+        var isM = hasM && k === 0;
+        var mt = modText(topo, k, n, isM, nar);
+        var label = 'Module ' + k + (isM && !nar ? ' · master' : '') + (st.off[k] ? (nar ? ' off' : ' · off') : '');
+        o.push('<g class="dch-mod' + (st.off[k] ? ' dch-off' : '') + (st.lost[k] ? ' dch-nr' : '') + '" data-dch-mod="' + k + '">');
+        o.push(R('box', x, FT, w, FB - FT, 8));
+        o.push(R('zk', x + 8, 162, w - 16, 80, 6));
+        o.push(T('b mid', cx, 180, label));
+        o.push(T('mid', cx, 197, mt.card[0]));
+        o.push(T('s mid', cx, 213, mt.card[1]));
+        o.push(T('s mid', cx, 229, mt.card[2]));
+        if (mt.zone === 'zone') {
+          var bw = nar ? 90 : 110;
+          o.push(R('zone', x + 8, 250, w - 16, 94, 6));
+          o.push(T('s mid', cx, 272, mt.parts));
+          o.push(R('zw', cx - bw / 2, 288, bw, 20, 5));
+          o.push(T('s mid wt dch-bw', cx, 302, 'GTY not locked'));
+          o.push(T('s mid', cx, 328, nar ? 'one-bit drifts' : 'one-bit outputs drift'));
+        } else {
+          o.push(R('zc', x + 8, 250, w - 16, 94, 6));
+          o.push(T('b mid', cx, 268, 'Carrier'));
+          o.push(T('mid', cx, 285, mt.parts));
+          o.push(T('s mid', cx, 301, mt.s1));
+          if (mt.s2) o.push(T('s mid', cx, 317, mt.s2));
+          if (mt.badge) { o.push(R('fc', cx - 46, 322, 92, 16, 5)); o.push(T('m mid', cx, 334, mt.badge)); }
+        }
+        if (ch && topo !== 'a') {
+          if (k > 0) { o.push(Dot('dc', x, YC)); o.push(Dot('dv', x, YT)); if (topo === 'b2') o.push(Dot('dc', x, YS)); }
+          if (k < n - 1) { o.push(Dot('dc', x + w, YC)); o.push(Dot('dv', x + w, YT)); if (topo === 'b2') o.push(Dot('dc', x + w, YS)); }
+        } else if (ch) {
+          if (k > 0) { o.push(Dot('dc', x, YAC)); o.push(Dot('dv', x, YAT)); }
+          if (k < n - 1) { o.push(Dot('dc', x + w, YAC)); o.push(Dot('dv', x + w, YAT)); }
+        }
+        if (isM) {
+          o.push('<circle class="fv" cx="' + (x + w - 10) + '" cy="' + FT + '" r="9"/>');
+          o.push(T('b mid', x + w - 10, FT + 4, 'M'));
+          if (topo !== 'a') o.push(Ln('ctl', x + 18, 236, x + 18, 262, 'v'));
+        }
+        if (n > 1) {
+          var pt = '', pc = 'ok', r = c.rows && c.rows[k];
+          if (st.off[k]) { pt = 'off'; pc = 'na'; }
+          else if (st.lost[k]) { pt = 'no reference'; pc = 'na'; }
+          else if (r) { pt = 'D = ' + fix(r.delayNs, 1) + ' ns'; pc = PILL[r.flag] || 'ok'; }
+          if (pt) o.push('<g class="dch-pill dch-' + pc + '">' + R('', cx - 40, YP, 80, 18, 6) + T('m mid', cx, YP + 13, pt) + '</g>');
+        }
+        o.push('</g>');
+      }
+
+      /* chain links */
+      if (ch) {
+        for (k = 1; k < n; k++) {
+          var xa = L.x(k - 1) + w, xb = L.x(k), mid = Math.round((xa + xb) / 2), lost = st.lost[k];
+          var mc = lost ? 'g' : 'c', mv = lost ? 'g' : 'v';
+          o.push('<g class="dch-link' + (lost ? ' dch-lost' : '') + '" data-dch-link="' + k + '">');
+          o.push('<title>Hop ' + k + ': ' + esc(hp.cable + ' ns cable + ' + hp.buf + ' ns ' + hp.what + ' = ' + hp.total + ' ns') + '</title>');
+          if (topo === 'a') {
+            o.push(R('dch-hit', xa, 186, g, 76));
+            o.push(Ln('clk', xa, YAC, xb - 1, YAC, mc));
+            o.push(R('fc', mid - 6, YAC - 5, 12, 10, 2));
+            o.push(Ln('ctl', xa, YAT, xb - 1, YAT, mv));
+            if (wide) {
+              o.push(T('s mid dch-tc', mid, 192, 'J32 → J66'));
+              o.push(T('s mid', mid, 216, 'DC block'));
+              o.push(T('s mid dch-tv', mid, 240, 'TRIG J65 ribbon'));
+              o.push(T('s mid', mid, 256, hp.total + ' ns'));
+            }
+          } else {
+            o.push(R('dch-hit', xa, 274, g, 80));
+            o.push(Ln('clk', xa, YC, xb - 1, YC, mc));
+            if (topo === 'b2') o.push(Ln('clk dch-dash', xa, YS, xb - 1, YS, mc));
+            o.push(Ln('ctl', xa, YT, xb - 1, YT, mv));
+            if (wide) {
+              o.push(T('s mid dch-tc', mid, YC - 6, '5 MHz J29 → J26'));
+              if (topo === 'b2') o.push(T('s mid dch-tc', mid, YS - 6, 'SYSREF J36 → J27'));
+              o.push(T('s mid dch-tv', mid, YT - 6, 'TRIG J35 → J28'));
+              o.push(T('s mid', mid, 346, hp.total + ' ns'));
+            }
+          }
+          o.push('</g>');
+        }
+      }
+
+      /* 12 V star feed */
+      var amps = Number(c.ampsN) > 0 ? Number(c.ampsN) : 54.54 / 12;
+      var dxs = [];
+      for (k = 0; k < n; k++) dxs.push(L.x(k) + w - 12);
+      var lo = Math.min(550, dxs[0]), hi = Math.max(550, dxs[n - 1]);
+      o.push('<g class="dch-psu" data-dch-psu="1">');
+      o.push(R('dch-hit', lo - 6, 382, hi - lo + 12, 80));
+      o.push(Ln('pwrb', lo, YBUS, hi, YBUS));
+      o.push(Ln('pwrb', 550, YBUS, 550, 418));
+      dxs.forEach(function (xx) {
+        o.push(Ln('pwr', xx, YBUS, xx, FB + 1, 'p'));
+        o.push(Dot('dp', xx, YBUS));
+        o.push(R('fp', xx - 23, 384, 46, 15, 5));
+        o.push(T('m mid', xx, 395, fix(amps, 2) + ' A'));
+      });
+      o.push(R('zp', 400, 418, 300, 42, 8));
+      o.push(T('b mid', 550, 435, '12 V PSU · star feed'));
+      o.push(T('s mid', 550, 451, n > 1 ? n + ' × ' + fix(amps, 2) + ' A = ' + num(amps * n, 1) + ' A · do not chain 12 V'
+        : fix(amps, 2) + ' A at 12 V'));
+      o.push('</g>');
+      return o.join('\n');
+    }
+
+    /* The static diagram in the HTML: chain B1, 4 modules, default simulator settings,
+       page-model module power 54.54 W at 12 V. */
+    function staticCfg() {
+      var o = {}, key;
+      for (key in DEFAULTS) o[key] = DEFAULTS[key];
+      var res = simulate(o);
+      return { topo: 'b1', n: 4, rows: res.mods.map(function (r) { return { delayNs: r.delayNs, flag: modFlag(r).flag }; }),
+        dead: {}, alwaysOn: false, ampsN: 54.54 / 12, cableMm: o.cableMm, tbuf: o.tBufRef };
+    }
+
+    return { K: K, DEFAULTS: DEFAULTS, TOPOS: TOPOS, mismatch: mismatch, simulate: simulate, star: star,
+      fix: fix, num: num, modFlag: modFlag, verdict: verdict, isChain: isChain, reach: reach, hop: hop,
+      diagram: diagram, staticCfg: staticCfg, esc: esc };
+  })();
+  /* dch-model:end */
+
+  /* ------------------------------------------------------------------ */
+  /* Page behaviour                                                      */
+  /* ------------------------------------------------------------------ */
+
+  var fix = DCH.fix, num = DCH.num, esc = DCH.esc;
+  var STORE = 'chain.';
+  var MODES = ['derived', 'reclock', 'buffered'];
+  var CHAIN_TOPOS = ['b1', 'b2', 'a'];
+  var COLS = { star: 1, b1: 2, b2: 3, a: 4, c: 5 };
+  /* What this stage shows is its own view; the page-wide choice (PA syncTopology) only changes
+     when the reader presses "Use for the whole page", so Option 1 stays the baseline elsewhere. */
+  var TOPO_NOTE = {
+    star: 'Option 1, the separate sync unit',
+    b1: 'Option 2, daisy chain B1',
+    b2: 'Option 2, daisy chain B2 (re-clocked SYSREF)',
+    a: 'Option 2, card-only chain',
+    c: 'the master-module star (no box)'
+  };
+  var SHARED_LABEL = { unit: 'Option 1, the sync unit', chain: 'the daisy chain', master: 'the master-module star' };
+  var MODE_NOTE = {
+    derived: 'Derived SYSREF: each module places SYSREF against its own PL clock by its LMK settings, mid-window. Nothing is sampled between modules.',
+    reclock: 'Re-clocked: U21 samples SYSREF on its 400 ps VCO grid at every hop, then sends it on with a DDLY + ADLY trim.'
+  };
+  var TRIM_HINT = {
+    derived: 'No effect here: the derived SYSREF has no sampling point between modules.',
+    reclock: 'U21 DDLY + ADLY per hop, 50 ps grid.',
+    buffered: 'Shifts each card’s PL_CLK in 25 ps steps.'
+  };
+  var DEF = { mode: 'derived', cableMm: 300, tbuf: 1500, autoTrim: true, trim: 0, dT: 5, alpha: 1.5, worst: false };
+
+  var S = { topo: 'star', n: 4, mode: 'derived', cableMm: 300, tbuf: 1500, autoTrim: true, trim: 0,
+    dT: 5, alpha: 1.5, worst: false, dead: {}, alwaysOn: false };
+  var el = {}, sim = null, tmr = 0, stripKey = '';
+
+  function $(id) { return document.getElementById(id); }
+  function each(list, fn) { Array.prototype.forEach.call(list || [], fn); }
+  function toArr(list) { return Array.prototype.slice.call(list || []); }
+  function clampNum(v, lo, hi, step, dflt) {
+    v = Number(v);
+    if (!isFinite(v)) return dflt;
+    v = Math.min(hi, Math.max(lo, v));
+    if (step) v = Math.round((v - lo) / step) * step + lo;
+    return Math.round(v * 1000) / 1000;
+  }
+  function modulesNow() {
+    var m = Number(PA.get('modules'));
+    return [1, 2, 4, 8].indexOf(m) >= 0 ? m : 4;
+  }
+  function listText(a) {
+    if (a.length < 2) return String(a[0]);
+    return a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+  }
+
+  /* ---------------- state ---------------- */
+
+  function loadStored() {
+    var v = PA.store(STORE + 'mode');
+    if (MODES.indexOf(v) >= 0) S.mode = v;
+    v = PA.store(STORE + 'cableMm'); if (v != null) S.cableMm = clampNum(v, 100, 1500, 50, DEF.cableMm);
+    v = PA.store(STORE + 'tbuf'); if (v != null) S.tbuf = clampNum(v, 300, 3000, 25, DEF.tbuf);
+    v = PA.store(STORE + 'autoTrim'); if (typeof v === 'boolean') S.autoTrim = v;
+    v = PA.store(STORE + 'trim'); if (v != null) S.trim = clampNum(v, -1500, 1500, 25, DEF.trim);
+    v = PA.store(STORE + 'dT'); if (v != null) S.dT = clampNum(v, 0, 20, 1, DEF.dT);
+    v = PA.store(STORE + 'alpha'); if (v != null) S.alpha = clampNum(v, 0, 4, 0.1, DEF.alpha);
+    v = PA.store(STORE + 'worst'); if (typeof v === 'boolean') S.worst = v;
+  }
+  function saveSim() {
+    ['mode', 'cableMm', 'tbuf', 'autoTrim', 'trim', 'dT', 'alpha', 'worst'].forEach(function (k) { PA.store(STORE + k, S[k]); });
+  }
+  function storedChainTopo() {
+    var v = PA.store(STORE + 'topo');
+    return CHAIN_TOPOS.indexOf(v) >= 0 ? v : 'b1';
+  }
+  function topoFromShared(v) {
+    if (v === 'master') return 'c';
+    if (v === 'chain') return CHAIN_TOPOS.indexOf(S.topo) >= 0 ? S.topo : storedChainTopo();
+    return 'star';
+  }
+  function sharedOf(t) { return t === 'star' ? 'unit' : t === 'c' ? 'master' : 'chain'; }
+
+  function simOpts() {
+    return { n: S.n, cableMm: S.cableMm, tBufRef: S.tbuf, tBufTrig: S.tbuf, tBufSys: 575, tZd: 0,
+      mode: S.mode, trim: S.trim, autoTrim: S.autoTrim, mis: 125, seed: 7, worst: S.worst, alpha: S.alpha, dT: S.dT };
+  }
+  function compute() {
+    sim = S.n >= 2 ? DCH.simulate(simOpts()) : null;
+    if (sim) sim.mods.forEach(function (r) { var f = DCH.modFlag(r); r.flag = f.flag; r.why = f.why; });
+  }
+  function starCableMm() { return S.n >= 8 ? 1500 : 1000; }
+  function starNs() { return DCH.star({ starCableMm: starCableMm(), tBufRef: S.tbuf }).delayNs; }
+  function amps() {
+    var c = PA.calc();
+    return c && c.moduleW && c.moduleW.total > 0 ? c.moduleW.total / 12 : 54.54 / 12;
+  }
+
+  /* ---------------- radiogroup helpers ---------------- */
+
+  function segSet(seg, attr, val) {
+    if (!seg) return;
+    var btns = toArr(seg.querySelectorAll('button[' + attr + ']')), any = false;
+    btns.forEach(function (b) {
+      var on = b.getAttribute(attr) === String(val);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+      if (on) any = true;
+    });
+    if (!any && btns[0]) btns[0].tabIndex = 0;
+  }
+  function segInit(seg, attr, onPick) {
+    if (!seg) return;
+    seg.addEventListener('click', function (e) {
+      var b = e.target.closest('button[' + attr + ']');
+      if (b && seg.contains(b)) onPick(b.getAttribute(attr));
+    });
+    seg.addEventListener('keydown', function (e) {
+      var step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!step && e.key !== 'Home' && e.key !== 'End') return;
+      var btns = toArr(seg.querySelectorAll('button[' + attr + ']'));
+      var i = btns.indexOf(document.activeElement);
+      if (i < 0) return;
+      e.preventDefault();
+      var j = e.key === 'Home' ? 0 : e.key === 'End' ? btns.length - 1 : (i + step + btns.length) % btns.length;
+      btns[j].focus();
+      onPick(btns[j].getAttribute(attr));
+    });
+  }
+
+  /* ---------------- topology and diagram ---------------- */
+
+  function diagramCfg() {
+    var rows = null, k;
+    if (S.n >= 2) {
+      if (DCH.isChain(S.topo) && sim) rows = sim.mods.map(function (r) { return { delayNs: r.delayNs, flag: r.flag }; });
+      else { var d = starNs(); rows = []; for (k = 0; k < S.n; k++) rows.push({ delayNs: d, flag: 'ok' }); }
+    }
+    return { topo: S.topo, n: S.n, rows: rows, dead: S.dead, alwaysOn: S.alwaysOn, ampsN: amps(),
+      cableMm: S.cableMm, tbuf: S.tbuf };
+  }
+
+  function focusKey(node) {
+    var g = node && node.closest ? node.closest('[data-dch-mod],[data-dch-link],[data-dch-hub],[data-dch-psu]') : null;
+    if (!g) return null;
+    var names = ['data-dch-mod', 'data-dch-link', 'data-dch-hub', 'data-dch-psu'];
+    for (var i = 0; i < names.length; i++) {
+      if (g.hasAttribute(names[i])) return '[' + names[i] + '="' + g.getAttribute(names[i]) + '"]';
+    }
+    return null;
+  }
+
+  function ariaDiagram() {
+    var t = { b1: 'chain B1', b2: 'chain B2', a: 'card-only chain', c: 'master star', star: 'sync unit star' }[S.topo];
+    return S.n < 2 ? 'One module, no sync needed' : t.charAt(0).toUpperCase() + t.slice(1) + ' with ' + S.n +
+      ' modules: links, delay pills and the 12 V feed. Each part opens its details.';
+  }
+
+  function renderDiagram() {
+    var svg = el.svg, act = document.activeElement;
+    var key = act && svg.contains(act) ? focusKey(act) : null;
+    svg.innerHTML = DCH.diagram(diagramCfg());
+    svg.setAttribute('aria-label', ariaDiagram());
+    each(svg.querySelectorAll('[data-dch-mod]'), function (g) {
+      var k = Number(g.getAttribute('data-dch-mod'));
+      PA.clickable(g, function () { openMod(k); }, 'Module ' + k + ': details');
+    });
+    each(svg.querySelectorAll('[data-dch-link]'), function (g) {
+      var id = g.getAttribute('data-dch-link');
+      PA.clickable(g, function () { openLink(id); },
+        id === 'bus' ? (S.topo === 'c' ? 'Fan-out cables from the master: details' : 'Cables from the sync unit: details')
+          : 'Hop ' + id + ', module ' + (id - 1) + ' to module ' + id + ': details');
+    });
+    each(svg.querySelectorAll('[data-dch-hub]'), function (g) { PA.clickable(g, openHub, 'Sync unit: details'); });
+    each(svg.querySelectorAll('[data-dch-psu]'), function (g) { PA.clickable(g, openPsu, '12 V feed: details'); });
+    if (key) {
+      var t = svg.querySelector(key);
+      if (t && t.focus) t.focus({ preventScroll: true });
+    }
+  }
+
+  function ptable(list) {
+    return '<table class="dch-pt"><tbody>' + list.map(function (r) {
+      return '<tr><th scope="row">' + r[0] + '</th><td>' + r[1] + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  }
+  function offTxt(r) { return r.offCycles + ' × 4 ns + ' + r.offResidPs + ' ps'; }
+  function flagWord(f) { return f === 'risk' ? 'at risk' : f; }
+
+  function modHtml(k) {
+    var n = S.n, t = S.topo, st = DCH.reach(t, n, S.dead, S.alwaysOn);
+    var isM = n > 1 && k === 0 && (DCH.isChain(t) || t === 'c');
+    var r = sim && sim.mods[k], last = k === n - 1, h = [], rows = [];
+    if (n < 2) {
+      return '<p>A single module needs no sync. Its card LMK04828 and carrier U21 lock to a local reference, and U21 still makes the 156.25 MHz GTY clock.</p>';
+    }
+    var role;
+    if (t === 'b1') role = isM
+      ? 'Master. Y1 (10 MHz TCXO) feeds U21, which makes the 5 MHz chain clock and drives U20 through JP1. The card FPGA launches TRIG through J65 IO4, J31 and JP2 into U24.'
+      : 'Takes the 5 MHz clock on J26 and TRIG on J28 from module ' + (k - 1) + '.' + (last ? '' : ' U20 and U24 pass a copy on through J29 and J35.') +
+        ' U21 and the card U46 lock to the 5 MHz in nested zero-delay mode and make their own SYSREF.';
+    else if (t === 'b2') role = isM
+      ? 'Master. As in B1, and U21 also launches SYSREF on J36.'
+      : 'Takes REF, SYSREF and TRIG from module ' + (k - 1) + '. U21 re-clocks SYSREF on its 400 ps VCO grid, applies a DDLY + ADLY trim' + (last ? '.' : ' and sends it on through J36.');
+    else if (t === 'a') role = isM
+      ? 'Master card. Its U48 TCXO (J67 on 1-2) is the root, U46 sends the 5 MHz clock out on J32, and the FPGA launches TRIG on J65.'
+      : 'Takes the 5 MHz clock on J66 (J67 on 2-3) through a DC block' + (last ? '.' : ' and passes it on from J32.') + ' The GTY one-bit outputs are not locked.';
+    else if (t === 'c') role = isM
+      ? 'Master. Y1, U21 and two 1:8 fan-outs (LMK1C1108 class, to confirm) drive equal-length cables to every module, including a loop back into its own J26 and J28.'
+      : 'Takes REF and TRIG straight from the master. A dead neighbour does not affect it.';
+    else role = 'Takes REF, SYSREF and TRIG from the sync unit over phase-matched cables. No module depends on another.';
+    h.push('<p>' + role + '</p>');
+    if (st.off[k]) h.push('<p class="bad">Powered off.' + (DCH.isChain(t) && t !== 'a' && S.alwaysOn ? ' Its relay buffers still run on the always-on rail.' : '') + '</p>');
+    else if (st.lost[k]) h.push('<p class="bad">No reference: module ' + st.cut + ' is off and does not relay.</p>');
+
+    var conn, parts;
+    if (t === 'b1' || t === 'b2') {
+      conn = (k > 0 ? 'in: J26 REF, J28 TRIG' + (t === 'b2' ? ', J27 SYSREF' : '') : 'no inputs used') +
+        (last ? '' : '; out: J29 REF, J35 TRIG' + (t === 'b2' ? ', J36 SYSREF' : '')) +
+        '; card J35 ← carrier J32 through a DC block' + (t === 'b2' ? ', card J66 ← carrier J33' : '');
+      parts = 'U20 LMK1C1104, U21 LMK04828, U23 receiver, U24 LMK1C1104' + (t === 'b2' ? ', U22 SYSREF fan-out' : '') +
+        (isM ? ', Y1, JP1/JP2 on master' : ', JP1/JP2 on slave') + '; card U46 LMK04828';
+    } else if (t === 'a') {
+      conn = (k > 0 ? 'J66 in (J67 on 2-3)' : 'J67 on 1-2') + (last ? '' : ', J32 out through an inline DC block') + '; TRIG on J65 or J64';
+      parts = 'card U46 LMK04828' + (isM ? ', U48 TCXO' : '') + '; no carrier relay';
+    } else if (t === 'c') {
+      conn = isM ? 'J26 and J28 (loop cable), 8 + 8 fan-out SMA' : 'J26 REF, J28 TRIG';
+      parts = isM ? 'Y1, U21 LMK04828, two 1:8 fan-outs; card U46' : 'U20, U21, U23, U24; card U46';
+    } else {
+      conn = 'J26 REF, J27 SYSREF, J28 TRIG';
+      parts = 'U20, U21, U22, U23; card U46';
+    }
+    rows.push(['Connectors', conn], ['Parts', parts]);
+    if (DCH.isChain(t) && r) {
+      rows.push(['Delay D<sub>' + k + '</sub>', fix(r.delayNs, 2) + ' ns from the master']);
+      rows.push(['Start offset', 'waits ' + offTxt(r)]);
+      rows.push(['Capture margin', num(r.margin, 0) + ' ps to the nearest PL clock edge' +
+        (r.rhoMargin !== null ? '; re-clock ' + num(r.rhoMargin, 0) + ' ps from a VCO edge' : '') +
+        (S.mode === 'derived' ? ' (set by its own LMK settings)' : '')]);
+      rows.push(['Drift', num(r.driftPs, 1) + ' ps at ΔT = ' + num(S.dT, 0) + ' °C, α = ' + num(S.alpha, 1) + ' ps/°C per hop (to measure)']);
+      rows.push(['TRIG lead', fix(r.trigLeadNs, 1) + ' ns before its next SYSREF edge']);
+      rows.push(['Simulator flag', flagWord(r.flag) + (r.why.length ? ' (' + r.why.join(', ') + ')' : '')]);
+    } else {
+      rows.push(['Delay', fix(starNs(), 2) + ' ns, the same on every module']);
+      rows.push(['Start offset', '0: all delays are equal']);
+      rows.push(['Drift', '≈ 0 relative: buffer drift is common mode']);
+    }
+    h.push(ptable(rows));
+    if (k > 0) {
+      h.push('<p><button type="button" class="btn sm" data-dch-toggle="' + k + '">' +
+        (S.dead[k] ? 'Power module ' + k + ' back on' : 'Power off module ' + k) + '</button></p>');
+    }
+    return h.join('');
+  }
+
+  function openMod(k) {
+    var g = el.svg.querySelector('[data-dch-mod="' + k + '"]');
+    if (!g) return;
+    var isM = S.n > 1 && k === 0 && (DCH.isChain(S.topo) || S.topo === 'c');
+    var pop = PA.popover(g, modHtml(k), { title: 'Module ' + k + (isM ? ' · master' : '') });
+    var b = pop && pop.querySelector('[data-dch-toggle]');
+    if (b) b.addEventListener('click', function () { toggleDead(k, true); });
+  }
+
+  function openLink(id) {
+    var g = el.svg.querySelector('[data-dch-link="' + id + '"]');
+    if (!g) return;
+    var hp = DCH.hop(S.topo, S.cableMm, S.tbuf), h = [], title;
+    if (id === 'bus') {
+      var d = fix(starNs(), 2);
+      if (S.topo === 'c') {
+        title = 'Fan-out from the master';
+        h.push('<p>Two 1:8 fan-outs on the master carrier (LMK1C1108 class, to confirm) drive equal-length cables to every module, including a loop back into the master’s own J26 and J28, so the master is not a special path.</p>');
+      } else {
+        title = 'Sync unit cables';
+        h.push('<p>REF 10 MHz, SYSREF 5 MHz and TRIG go to every module over three phase-matched cables. With the derived SYSREF one timing cable per module is enough, plus TRIG.</p>');
+      }
+      h.push(ptable([['Delay', d + ' ns on every module (' + num(starCableMm() / 1000, 1) + ' m cable, estimate)'],
+        ['Spread', '0: equal lengths'], ['Drift', 'common mode, ≈ 0 between modules']]));
+    } else {
+      var k = Number(id), st = DCH.reach(S.topo, S.n, S.dead, S.alwaysOn);
+      title = 'Hop ' + k + ': module ' + (k - 1) + ' → module ' + k;
+      if (S.topo === 'a') h.push('<p>Card J32 → inline SMA DC block → card J66 (J67 on 2-3). TRIG goes FPGA to FPGA over a J65 ribbon, or into J64 over coax.</p>');
+      else h.push('<p>5 MHz chain clock J29 → J26 and TRIG J35 → J28, each through one LMK1C1104 per hop.' +
+        (S.topo === 'b2' ? ' SYSREF goes J36 → J27 and U21 re-clocks it at module ' + k + '.' : '') + '</p>');
+      if (st.lost[k]) h.push('<p class="bad">No signal: module ' + st.cut + ' is off and does not relay.</p>');
+      h.push(ptable([
+        ['Delay', hp.cable + ' ns cable + ' + hp.buf + ' ns ' + hp.what + (S.topo === 'a' ? ' (to measure)' : '') + ' = ' + hp.total + ' ns'],
+        ['Cable', S.cableMm + ' mm at 4.8 ps/mm'],
+        ['TRIG vs REF', S.worst ? '+125 ps per hop (worst case)' : '±125 ps per hop (part-to-part)'],
+        ['Jitter', '+20 fs per buffer, filtered out by the next PLL1']]));
+    }
+    PA.popover(g, h.join(''), { title: title });
+  }
+
+  function openHub() {
+    var g = el.svg.querySelector('[data-dch-hub]');
+    if (!g) return;
+    PA.popover(g, '<p>OCXO 10 MHz, LMK04832 and a TRIG re-timer in a 1U box, about 10 W. It sends REF and SYSREF to every module: 2N outputs, so 8 modules need 16 of the LMK04832’s 14. With the derived SYSREF it needs N.</p>' +
+      '<p>See <a href="#sync" data-goto="sync">Sync &amp; timing</a>.</p>', { title: 'Sync unit' });
+  }
+
+  function openPsu() {
+    var g = el.svg.querySelector('[data-dch-psu]');
+    if (!g) return;
+    var a = amps();
+    PA.popover(g, '<p>Each module draws ' + fix(a, 2) + ' A at 12 V (' + num(a * 12, 1) + ' W). Feed every J30 from a distribution bar or a bus bar on the base plate.</p>' +
+      '<p>Do not daisy-chain 12 V. With 8 modules the first link would carry ' + num(8 * a, 1) + ' A, and with 0.3 m links of 12 AWG the last module would see about 1.16 V less (contact resistance to measure).</p>',
+      { title: '12 V star feed' });
+  }
+
+  function toggleDead(k, reopen) {
+    if (S.dead[k]) delete S.dead[k]; else S.dead[k] = true;
+    renderDiagram();
+    renderDeadBar();
+    deadNote();
+    if (reopen) {
+      var g = el.svg.querySelector('[data-dch-mod="' + k + '"]');
+      if (g) { g.focus({ preventScroll: true }); openMod(k); }
+    }
+  }
+
+  function renderDeadBar() {
+    if (!el.dead) return;
+    Object.keys(S.dead).forEach(function (k) { if (Number(k) >= S.n) delete S.dead[k]; });
+    var btns = el.dead.querySelectorAll('[data-dch-dead]'), k;
+    if (btns.length !== Math.max(0, S.n - 1)) {
+      var html = '';
+      for (k = 1; k < S.n; k++) {
+        html += '<button type="button" class="btn sm dch-deadbtn" id="dch-dead-' + k + '" data-dch-dead="' + k + '" aria-pressed="false">Module ' + k + '</button>';
+      }
+      el.dead.innerHTML = html;
+      btns = el.dead.querySelectorAll('[data-dch-dead]');
+    }
+    each(btns, function (b) {
+      var kk = Number(b.getAttribute('data-dch-dead')), on = !!S.dead[kk];
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = 'Module ' + kk + (on ? ' off' : '');
+    });
+    if (el.deadbar) el.deadbar.hidden = S.n < 2;
+    if (el.always) {
+      el.always.checked = S.alwaysOn;
+      el.always.disabled = S.topo === 'a';
+    }
+  }
+
+  function deadNote() {
+    if (!el.deadNote) return;
+    var st = DCH.reach(S.topo, S.n, S.dead, S.alwaysOn), offs = [], lost = [], k, t = '';
+    for (k = 1; k < S.n; k++) { if (st.off[k]) offs.push(k); else if (st.lost[k]) lost.push(k); }
+    if (S.n < 2) t = '';
+    else if (!offs.length) t = 'All modules are on. Power one off to see how the topology copes without it.';
+    else {
+      var who = (offs.length === 1 ? 'Module ' : 'Modules ') + listText(offs) + (offs.length === 1 ? ' is' : ' are') + ' off. ';
+      if (!DCH.isChain(S.topo)) t = who + 'The others keep their reference: in a star no module depends on another.';
+      else if (st.cut >= 0) {
+        var pre = S.topo === 'a' ? 'A card-only chain has no relay to keep alive, so ' : 'Its relay buffers lose power, so ';
+        t = who + (lost.length ? pre + (lost.length === 1 ? 'module ' : 'modules ') + listText(lost) + ' lose the reference and TRIG.'
+          : 'Nothing sits after it in the chain, so no other module is affected.') +
+          (S.topo !== 'a' && lost.length ? ' Tick the always-on rail to keep the chain alive.' : '');
+      } else t = who + 'The relay buffers run on the always-on rail, so the chain continues. A bypass relay would do the same for a module that is unplugged.';
+    }
+    el.deadNote.textContent = t;
+  }
+
+  function paintTopo() {
+    segSet(el.topoSeg, 'data-dch-topo', S.topo);
+    segSet(el.dnSeg, 'data-dch-dn', S.n);
+    var g = PA.get('syncTopology') || 'unit', same = sharedOf(S.topo) === g;
+    if (el.topoNote) el.topoNote.textContent = 'Shown here: ' + TOPO_NOTE[S.topo] + '. The rest of the page (power, rack height, 3D model) uses ' +
+      SHARED_LABEL[g] + '.' + (S.n < 2 ? ' With one module there is nothing to synchronise.' : '');
+    if (el.apply) {
+      el.apply.disabled = same;
+      el.apply.textContent = same ? 'In use for the whole page' : 'Use this for the whole page';
+    }
+    if (el.cmp) {
+      var col = COLS[S.topo];
+      each(el.cmp.querySelectorAll('tr'), function (tr) {
+        each(tr.children, function (cell, i) { cell.classList.toggle('dch-col-on', i === col); });
+      });
+    }
+  }
+
+  function setTopo(t) {
+    if (t === S.topo) return;
+    S.topo = t;
+    if (CHAIN_TOPOS.indexOf(t) >= 0) PA.store(STORE + 'topo', t);
+    PA.store(STORE + 'view', t);
+    if (t === 'b1' || t === 'a') S.mode = 'derived';
+    else if (t === 'b2') S.mode = 'reclock';
+    saveSim();
+    updateAll();
+  }
+  function onShared(v) {
+    // follow a chain/master choice made elsewhere; a switch back to the sync unit keeps this view
+    if (v !== 'unit' && sharedOf(S.topo) !== v) { S.topo = topoFromShared(v); updateAll(); } else paintTopo();
+  }
+  function initialView() {
+    var v = PA.store(STORE + 'view');
+    if (['star', 'b1', 'b2', 'a', 'c'].indexOf(v) >= 0) return v;
+    var g = PA.get('syncTopology');
+    return g === 'chain' || g === 'master' ? topoFromShared(g) : storedChainTopo();
+  }
+
+  function paintPower() {
+    var a = amps();
+    if (el.amps) el.amps.textContent = fix(a, 2) + ' A';
+    if (el.amps8) el.amps8.textContent = num(8 * a, 1) + ' A';
+  }
+
+  /* ---------------- simulator ---------------- */
+
+  function hints() {
+    if (el.cableHint) el.cableHint.textContent = fix(S.cableMm * 4.8 / 1000, 2) + ' ns at 4.8 ps/mm';
+    if (el.trimHint) el.trimHint.textContent = TRIM_HINT[S.mode];
+    if (el.modeNote) {
+      el.modeNote.textContent = S.mode === 'buffered'
+        ? 'Buffered: SYSREF passes an LVDS buffer (0.575 ns) while the clock passes ' + num(S.tbuf / 1000, 3) +
+          ' ns, so SYSREF walks ' + num(575 - S.tbuf, 0) + ' ps per hop against the local clock grid.'
+        : MODE_NOTE[S.mode];
+    }
+  }
+
+  function paintInputs() {
+    var map = { cable: ['cableMm', function (v) { return v + ' mm'; }], tbuf: ['tbuf', function (v) { return v + ' ps'; }],
+      sysdly: ['trim', function (v) { return num(v, 0) + ' ps'; }], dt: ['dT', function (v) { return v + ' °C'; }],
+      alpha: ['alpha', function (v) { return num(v, 1) + ' ps/°C'; }] };
+    Object.keys(map).forEach(function (id) {
+      var inp = $('dch-' + id), out = $('dch-' + id + '-out'), key = map[id][0];
+      if (inp && Number(inp.value) !== S[key]) inp.value = S[key];
+      if (out) out.textContent = map[id][1](S[key]);
+    });
+    if (el.trim) el.trim.checked = S.autoTrim;
+  }
+
+  function stripFlag(m, g) { return m < g ? 'rk' : m < 2 * g ? 'mg' : 'ok'; }
+
+  function renderStrip() {
+    var svg = el.strip;
+    if (!svg || !sim) return;
+    var n = S.n, re = S.mode === 'reclock', RH = re ? 46 : 30, top = 30, X0 = 112, BW = 560, k;
+    var H = top + n * RH + 4, key = n + ':' + re;
+    function px(v, span) { return Math.round((X0 + v / span * BW) * 10) / 10; }
+    if (key !== stripKey) {
+      stripKey = key;
+      var h = [];
+      svg.setAttribute('viewBox', '0 0 760 ' + H);
+      for (k = 0; k <= 4; k++) {
+        var tx = X0 + k * BW / 4;
+        h.push('<line class="dch-tick" x1="' + tx + '" y1="22" x2="' + tx + '" y2="' + (H - 2) + '"/>');
+        h.push('<text class="s mid" x="' + tx + '" y="16">' + (k ? k + ' ns' : '0') + '</text>');
+      }
+      h.push('<text class="s" x="8" y="16">PL clock period</text>');
+      h.push('<text class="s end" x="752" y="16">margin</text>');
+      for (k = 0; k < n; k++) {
+        var y = top + k * RH;
+        h.push('<text x="8" y="' + (y + 13) + '">Module ' + k + '</text>');
+        h.push('<rect class="dch-bar" x="' + X0 + '" y="' + (y + 2) + '" width="' + BW + '" height="14" rx="3"/>');
+        h.push('<rect class="dch-guard" x="' + X0 + '" y="' + (y + 2) + '" width="70" height="14"/>');
+        h.push('<rect class="dch-guard" x="' + (X0 + BW - 70) + '" y="' + (y + 2) + '" width="70" height="14"/>');
+        h.push('<g class="dch-mk" data-dch-mk="' + k + '" style="transform:translate(' + px(sim.mods[k].phase, 4000) + 'px,0)">' +
+          '<line x1="0" y1="' + (y - 1) + '" x2="0" y2="' + (y + 19) + '"/><path d="M-5,' + (y - 5) + 'L5,' + (y - 5) + 'L0,' + (y + 1) + 'z"/></g>');
+        h.push('<text class="m end" x="752" y="' + (y + 13) + '" data-dch-mv="' + k + '"></text>');
+        if (re && k > 0) {
+          var yv = y + 25;
+          h.push('<text class="s" x="22" y="' + (yv + 9) + '">U21 VCO 400 ps</text>');
+          h.push('<rect class="dch-bar" x="' + X0 + '" y="' + yv + '" width="' + BW + '" height="10" rx="2"/>');
+          h.push('<rect class="dch-guard" x="' + X0 + '" y="' + yv + '" width="84" height="10"/>');
+          h.push('<rect class="dch-guard" x="' + (X0 + BW - 84) + '" y="' + yv + '" width="84" height="10"/>');
+          h.push('<g class="dch-mk" data-dch-vk="' + k + '" style="transform:translate(' + px(sim.mods[k].rho || 0, 400) + 'px,0)">' +
+            '<line x1="0" y1="' + (yv - 2) + '" x2="0" y2="' + (yv + 12) + '"/></g>');
+          h.push('<text class="m end" x="752" y="' + (yv + 9) + '" data-dch-vv="' + k + '"></text>');
+        }
+      }
+      svg.innerHTML = h.join('');
+    }
+    sim.mods.forEach(function (r) {
+      var mk = svg.querySelector('[data-dch-mk="' + r.k + '"]'), mv = svg.querySelector('[data-dch-mv="' + r.k + '"]');
+      if (mk) {
+        mk.style.transform = 'translate(' + px(r.phase, 4000) + 'px,0)';
+        mk.setAttribute('class', 'dch-mk dch-mk-' + stripFlag(r.margin, 500));
+      }
+      if (mv) mv.textContent = num(r.margin, 0) + ' ps';
+      if (r.rho !== null) {
+        var vk = svg.querySelector('[data-dch-vk="' + r.k + '"]'), vv = svg.querySelector('[data-dch-vv="' + r.k + '"]');
+        if (vk) {
+          vk.style.transform = 'translate(' + px(r.rho, 400) + 'px,0)';
+          vk.setAttribute('class', 'dch-mk dch-mk-' + stripFlag(r.rhoMargin, 60));
+        }
+        if (vv) vv.textContent = num(r.rhoMargin, 0) + ' ps';
+      }
+    });
+    svg.setAttribute('aria-label', 'SYSREF capture position in the 4 ns PL clock period for each module' +
+      (re ? ', and the re-clock position in the 400 ps U21 VCO period for each hop' : '') +
+      '. Worst margin ' + num(sim.worstMargin, 0) + ' ps.');
+  }
+
+  function renderTable() {
+    if (!el.tbody || !sim) return;
+    el.tbody.innerHTML = sim.mods.map(function (r) {
+      var k = r.k, role = k === 0 ? 'master' : k === S.n - 1 ? 'last' : 'relay';
+      var mg = num(r.margin, 0) + ' ps' + (r.rhoMargin !== null ? '<br>VCO ' + num(r.rhoMargin, 0) + ' ps' : '');
+      var trim = S.mode === 'derived' || (S.mode === 'buffered' && !S.autoTrim) ? '–' : num(r.trimK, 0) + ' ps';
+      return '<tr><td>Module ' + k + '</td><td>' + role + '</td><td class="n">' + fix(r.delayNs, 2) + ' ns</td>' +
+        '<td class="n">' + offTxt(r) + '</td><td class="n">' + mg + '</td>' +
+        '<td><span class="dch-flag dch-flag-' + r.flag + '">' + flagWord(r.flag) + '</span>' +
+        (r.why.length ? '<span class="dch-why">' + esc(r.why.join(', ')) + '</span>' : '') + '</td>' +
+        '<td class="n">' + trim + '</td><td class="n">' + num(r.driftPs, 1) + ' ps</td>' +
+        '<td class="n">' + num(r.jitRefFs, 0) + ' / ' + num(r.jitSysFs, 0) + ' fs</td>' +
+        '<td class="n">' + fix(r.trigLeadNs, 1) + ' ns</td></tr>';
+    }).join('');
+  }
+
+  function renderSim() {
+    if (!el.sim) return;
+    segSet(el.nSeg, 'data-dch-n', S.n);
+    segSet(el.modeSeg, 'data-dch-mode', S.mode);
+    segSet(el.misSeg, 'data-dch-mis', S.worst ? 'worst' : 'typ');
+    paintInputs();
+    hints();
+    if (el.one) el.one.hidden = S.n >= 2;
+    if (el.out) el.out.hidden = S.n < 2;
+    if (!sim) return;
+    var v = DCH.verdict(sim, simOpts()), last = sim.mods[S.n - 1];
+    el.kDelay.textContent = fix(last.delayNs, 2) + ' ns';
+    el.kMargin.textContent = num(sim.worstMargin, 0) + ' ps';
+    el.kMarginL.textContent = 'Worst capture margin' + (sim.worstRho !== null ? ' (VCO: ' + num(sim.worstRho, 0) + ' ps)' : '');
+    el.kDrift.textContent = num(sim.maxDrift, 1) + ' ps';
+    el.kDriftL.textContent = 'Drift at last module (' + num(last.driftRssPs, 1) + ' ps if independent)';
+    el.kJit.textContent = num(last.jitRefFs, 0) + ' fs';
+    el.kVerdict.textContent = v.label;
+    el.kVbox.className = 'kpi dch-kv dch-kv-' + v.level;
+    el.verdict.textContent = v.text;
+    el.verdict.className = 'dch-verdict dch-v-' + v.level;
+    renderStrip();
+    renderTable();
+    var cab = starCableMm(), s = DCH.star({ starCableMm: cab, tBufRef: S.tbuf });
+    if (el.star) {
+      el.star.textContent = 'Star with the same parts: every module sits one ' + num(cab / 1000, 1) +
+        ' m cable and one buffer from the root, so all of them see ' + fix(s.delayNs, 2) +
+        ' ns, the spread is 0 and the relative drift is about 0 ps. This chain spreads from 0 to ' + fix(last.delayNs, 2) +
+        ' ns and drifts up to ' + num(sim.maxDrift, 1) + ' ps. The star cable length is an estimate.';
+    }
+  }
+
+  function updateAll() {
+    compute();
+    paintTopo();
+    renderDiagram();
+    renderDeadBar();
+    deadNote();
+    renderSim();
+    paintPower();
+  }
+  function later() {
+    clearTimeout(tmr);
+    tmr = setTimeout(function () { compute(); renderDiagram(); renderSim(); saveSim(); }, 60);
+  }
+
+  function bindRange(id, key, lo, hi, step) {
+    var inp = $('dch-' + id);
+    if (!inp) return;
+    inp.addEventListener('input', function () {
+      S[key] = clampNum(inp.value, lo, hi, step, S[key]);
+      paintInputs();
+      hints();
+      later();
+    });
+  }
+
+  function resetSim() {
+    Object.keys(DEF).forEach(function (k) { S[k] = DEF[k]; });
+    if (S.topo === 'b2') S.mode = 'reclock';
+    saveSim();
+    compute();
+    renderDiagram();
+    renderSim();
+  }
+
+  /* ---------------- init ---------------- */
+
+  function init() {
+    var sec = document.getElementById('chain');
+    if (!sec) return;
+    el.svg = $('dch-svg');
+    if (!el.svg) return;
+    el.topoSeg = $('dch-topo'); el.dnSeg = $('dch-dn'); el.topoNote = $('dch-topo-note');
+    el.deadbar = $('dch-deadbar'); el.dead = $('dch-dead'); el.always = $('dch-always'); el.deadNote = $('dch-dead-note');
+    el.cmp = $('dch-cmp');
+    el.amps = $('dch-amps'); el.amps8 = $('dch-amps8');
+    el.sim = $('dch-sim');
+    if (el.sim) {
+      el.nSeg = $('dch-n'); el.modeSeg = $('dch-mode'); el.misSeg = $('dch-mis'); el.trim = $('dch-autotrim');
+      el.cableHint = $('dch-cable-hint'); el.trimHint = $('dch-autotrim-hint'); el.modeNote = $('dch-mode-note');
+      el.one = $('dch-one'); el.out = $('dch-out');
+      el.kDelay = $('dch-k-delay'); el.kMargin = $('dch-k-margin'); el.kMarginL = $('dch-k-margin-l');
+      el.kDrift = $('dch-k-drift'); el.kDriftL = $('dch-k-drift-l'); el.kJit = $('dch-k-jit');
+      el.kVerdict = $('dch-k-verdict'); el.kVbox = $('dch-k-vbox'); el.verdict = $('dch-verdict');
+      el.strip = $('dch-strip'); el.tbody = $('dch-tbody'); el.star = $('dch-star');
+      if (!el.kDelay || !el.kMargin || !el.kMarginL || !el.kDrift || !el.kDriftL || !el.kJit || !el.kVerdict ||
+          !el.kVbox || !el.verdict) el.sim = null;
+    }
+
+    loadStored();
+    S.n = modulesNow();
+    S.topo = initialView();
+    if (el.topoNote) {
+      el.apply = document.createElement('button');
+      el.apply.type = 'button';
+      el.apply.className = 'btn sm primary';
+      el.apply.id = 'dch-apply';
+      el.apply.addEventListener('click', function () { PA.set('syncTopology', sharedOf(S.topo)); paintTopo(); });
+      var row = document.createElement('div');
+      row.className = 'toolbar dch-apply-row';
+      row.appendChild(el.apply);
+      el.topoNote.parentNode.insertBefore(row, el.topoNote);
+    }
+
+    each(sec.querySelectorAll('.dch-js'), function (e) { e.hidden = false; });
+    if (!el.sim && $('dch-sim')) $('dch-sim').hidden = true;
+    el.svg.setAttribute('role', 'group');   // role="img" would hide the clickable parts from assistive tech
+    if (el.strip && !PA.reducedMotion) el.strip.classList.add('dch-anim');
+
+    segInit(el.topoSeg, 'data-dch-topo', setTopo);
+    segInit(el.dnSeg, 'data-dch-dn', function (v) { PA.set('modules', Number(v)); });
+    if (el.dead) {
+      el.dead.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-dch-dead]');
+        if (b) toggleDead(Number(b.getAttribute('data-dch-dead')), false);
+      });
+    }
+    if (el.always) {
+      el.always.addEventListener('change', function () {
+        S.alwaysOn = el.always.checked;
+        renderDiagram();
+        deadNote();
+      });
+    }
+
+    if (el.sim) {
+      segInit(el.nSeg, 'data-dch-n', function (v) { PA.set('modules', Number(v)); });
+      segInit(el.modeSeg, 'data-dch-mode', function (v) {
+        if (MODES.indexOf(v) < 0 || v === S.mode) return;
+        S.mode = v;
+        if (v === 'reclock' && S.topo === 'b1') { setTopoQuiet('b2'); }
+        else if (v === 'derived' && S.topo === 'b2') { setTopoQuiet('b1'); }
+        saveSim();
+        updateAll();
+      });
+      segInit(el.misSeg, 'data-dch-mis', function (v) {
+        S.worst = v === 'worst';
+        saveSim();
+        compute(); renderDiagram(); renderSim();
+      });
+      bindRange('cable', 'cableMm', 100, 1500, 50);
+      bindRange('tbuf', 'tbuf', 300, 3000, 25);
+      bindRange('sysdly', 'trim', -1500, 1500, 25);
+      bindRange('dt', 'dT', 0, 20, 1);
+      bindRange('alpha', 'alpha', 0, 4, 0.1);
+      if (el.trim) {
+        el.trim.addEventListener('change', function () {
+          S.autoTrim = el.trim.checked;
+          saveSim();
+          compute(); renderDiagram(); renderSim();
+        });
+      }
+      [['dch-tbuf-typ', 1500], ['dch-tbuf-max', 2000], ['dch-tbuf-lvds', 575]].forEach(function (q) {
+        var b = $(q[0]);
+        if (b) b.addEventListener('click', function () {
+          S.tbuf = q[1];
+          saveSim();
+          compute(); renderDiagram(); renderSim();
+        });
+      });
+      var rs = $('dch-reset');
+      if (rs) rs.addEventListener('click', resetSim);
+    }
+
+    PA.on('modules', function () { S.n = modulesNow(); updateAll(); });
+    PA.on('syncTopology', onShared);
+    PA.on('cardPowerW', function () { renderDiagram(); paintPower(); });
+    PA.on('dacOnly', function () { renderDiagram(); paintPower(); });
+
+    updateAll();
+  }
+
+  /* Topology change caused by the simulator mode: shares it without resetting the mode. */
+  function setTopoQuiet(t) {
+    S.topo = t;
+    PA.store(STORE + 'topo', t);
+    PA.store(STORE + 'view', t);
   }
 
   PA.ready(init);
@@ -5605,6 +7336,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     PA.on('modules', update);
     PA.on('dacOnly', update);
     PA.on('cardPowerW', paint);
+    PA.on('syncTopology', paint);
     update();
   }
 
@@ -6221,7 +7953,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       text: 'The SI5341 runs from its own 48 MHz crystal. Its GTY clocks are not locked to the LMK or the external REF, so the one-bit rows drift against the DACs and against other modules.',
       after: 'The carrier drives a 156.25 MHz clock locked to REF into the edge PCIE_CLK pins (quad A refclk1), and quad B shares it. The SI5341 outputs are no longer used.' },
     lmk: { title: 'LMK04828 + VCXO', find: 'clock',
-      text: 'Makes the DAC clocks and SYSREF for the DACs and the PL. J66 takes the external REF (CLKin1), J35 takes SYSREF (CLKin0, to verify) and J32 is a clock out.' },
+      text: 'Makes the DAC clocks and SYSREF for the DACs and the PL. J66 reaches CLKin0 through jumper J67 (SYSREF or REF), J35 reaches CLKin1 (REF) and J32 is a DC-coupled LVPECL clock out.' },
     io: { title: 'I/O header and PERST#', find: 'gpio',
       text: 'J65 brings out 10 GPIO at 3.3 V plus I²C for the carrier control bus. J64 takes PPS. PERST# on the edge goes to FPGA pin D9 and can carry the trigger.' },
     pwr: { title: 'Card power', find: 'power',
@@ -6233,7 +7965,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     ctl: { title: 'Control and monitoring', find: 'gpio', carrier: true,
       text: 'Runs on I²C/SPI from the card J65 header: the DC-level DAC for the bias tees, attenuator control, rail V/I, temperature and board ID.' },
     csync: { title: 'Clock and sync', find: 'gtyref', carrier: true,
-      text: 'Takes REF, SYSREF and TRIG from the sync unit and fans REF and SYSREF out to card J66 and J35. A jitter-cleaner PLL locked to REF makes the 156.25 MHz GTY reference for the PCIE_CLK pins.' },
+      text: 'Takes REF, SYSREF and TRIG from the sync unit and fans REF out to card J35 and SYSREF to card J66. A jitter-cleaner PLL locked to REF makes the 156.25 MHz GTY reference for the PCIE_CLK pins.' },
     cpwr: { title: 'Carrier power', find: 'power', carrier: true,
       text: '12 V in feeds the slot (≤ 66 W by the PCIe spec) and the AFE rails through bucks and LDOs, with sequencing and power-good to the card.' }
   };
@@ -6907,6 +8639,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     PA.on('modules', function () { if (setMods) setMods(modulesNow()); render(true); });
     PA.on('dacOnly', function () { render(false); });
     PA.on('cardPowerW', function () { render(false); });
+    PA.on('syncTopology', function () { render(false); });
   }
 
   function init() {
@@ -7653,7 +9386,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     bx(k, 13, 5.5, 14, k.m('zinc', 9), -63.5, 88, -D / 2 + 7, brk, 'USB');
     bx(k, 10, 2.4, 0.6, k.m('chip', 9), -63.5, 88, -D / 2 + 0.3, brk, 'USB');
     var bs = [];
-    [[-48, 110, 'J66 SMA, external REF'], [-48, 92, 'J35 SMA, SYSREF in'], [-48, 74, 'J32 SMA, clock out'],
+    [[-48, 110, 'J66 SMA, to CLKin0 via J67 (SYSREF)'], [-48, 92, 'J35 SMA, to CLKin1 (REF)'], [-48, 74, 'J32 SMA, clock out'],
      [-68, 62, 'SSMC on the card bracket'], [-68, 50, 'SSMC on the card bracket']].forEach(function (p, i) {
       bs.push({ p: [p[0], p[1], -D / 2 - (i < 3 ? 3.5 : 2)], s: i < 3 ? [1, 1, 1] : [0.65, 0.65, 0.6], n: p[2] });
     });
@@ -8970,6 +10703,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     }
     PA.on('dacOnly', sysChanged);
     PA.on('cardPowerW', sysChanged);
+    PA.on('syncTopology', sysChanged);
 
     var inp = $('mech-len');
     if (inp) {
@@ -9474,6 +11208,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     PA.on('modules', render);
     PA.on('dacOnly', render);
     PA.on('cardPowerW', render);
+    PA.on('syncTopology', render);
 
     root.hidden = false;
     render();
@@ -9710,7 +11445,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       liveP.hidden = false;
     }
     updateLive();
-    ['modules', 'dacOnly', 'cardPowerW', 'cardPrice'].forEach(function (k) { PA.on(k, updateLive); });
+    ['modules', 'dacOnly', 'cardPowerW', 'cardPrice', 'syncTopology'].forEach(function (k) { PA.on(k, updateLive); });
 
     /* ---- render progress ---- */
     function phaseStats(p) {
@@ -10171,7 +11906,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   var STEPS = [
     { hl: ['sync-pps', 'sync-ocxo', 'sync-lmk'], cap: 'sync unit, OCXO and LMK04832' },
     { hl: ['sync-lmk', 'cable-ref', 'cable-sysref', 'cable-note', 'car-u20', 'car-u22', 'car-u21'], cap: 'REF and SYSREF cables into U20, U22 and U21' },
-    { hl: ['car-u20', 'car-u22', 'link-ref', 'link-sysref', 'card-lmk'], cap: 'J32 → J66 and J33 → J35 into the card LMK04828' },
+    { hl: ['car-u20', 'car-u22', 'link-ref', 'link-sysref', 'card-lmk'], cap: 'J32 → J35 (REF) and J33 → J66 (SYSREF) into the card LMK04828' },
     { hl: ['card-lmk', 'card-rfsoc', 'res-aligned'], cap: 'card LMK04828 and RF-DAC multi-tile sync' },
     { hl: ['card-rfsoc', 'res-aligned', 'res-fixed'], cap: 'RF-DAC latency, padded to one common target' },
     { hl: ['car-u21', 'link-pcie', 'card-gty'], cap: 'U21 → PCIE_CLK → GTY quads' },
