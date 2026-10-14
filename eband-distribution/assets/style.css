@@ -312,7 +312,19 @@ button.gterm:hover { text-decoration-color: var(--accent); color: var(--accent);
 }
 
 main { min-width: 0; }
-aside.params { position: sticky; top: 60px; max-height: calc(100vh - 76px); overflow-y: auto; padding-right: 3px; }
+/* The rail pins under a STICKY header whose height is not a constant: 121px
+   at a desktop width, 177px at 1080 where the nav wraps, 90px on the start
+   view where the context bar is hidden. `top: 60px` therefore parked the
+   rail's first 61px - its panel heading, and now the quick-reconfiguration
+   rows - permanently behind the header on every scrolled view, because the
+   header carries z-index 40 and the rail carries none. --hdr-h is measured by
+   syncRailTop() in js/app.js; the 121px fallback is the desktop value, so the
+   rule is already right before the first measurement. */
+aside.params {
+  position: sticky; top: calc(var(--hdr-h, 121px) + 4px);
+  max-height: calc(100vh - var(--hdr-h, 121px) - 20px);
+  overflow-y: auto; padding-right: 3px;
+}
 @media (max-width: 1080px) { aside.params { position: static; max-height: none; } }
 
 /* ---------- panels ---------- */
@@ -397,6 +409,37 @@ button.btn:hover { background: var(--bg-hover); }
 button.btn.pri { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 button.btn.pri:hover { filter: brightness(1.08); }
 button.btn:disabled { opacity: .5; cursor: default; }
+
+/* ---------- quick reconfiguration, at the top of the rail ----------
+   Four segmented rows of code chips. `flex: 1 1 0` is what makes this fit:
+   the run divides whatever inner width the rail actually has, so nothing
+   here hard-codes the 284px a classic 15px scrollbar leaves, it is equally
+   correct at the 299px an overlay scrollbar leaves and at the full width
+   the rail takes when it restacks below 1080px, and it cannot produce a
+   horizontal scrollbar at any width. Everything else is the existing .pchip
+   and the existing palette tokens, in both themes. */
+.qk { padding: 9px 13px 10px; display: flex; flex-direction: column; gap: 5px; }
+.qk-grp { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* 26px aligns LO / BB / ANT / K on one gutter so the four rows read as one
+   control; the picker's 58px would spend a fifth of the rail on labels. */
+.qk-lab {
+  font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-3); flex: none; min-width: 26px;
+}
+.qk-chips { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.qk-chips .pchip {
+  flex: 1 1 0; min-width: 0; padding: 3px 2px; text-align: center;
+  white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums;
+}
+.qk-chips .pchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A K the selected arrangement does not allow: the model clamps it and the
+   banner reports it, and this is that same fact in the control - the chip
+   marks the value the model is ACTUALLY using, dashed to say it is a clamp
+   and not your choice. The map picker's equivalent silently displays its
+   first option instead. */
+.qk-chips .pchip.qk-clamped { border-style: dashed; }
+.panel > h2 .grow.qk-ok { color: var(--pass); }
+.panel > h2 .grow.qk-over { color: var(--fail); }
 
 /* ---------- tables ---------- */
 /* Wide content scrolls inside its own box; the PAGE must never scroll

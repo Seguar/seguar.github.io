@@ -82,6 +82,29 @@
 
     <!-- ===================== parameter column ===================== -->
     <aside class="params">
+
+      <!-- Quick reconfiguration. The three option families are the subject of
+           the whole tool, and until now the only place to change them was the
+           picker inside the Hardware map panel - so on eleven of the thirteen
+           views "what if it were A3 instead of A4" began by navigating away,
+           and setView saves no scroll position, so you came back to the top of
+           whatever you had been reading. These are the same three axes, as the
+           most compact control that fits a 300px rail: the option CODES, which
+           are the identifiers the context bar, the compare tables, the ledger
+           and the decision text already use. The full name of every option is
+           in its chip's tooltip with that option's own number beside it, and
+           the full name of the CURRENT one is in the context bar directly
+           above, on every view that shows this rail.
+
+           Everything inside #quickMount is built by renderQuick() in js/app.js.
+           It is deliberately NOT inside #paramMount: UI.renderParams owns that
+           element and begins by emptying it, and a stray .field in there would
+           also be counted by updateParamCount's selector. -->
+      <section class="panel" id="quickPanel">
+        <h2>This build <span class="grow" id="quickSpec"></span></h2>
+        <div class="body flush" id="quickMount"></div>
+      </section>
+
       <section class="panel">
         <h2>Parameters <span class="grow" id="dirtyCount"></span></h2>
         <!-- Seventy controls in eight collapsible groups had no search: to
