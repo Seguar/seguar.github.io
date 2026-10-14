@@ -866,6 +866,8 @@ svg .clickable:focus-visible { filter: drop-shadow(0 0 3px var(--card)) drop-sha
   --m3-brass: #b99b5c;    /* standoffs */
   --m3-rack: #3b4148;     /* rack frame and rails */
   --m3-shade: #24313c;    /* contact shadow */
+  --m3-cola: #c3161c;     /* 330 ml cola can for scale: red body */
+  --m3-colaband: #f4f2ee; /* its label band */
   display: grid; gap: 12px; min-width: 0;
 }
 #mech .m3 > p { margin: 0; }
@@ -873,7 +875,7 @@ svg .clickable:focus-visible { filter: drop-shadow(0 0 3px var(--card)) drop-sha
 #mech .m3-lbl { font: 600 13px/1 var(--sans); color: var(--muted); }
 #mech .m3-ctl .btn.sm { min-width: 36px; }
 #mech #m3-zout, #mech #m3-zin { font-size: 17px; line-height: 1; padding-inline: 8px; }
-#mech #m3-exp[aria-pressed="true"], #mech #m3-lbls[aria-pressed="true"] { background: var(--card-t); border-color: var(--card); color: var(--card); }
+#mech #m3-exp[aria-pressed="true"], #mech #m3-lbls[aria-pressed="true"], #mech #m3-cola[aria-pressed="true"] { background: var(--card-t); border-color: var(--card); color: var(--card); }
 #mech .m3-ctl .btn[aria-disabled="true"] { pointer-events: auto; cursor: not-allowed; }
 
 /* Viewer: 16:10 on desktop, taller on phones. The placeholder is the visible resting state. */
@@ -3503,6 +3505,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         <button type="button" class="btn sm" id="m3-zin" aria-label="Zoom in">+</button>
         <button type="button" class="btn sm" id="m3-reset">Reset view</button>
         <button type="button" class="btn sm" id="m3-lbls" aria-pressed="true">Labels</button>
+        <button type="button" class="btn sm" id="m3-cola" aria-pressed="false" title="330 ml can, 66 × 115 mm, for scale">Cola can for scale</button>
       </div>
     </div>
     <p class="note" id="m3-hint" hidden>Drag to turn, Shift-drag or right-drag to pan, Ctrl + scroll to zoom, double-click to reset. With the view focused, the arrow keys turn it, + and − zoom and 0 resets.</p>
@@ -8889,15 +8892,17 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     ['J28', 3, 25, 7, 67, 'TRIG in'], ['J29', -11, 25, -15, 67, 'SYNC out']];
   var J3Z = 97;                      // J32 / J33 SMA jumpers: z from the rear panel
   var U1 = 44.45;
+  var COLA_NAME = '330 ml can, 66 × 115 mm, for scale';
+  var COLA_R = 33, COLA_H = 115;     // standard 330 ml can
   var DEG = Math.PI / 180;
   var EXPLODE_MS = 700, CAM_MS = 520;
 
   var T = null;                      // THREE, once loaded
   var sec, box, stage, ph, msg, loadBtn, cap, ctlRow, camRow, hint, modx, sysx;
-  var expBtn, lblBtn, zinBtn, zoutBtn, resetBtn;
+  var expBtn, lblBtn, zinBtn, zoutBtn, resetBtn, colaBtn;
   var setModeSeg, setLidSeg, setInletSeg, setModsSeg, setCamSeg;
   var loadState = 'idle';            // idle | loading | ready | failed
-  var st = { mode: 'module', cam: 'iso', exploded: false, lid: 'off', inlet: 'on', labels: true, len: LEN_DEF };
+  var st = { mode: 'module', cam: 'iso', exploded: false, lid: 'off', inlet: 'on', labels: true, len: LEN_DEF, cola: false };
   var testParam = null;
 
   var renderer, scene, camera, canvas, labelsEl, tipEl, whintEl, world, shadowMesh, envTex = null;
@@ -9039,6 +9044,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       fan: g('--m3-fan', '#23282d'), jumper: g('--m3-jumper', '#a9b6c2'), coax: g('--m3-coax', '#4b6f9e'),
       ribbon: g('--m3-ribbon', '#a3a9b0'), rubber: g('--m3-rubber', '#2a2d31'), zinc: g('--m3-zinc', '#bcc3c9'),
       brass: g('--m3-brass', '#b99b5c'), rack: g('--m3-rack', '#3b4148'), shade: g('--m3-shade', '#24313c'),
+      cola: g('--m3-cola', '#c3161c'), colaband: g('--m3-colaband', '#f4f2ee'),
       zone: r('--zone', '#f8fafc'), ink: r('--ink', '#24313c'), paper: r('--paper', '#ffffff'),
       rf: r('--rf', '#d4652a'), clk: r('--clk', '#12897d'), pwr: r('--pwr', '#c4475a'),
       ctl: r('--ctl', '#5e55c4'), card: r('--card', '#4570a6'), cardT: r('--card-t', '#e8eff8'), muted: r('--muted', '#67737e')
@@ -9066,7 +9072,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     inst:    { c: '#ffffff', m: 0.15, r: 0.5 },
     clkc:    { c: 'clk', m: 0.0, r: 0.5 },
     pwrc:    { c: 'pwr', m: 0.0, r: 0.5 },
-    sticker: { c: '#d9b43a', m: 0.0, r: 0.6 }
+    sticker: { c: '#d9b43a', m: 0.0, r: 0.6 },
+    canrim:  { c: 'zinc', m: 0.95, r: 0.22 }
   };
 
   function Kit() {
@@ -10316,6 +10323,112 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     };
   }
 
+  /* 330 ml can (Ø 66 × 115 mm) for scale: silver lathe bottom and neck, red printed body. Built
+     standing on y = 0 with its label facing azimuth az (degrees from +z towards +x). */
+  function buildCola(k, az) {
+    var g = new T.Group();
+    var V2 = function (r, y) { return new T.Vector2(r, y); };
+    var rim = k.m('canrim');
+    var bot = k.g(new T.LatheGeometry([V2(0, 3.6), V2(22, 1.2), V2(25, 0), V2(27.6, 0.5), V2(31.4, 3.8), V2(33, 8)], 56));
+    mesh(bot, rim, 0, 0, 0, g, COLA_NAME);
+    var top = k.g(new T.LatheGeometry([V2(33, 103), V2(32.5, 105.5), V2(29.2, 110.5), V2(27.8, 112.8), V2(27.8, 114.2),
+      V2(28.3, 114.7), V2(27.7, 115), V2(26.7, 114.5), V2(26.4, 113.6), V2(0, 113.6)], 56));
+    mesh(top, rim, 0, 0, 0, g, COLA_NAME);
+    var tex = k.t(canvasTex(1024, 470, function (x, w, h) {
+      x.fillStyle = TOK.cola;
+      x.fillRect(0, 0, w, h);
+      // label band with wavy edges
+      x.fillStyle = TOK.colaband;
+      x.beginPath();
+      x.moveTo(0, h * 0.40);
+      for (var i = 0; i <= 64; i++) x.lineTo(w * i / 64, h * 0.40 + Math.sin(i / 64 * Math.PI * 4) * h * 0.035);
+      for (var j = 64; j >= 0; j--) x.lineTo(w * j / 64, h * 0.64 + Math.sin(j / 64 * Math.PI * 4 + 1.2) * h * 0.035);
+      x.closePath();
+      x.fill();
+      x.fillRect(0, h * 0.08, w, h * 0.012);
+      x.fillRect(0, h * 0.91, w, h * 0.012);
+      x.fillStyle = TOK.cola;
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      [0.25, 0.75].forEach(function (u) {
+        x.font = font(Math.round(h * 0.17), 800);
+        x.fillText('COLA', w * u, h * 0.52);
+        x.fillStyle = TOK.colaband;
+        x.font = font(Math.round(h * 0.075), 600);
+        x.fillText('330 ml', w * u, h * 0.80);
+        x.fillStyle = TOK.cola;
+      });
+    }));
+    var bodyMat = k.raw(new T.MeshStandardMaterial({ map: tex, metalness: 0.35, roughness: 0.32 }), 0);
+    var body = k.g(new T.CylinderGeometry(COLA_R, COLA_R, 95, 56, 1, true));
+    mesh(body, bodyMat, 0, 55.5, 0, g, COLA_NAME);
+    bx(k, 9, 0.6, 17, rim, 0, 113.9, 6.5, g, COLA_NAME);                  // pull tab
+    var shTex = k.t(canvasTex(64, 64, function (x, w) {
+      var gr = x.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+      gr.addColorStop(0, 'rgba(0,0,0,0.5)');
+      gr.addColorStop(0.5, 'rgba(0,0,0,0.32)');
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = gr;
+      x.fillRect(0, 0, w, w);
+    }));
+    var sh = mesh(k.g(new T.PlaneGeometry(COLA_R * 2.8, COLA_R * 2.8)), k.raw(new T.MeshBasicMaterial({
+      map: shTex, color: new T.Color(TOK.shade), transparent: true, depthWrite: false, toneMapped: false
+    }), 0), 0, 0.3, 0, g);
+    sh.rotation.x = -Math.PI / 2;
+    sh.userData.noPick = true;
+    // u = 0.25 of the print sits at +x (90 degrees); turn it towards the iso camera
+    g.rotation.y = (az - 90) * DEG;
+    g.userData.isCola = true;
+    return g;
+  }
+
+  /* Floor spot left of the build, near the front: clear of it in the iso view (camera front right),
+     and in the side view the build hides the can instead of the can hiding the build. */
+  function colaSpot() {
+    var b = model.bounds;
+    if (st.mode === 'module') return [-(W / 2 + 80), model.floorY, depthOf(st.len) / 2 - 45];
+    return [b.min[0] - 70, model.floorY, b.max[2] - 40];
+  }
+  function syncCola() {
+    if (!model) return;
+    if (st.cola && !model.cola) {
+      model.cola = buildCola(kit, (ISO_BY_MODE[st.mode] || CAM_DIR.iso)[0] + (st.mode === 'module' ? 15 : 0));
+      var p = colaSpot();
+      model.cola.position.set(p[0], p[1], p[2]);
+      model.root.add(model.cola);
+      if (st.mode === 'module' && model.groups) {
+        // exploded: it moves out with the left side wall (-58 mm) so the two never meet
+        model.cola.userData.base = model.cola.position.clone();
+        model.cola.userData.off = new T.Vector3(-58, 0, 0);
+        model.cola.position.addScaledVector(model.cola.userData.off, explodeE);
+        model.groups.cola = model.cola;
+      }
+    }
+    if (model.cola) model.cola.visible = st.cola;
+  }
+  function setCola(on, animate) {
+    st.cola = !!on;
+    if (colaBtn) colaBtn.setAttribute('aria-pressed', st.cola ? 'true' : 'false');
+    PA.store('m3.cola', st.cola);
+    describe();
+    if (loadState !== 'ready' || !model) return;
+    syncCola();
+    // re-frame for the new extent, keeping the user's angle and relative zoom
+    var rel = orbit.r / (fit.r || orbit.r);
+    computeFit(st.cam);
+    tweenCam({ theta: orbit.theta, phi: orbit.phi, r: fit.r * rel, target: fit.target.clone() }, animate);
+    aimCola(orbit.theta, orbit.phi, fit.r * rel, fit.target);
+  }
+  /* The can is a cylinder, so turn its print to the camera of a view preset (free orbiting leaves it). */
+  function aimCola(theta, phi, r, target) {
+    if (!model || !model.cola) return;
+    var cam = new T.Vector3(Math.sin(phi) * Math.sin(theta), Math.cos(phi), Math.sin(phi) * Math.cos(theta))
+      .multiplyScalar(r).add(target);
+    model.root.updateMatrixWorld(true);
+    var p = model.cola.getWorldPosition(new T.Vector3());
+    model.cola.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z) - 90 * DEG;
+  }
+
   /* ================================================================== */
   /* Scene                                                               */
   /* ================================================================== */
@@ -10507,6 +10620,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       applyLid();
       applyInlet();
     }
+    syncCola();
     var nMesh = 0;
     scene.traverse(function (o) { if (o.isMesh) nMesh++; });
     stage.setAttribute('data-m3-meshes', String(nMesh));
@@ -10620,13 +10734,15 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   function computeFit(name) {
     var b = currentBounds();
     if (!b) return;
+    var d = name === 'iso' ? (ISO_BY_MODE[st.mode] || CAM_DIR.iso) : (CAM_DIR[name] || CAM_DIR.iso);
+    var theta = d[0] * DEG, phi = (90 - d[1]) * DEG;
+    // face the can to the view direction first so the fit does not depend on its last turn
+    if (model && model.cola) model.cola.rotation.y = theta - 90 * DEG;
     var hull = hullPoints(st.mode === 'module' ? (st.exploded ? 1 : 0) : undefined);
     if (hull.length) {
       var hb = new T.Box3().setFromPoints(hull);
       b = { min: [hb.min.x, hb.min.y, hb.min.z], max: [hb.max.x, hb.max.y, hb.max.z] };
     }
-    var d = name === 'iso' ? (ISO_BY_MODE[st.mode] || CAM_DIR.iso) : (CAM_DIR[name] || CAM_DIR.iso);
-    var theta = d[0] * DEG, phi = (90 - d[1]) * DEG;
     var dir = new T.Vector3(Math.sin(phi) * Math.sin(theta), Math.cos(phi), Math.sin(phi) * Math.cos(theta));
     var up = Math.abs(dir.y) > 0.99 ? new T.Vector3(0, 0, -1) : new T.Vector3(0, 1, 0);
     var right = new T.Vector3().crossVectors(up, dir).normalize();
@@ -10670,6 +10786,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     fit.target.copy(tgt);
     fit.theta = theta;
     fit.phi = phi;
+    aimCola(theta, phi, fit.r, fit.target);
   }
 
   function setCam(name, animate) {
@@ -11096,6 +11213,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       invalidate();
     });
     expBtn.addEventListener('click', function () { setExploded(!st.exploded, true); });
+    if (colaBtn) colaBtn.addEventListener('click', function () { setCola(!st.cola, true); });
   }
 
   function setExploded(on, animate) {
@@ -11146,6 +11264,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     } else {
       t = '3D model of a ' + (c.rackU || '') + 'U 19-inch rack holding ' + (n === 1 ? 'one module' : WORD[n] + ' modules') + ', ' + cam + ' view.';
     }
+    if (st.cola) t += ' A 330 ml can (66 × 115 mm) stands beside it for scale.';
     canvas.setAttribute('aria-label', t);
   }
 
@@ -11192,7 +11311,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     if (!sec || !box) return;
     stage = $('m3-stage'); ph = $('m3-ph'); msg = $('m3-msg'); loadBtn = $('m3-load'); cap = $('m3-cap');
     ctlRow = $('m3-ctl'); camRow = $('m3-camrow'); hint = $('m3-hint'); modx = $('m3-modx'); sysx = $('m3-sysx');
-    expBtn = $('m3-exp'); lblBtn = $('m3-lbls'); zinBtn = $('m3-zin'); zoutBtn = $('m3-zout'); resetBtn = $('m3-reset');
+    expBtn = $('m3-exp'); lblBtn = $('m3-lbls'); colaBtn = $('m3-cola'); zinBtn = $('m3-zin'); zoutBtn = $('m3-zout'); resetBtn = $('m3-reset');
     if (!stage || !ph || !msg || !loadBtn || !ctlRow || !camRow || !expBtn || !lblBtn || !zinBtn || !zoutBtn || !resetBtn || !modx || !sysx || !cap || !hint) return;
 
     var q = null;
@@ -11202,6 +11321,12 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     var qi = null;
     try { qi = new URLSearchParams(location.search).get('m3inlet'); } catch (e) { qi = null; }
     if (qi === 'off' || qi === 'on') st.inlet = qi;
+    st.cola = PA.store('m3.cola') === true;
+    // test hook: ?m3cola=on|off overrides the stored choice (not saved)
+    var qc = null;
+    try { qc = new URLSearchParams(location.search).get('m3cola'); } catch (e) { qc = null; }
+    if (qc === 'on' || qc === 'off') st.cola = qc === 'on';
+    if (colaBtn) colaBtn.setAttribute('aria-pressed', st.cola ? 'true' : 'false');
 
     var L = readLen();
     if (L) st.len = L;
