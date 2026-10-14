@@ -334,7 +334,19 @@ button.gterm:hover { text-decoration-color: var(--accent); color: var(--accent);
 }
 
 main { min-width: 0; }
-aside.params { position: sticky; top: 60px; max-height: calc(100vh - 76px); overflow-y: auto; padding-right: 3px; }
+/* The rail pins under a STICKY header whose height is not a constant: 121px
+   at a desktop width, 177px at 1080 where the nav wraps, 90px on the start
+   view where the context bar is hidden. `top: 60px` therefore parked the
+   rail's first 61px - its panel heading, and now the quick-reconfiguration
+   rows - permanently behind the header on every scrolled view, because the
+   header carries z-index 40 and the rail carries none. --hdr-h is measured by
+   syncRailTop() in js/app.js; the 121px fallback is the desktop value, so the
+   rule is already right before the first measurement. */
+aside.params {
+  position: sticky; top: calc(var(--hdr-h, 121px) + 4px);
+  max-height: calc(100vh - var(--hdr-h, 121px) - 20px);
+  overflow-y: auto; padding-right: 3px;
+}
 @media (max-width: 1080px) { aside.params { position: static; max-height: none; } }
 
 /* ---------- panels ---------- */
@@ -419,6 +431,37 @@ button.btn:hover { background: var(--bg-hover); }
 button.btn.pri { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 button.btn.pri:hover { filter: brightness(1.08); }
 button.btn:disabled { opacity: .5; cursor: default; }
+
+/* ---------- quick reconfiguration, at the top of the rail ----------
+   Four segmented rows of code chips. `flex: 1 1 0` is what makes this fit:
+   the run divides whatever inner width the rail actually has, so nothing
+   here hard-codes the 284px a classic 15px scrollbar leaves, it is equally
+   correct at the 299px an overlay scrollbar leaves and at the full width
+   the rail takes when it restacks below 1080px, and it cannot produce a
+   horizontal scrollbar at any width. Everything else is the existing .pchip
+   and the existing palette tokens, in both themes. */
+.qk { padding: 9px 13px 10px; display: flex; flex-direction: column; gap: 5px; }
+.qk-grp { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* 26px aligns LO / BB / ANT / K on one gutter so the four rows read as one
+   control; the picker's 58px would spend a fifth of the rail on labels. */
+.qk-lab {
+  font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-3); flex: none; min-width: 26px;
+}
+.qk-chips { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.qk-chips .pchip {
+  flex: 1 1 0; min-width: 0; padding: 3px 2px; text-align: center;
+  white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums;
+}
+.qk-chips .pchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A K the selected arrangement does not allow: the model clamps it and the
+   banner reports it, and this is that same fact in the control - the chip
+   marks the value the model is ACTUALLY using, dashed to say it is a clamp
+   and not your choice. The map picker's equivalent silently displays its
+   first option instead. */
+.qk-chips .pchip.qk-clamped { border-style: dashed; }
+.panel > h2 .grow.qk-ok { color: var(--pass); }
+.panel > h2 .grow.qk-over { color: var(--fail); }
 
 /* ---------- tables ---------- */
 /* Wide content scrolls inside its own box; the PAGE must never scroll
@@ -805,6 +848,29 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
 
     <!-- ===================== parameter column ===================== -->
     <aside class="params">
+
+      <!-- Quick reconfiguration. The three option families are the subject of
+           the whole tool, and until now the only place to change them was the
+           picker inside the Hardware map panel - so on eleven of the thirteen
+           views "what if it were A3 instead of A4" began by navigating away,
+           and setView saves no scroll position, so you came back to the top of
+           whatever you had been reading. These are the same three axes, as the
+           most compact control that fits a 300px rail: the option CODES, which
+           are the identifiers the context bar, the compare tables, the ledger
+           and the decision text already use. The full name of every option is
+           in its chip's tooltip with that option's own number beside it, and
+           the full name of the CURRENT one is in the context bar directly
+           above, on every view that shows this rail.
+
+           Everything inside #quickMount is built by renderQuick() in js/app.js.
+           It is deliberately NOT inside #paramMount: UI.renderParams owns that
+           element and begins by emptying it, and a stray .field in there would
+           also be counted by updateParamCount's selector. -->
+      <section class="panel" id="quickPanel">
+        <h2>This build <span class="grow" id="quickSpec"></span></h2>
+        <div class="body flush" id="quickMount"></div>
+      </section>
+
       <section class="panel">
         <h2>Parameters <span class="grow" id="dirtyCount"></span></h2>
         <!-- Seventy controls in eight collapsible groups had no search: to
@@ -12576,17 +12642,7 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
       b.textContent = c.label;
       if (c.title) b.title = c.title;
       b.addEventListener('click', function () {
-        /* Switching antenna option can strand the radiator count on a value
-           the new option does not allow. The model clamps and reports it, but
-           the clamp is the backstop, not the mechanism: move the state to the
-           new option's own default so the reader never meets a warning they
-           did not cause. */
-        if (paramKey === 'antOption') {
-          var tr = M.ANT_TRAITS[M.ANT_IDS[Math.round(Number(c.value))]];
-          if (tr && tr.kAllowed.indexOf(Math.round(state.radPerCh)) < 0) {
-            state.radPerCh = tr.kDefault;
-          }
-        }
+        if (paramKey === 'antOption') { selectAntOption(c.value); return; }
         setParam(paramKey, Number(c.value));
       });
       row.appendChild(b);
@@ -12798,6 +12854,202 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
        unnoticed because the state it was first tested against (B5) fails the
        die check, so a warning happened to be un-hiding the box for it. */
     wm.classList.toggle('hidden', !warns.length && !(view.migrated && view.migrated.length));
+  }
+
+  /* =====================================================================
+     Quick reconfiguration — the three families, at the top of the rail
+     =====================================================================
+
+     renderPicker lives inside the Hardware map panel, so on eleven of the
+     thirteen views the only way to answer "what if it were A3 instead of A4"
+     was to navigate to the map, change it and navigate back — and setView
+     saves no scroll position, so you came back to the top of whatever you had
+     been reading. Three views into a comparison that is nine clicks and six
+     transitions. THE SELECTION BELONGS WHEREVER THE RAIL IS.
+
+     This is not a second picker. It carries exactly the three option axes
+     plus K, which cannot travel without antOption because antOption is what
+     declares K's legal set — and nothing else. The reference preset stays
+     out although it is in HOT_PARAMS: picking one runs stampRef, which
+     rewrites fRefMHz and four phase-noise fields, and the only place that
+     rewrite is VISIBLE is the Reference clock group in this same rail, with
+     the five fields underneath it. A chip up here would make four parameters
+     move where nobody can see them. ×M, the PLL plan, the chain count, the
+     medium and the radiator geometry stay out too: each is a knob ON an
+     architecture rather than a choice BETWEEN architectures, and midM — the
+     only one with a real claim — already has a sweep panel that shows every
+     value at once, which is strictly more than a chip row could.
+
+     The chips carry the CODE — A4, B3, C1 — because that is the identifier
+     the context bar, the compare tables, the ledger and the decision text
+     already use, and because a code chip divides the row evenly: all seven
+     LO options fit one line of a 300px rail with every alternative visible,
+     against a 92px rail select that renders 55% of its own current label.
+     The full name rides in each chip's tooltip with that option's own
+     computed number, and the current one is spelled out in the context bar
+     directly above, on every view that shows this rail.
+
+     BUILT ONCE AND PATCHED THEREAFTER, for exactly the reason the comment at
+     the top of ui.js gives: a chip click runs the full render(), and a
+     rebuild would destroy the button that was just clicked and send focus to
+     BODY — which is also what the map picker does to itself today. The only
+     part ever rebuilt is the K row, and only when its legal set changes. */
+
+  /* Switching antenna option can strand the radiator count on a value the new
+     option does not allow. The model clamps and reports it, but the clamp is
+     the backstop, not the mechanism: move the state to the new option's own
+     default so the reader never meets a warning they did not cause. Shared by
+     both chip rows — it used to live inside chipRow, and a second editor
+     carrying its own copy is precisely how the two would drift apart. */
+  function selectAntOption(v) {
+    var tr = M.ANT_TRAITS[M.ANT_IDS[Math.round(Number(v))]];
+    if (tr && tr.kAllowed.indexOf(Math.round(state.radPerCh)) < 0) state.radPerCh = tr.kDefault;
+    setParam('antOption', Number(v));
+  }
+
+  /* The code is the leading token of the family's own short label —
+     'A4 Mid + ×M' → 'A4' — read off M.*_META rather than written out here, so
+     a renamed, reordered or added option cannot leave this block asserting a
+     code the rest of the tool no longer uses. */
+  function qkCode(meta) {
+    var m = /^[A-Za-z]+\d+/.exec(meta.short || meta.name || '');
+    return m ? m[0] : (meta.short || '?');
+  }
+
+  function qkGroup(wrap, key, labelTxt, ariaTxt) {
+    var grp = UI.elt('div', 'qk-grp');
+    grp.setAttribute('data-key', key);
+    var lab = UI.elt('span', 'qk-lab', labelTxt);
+    /* qkl_, NOT pkl_: chipRow already owns 'pkl_' + paramKey on the map, and
+       two elements sharing one id makes aria-labelledby resolve to whichever
+       comes first in the document — the rail's group would be labelled by the
+       map's label. */
+    lab.id = 'qkl_' + key;
+    if (ariaTxt) lab.title = ariaTxt;
+    grp.appendChild(lab);
+    var row = UI.elt('div', 'qk-chips');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-labelledby', lab.id);
+    grp.appendChild(row);
+    wrap.appendChild(grp);
+    return { grp: grp, row: row, chips: [] };
+  }
+
+  function qkChip(g, key, value, code, name) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pchip';
+    b.textContent = code;
+    b.value = String(value);
+    /* shows "A4", announces "A4 Mid-frequency + ×M" */
+    b.setAttribute('aria-label', name);
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', function () {
+      if (key === 'antOption') { selectAntOption(value); return; }
+      setParam(key, Number(value));
+    });
+    g.row.appendChild(b);
+    g.chips.push(b);
+    return b;
+  }
+
+  var quickCache = null;
+
+  function buildQuick(mount) {
+    mount.textContent = '';
+    var wrap = UI.elt('div', 'qk');
+    mount.appendChild(wrap);
+    var c = { mount: mount, kSig: null, spec: document.getElementById('quickSpec') };
+    c.lo = qkGroup(wrap, 'loOption', 'LO', 'LO / reference distribution architecture');
+    M.LO_META.forEach(function (m, i) { qkChip(c.lo, 'loOption', i, qkCode(m), m.name); });
+    c.bb = qkGroup(wrap, 'bbOption', 'BB', 'BB split / combine architecture');
+    M.BB_META.forEach(function (m, i) { qkChip(c.bb, 'bbOption', i, qkCode(m), m.name); });
+    c.ant = qkGroup(wrap, 'antOption', 'ANT', 'ANT arrangement behind each RF port');
+    M.ANT_META.forEach(function (m, i) { qkChip(c.ant, 'antOption', i, qkCode(m), m.name); });
+    /* Built empty: K's chips are the one set in this block that is not fixed,
+       because each arrangement declares its own kAllowed. */
+    c.k = qkGroup(wrap, 'radPerCh', 'K', 'K radiators per RF channel');
+    return c;
+  }
+
+  function patchQuick(c, res, budget) {
+    /* Every option in res.lo / res.bb / res.ant is evaluated under the
+       CURRENT state — that is what the compare tables render — so each chip
+       can say what its own option would cost without a second evaluation and
+       without a stored string. Hovering A1…A7 prices the whole family from
+       whatever view you are on. */
+    [
+      { g: c.lo, key: 'loOption', meta: M.LO_META, set: res.lo, tip: function (r) {
+        return 'inter-tile residual ' + n(r.interTileResidualDeg, 3) + '° of the ' +
+               n(budget.sigSpecDeg) + '° spec'; } },
+      { g: c.bb, key: 'bbOption', meta: M.BB_META, set: res.bb, tip: function (r) {
+        return 'RMS skew across ports ' + n(r.skewRmsPs, 1) + ' ps'; } },
+      { g: c.ant, key: 'antOption', meta: M.ANT_META, set: res.ant, tip: function (r) {
+        return 'element ' + n(r.dElDbi, 2) + ' dBi, G/T ' + (r.gtDeltaDb >= 0 ? '+' : '') +
+               n(r.gtDeltaDb, 2) + ' dB'; } }
+    ].forEach(function (f) {
+      f.g.chips.forEach(function (b, i) {
+        var m = f.meta[i], r = f.set && f.set[m.id];
+        b.setAttribute('aria-pressed', Number(b.value) === Number(state[f.key]) ? 'true' : 'false');
+        b.title = m.name + (r ? ' — ' + f.tip(r) + '. ' + r.note : '');
+      });
+    });
+
+    /* K, and only when the arrangement offers a choice: C1 and C4 pin K = 1,
+       so the row costs nothing at the default. */
+    var atr = M.ANT_TRAITS[res.g.antOptionId];
+    var allowed = (atr && atr.kAllowed) || [1];
+    var show = allowed.length > 1;
+    c.k.grp.classList.toggle('hidden', !show);
+    if (show) {
+      var sig = res.g.antOptionId + ':' + allowed.join(',');
+      if (c.kSig !== sig) {
+        c.k.row.textContent = '';
+        c.k.chips.length = 0;
+        allowed.forEach(function (kv) {
+          var sh = atr.shapeOf(kv);
+          qkChip(c.k, 'radPerCh', kv, String(kv),
+            kv + ' radiators per channel, ' + sh.kx + '×' + sh.ky);
+        });
+        c.kSig = sig;
+      }
+      /* Mark the K the MODEL is using, not the one the state names. A hash or
+         a saved system can carry a K this arrangement forbids; the model
+         clamps it and the banner says so, and this is that same fact in the
+         control rather than a third number on screen. */
+      var asel = res.ant[res.g.antOptionId];
+      var eff = asel ? Number(asel.radPerCh) : Number(state.radPerCh);
+      var clamped = eff !== Number(state.radPerCh);
+      var am = M.ANT_META[Math.round(state.antOption)];
+      c.k.chips.forEach(function (b) {
+        var on = Number(b.value) === eff;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.classList.toggle('qk-clamped', on && clamped);
+        b.title = b.getAttribute('aria-label') + (on && clamped
+          ? ' — in use. The value this build carries, ' + n(state.radPerCh, 0) + ', is not one ' +
+            (am ? am.short : 'this arrangement') + ' allows, so the model clamped it.'
+          : '');
+      });
+    }
+
+    /* The one number this tool judges a build on, in the panel heading. The
+       header's own #ctxScope carries it only on map and beam; on the other
+       ten views it reports the spec without the build's distance from it. */
+    if (c.spec) {
+      var sel = res.lo[res.g.loOptionId];
+      var over = sel.interTileResidualDeg > budget.sigSpecDeg;
+      c.spec.textContent = n(sel.interTileResidualDeg, 3) + '° of ' + n(budget.sigSpecDeg) + '°';
+      c.spec.className = 'grow ' + (over ? 'qk-over' : 'qk-ok');
+      c.spec.title = 'Inter-tile phase residual after BIST for this build, against the ' +
+        n(budget.sigSpecDeg) + '° coherence spec set by ' + budget.bindingName + '.';
+    }
+  }
+
+  function renderQuick(res, budget) {
+    var mount = document.getElementById('quickMount');
+    if (!mount) return;
+    if (!quickCache || quickCache.mount !== mount) quickCache = buildQuick(mount);
+    patchQuick(quickCache, res, budget);
   }
 
   /* =====================================================================
@@ -14918,6 +15170,7 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
     if (view.selected >= res.selected.grid.nTiles) view.selected = 0;
 
     renderPicker(res, budget);
+    renderQuick(res, budget);
     renderContextBar(res, budget, dec);
     UI.renderBudget(document.getElementById('budgetGrid'), document.getElementById('budgetNote'),
       document.getElementById('bindingNote'), budget);
@@ -16597,7 +16850,27 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
       view.sys.renaming = null;
     }
     render();
+    /* after render(), because the context bar the header contains is one of
+       the things render() fills, and it is what changes the header's height */
+    syncRailTop();
   }
+
+  /* The rail is sticky underneath a sticky header, and that header's height
+     is not a constant: 121 px at a desktop width, 177 px at 1080 where the
+     nav wraps, 90 px on the start view where the context bar is hidden. The
+     stylesheet's `top: 60px` therefore hid the rail's first 61 px behind it
+     on every scrolled view — the heading, and now the three chip rows that
+     are the point of the rail being reachable at all. Measure it; the
+     stylesheet does the arithmetic off --hdr-h. */
+  function syncRailTop() {
+    var h = document.querySelector('header.top');
+    if (!h) return;
+    var px = Math.round(h.getBoundingClientRect().height);
+    if (px > 0) document.documentElement.style.setProperty('--hdr-h', px + 'px');
+  }
+  window.addEventListener('resize', syncRailTop);
+  /* once more when the webfonts have settled — they change the nav's height */
+  window.addEventListener('load', syncRailTop);
 
   /* ------------------------------- exports ------------------------------- */
   function tableRows(id) { return UI.tableToRows(document.getElementById(id)); }
@@ -16814,10 +17087,33 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
     if (p && p.closest) p = p.closest('.panel') || p;
     if (p) p.scrollIntoView({ block: 'start' });
   }
-  ['ctxLo', 'ctxBb', 'ctxWarn'].forEach(function (id) {
-    var el2 = document.getElementById(id);
-    if (el2) el2.addEventListener('click', function (e) { e.preventDefault(); goToPicker(); });
+  /* The three SELECTION chips name the three axes the rail now carries, so
+     they stop teleporting to the map: they move focus to the matching chip
+     row in the rail, and you keep the view you were reading. That is the
+     whole point of the axes being there. The start view, where the rail is
+     display:none, still navigates — and so does the warning chip, because
+     the consistency banner really does only live on the map.
+
+     ctxAnt was never in this list. It carried a tooltip promising it changed
+     the antenna arrangement, did nothing, and — being an <a href="#"> that
+     nothing called preventDefault on — wiped the configuration out of the
+     address bar on the way past. */
+  function goToSelection(key) {
+    var hit = view.name === 'start' ? null
+      : document.querySelector('#quickMount .qk-grp[data-key="' + key + '"] .pchip[aria-pressed="true"]');
+    if (!hit) { goToPicker(); return; }
+    var panel = document.getElementById('quickPanel');
+    if (panel && panel.scrollIntoView) panel.scrollIntoView({ block: 'nearest' });
+    hit.focus();
+  }
+  [['ctxLo', 'loOption'], ['ctxBb', 'bbOption'], ['ctxAnt', 'antOption']].forEach(function (p) {
+    var el2 = document.getElementById(p[0]);
+    if (el2) el2.addEventListener('click', function (e) { e.preventDefault(); goToSelection(p[1]); });
   });
+  (function () {
+    var w = document.getElementById('ctxWarn');
+    if (w) w.addEventListener('click', function (e) { e.preventDefault(); goToPicker(); });
+  })();
   (function () {
     var v = document.getElementById('ctxVerdict');
     if (v) v.addEventListener('click', function (e) {
