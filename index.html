@@ -1,904 +1,666 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Multi-Domain Radar Simulator (MIMO/FMCW)</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --primary: #0f172a;
-            --accent: #2563eb;
-            --accent-tx: #ea580c;
-            --accent-rx: #16a34a;
-            --accent-comb: #db2777;
-            --accent-synth: #8b5cf6;
-            --bg-color: #f1f5f9;
-            --panel-bg: #ffffff;
-            --text-main: #334155;
-            --border: #cbd5e1;
-        }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguar — RF and mm-wave array tools</title>
+<meta name="description" content="Seguar: PhD candidate in E-band massive MIMO array hardware. Browser tools for MIMO radar sizing, E-band LO/baseband distribution and an RFSoC pulse array.">
+<link rel="canonical" href="https://seguar.github.io/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1012" media="(prefers-color-scheme: dark)">
 
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-        }
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Seguar">
+<meta property="og:url" content="https://seguar.github.io/">
+<meta property="og:title" content="Seguar — RF and mm-wave array tools">
+<meta property="og:description" content="Browser tools for sizing MIMO radars, comparing E-band array architectures and planning an RFSoC pulse array, plus research code on GitHub.">
+<meta property="og:image" content="https://seguar.github.io/assets/img/eband-distribution.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="750">
+<meta property="og:image:alt" content="Hardware map from the E-Band Distribution Comparison tool: a 5 by 5 grid of array tiles shaded by timing skew, with LO and baseband distribution trees drawn over it.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Seguar — RF and mm-wave array tools">
+<meta name="twitter:description" content="Browser tools for sizing MIMO radars, comparing E-band array architectures and planning an RFSoC pulse array, plus research code on GitHub.">
+<meta name="twitter:image" content="https://seguar.github.io/assets/img/eband-distribution.jpg">
+<meta name="twitter:image:alt" content="Hardware map from the E-Band Distribution Comparison tool: a 5 by 5 grid of array tiles shaded by timing skew, with LO and baseband distribution trees drawn over it.">
 
-        .header {
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 10px;
-        }
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 
-        .header h1 {
-            margin: 0;
-            color: var(--primary);
-            font-size: 1.8rem;
-        }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 
-        .container {
-            display: grid;
-            grid-template-columns: 420px 1fr;
-            gap: 20px;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface-2: #f0eee8;
+  --panel: #fbfaf7;
+  --ink: #16181d;
+  --ink-2: #3c414a;
+  --muted: #5b616b;
+  --rule: #e2dfd7;
+  --rule-strong: #c9c5bb;
+  --underline: #aca69a;
+  --accent: #b23f16;
+  --accent-strong: #8f300e;
+  --cta-bg: #b23f16;
+  --cta-bg-hover: #8f300e;
+  --cta-fg: #ffffff;
+  --ink-btn-bg: #16181d;
+  --ink-btn-bg-hover: #3c414a;
+  --ink-btn-fg: #f5f4f0;
+  --ink-btn-border: transparent;
+  --mark-bg: #16181d;
+  --mark-fg: #ff7a45;
+  --plot-grid: #cfcac0;
+  --plot-fill: rgb(178 63 22 / 0.12);
+  --paper-minor: rgb(22 24 29 / 0.045);
+  --paper-major: rgb(22 24 29 / 0.085);
+  --shadow: 0 1px 2px rgb(22 24 29 / 0.04), 0 10px 28px -16px rgb(22 24 29 / 0.20);
+  --shadow-hover: 0 2px 4px rgb(22 24 29 / 0.05), 0 26px 48px -22px rgb(22 24 29 / 0.34);
+  --img-filter: none;
 
-        .panel {
-            background: var(--panel-bg);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgb(0 0 0 / 0.05);
-            border: 1px solid var(--border);
-        }
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --gutter: clamp(16px, 4vw, 40px);
+  --maxw: 1180px;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  color-scheme: light dark;
+}
 
-        .tab-container {
-            display: flex;
-            border-bottom: 2px solid var(--border);
-            margin-bottom: 20px;
-        }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1012;
+    --surface: #17181c;
+    --surface-2: #1f2126;
+    --panel: #141518;
+    --ink: #ecebe6;
+    --ink-2: #c5c7cc;
+    --muted: #9a9ea6;
+    --rule: #2a2c32;
+    --rule-strong: #3d4048;
+    --underline: #6a6e78;
+    --accent: #ff8a5b;
+    --accent-strong: #ffab88;
+    /* The accent buttons stay mid-dark so they do not glare; the one ink button inverts to a light pill
+       so it still reads as filled next to the outline button. */
+    --cta-bg: #b8481d;
+    --cta-bg-hover: #c04c1e;
+    --cta-fg: #ffffff;
+    --ink-btn-bg: #ecebe6;
+    --ink-btn-bg-hover: #c5c7cc;
+    --ink-btn-fg: #16181d;
+    --ink-btn-border: transparent;
+    --mark-bg: #24262c;
+    --mark-fg: #ff8a5b;
+    --plot-grid: #3a3d44;
+    --plot-fill: rgb(255 138 91 / 0.13);
+    --paper-minor: rgb(236 235 230 / 0.035);
+    --paper-major: rgb(236 235 230 / 0.07);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.30), 0 12px 30px -18px rgb(0 0 0 / 0.70);
+    --shadow-hover: 0 2px 4px rgb(0 0 0 / 0.35), 0 28px 52px -22px rgb(0 0 0 / 0.85);
+    --img-filter: brightness(.8) contrast(1.05);
+  }
+}
 
-        .tab-btn {
-            flex: 1;
-            padding: 8px 4px;
-            background: none;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            color: #64748b;
-            transition: all 0.2s;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
-            font-size: 0.78rem;
-        }
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+img, svg { display: block; max-width: 100%; }
+h1, h2, h3, h4, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; }
+::selection { background: var(--accent); color: var(--bg); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
 
-        .tab-btn.active {
-            color: var(--accent);
-            border-bottom-color: var(--accent);
-        }
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.wrap { width: min(var(--maxw), 100% - 2 * var(--gutter)); margin-inline: auto; }
+.vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.nw { white-space: nowrap; }
+.ico { width: 1em; height: 1em; flex: none; }
 
-        .tab-btn[data-target="design-tab"].active {
-            color: var(--accent-synth);
-            border-bottom-color: var(--accent-synth);
-        }
+.skip {
+  position: absolute; left: 12px; top: -80px; z-index: 10;
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 10px;
+  background: var(--ink); color: var(--bg); font-weight: 500; text-decoration: none;
+}
+.skip:focus { top: 12px; }
 
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+/* ---------- Moved notice (quiet strip, first thing on the page) ---------- */
+.notice { border-bottom: 1px solid var(--rule); font-size: .8125rem; line-height: 1.45; color: var(--muted); }
+.notice a {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding-block: 6px;
+  color: inherit; text-decoration: none; text-align: center;
+}
+.notice .ico { width: 13px; height: 13px; color: var(--muted); }
+.notice .path { font-family: var(--mono); color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--underline); text-underline-offset: 3px; white-space: nowrap; }
+.notice a:hover .path { color: var(--accent); text-decoration-color: var(--accent); }
+.notice a:focus-visible { outline-offset: -3px; }
 
-        .control-group { margin-bottom: 15px; }
+/* ---------- Header ---------- */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 4px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: .875rem; color: var(--ink-2); }
+.mark { width: 28px; height: 28px; flex: none; }
+.topnav { display: flex; gap: 2px; }
+.topnav a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px;
+  font-family: var(--mono); font-size: .875rem; color: var(--ink-2); text-decoration: none;
+  transition: background-color .2s, color .2s;
+}
+.topnav a:hover { background: var(--surface-2); color: var(--ink); }
 
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 4px;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+/* ---------- Intro ---------- */
+.intro .wrap {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: clamp(32px, 4.5vw, 64px);
+  padding-block: clamp(4px, 1vw, 12px) clamp(24px, 2.2vw, 28px);
+}
+.kicker {
+  font-family: var(--mono); font-size: .8125rem; font-weight: 500;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--accent);
+}
+h1 {
+  font-size: clamp(2.75rem, 5.2vw, 3.75rem); font-weight: 600; line-height: 1;
+  letter-spacing: -.035em; margin: 8px 0 16px;
+}
+.about { font-size: 1.0625rem; line-height: 1.65; color: var(--ink-2); max-width: 46rem; text-wrap: pretty; }
+.intro-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
 
-        input[type="range"], input[type="number"], select {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 6px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-        }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px;
+  padding: 10px 20px; border-radius: 999px; border: 1px solid transparent;
+  font: 500 .9375rem/1.2 var(--sans); text-decoration: none; white-space: nowrap;
+  transition: background-color .2s, border-color .2s, color .2s;
+}
+.btn .ico { width: 18px; height: 18px; }
+.btn-ink { background: var(--ink-btn-bg); color: var(--ink-btn-fg); border-color: var(--ink-btn-border); }
+.btn-ink:hover { background: var(--ink-btn-bg-hover); }
+.btn-line { border-color: var(--rule-strong); color: var(--ink); background: transparent; }
+.btn-line:hover { border-color: var(--ink); background: var(--surface); }
+.btn-accent { background: var(--cta-bg); color: var(--cta-fg); }
+.btn-accent:hover { background: var(--cta-bg-hover); }
 
-        .val-display { font-weight: bold; color: var(--accent); float: right; }
-        .val-tx { color: var(--accent-tx); }
-        .val-rx { color: var(--accent-rx); }
-        .val-synth { color: var(--accent-synth); }
+/* Hero figure: a computed beam pattern on graph paper. Fixed width so the 340-unit SVG never draws below 1:1
+   (372 = 340 + 2 × 14px padding + 2 × 1px border + 2px), which keeps its 12px axis labels at 12px or more. */
+.beam { width: 372px; }
+.plot {
+  border: 1px solid var(--rule-strong); border-radius: 4px; padding: 14px 14px 8px;
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(var(--paper-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-major) 1px, transparent 1px),
+    linear-gradient(var(--paper-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-minor) 1px, transparent 1px);
+  background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
+  background-position: -1px -1px;
+}
+.plot svg { width: 100%; height: auto; overflow: visible; }
+.plot .grid { fill: none; stroke: var(--plot-grid); stroke-width: 1; }
+.plot .grid-minor { fill: none; stroke: var(--plot-grid); stroke-width: 1; stroke-dasharray: 2 3; }
+.plot .steer { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 4 3; }
+.plot .lbl { font-family: var(--mono); font-size: 12px; fill: var(--muted); }
+.plot .pattern { fill: var(--plot-fill); stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.plot .el { fill: var(--accent); }
+/* Google serves IBM Plex Mono without Greek, so the caption's λ uses the system monospace. That is deliberate:
+   loading a Greek face for one glyph is not worth the request. */
+.beam figcaption { margin-top: 10px; font: 400 .75rem/1.55 var(--mono); color: var(--muted); }
+.beam figcaption b { font-weight: 500; color: var(--ink-2); }
+.beam figcaption sup { font-size: 12px; line-height: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .plot .pattern {
+    stroke-dasharray: 1; stroke-dashoffset: 1; fill-opacity: 0;
+    animation: draw 1.8s var(--ease) .2s forwards, fill .8s ease 1.4s forwards;
+  }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes fill { to { fill-opacity: 1; } }
+}
 
-        .results-table {
-            width: 100%;
-            margin-top: 15px;
-            border-collapse: collapse;
-        }
+/* ---------- Sections ---------- */
+.section { padding-block: clamp(40px, 5vw, 64px); border-top: 1px solid var(--rule); }
+#tools { padding-top: clamp(16px, 1.6vw, 24px); }
+.sec-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: 6px 32px; margin-bottom: clamp(14px, 1.6vw, 20px);
+}
+h2 { font-size: clamp(1.625rem, 2.6vw, 2.125rem); font-weight: 600; line-height: 1.15; letter-spacing: -.025em; }
+.sec-head p.sub { color: var(--muted); max-width: 52ch; }
+.textlink {
+  display: inline-flex; align-items: center; min-height: 44px;
+  color: var(--ink); font-weight: 500; text-decoration: underline; text-decoration-thickness: 1px;
+  text-decoration-color: var(--underline); text-underline-offset: 4px;
+  transition: text-decoration-color .2s, color .2s;
+}
+.textlink:hover { text-decoration-color: var(--accent); }
+.textlink .ico { width: .8em; height: .8em; margin-left: .25em; }
 
-        .results-table td {
-            padding: 6px 4px;
-            font-size: 0.85rem;
-            border-bottom: 1px solid #e2e8f0;
-        }
+/* ---------- Tool cards ---------- */
+.tools { display: grid; gap: clamp(20px, 3vw, 32px); counter-reset: tool; }
+.tools > li { counter-increment: tool; }
+.tool {
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); grid-template-areas: "shot body";
+  align-items: center; gap: clamp(24px, 3.6vw, 48px);
+  padding: clamp(12px, 1.4vw, 18px);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 20px;
+  box-shadow: var(--shadow);
+  transition: box-shadow .3s var(--ease), border-color .3s;
+}
+/* Alternate sides, but the screenshot always keeps the larger (3fr) column. */
+.tools > li:nth-child(even) .tool { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); grid-template-areas: "body shot"; }
+.tool:hover { box-shadow: var(--shadow-hover); border-color: var(--rule-strong); }
 
-        .results-table td:last-child {
-            text-align: right;
-            font-weight: bold;
-            color: var(--primary);
-        }
+.shot {
+  grid-area: shot; display: block; text-decoration: none; color: inherit;
+  border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; background: var(--surface-2);
+}
+.chrome {
+  display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 14px;
+  background: var(--surface-2); border-bottom: 1px solid var(--rule);
+  font-family: var(--mono); font-size: .75rem; color: var(--muted);
+}
+.dots { display: flex; gap: 6px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--rule-strong); }
+.url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.url b { color: var(--ink); font-weight: 500; }
+.frame { display: block; overflow: hidden; aspect-ratio: 1200 / 750; background: var(--surface-2); }
+.frame img { width: 100%; height: auto; aspect-ratio: 1200 / 750; object-fit: cover; filter: var(--img-filter); }
 
-        .section-title {
-            margin: 15px 0 5px 0;
-            color: var(--primary);
-            font-size: 0.95rem;
-            border-bottom: 2px solid var(--accent);
-            display: inline-block;
-        }
+.tool-body { grid-area: body; padding: 4px clamp(4px, 1.4vw, 16px); }
+.eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: .75rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted);
+}
+/* The number is generated, so adding or reordering tools never means renumbering. */
+.eyebrow::before { content: counter(tool, decimal-leading-zero); color: var(--accent); }
+.eyebrow .rule { width: 18px; height: 1px; background: var(--rule-strong); }
+.tool h3 { font-size: clamp(1.375rem, 2.2vw, 1.75rem); font-weight: 600; line-height: 1.2; letter-spacing: -.02em; margin: 4px 0 4px; }
+.tool h3 a { display: inline-block; min-height: 44px; padding-block: 5px; text-decoration: none; }
+.tool h3 a:hover { color: var(--accent); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; }
+.lead { font-size: 1.0625rem; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
 
-        .canvas-container {
-            position: relative;
-            height: 360px;
-            width: 100%;
-            margin-bottom: 20px;
-        }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 18px; }
+.actions .btn { padding-inline: 18px; }
+.actions .textlink { font-size: .9375rem; }
 
-        .split-viz {
-            display: grid;
-            grid-template-columns: 32% 66%;
-            gap: 2%;
-            align-items: stretch;
-        }
+.stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px; border-block: 1px solid var(--rule);
+}
+.stats li { padding: 11px 10px 11px 0; }
+.stats li + li { padding-left: 14px; border-left: 1px solid var(--rule); }
+.stats strong { display: block; font: 500 1.375rem/1.15 var(--mono); letter-spacing: -.03em; color: var(--ink); white-space: nowrap; }
+.stats li > span { display: block; margin-top: 4px; font-size: .8125rem; line-height: 1.35; color: var(--muted); }
 
-        .scale-viz, .placement-viz {
-            display: flex;
-            flex-direction: column;
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 15px;
-            box-sizing: border-box;
-        }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.tags li {
+  font-family: var(--mono); font-size: .75rem; line-height: 1.4; color: var(--ink-2);
+  padding: 2px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--rule);
+}
+.note {
+  display: flex; gap: 8px; align-items: flex-start; margin-top: 14px;
+  font-size: .8125rem; line-height: 1.5; color: var(--muted);
+}
+.note .ico { width: 14px; height: 14px; margin-top: 2px; }
 
-        .scale-content {
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            height: 240px;
-            gap: 25px;
-            position: relative;
-        }
+/* ---------- GitHub ---------- */
+.group-h {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 16px;
+  font-family: var(--mono); font-size: .8125rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.group-h::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.repos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.repo {
+  position: relative; height: 100%; display: flex; flex-direction: column;
+  padding: 20px 22px 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 16px;
+  transition: border-color .25s, box-shadow .3s var(--ease);
+}
+.repo:hover { border-color: var(--rule-strong); box-shadow: var(--shadow-hover); }
+.slug { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: .8125rem; color: var(--muted); overflow-wrap: anywhere; }
+.slug .ico { width: 16px; height: 16px; }
+.repo h4 { font-size: 1.125rem; font-weight: 600; line-height: 1.3; letter-spacing: -.01em; margin: 10px 0 8px; }
+.repo h4 a { text-decoration: none; }
+.repo h4 a::after { content: ""; position: absolute; inset: 0; border-radius: 16px; }
+.repo:hover h4 a { color: var(--accent); }
+.repo .desc { flex: 1; font-size: .9375rem; line-height: 1.6; color: var(--muted); }
+/* An inline link inside a card sits above the h4 link overlay (.repo h4 a::after) so it stays clickable. */
+.repo .paper { position: relative; z-index: 1; color: var(--accent); font-weight: 500; text-underline-offset: 3px; }
+.repo .paper .ico { display: inline-block; width: .75em; height: .75em; margin-left: 2px; vertical-align: -.05em; }
+.repo .paper .nowrap { white-space: nowrap; }
+.repo .paper:hover { color: var(--accent-strong); }
+.meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid var(--rule); font-family: var(--mono); font-size: .8125rem; color: var(--muted);
+}
+.lang { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.meta time { flex-basis: 100%; }
+/* Cards side by side share their rows (slug, title, description, meta), so titles and dividers line up. */
+@supports (grid-template-rows: subgrid) {
+  .repos > li { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0; }
+  .repo { grid-row: span 4; display: grid; grid-template-rows: subgrid; row-gap: 0; height: auto; }
+  .repo .meta { align-self: start; }
+}
+@supports selector(:has(*)) {
+  .repo:has(h4 a:focus-visible) { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .repo h4 a:focus-visible { outline: none; }
+}
 
-        .placement-content {
-            height: 240px;
-            position: relative;
-            width: 100%;
-            background: #111827; /* Dark chassis / Anechoic RF environment background */
-            border-radius: 6px;
-            overflow: hidden;
-        }
+.also { margin-top: clamp(32px, 4.5vw, 52px); }
+.minor { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
+.minor li { padding: 8px 0 4px; border-top: 1px solid var(--rule); }
+.minor .row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; }
+.minor a {
+  display: inline-flex; align-items: center; min-height: 44px;
+  font-family: var(--mono); font-size: .9375rem; font-weight: 500; color: var(--ink);
+  text-decoration-color: var(--underline); text-underline-offset: 3px;
+}
+.minor a:hover { text-decoration-color: var(--accent); }
+.badge {
+  font-family: var(--mono); font-size: .75rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
+  padding: 1px 7px; border-radius: 5px; border: 1px solid var(--rule-strong); color: var(--muted);
+}
+.minor p { font-size: .875rem; line-height: 1.55; color: var(--muted); }
+.minor .from { font-family: var(--mono); font-size: .8125rem; color: var(--muted); }
 
-        .human-figure {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+/* ---------- Footer ---------- */
+.foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 24px;
+  padding-block: 20px 36px; border-top: 1px solid var(--rule);
+  font-size: .875rem; color: var(--muted);
+}
+.foot .brand { color: var(--ink); }
+.foot nav { display: flex; flex-wrap: wrap; gap: 0 22px; }
+.foot nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink-2); text-decoration-color: var(--underline); text-underline-offset: 3px; }
+.foot nav a:hover { color: var(--ink); text-decoration-color: var(--accent); }
 
-        .human-figure svg {
-            height: 160px;
-            fill: #94a3b8;
-        }
+/* ---------- Responsive ---------- */
+/* Below this width the text column beside a screenshot gets too narrow and runs much taller than the image. */
+@media (max-width: 1220px) {
+  .tool, .tools > li:nth-child(even) .tool { grid-template-columns: minmax(0, 1fr); grid-template-areas: "shot" "body"; gap: 18px; }
+  .tool-body { padding: 0 8px 8px; }
+}
+@media (max-width: 960px) {
+  .intro .wrap { grid-template-columns: minmax(0, 1fr); }
+  .beam { display: none; }
+  .repos { grid-template-columns: minmax(0, 1fr); }
+  .minor { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .brand .site { display: none; }
+  .topnav a { padding: 0 10px; }
+  .notice a { justify-content: flex-start; text-align: left; }
+  .tool { border-radius: 16px; }
+  .shot { border-radius: 10px; }
+  .chrome { height: 30px; padding: 0 12px; }
+  .tool-body { padding: 0 4px 6px; }
+  .actions .btn { width: 100%; justify-content: center; }
+  .intro-actions .btn { padding-inline: 16px; }
+  /* Stats become rows on phones: number on the left, label on the right. */
+  .stats { grid-template-columns: minmax(0, 1fr); }
+  .stats li, .stats li + li { display: grid; grid-template-columns: 5.6em minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 9px 0; border-left: 0; }
+  .stats li + li { border-top: 1px solid var(--rule); }
+  .stats strong { font-size: 1.125rem; }
+  .stats li > span { margin-top: 0; }
+  .repo { padding: 18px 18px 14px; }
+}
 
-        .radar-figure {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            height: 160px;
-        }
-
-        #radar-box {
-            width: 45px;
-            background-color: var(--accent);
-            border-radius: 4px;
-            transition: height 0.1s ease-out;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        }
-
-        .viz-title {
-            font-size: 0.9rem;
-            font-weight: bold;
-            color: var(--primary);
-            margin-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 5px;
-        }
-    </style>
+@media (prefers-reduced-motion: no-preference) {
+  .frame img { transition: transform .7s var(--ease); }
+  .tool:hover .frame img { transform: scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
 </head>
 <body>
+<!-- Icon sprite: every icon on the page is a <symbol> here, used with <svg><use href="#id"/></svg>. -->
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" style="fill:var(--mark-bg)"/><path d="M4.5 26H27.5" style="stroke:var(--mark-fg)" stroke-opacity=".55" stroke-width="1.2"/><path style="fill:var(--mark-fg)" d="M13 26L12.8 25.7L12 24.4L11.3 23.4L10.7 22.4L10.3 21.5L10 20.8L9.7 20.1L9.6 19.5L9.4 19L9.4 18.6L9.4 18.2L9.4 17.9L9.5 17.7L9.6 17.6L9.8 17.6L10 17.7L10.2 17.9L10.5 18.2L10.8 18.7L11.1 19.4L11.5 20.3L11.9 21.5L12.3 23.2L12.9 25.4L13 26L12.7 23.1L12.5 20.3L12.4 18L12.5 16.2L12.6 14.6L12.8 13.3L13 12.1L13.3 11.1L13.6 10.2L13.9 9.4L14.2 8.7L14.6 8.1L14.9 7.5L15.3 7L15.7 6.6L16.1 6.3L16.5 6L16.9 5.8L17.3 5.6L17.7 5.5L18.1 5.4L18.5 5.4L18.9 5.4L19.3 5.4L19.6 5.6L20 5.7L20.3 5.9L20.6 6.1L20.9 6.4L21.2 6.7L21.5 7L21.7 7.4L21.9 7.8L22.1 8.2L22.2 8.7L22.3 9.2L22.4 9.7L22.5 10.2L22.5 10.8L22.5 11.4L22.4 12L22.3 12.7L22.2 13.4L22 14.1L21.8 14.8L21.5 15.5L21.1 16.3L20.7 17.1L20.3 17.9L19.8 18.8L19.2 19.6L18.5 20.5L17.7 21.4L16.9 22.4L15.9 23.4L14.8 24.4L13.6 25.5L13 26Z"/></symbol>
+  <symbol id="i-github" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></symbol>
+  <symbol id="i-repo" viewBox="0 0 16 16"><path fill="currentColor" d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 010-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 11-1.072 1.05A2.495 2.495 0 012 11.5v-9zm10.5-1h-8a1 1 0 00-1 1v6.708A2.486 2.486 0 014.5 9h8V1.5zM5 12.25v3.25a.25.25 0 00.4.2l1.45-1.087a.25.25 0 01.3 0L8.6 15.7a.25.25 0 00.4-.2v-3.25a.25.25 0 00-.25-.25h-3.5a.25.25 0 00-.25.25z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 20 20"><path d="M4 10h12m0 0l-5-5m5 5l-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-down" viewBox="0 0 20 20"><path d="M10 4v12m0 0l-5-5m5 5l5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 12 12"><path d="M4 2h6v6M10 2L3 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 7.2v4M8 4.9v.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-moved" viewBox="0 0 16 16"><path d="M2.5 8h9.5m0 0L8.5 4.5M12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
 
-<div class="header">
-    <h1>Complete Multi-Domain Radar Simulator (MIMO/FMCW)</h1>
-</div>
+<a class="skip" href="#main">Skip to content</a>
 
-<div class="container">
-    <!-- Left Configuration Panel -->
-    <div class="panel">
-        <div class="tab-container">
-            <button class="tab-btn" data-target="design-tab" onclick="switchTab('design-tab', this)">Auto-Design</button>
-            <button class="tab-btn active" data-target="sys-tab" onclick="switchTab('sys-tab', this)">System</button>
-            <button class="tab-btn" data-target="wave-tab" onclick="switchTab('wave-tab', this)">Target/Wave</button>
-            <button class="tab-btn" data-target="tx-tab" onclick="switchTab('tx-tab', this)">TX Array</button>
-            <button class="tab-btn" data-target="rx-tab" onclick="switchTab('rx-tab', this)">RX Array</button>
+<header class="site-head">
+  <p class="notice"><a class="wrap" href="radar-sim/"><svg class="ico" aria-hidden="true"><use href="#i-moved"/></svg><span>The radar simulator that used to open here has moved to <span class="path">seguar.github.io/radar-sim/</span></span></a></p>
+  <div class="wrap topbar">
+    <span class="brand"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg><span class="site">seguar.github.io</span></span>
+    <nav class="topnav" aria-label="Sections">
+      <a href="#tools">Tools</a>
+      <a href="#code">Code</a>
+      <a href="https://github.com/Seguar" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="intro" aria-labelledby="name">
+    <div class="wrap">
+      <div class="intro-text">
+        <p class="kicker">mm-wave arrays · RFSoC · radar</p>
+        <h1 id="name">Seguar</h1>
+        <p class="about">I’m a PhD candidate working on hardware for large E-band massive MIMO arrays: how to distribute LO, clock and baseband across a tiled aperture, and how to calibrate it with over-the-air measurement plus built-in self-test. Hands-on, that means RFSoC boards: direction-of-arrival and beamforming experiments, phase calibration and multi-tile synchronization. Below are browser tools I built for sizing and comparing RF hardware, and my code.</p>
+        <div class="intro-actions">
+          <a class="btn btn-ink" href="https://github.com/Seguar" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-github"/></svg>GitHub profile</a>
+          <a class="btn btn-line" href="#tools">See the tools<svg class="ico" aria-hidden="true"><use href="#i-down"/></svg></a>
         </div>
+      </div>
 
-        <!-- Inverse Design Auto-Configurator Tab -->
-        <div id="design-tab" class="tab-content">
-            <div style="background: #f5f3ff; border: 1px solid #ddd6fe; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 15px; color: #4c1d95;">
-                Enter operational requirements. The system dynamically reverse-engineers the hardware parameters in real-time.
-            </div>
-            
-            <div class="control-group">
-                <label>Operating Frequency / Band <span class="val-display val-synth" id="valSynthFreq">77 GHz</span></label>
-                <select id="synthFreq">
-                    <option value="3e9">S-Band (~3 GHz) - Long Range/ATC</option>
-                    <option value="10e9">X-Band (~10 GHz) - Air/Weather</option>
-                    <option value="24e9">K-Band (~24 GHz) - Industrial</option>
-                    <option value="77e9" selected>W-Band (~77 GHz) - Automotive</option>
-                    <option value="94e9">W-Band (~94 GHz) - Imaging</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label>Desired Target Range <span class="val-display val-synth" id="valReqRange">150 m</span></label>
-                <input type="range" id="reqRange" min="10" max="50000" step="10" value="150">
-            </div>
-            <div class="control-group">
-                <label>Desired Range Resolution <span class="val-display val-synth" id="valReqRangeRes">30 cm</span></label>
-                <input type="range" id="reqRangeRes" min="5" max="200" step="5" value="30">
-            </div>
-            <div class="control-group">
-                <label>Desired Angular Res (HPBW) <span class="val-display val-synth" id="valReqAngle">2.0°</span></label>
-                <input type="range" id="reqAngleRes" min="0.5" max="20" step="0.5" value="2.0">
-            </div>
-            <div class="control-group">
-                <label>Target RCS to Detect <span class="val-display val-synth" id="valReqRCS">10 m²</span></label>
-                <input type="number" id="reqRCS" value="10" step="0.1">
-            </div>
+      <figure class="beam">
+        <div class="plot">
+          <svg viewBox="0 0 340 194" aria-hidden="true">
+            <path class="grid" d="M22 168A148 148 0 0 1 318 168M12 168H328"/>
+            <path class="grid-minor" d="M59 168A111 111 0 0 1 281 168M96 168A74 74 0 0 1 244 168M133 168A37 37 0 0 1 207 168M170 168V20M170 168L96 39.8M170 168L244 39.8M170 168L41.8 94M170 168L298.2 94"/>
+            <text class="lbl" x="170" y="13" text-anchor="middle">0°</text>
+            <text class="lbl" x="249" y="33">30°</text>
+            <text class="lbl" x="91" y="33" text-anchor="end">−30°</text>
+            <text class="lbl" x="303" y="92">60°</text>
+            <text class="lbl" x="37" y="92" text-anchor="end">−60°</text>
+            <text class="lbl" x="22" y="186" text-anchor="middle">0 dB</text>
+            <text class="lbl" x="59" y="186" text-anchor="middle">−10</text>
+            <text class="lbl" x="96" y="186" text-anchor="middle">−20</text>
+            <text class="lbl" x="133" y="186" text-anchor="middle">−30</text>
+            <path class="steer" d="M170 168L221.3 27"/>
+            <path class="pattern" pathLength="1" d="M170 168L168.6 167.8L166.8 167.4L165.1 167.1L163.6 166.8L162.3 166.4L161.1 166.1L160 165.8L159 165.5L158.2 165.2L157.5 164.9L157 164.6L156.6 164.4L156.3 164.2L156.2 164L156.2 163.9L156.4 163.9L156.8 163.8L157.4 163.9L158.2 164L159.2 164.3L160.5 164.6L162.1 165.1L164 165.8L166.4 166.6L169.4 167.8L170 168L169.4 167.7L162.9 164.3L157.5 161.3L152.8 158.7L148.7 156.2L145.2 153.9L142 151.8L139.1 149.8L136.6 147.9L134.3 146.1L132.2 144.4L130.4 142.7L128.7 141.2L127.2 139.7L125.9 138.3L124.7 136.9L123.7 135.6L122.9 134.4L122.2 133.2L121.6 132.2L121.1 131.2L120.8 130.3L120.6 129.4L120.6 128.7L120.6 128L120.8 127.5L121.2 127L121.7 126.7L122.3 126.5L123.1 126.5L124 126.6L125.1 126.9L126.4 127.4L127.9 128.1L129.7 129.1L131.7 130.4L134.1 132.1L136.8 134.2L140.1 137L144 140.6L149 145.4L155.5 152.2L165.1 162.6L170 168L158.1 153.8L150.7 144.6L145.4 137.7L141.5 132.1L138.3 127.5L135.9 123.5L133.9 120.1L132.3 117.1L131.1 114.4L130.1 112.1L129.4 110L128.9 108.2L128.6 106.6L128.5 105.3L128.5 104.2L128.8 103.3L129.1 102.6L129.7 102.2L130.4 102L131.2 102.2L132.2 102.6L133.4 103.3L134.7 104.4L136.3 105.8L138 107.8L140 110.4L142.3 113.7L145.1 118L148.4 123.7L152.6 131.5L158.5 143.4L168.9 165.7L170 168L164.6 155.7L156.8 137L152.4 125.5L149.4 117.1L147.4 110.6L145.9 105.3L144.9 100.9L144.2 97.1L143.8 94L143.6 91.3L143.6 89.1L143.7 87.2L144 85.7L144.5 84.5L145 83.7L145.7 83.3L146.5 83.1L147.3 83.4L148.3 84L149.3 85.1L150.5 86.6L151.7 88.7L153 91.5L154.5 95.1L156.1 99.7L157.9 105.9L160.1 114.5L162.9 127.5L167.3 152L170 168L165.7 139.5L163.2 119.6L162 107.3L161.5 98.4L161.3 91.5L161.4 86L161.7 81.4L162.1 77.6L162.6 74.4L163.3 71.7L164 69.6L164.7 67.8L165.6 66.4L166.4 65.5L167.3 64.9L168.2 64.7L169.1 64.8L170 65.4L170.9 66.5L171.7 68L172.6 70.2L173.3 73L174 76.7L174.5 81.6L174.9 88.2L174.9 97.5L174.4 112.2L172.1 143.9L170 168L171.7 150.6L175.9 111.8L178.4 94.2L180.5 82.6L182.4 73.9L184.2 67L186 61.2L187.7 56.4L189.4 52.2L191.1 48.6L192.7 45.4L194.4 42.6L196 40.1L197.6 37.9L199.3 36L200.9 34.4L202.4 32.9L204 31.7L205.5 30.6L207.1 29.7L208.5 29L210 28.5L211.5 28L212.9 27.8L214.2 27.7L215.6 27.7L216.9 27.8L218.2 28.1L219.4 28.5L220.6 29L221.7 29.6L222.8 30.4L223.9 31.3L224.8 32.2L225.8 33.3L226.6 34.5L227.5 35.9L228.2 37.3L228.9 38.8L229.5 40.5L230 42.3L230.4 44.2L230.7 46.2L231 48.4L231.1 50.6L231.1 53.1L231 55.6L230.8 58.4L230.4 61.3L229.8 64.3L229.1 67.6L228.2 71.2L227 75L225.6 79.1L223.8 83.6L221.6 88.6L218.9 94.2L215.4 100.6L211 108.4L204.9 118.2L195.6 132.1L176.7 158.7L170 168L191.7 139.2L201.7 126.7L208.1 119.3L212.7 114.3L216.4 110.7L219.3 108.2L221.8 106.3L223.8 105L225.6 104.1L227.1 103.5L228.3 103.2L229.4 103.2L230.2 103.4L230.9 103.8L231.4 104.4L231.8 105.1L232 106L232.1 107L232 108.1L231.8 109.4L231.4 110.7L230.9 112.2L230.2 113.8L229.4 115.5L228.4 117.2L227.2 119.1L225.9 121.1L224.3 123.2L222.5 125.5L220.5 127.8L218.2 130.3L215.6 133L212.7 135.9L209.3 139L205.3 142.3L200.7 146.1L195.1 150.4L188.2 155.5L179.2 161.8L170 168L170.4 167.8L179.4 162.4L185.7 158.8L190.5 156.2L194.3 154.3L197.4 152.8L199.9 151.8L202 151L203.8 150.4L205.2 150L206.5 149.8L207.4 149.7L208.3 149.8L208.9 149.9L209.4 150.1L209.7 150.3L209.9 150.7L209.9 151L209.9 151.5L209.7 151.9L209.5 152.4L209.1 153L208.7 153.5L208.1 154.1L207.5 154.7L206.8 155.3L206 156L205.1 156.6L204.1 157.2L203.1 157.9L201.9 158.5L200.7 159.2L199.4 159.8L198 160.5L196.6 161.1L195.1 161.8L193.4 162.4L191.7 163L189.9 163.6L188.1 164.2L186.1 164.7L184 165.3L181.8 165.8L179.5 166.3L177.1 166.8L174.5 167.3L171.8 167.7L170 168Z"/>
+            <g class="el"><rect x="147.5" y="166.5" width="3" height="3"/><rect x="153.5" y="166.5" width="3" height="3"/><rect x="159.5" y="166.5" width="3" height="3"/><rect x="165.5" y="166.5" width="3" height="3"/><rect x="171.5" y="166.5" width="3" height="3"/><rect x="177.5" y="166.5" width="3" height="3"/><rect x="183.5" y="166.5" width="3" height="3"/><rect x="189.5" y="166.5" width="3" height="3"/></g>
+          </svg>
         </div>
-
-        <!-- System Configuration Tab -->
-        <div id="sys-tab" class="tab-content active">
-            <div class="control-group">
-                <label>Operating Frequency / Band <span class="val-display" id="valFreq">77 GHz</span></label>
-                <select id="inputFreq">
-                    <option value="3e9">S-Band (~3 GHz) - Long Range/ATC</option>
-                    <option value="10e9">X-Band (~10 GHz) - Air/Weather</option>
-                    <option value="24e9">K-Band (~24 GHz) - Industrial</option>
-                    <option value="77e9" selected>W-Band (~77 GHz) - Automotive</option>
-                    <option value="94e9">W-Band (~94 GHz) - Imaging</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label>Antenna Element Type</label>
-                <select id="inputType">
-                    <option value="isotropic">Isotropic (Omni, 0 dBi)</option>
-                    <option value="patch" selected>Microstrip Patch (~5 dBi)</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label>Beamforming Architecture</label>
-                <select id="inputArch">
-                    <option value="digital" selected>Full Digital (MIMO Virtualization)</option>
-                    <option value="analog">Analog Phased Array</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Waveform & Target Tab -->
-        <div id="wave-tab" class="tab-content">
-            <div class="control-group">
-                <label>Transmit Peak Power (P_t) <span class="val-display" id="valPt">15.0 dBm</span></label>
-                <input type="range" id="inputPt" min="-10" max="100" step="0.1" value="15">
-            </div>
-            <div class="control-group">
-                <label>Target RCS (σ)</label>
-                <select id="inputRCS">
-                    <option value="0.01">0.01 m² (Small Bird / Drone)</option>
-                    <option value="1">1 m² (Pedestrian)</option>
-                    <option value="10" selected>10 m² (Passenger Car)</option>
-                    <option value="100">100 m² (Large Truck / Aircraft)</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label>Sweep Bandwidth (B) <span class="val-display" id="valBW">1000 MHz</span></label>
-                <input type="range" id="inputBW" min="50" max="8000" step="10" value="1000">
-            </div>
-            <div class="control-group">
-                <label>Chirp Duration (T_c) <span class="val-display" id="valTc">40 µs</span></label>
-                <input type="range" id="inputTc" min="10" max="1000" step="5" value="40">
-            </div>
-            <div class="control-group">
-                <label>Detection Threshold SNR <span class="val-display" id="valSNRReq">12 dB</span></label>
-                <input type="range" id="inputSNRReq" min="3" max="25" step="1" value="12">
-            </div>
-        </div>
-
-        <!-- TX Tab Content -->
-        <div id="tx-tab" class="tab-content">
-            <div class="control-group">
-                <label>TX Antennas (N_TX) <span class="val-display val-tx" id="valTxN">3</span></label>
-                <input type="number" id="inputTxN" min="1" max="512" value="3">
-            </div>
-            <div class="control-group">
-                <label>TX Spacing (Rel to λ) <span class="val-display val-tx" id="valTxD">2.00</span></label>
-                <input type="number" id="inputTxD" min="0.1" max="100" step="0.05" value="2.0">
-            </div>
-            <div class="control-group">
-                <label>TX Steering Angle <span class="val-display val-tx" id="valTxAngle">0°</span></label>
-                <input type="range" id="inputTxAngle" min="-60" max="60" step="1" value="0">
-            </div>
-        </div>
-
-        <!-- RX Tab Content -->
-        <div id="rx-tab" class="tab-content">
-            <div class="control-group">
-                <label>RX Antennas (N_RX) <span class="val-display val-rx" id="valRxN">4</span></label>
-                <input type="number" id="inputRxN" min="1" max="1024" value="4">
-            </div>
-            <div class="control-group">
-                <label>RX Spacing (Rel to λ) <span class="val-display val-rx" id="valRxD">0.50</span></label>
-                <input type="number" id="inputRxD" min="0.1" max="2" step="0.05" value="0.5">
-            </div>
-            <div class="control-group">
-                <label>RX Steering Angle <span class="val-display val-rx" id="valRxAngle">0°</span></label>
-                <input type="range" id="inputRxAngle" min="-60" max="60" step="1" value="0">
-            </div>
-        </div>
-
-        <!-- Results Output -->
-        <div style="background: #f8fafc; border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; margin-top: 15px; overflow-y: auto; max-height: 380px;">
-            <div class="section-title">Spatial Parameters & Array Size</div>
-            <table class="results-table">
-                <tr><td>Virtual RX Channels:</td><td id="resVirtualChan">-</td></tr>
-                <tr><td>Combined HPBW:</td><td id="resHPBW">-</td></tr>
-                <tr><td>Unambiguous FOV:</td><td id="resFoV">-</td></tr>
-                <tr><td>TX Array Physical Size:</td><td id="resTxSize">-</td></tr>
-                <tr><td>RX Array Physical Size:</td><td id="resRxSize">-</td></tr>
-                <tr><td style="font-weight:bold;">Virtual Aperture Size:</td><td id="resVirtSize" style="font-weight:bold; color:var(--accent);">-</td></tr>
-            </table>
-
-            <div class="section-title">Hardware / Baseband Requirements</div>
-            <table class="results-table">
-                <tr><td>Range Resolution (ΔR):</td><td id="resRangeRes">-</td></tr>
-                <tr><td>Chirp Slope (S):</td><td id="resSlope">-</td></tr>
-                <tr><td>Max IF Freq / Baseband IBW:</td><td id="resIBW">-</td></tr>
-                <tr><td>Min ADC Sampling Rate:</td><td id="resADC">-</td></tr>
-            </table>
-
-            <div class="section-title">Radar Equation Performance</div>
-            <table class="results-table">
-                <tr><td>Total Array Gain (TX+RX):</td><td id="resTotalGain">-</td></tr>
-                <tr><td style="color:var(--accent); font-weight:bold;">Max Detectable Range (R_max):</td><td id="resMaxRange" style="font-size:1.1rem;">-</td></tr>
-            </table>
-        </div>
+        <figcaption><b>Fig.</b> — computed pattern: 8-element λ/2 array, cos<sup>1.4</sup> elements, steered to 20°</figcaption>
+      </figure>
     </div>
+  </section>
 
-    <!-- Right Visualization Panel -->
-    <div class="panel">
-        <h3 style="margin: 0 0 10px 0; color: var(--primary); font-size: 1.1rem;">Combined Array Pattern Visualization</h3>
-        <div class="canvas-container">
-            <canvas id="patternChart"></canvas>
-        </div>
-        
-        <hr style="border: 0; border-top: 1px dashed var(--border); margin: 15px 0;">
+  <section class="section" id="tools" aria-labelledby="tools-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="tools-h">Interactive tools</h2>
+        <p class="sub">Nothing to install: open one and change the numbers.</p>
+      </div>
 
-        <div class="split-viz">
-            <!-- Left Side: Physical Array Size vs. Human Scale -->
-            <div class="scale-viz">
-                <div class="viz-title">Physical Aperture vs. Human</div>
-                <div class="scale-content">
-                    <div class="human-figure">
-                        <svg viewBox="0 0 100 250">
-                            <circle cx="50" cy="30" r="20" />
-                            <rect x="25" y="55" width="50" height="90" rx="10" />
-                            <rect x="30" y="140" width="15" height="100" rx="5" />
-                            <rect x="55" y="140" width="15" height="100" rx="5" />
-                            <rect x="5" y="60" width="15" height="85" rx="5" />
-                            <rect x="80" y="60" width="15" height="85" rx="5" />
-                        </svg>
-                        <div style="font-size: 0.75rem; font-weight: bold; margin-top: 5px; color: #475569;">Human (1.8m)</div>
-                    </div>
-                    
-                    <div class="radar-figure">
-                        <div id="radar-box"></div>
-                        <div style="font-size: 0.75rem; font-weight: bold; margin-top: 5px; color: var(--accent);">Radar Aperture</div>
-                        <div id="radar-scale-label" style="font-size: 0.75rem; color: #64748b; font-weight: bold;">-</div>
-                    </div>
-                </div>
+      <!-- TOOLS. To add a tool: copy the last <li> below (it has loading="lazy"; only the first card loads eagerly) and change
+             - every href (the tool's folder with a trailing slash, e.g. "new-tool/"),
+             - the address-bar text in .chrome ("seguar.github.io/<b>new-tool/</b>"),
+             - the screenshot: assets/img/<folder>.jpg, a 1200x750 JPEG, plus its alt text (say what it shows, ~25 words),
+             - the ids: aria-labelledby on <article> must match the <h3 id>,
+             - the hidden link text in every <span class="vh">: "Open tool: <title>" and "… of the <name> tool" on the
+               deep links, so screen-reader and voice-control users hear the right tool's name,
+             - the eyebrow label, title, lead, the three stats, the topic tags and the note.
+           Card numbers (01, 02, ...) and the left/right alternation are automatic. -->
+      <ul class="tools" role="list">
+        <li>
+          <article class="tool" aria-labelledby="t-radar">
+            <a class="shot" href="radar-sim/" tabindex="-1" aria-hidden="true">
+              <span class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url">seguar.github.io/<b>radar-sim/</b></span></span>
+              <span class="frame"><img src="assets/img/radar-sim.jpg" width="1200" height="750" decoding="async" alt="Radar simulator at its 77 GHz default: settings panel, combined MIMO beam pattern, to-scale aperture beside a human figure, and PCB antenna layout."></span>
+            </a>
+            <div class="tool-body">
+              <p class="eyebrow"><span class="rule"></span>Radar sizing</p>
+              <h3 id="t-radar"><a href="radar-sim/">MIMO/FMCW Radar Simulator</a></h3>
+              <p class="lead">Size a MIMO FMCW radar from S- to W-band: beam pattern, aperture, ADC rate, max range. Or let Auto-Design work back from your targets.</p>
+              <div class="actions">
+                <a class="btn btn-accent" href="radar-sim/">Open tool<span class="vh">: MIMO/FMCW Radar Simulator</span><svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+              </div>
+              <ul class="stats" role="list">
+                <li><strong>5</strong><span>band presets, <span class="nw">3–94 GHz</span></span></li>
+                <li><strong>12</strong><span>virtual channels at the 77&nbsp;GHz default</span></li>
+                <li><strong>±60°</strong><span>TX and RX beam steering</span></li>
+              </ul>
+              <ul class="tags" role="list" aria-label="Topics">
+                <li>FMCW</li><li>MIMO</li><li>Phased arrays</li><li>Radar equation</li><li>Beamforming</li>
+              </ul>
+              <p class="note"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span>First-order sizing: single-chirp radar equation, fixed 10&nbsp;dB noise figure. Formerly the front page of this site. Best on a desktop screen.</span></p>
             </div>
+          </article>
+        </li>
 
-            <!-- Right Side: Antenna Placement Visualization Redesigned closer to real picture -->
-            <div class="placement-viz">
-                <div class="viz-title">Physical PCB Layout Front-End View (Patch Element Traces)</div>
-                <div class="placement-content">
-                    <canvas id="placementCanvas"></canvas>
-                </div>
+        <li>
+          <article class="tool" aria-labelledby="t-eband">
+            <a class="shot" href="eband-distribution/" tabindex="-1" aria-hidden="true">
+              <span class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url">seguar.github.io/<b>eband-distribution/</b></span></span>
+              <span class="frame"><img src="assets/img/eband-distribution.jpg" width="1200" height="750" loading="lazy" decoding="async" alt="E-band hardware map: 5×5 tiles shaded by timing skew, an LO tree feeding a ×4 multiplier in each tile, and a baseband H-tree."></span>
+            </a>
+            <div class="tool-body">
+              <p class="eyebrow"><span class="rule"></span>PhD candidacy deliverable</p>
+              <h3 id="t-eband"><a href="eband-distribution/">E-Band Distribution Comparison</a></h3>
+              <p class="lead">Hardware map and live model costing every LO and baseband option for a <span class="nw">71–86 GHz</span> array, drawn on the floorplan of a 30&nbsp;cm, 5×5-tile aperture.</p>
+              <div class="actions">
+                <a class="btn btn-accent" href="eband-distribution/">Open tool<span class="vh">: E-Band Distribution Comparison</span><svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+                <a class="textlink" href="eband-distribution/#_v=map">Hardware map<span class="vh"> of the E-band tool</span></a>
+                <a class="textlink" href="eband-distribution/#_v=decision">Recorded decision<span class="vh"> in the E-band tool</span></a>
+              </div>
+              <ul class="stats" role="list">
+                <li><strong>16</strong><span>candidate architectures</span></li>
+                <li><strong>101</strong><span>editable parameters</span></li>
+                <li><strong>0.147°</strong><span>modelled inter-tile residual, A4 LO (5°&nbsp;spec)</span></li>
+              </ul>
+              <ul class="tags" role="list" aria-label="Topics">
+                <li>E-band</li><li>LO distribution</li><li>Phased arrays</li><li>Massive MIMO</li><li>Phase noise</li>
+              </ul>
+              <p class="note"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span>An architecture-selection instrument, not a validated simulator. Every default is labelled datasheet, literature, scaled or guess.</span></p>
             </div>
-        </div>
+          </article>
+        </li>
+
+        <li>
+          <article class="tool" aria-labelledby="t-pulse">
+            <a class="shot" href="rfsoc-pulse-array/" tabindex="-1" aria-hidden="true">
+              <span class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url">seguar.github.io/<b>rfsoc-pulse-array/</b></span></span>
+              <span class="frame"><img src="assets/img/rfsoc-pulse-array.jpg" width="1200" height="750" loading="lazy" decoding="async" alt="Pulse-array walkthrough: the 14-stage navigator beside an exploded 3D model of one module showing the upright RFSoC card, carrier board, SMA panel and fan panel."></span>
+            </a>
+            <div class="tool-body">
+              <p class="eyebrow"><span class="rule"></span>Hardware design walkthrough</p>
+              <h3 id="t-pulse"><a href="rfsoc-pulse-array/">ZU67DR Pulse Array</a></h3>
+              <p class="lead">Design walkthrough for a 4-module RFSoC pulse generator: 64 outputs, <span class="nw">1 MHz–5 GHz</span>, 3&nbsp;V into 50&nbsp;ohms, from concept to a build roadmap.</p>
+              <div class="actions">
+                <a class="btn btn-accent" href="rfsoc-pulse-array/">Open tool<span class="vh">: ZU67DR Pulse Array walkthrough</span><svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+                <a class="textlink" href="rfsoc-pulse-array/#m3-h">3D model<span class="vh"> of the pulse-array module</span></a>
+                <a class="textlink" href="rfsoc-pulse-array/#roadmap">Roadmap<span class="vh"> for the pulse array</span></a>
+              </div>
+              <ul class="stats" role="list">
+                <li><strong>14</strong><span>stages, concept to roadmap</span></li>
+                <li><strong>50&nbsp;ps</strong><span>one-bit timing grid</span></li>
+                <li><strong>3D</strong><span>module, bench and rack model</span></li>
+              </ul>
+              <ul class="tags" role="list" aria-label="Topics">
+                <li>RFSoC</li><li>ZU67DR</li><li>Pulse generator</li><li>Multi-board sync</li><li>3D model</li>
+              </ul>
+              <p class="note"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span>A design, not built hardware: part numbers are first candidates, and sizes and power figures are estimates until the hardware is measured.</span></p>
+            </div>
+          </article>
+        </li>
+      </ul>
     </div>
-</div>
+  </section>
 
-<script>
-    let patternChartInstance = null;
-    const C = 299792458; 
-    const K_B = 1.380649e-23; 
-    const T_SYS = 290; 
-    const NF_DB = 10; 
+  <section class="section" id="code" aria-labelledby="code-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="code-h">Projects on GitHub</h2>
+        <a class="textlink" href="https://github.com/Seguar?tab=repositories" rel="noopener">All repositories on GitHub<svg class="ico" aria-hidden="true"><use href="#i-ext"/></svg></a>
+      </div>
 
-    function formatDistance(meters) {
-        if (isNaN(meters) || !isFinite(meters)) return "N/A";
-        if (meters >= 1000) return (meters / 1000).toFixed(2) + ' km';
-        if (meters >= 1) return meters.toFixed(2) + ' m';
-        return (meters * 100).toFixed(1) + ' cm';
-    }
+      <h3 class="group-h">Own projects</h3>
+      <!-- REPOS. To add a repository: copy one <li> below and change the slug, the <h4> link and title,
+           the description, the language name and dot colour (--c, GitHub's colour for that language),
+           the topics and the <time> (datetime = last push, shown as "updated YYYY-MM").
+           Keep exactly four children in each .repo (slug, h4, description, meta): the cards share those rows,
+           three to a row on wide screens. -->
+      <ul class="repos" role="list">
+        <li>
+          <article class="repo">
+            <p class="slug"><svg class="ico" aria-hidden="true"><use href="#i-repo"/></svg>Seguar/vsa_rfsoc</p>
+            <h4><a href="https://github.com/Seguar/vsa_rfsoc" rel="noopener">RFSoC VSA &amp; Beamforming Apps</a></h4>
+            <p class="desc">MATLAB App Designer tools for RFSoC communication and direction-of-arrival with beamforming, analysed in Keysight 89600 VSA, plus phase-calibration, steering-correction and antenna-pattern measurement scripts.</p>
+            <p class="meta"><span class="lang"><span class="dot" style="--c:#e16737"></span>MATLAB</span><span>RFSoC · DOA · calibration</span><time datetime="2026-05-28">updated 2026-05</time></p>
+          </article>
+        </li>
+        <li>
+          <article class="repo">
+            <p class="slug"><svg class="ico" aria-hidden="true"><use href="#i-repo"/></svg>Seguar/doa_rfsoc</p>
+            <h4><a href="https://github.com/Seguar/doa_rfsoc" rel="noopener">RFSoC 4x2 Direction-of-Arrival</a></h4>
+            <p class="desc">Direction-of-arrival estimation on the RFSoC 4x2 board: a Vivado 2022.2 design built on Xilinx’s multi-tile sync example, a PYNQ Python wrapper, Jupyter notebooks and prebuilt bitstreams.</p>
+            <p class="meta"><span class="lang"><span class="dot" style="--c:#da5b0b"></span>Jupyter Notebook</span><span>PYNQ · Vivado</span><time datetime="2024-10-01">updated 2024-10</time></p>
+          </article>
+        </li>
+        <li>
+          <article class="repo">
+            <p class="slug"><svg class="ico" aria-hidden="true"><use href="#i-repo"/></svg>Seguar/lorawan_collision</p>
+            <h4><a href="https://github.com/Seguar/lorawan_collision" rel="noopener">LoRa Collision Experiments (SDR)</a></h4>
+            <p class="desc">MATLAB scripts that generate LoRa IQ files, transmit them with HackRF or LimeSDR and process the captures: the experiment code behind a <a class="paper" href="https://ieeexplore.ieee.org/document/9470748" rel="noopener">published paper on IEEE <span class="nowrap">Xplore<svg class="ico" aria-hidden="true"><use href="#i-ext"/></svg></span><span class="vh"> (LoRa collision experiments)</span></a>.</p>
+            <p class="meta"><span class="lang"><span class="dot" style="--c:#e16737"></span>MATLAB</span><span>LoRa · SDR</span><time datetime="2024-03-15">updated 2024-03</time></p>
+          </article>
+        </li>
+      </ul>
 
-    function formatFreq(hz) {
-        if (isNaN(hz) || !isFinite(hz)) return "N/A";
-        if (hz >= 1e9) return (hz / 1e9).toFixed(2) + ' GHz';
-        if (hz >= 1e6) return (hz / 1e6).toFixed(2) + ' MHz';
-        return (hz / 1e3).toFixed(2) + ' kHz';
-    }
+      <div class="also">
+        <h3 class="group-h">Forks and placeholders</h3>
+        <ul class="minor" role="list">
+          <li>
+            <div class="row"><a href="https://github.com/Seguar/ZCU216-PYNQ" rel="noopener">ZCU216-PYNQ</a><span class="badge">Fork</span><span class="from">of sarafs1926/ZCU216-PYNQ</span></div>
+            <p>PYNQ 3.0.1 build for the Xilinx ZCU216 RFSoC board, with 17 commits of my own on top: PetaLinux setup, xrfclk and xrfdc multi-tile-sync patches, clock files and a base bitstream.</p>
+          </li>
+          <li>
+            <div class="row"><a href="https://github.com/Seguar/IQI_beamforming" rel="noopener">IQI_beamforming</a><span class="badge">README only</span></div>
+            <p>Reserved for a paper’s processing code.</p>
+          </li>
+          <li>
+            <div class="row"><a href="https://github.com/Seguar/EBAZ4205" rel="noopener">EBAZ4205</a><span class="badge">Fork</span><span class="from">of xjtuecho/EBAZ4205</span></div>
+            <p>Unmodified fork: a reference copy of the docs and hardware files for a $5 Xilinx Zynq development board.</p>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
 
-    function switchTab(tabId, btn) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        btn.classList.add('active');
-        calculateRadar();
-    }
-
-    function autoConfigureRadar() {
-        const reqFreq = parseFloat(document.getElementById('synthFreq').value) || 77e9;
-        const reqRange = Math.max(1, parseFloat(document.getElementById('reqRange').value) || 150);
-        const reqRangeRes = Math.max(0.01, (parseFloat(document.getElementById('reqRangeRes').value) || 30) / 100);
-        const reqAngleRes = Math.max(0.1, parseFloat(document.getElementById('reqAngleRes').value) || 2.0);
-        const reqRCS = Math.max(0.001, parseFloat(document.getElementById('reqRCS').value) || 10);
-
-        const tc_s = Math.max(1e-6, (parseFloat(document.getElementById('inputTc').value) || 40) * 1e-6);
-        const snrReq_dB = parseFloat(document.getElementById('inputSNRReq').value) || 12;
-        const antennaType = document.getElementById('inputType').value || 'patch';
-
-        let neededBW_Hz = C / (2 * reqRangeRes);
-        let neededBW_MHz = neededBW_Hz / 1e6;
-
-        let lVirt = 50.7 / reqAngleRes; 
-        let rxSpacingLambda = 0.5; 
-        let neededVirtualElements = Math.max(1, Math.ceil(lVirt / rxSpacingLambda));
-
-        let neededTx = Math.max(1, Math.ceil(Math.sqrt(neededVirtualElements)));
-        let neededRx = Math.max(1, Math.ceil(neededVirtualElements / neededTx));
-        
-        let txSpacingLambda = neededRx * rxSpacingLambda;
-
-        let lambda = C / reqFreq;
-        let elementGain_dBi = (antennaType === 'patch') ? 5 : 0; 
-        let elementGain_lin = Math.pow(10, elementGain_dBi / 10);
-        let gt_lin = neededTx * elementGain_lin;
-        let gr_lin = neededRx * elementGain_lin;
-        let snrReq_lin = Math.pow(10, snrReq_dB / 10);
-        let nf_lin = Math.pow(10, NF_DB / 10);
-
-        let num = Math.pow(reqRange, 4) * Math.pow(4 * Math.PI, 3) * K_B * T_SYS * nf_lin * snrReq_lin;
-        let den = gt_lin * gr_lin * Math.pow(lambda, 2) * reqRCS * tc_s;
-        
-        let pt_W = num / Math.max(1e-20, den); 
-        let pt_dBm = 10 * Math.log10(Math.max(1e-20, pt_W)) + 30;
-
-        document.getElementById('inputFreq').value = reqFreq;
-
-        let bwSlider = document.getElementById('inputBW');
-        bwSlider.max = Math.max(parseFloat(bwSlider.max) || 8000, neededBW_MHz * 1.2);
-        bwSlider.value = neededBW_MHz.toFixed(0);
-
-        document.getElementById('inputTxN').value = neededTx;
-        document.getElementById('inputTxD').value = txSpacingLambda.toFixed(2);
-        document.getElementById('inputRxN').value = neededRx;
-        document.getElementById('inputRxD').value = rxSpacingLambda.toFixed(2);
-
-        let ptSlider = document.getElementById('inputPt');
-        ptSlider.max = Math.max(100, Math.ceil(pt_dBm + 10));
-        ptSlider.min = Math.min(-10, Math.floor(pt_dBm - 10));
-        ptSlider.value = pt_dBm.toFixed(1);
-
-        let rcsSelect = document.getElementById('inputRCS');
-        if (![...rcsSelect.options].some(opt => parseFloat(opt.value) === reqRCS)) {
-            let newOpt = new Option(`Custom (${reqRCS} m²)`, reqRCS);
-            rcsSelect.add(newOpt);
-        }
-        rcsSelect.value = reqRCS;
-        document.getElementById('inputArch').value = 'digital';
-
-        calculateRadar();
-    }
-
-    function calculateRadar() {
-        const freq = parseFloat(document.getElementById('inputFreq').value) || 77e9;
-        const antennaType = document.getElementById('inputType').value || 'patch';
-        const arch = document.getElementById('inputArch').value || 'digital';
-
-        const pt_dBm = parseFloat(document.getElementById('inputPt').value) || 15;
-        const rcs = Math.max(0.0001, parseFloat(document.getElementById('inputRCS').value) || 10);
-        const bw_Hz = Math.max(1e6, (parseFloat(document.getElementById('inputBW').value) || 1000) * 1e6);
-        const tc_s = Math.max(1e-6, (parseFloat(document.getElementById('inputTc').value) || 40) * 1e-6);
-        const snrReq_dB = parseFloat(document.getElementById('inputSNRReq').value) || 12;
-
-        const nTX = Math.max(1, parseInt(document.getElementById('inputTxN').value) || 3);
-        const dTX = Math.max(0.01, parseFloat(document.getElementById('inputTxD').value) || 2.0);
-        const angleTX = (parseFloat(document.getElementById('inputTxAngle').value) || 0) * Math.PI / 180;
-
-        const nRX = Math.max(1, parseInt(document.getElementById('inputRxN').value) || 4);
-        const dRX = Math.max(0.01, parseFloat(document.getElementById('inputRxD').value) || 0.5); 
-        const angleRX = (parseFloat(document.getElementById('inputRxAngle').value) || 0) * Math.PI / 180;
-
-        document.getElementById('valFreq').innerText = (freq / 1e9).toFixed(1) + ' GHz';
-        
-        let ptDisplay = pt_dBm.toFixed(1) + ' dBm';
-        if (pt_dBm > 60) ptDisplay += ` (${(Math.pow(10, (pt_dBm-60)/10)).toFixed(1)} kW)`;
-        else if (pt_dBm > 30) ptDisplay += ` (${(Math.pow(10, (pt_dBm-30)/10)).toFixed(1)} W)`;
-        document.getElementById('valPt').innerText = ptDisplay;
-        
-        document.getElementById('valBW').innerText = (bw_Hz / 1e6).toFixed(0) + ' MHz';
-        document.getElementById('valTc').innerText = (tc_s * 1e6).toFixed(0) + ' µs';
-        document.getElementById('valSNRReq').innerText = snrReq_dB + ' dB';
-        document.getElementById('valTxN').innerText = nTX;
-        document.getElementById('valTxD').innerText = dTX.toFixed(2) + ' λ';
-        document.getElementById('valTxAngle').innerText = (angleTX * 180 / Math.PI).toFixed(0) + '°';
-        document.getElementById('valRxN').innerText = nRX;
-        document.getElementById('valRxD').innerText = dRX.toFixed(2) + ' λ';
-        document.getElementById('valRxAngle').innerText = (angleRX * 180 / Math.PI).toFixed(0) + '°';
-
-        const lambda = C / freq;
-        const elementGain_dBi = (antennaType === 'patch') ? 5 : 0; 
-        const elementGain_lin = Math.pow(10, elementGain_dBi / 10);
-
-        let effectiveChannels = (arch === 'digital') ? (nTX * nRX) : nRX;
-        document.getElementById('resVirtualChan').innerText = effectiveChannels;
-
-        let virtualApertureLength = (arch === 'digital') ? (nTX * dTX) + (nRX * dRX) : Math.max(nTX * dTX, nRX * dRX);
-        let hpbwDeg = 50.7 / Math.max(0.01, virtualApertureLength);
-        document.getElementById('resHPBW').innerText = hpbwDeg.toFixed(2) + '°';
-
-        let fovLimit = 90;
-        if (dRX > 0.5) {
-            let fovVal = Math.min(1, Math.max(-1, 1 / (2 * dRX))); 
-            fovLimit = Math.asin(fovVal) * (180 / Math.PI);
-        }
-        document.getElementById('resFoV').innerText = fovLimit >= 89.9 ? '±90°' : '±' + fovLimit.toFixed(1) + '°';
-
-        let txPhysSize = nTX * dTX * lambda;
-        let rxPhysSize = nRX * dRX * lambda;
-        let virtSize = virtualApertureLength * lambda;
-        
-        document.getElementById('resTxSize').innerText = formatDistance(txPhysSize);
-        document.getElementById('resRxSize').innerText = formatDistance(rxPhysSize);
-        document.getElementById('resVirtSize').innerText = formatDistance(virtSize);
-
-        const rangeRes = C / (2 * bw_Hz);
-        const slope = bw_Hz / tc_s; 
-        
-        document.getElementById('resRangeRes').innerText = formatDistance(rangeRes);
-        document.getElementById('resSlope').innerText = (slope / 1e12).toFixed(2) + ' MHz/µs';
-
-        const pt_W = Math.pow(10, (pt_dBm - 30) / 10);
-        const gt_lin = nTX * elementGain_lin; 
-        const gr_lin = nRX * elementGain_lin;
-        const snrReq_lin = Math.pow(10, snrReq_dB / 10);
-        const nf_lin = Math.pow(10, NF_DB / 10);
-
-        let totalGainDB = 10 * Math.log10(gt_lin * gr_lin);
-        document.getElementById('resTotalGain').innerText = totalGainDB.toFixed(1) + ' dB';
-
-        const num = pt_W * gt_lin * gr_lin * Math.pow(lambda, 2) * rcs * tc_s;
-        const den = Math.max(1e-20, Math.pow(4 * Math.PI, 3) * K_B * T_SYS * nf_lin * snrReq_lin);
-        const rMax = Math.pow(num / den, 0.25);
-        document.getElementById('resMaxRange').innerText = formatDistance(rMax);
-
-        const ifMax_Hz = (slope * 2 * rMax) / C;
-        const adcSamplingRate = ifMax_Hz * 2; 
-
-        document.getElementById('resIBW').innerText = formatFreq(ifMax_Hz);
-        document.getElementById('resADC').innerText = (adcSamplingRate / 1e6).toFixed(1) + ' MSPS';
-
-        let labels = [];
-        let txData = [];
-        let rxData = [];
-        let combinedData = [];
-        
-        for (let deg = -90; deg <= 90; deg += 0.5) {
-            let rad = deg * Math.PI / 180;
-            let EF = 1;
-            if (antennaType === 'patch') EF = Math.pow(Math.cos(rad), 1.4); 
-
-            let psiTX = 2 * Math.PI * dTX * (Math.sin(rad) - Math.sin(angleTX));
-            let AFTX = (Math.abs(psiTX) < 1e-6) ? 1 : Math.sin(nTX * psiTX / 2) / (nTX * Math.sin(psiTX / 2));
-            
-            let psiRX = 2 * Math.PI * dRX * (Math.sin(rad) - Math.sin(angleRX));
-            let AFRX = (Math.abs(psiRX) < 1e-6) ? 1 : Math.sin(nRX * psiRX / 2) / (nRX * Math.sin(psiRX / 2));
-
-            let txDB = Math.max(-50, 20 * Math.log10(Math.max(1e-10, Math.abs(AFTX * EF))));
-            let rxDB = Math.max(-50, 20 * Math.log10(Math.max(1e-10, Math.abs(AFRX * EF))));
-            let combDB = (arch === 'digital') ? (txDB + rxDB) : rxDB; 
-
-            labels.push(deg);
-            txData.push(txDB);
-            rxData.push(rxDB);
-            combinedData.push(Math.max(-50, combDB));
-        }
-
-        renderMergedChart(labels, txData, rxData, combinedData);
-        updateScaleVisualization(virtSize);
-        drawAntennaPlacement(nTX, dTX, nRX, dRX, arch);
-    }
-
-    function renderMergedChart(labels, txData, rxData, combData) {
-        if (patternChartInstance) {
-            patternChartInstance.data.labels = labels;
-            patternChartInstance.data.datasets[0].data = txData;
-            patternChartInstance.data.datasets[1].data = rxData;
-            patternChartInstance.data.datasets[2].data = combData;
-            patternChartInstance.update('none'); 
-        } else {
-            const ctx = document.getElementById('patternChart').getContext('2d');
-            patternChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'TX Directivity',
-                            data: txData,
-                            borderColor: 'rgba(234, 88, 12, 0.7)',
-                            borderDash: [4, 4],
-                            borderWidth: 1.5,
-                            pointRadius: 0,
-                            fill: false,
-                            tension: 0.1
-                        },
-                        {
-                            label: 'RX Directivity',
-                            data: rxData,
-                            borderColor: 'rgba(22, 163, 74, 0.7)',
-                            borderDash: [4, 4],
-                            borderWidth: 1.5,
-                            pointRadius: 0,
-                            fill: false,
-                            tension: 0.1
-                        },
-                        {
-                            label: 'MIMO Combined Pattern',
-                            data: combData,
-                            borderColor: 'rgba(219, 39, 119, 1)',
-                            backgroundColor: 'rgba(219, 39, 119, 0.08)',
-                            borderWidth: 2.5,
-                            pointRadius: 0,
-                            fill: true,
-                            tension: 0.1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 0 },
-                    scales: {
-                        x: {
-                            title: { display: true, text: 'Azimuth Angle (Degrees)' },
-                            ticks: { callback: function(v, i) { return i % 20 === 0 ? this.getLabelForValue(v) + '°' : ''; } }
-                        },
-                        y: { 
-                            title: { display: true, text: 'Directivity (dB)' },
-                            max: 0, 
-                            min: -50 
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                title: (c) => c[0].label + '° Azimuth',
-                                label: (c) => c.dataset.label + ': ' + c.raw.toFixed(1) + ' dB'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    }
-
-    function updateScaleVisualization(apertureSizeMeters) {
-        const PIXELS_PER_METER = 160 / 1.8;
-        let heightPx = apertureSizeMeters * PIXELS_PER_METER;
-        let displayHeight = Math.max(4, Math.min(160, heightPx));
-        
-        const radarBox = document.getElementById('radar-box');
-        radarBox.style.height = displayHeight + 'px';
-        radarBox.style.width = displayHeight > 90 ? '25px' : '45px';
-        
-        if (apertureSizeMeters > 1.8) {
-            radarBox.style.backgroundColor = '#ef4444'; 
-        } else {
-            radarBox.style.backgroundColor = 'var(--accent)';
-        }
-        document.getElementById('radar-scale-label').innerText = formatDistance(apertureSizeMeters);
-    }
-
-    function drawAntennaPlacement(nTX, dTX, nRX, dRX, arch) {
-        const canvas = document.getElementById('placementCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Dynamic pixel alignment configuration 
-        const container = canvas.parentElement;
-        const w = container.clientWidth;
-        const h = container.clientHeight;
-        canvas.width = w;
-        canvas.height = h;
-
-        ctx.clearRect(0, 0, w, h);
-
-        // Render realistic microstrip PCB Substrate Base Layer
-        let pcbPadY = 15;
-        let pcbPadX = 20;
-        let pcbW = w - (2 * pcbPadX);
-        let pcbH = h - (2 * pcbPadY);
-
-        ctx.fillStyle = '#064e3b'; // Matte FR4 RF substrate Green
-        ctx.fillRect(pcbPadX, pcbPadY, pcbW, pcbH);
-        
-        // Inner grounding trace border line
-        ctx.strokeStyle = '#047857';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(pcbPadX + 4, pcbPadY + 4, pcbW - 8, pcbH - 8);
-
-        // Scaling logic based on actual elements positions
-        let txMaxPos = (nTX - 1) * dTX;
-        let rxMaxPos = (nRX - 1) * dRX;
-        let virtPositions = [];
-        if (arch === 'digital') {
-            for (let i = 0; i < nTX; i++) {
-                for (let j = 0; j < nRX; j++) {
-                    virtPositions.push((i * dTX) + (j * dRX));
-                }
-            }
-        } else {
-            for (let j = 0; j < nRX; j++) {
-                virtPositions.push(j * dRX);
-            }
-        }
-        let virtMaxPos = Math.max(...virtPositions, 0.1);
-        let absoluteMaxSpacing = Math.max(txMaxPos, rxMaxPos, virtMaxPos);
-
-        // Establish boundaries for microstrip components placement
-        let drawAreaPad = 40;
-        let scaleX = (pcbW - (2 * drawAreaPad)) / absoluteMaxSpacing;
-        let startX = pcbPadX + drawAreaPad;
-
-        let yTX = pcbPadY + (pcbH * 0.22);
-        let yRX = pcbPadY + (pcbH * 0.52);
-        let yVirt = pcbPadY + (pcbH * 0.82);
-
-        // High-fidelity Microstrip Patch Renderer function 
-        function drawMicrostripPatch(x, y, type) {
-            let patchW = 12;
-            let patchH = 16;
-            let feedW = 2;
-            let feedH = 12;
-
-            ctx.fillStyle = '#f59e0b'; // Gold plated copper alloy color trace
-            ctx.strokeStyle = '#d97706';
-            ctx.lineWidth = 1;
-
-            if (type === 'TX') {
-                // Top elements feed downwards
-                ctx.fillRect(x - patchW/2, y - patchH/2, patchW, patchH);
-                ctx.strokeRect(x - patchW/2, y - patchH/2, patchW, patchH);
-                ctx.fillStyle = '#b45309';
-                ctx.fillRect(x - feedW/2, y + patchH/2, feedW, feedH);
-            } else if (type === 'RX') {
-                // Bottom elements feed upwards
-                ctx.fillRect(x - patchW/2, y - patchH/2, patchW, patchH);
-                ctx.strokeRect(x - patchW/2, y - patchH/2, patchW, patchH);
-                ctx.fillStyle = '#b45309';
-                ctx.fillRect(x - feedW/2, y - patchH/2 - feedH, feedW, feedH);
-            } else {
-                // Virtual/Mathematical Matrix Nodes (Rendered as abstract cross-probe indicators)
-                let size = 6;
-                ctx.strokeStyle = 'rgba(244, 63, 94, 0.9)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(x - size, y); ctx.lineTo(x + size, y);
-                ctx.moveTo(x, y - size); ctx.lineTo(x, y + size);
-                ctx.stroke();
-                return;
-            }
-        }
-
-        // Draw Row Text Metadata Tags directly onto PCB silkscreen
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.font = 'bold 9px monospace';
-        ctx.fillText('TX ARRAY (COPPER ETCH)', pcbPadX + 12, yTX - 18);
-        ctx.fillText('RX ARRAY (COPPER ETCH)', pcbPadX + 12, yRX - 18);
-        ctx.fillText(arch === 'digital' ? 'COMPUTATIONAL VIRTUAL APERTURE MATRIX' : 'PHASED ARRAY MODE CONTIGUOUS GRID', pcbPadX + 12, yVirt - 14);
-
-        // 1. Draw TX elements
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(startX, yTX); ctx.lineTo(startX + (txMaxPos * scaleX), yTX); ctx.stroke();
-        
-        for (let i = 0; i < nTX; i++) {
-            let x = startX + (i * dTX * scaleX);
-            drawMicrostripPatch(x, yTX, 'TX');
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '7px sans-serif';
-            ctx.fillText('T' + (i+1), x - 4, yTX - 11);
-        }
-
-        // 2. Draw RX elements
-        ctx.beginPath(); ctx.moveTo(startX, yRX); ctx.lineTo(startX + (rxMaxPos * scaleX), yRX); ctx.stroke();
-        
-        for (let j = 0; j < nRX; j++) {
-            let x = startX + (j * dRX * scaleX);
-            drawMicrostripPatch(x, yRX, 'RX');
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '7px sans-serif';
-            ctx.fillText('R' + (j+1), x - 4, yRX + 17);
-        }
-
-        // 3. Draw Virtual Aperture Convolutions
-        ctx.beginPath(); ctx.moveTo(startX, yVirt); ctx.lineTo(startX + (virtMaxPos * scaleX), yVirt); ctx.stroke();
-        
-        let uniqueVirt = [...new Set(virtPositions)].sort((a,b) => a-b);
-        uniqueVirt.forEach(pos => {
-            let x = startX + (pos * scaleX);
-            drawMicrostripPatch(x, yVirt, 'VIRTUAL');
-        });
-
-        // Add physical board dimension lines at the bottom scale 
-        let dimensionY = h - 6;
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(startX, dimensionY); ctx.lineTo(startX, dimensionY - 4);
-        ctx.moveTo(startX, dimensionY - 2); ctx.lineTo(startX + (absoluteMaxSpacing * scaleX), dimensionY - 2);
-        ctx.moveTo(startX + (absoluteMaxSpacing * scaleX), dimensionY); ctx.lineTo(startX + (absoluteMaxSpacing * scaleX), dimensionY - 4);
-        ctx.stroke();
-
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '9px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('Total Spacing Span: ' + absoluteMaxSpacing.toFixed(2) + 'λ', startX + (absoluteMaxSpacing * scaleX)/2, dimensionY - 5);
-        ctx.textAlign = 'start'; // restore default
-    }
-
-    // Attach real-time input listeners to standard tabs
-    const inputs = ['inputFreq', 'inputType', 'inputArch', 'inputPt', 'inputRCS', 'inputBW', 'inputTc', 'inputSNRReq', 'inputTxN', 'inputTxD', 'inputTxAngle', 'inputRxN', 'inputRxD', 'inputRxAngle'];
-    inputs.forEach(id => document.getElementById(id).addEventListener('input', calculateRadar));
-
-    // Attach real-time input listeners to Auto-Design tab
-    const autoInputs = ['synthFreq', 'reqRange', 'reqRangeRes', 'reqAngleRes', 'reqRCS'];
-    autoInputs.forEach(id => document.getElementById(id).addEventListener('input', () => {
-        const val = document.getElementById(id).value;
-        if(id === 'synthFreq') document.getElementById('valSynthFreq').innerText = (parseFloat(val)/1e9).toFixed(1) + ' GHz';
-        if(id === 'reqRange') document.getElementById('valReqRange').innerText = val + ' m';
-        if(id === 'reqRangeRes') document.getElementById('valReqRangeRes').innerText = val + ' cm';
-        if(id === 'reqAngleRes') document.getElementById('valReqAngle').innerText = val + '°';
-        if(id === 'reqRCS') document.getElementById('valReqRCS').innerText = val + ' m²';
-        autoConfigureRadar();
-    }));
-
-    window.addEventListener('resize', calculateRadar);
-    calculateRadar();
-</script>
-
+<footer class="wrap foot">
+  <span class="brand"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg>Seguar</span>
+  <nav aria-label="Elsewhere">
+    <a href="https://github.com/Seguar" rel="noopener">GitHub profile</a>
+    <a href="https://github.com/Seguar/seguar.github.io" rel="noopener">Source of this site</a>
+  </nav>
+</footer>
 </body>
 </html>
