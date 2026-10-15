@@ -204,6 +204,23 @@ main.wrap [id] { scroll-margin-top: 16px; }
 .core-sum a { color: var(--card); font-size: 12.5px; }
 .core-pn { display: flex; gap: 8px; }
 .core-pn .btn { flex: 1 1 0; justify-content: center; }
+/* "Full text" switch under Highlight layer: role=switch, aria-checked */
+.core-ft {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; box-sizing: border-box;
+  margin-top: -4px; padding: 4px 6px 4px 2px; min-height: 30px; border: 0; border-radius: 8px; background: transparent;
+  font: 600 13px/1.2 var(--sans); color: var(--ink); cursor: pointer; text-align: left;
+}
+.core-ft:hover { background: var(--paper); }
+.core-ft-sw {
+  position: relative; flex: none; width: 30px; height: 18px; border-radius: 999px; box-sizing: border-box;
+  background: var(--line); transition: background-color .15s ease;
+}
+.core-ft-sw::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--paper); box-shadow: 0 1px 2px rgba(36,49,60,.3); transition: transform .15s ease;
+}
+.core-ft[aria-checked="true"] .core-ft-sw { background: var(--card); }
+.core-ft[aria-checked="true"] .core-ft-sw::after { transform: translateX(12px); }
 
 /* Short desktop screens: keep the Configuration controls on screen; the stage list scrolls above
    them. At the end of the rail's scroll the block returns to its place above Highlight layer. */
@@ -256,6 +273,7 @@ main.wrap [id] { scroll-margin-top: 16px; }
   .core-cfg select { min-height: 38px; font-size: 14px; }
   .core-cfg-btn { min-height: 32px; padding: 6px 9px; }
   .core-cfg-tg { width: 34px; }
+  .core-ft { min-height: 38px; font-size: 14px; }
 }
 @media (max-width: 1099.98px) and (min-width: 640px) {
   .core-panel { left: auto; width: 410px; }   /* border-box: same 380 px content as before */
@@ -383,8 +401,55 @@ svg .clickable:focus-visible { filter: drop-shadow(0 0 3px var(--card)) drop-sha
 .core-pop-b { display: grid; gap: 8px; padding: 8px 14px 14px; }
 .core-pop-b p { max-width: none; }
 
+/* ---------- continue reading: long prose runs fold behind one button (core.js) ---------- */
+.core-more {
+  display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; justify-self: start; align-self: start;
+  width: fit-content; max-width: 100%; box-sizing: border-box;
+  margin: calc(4px - var(--core-more-gap, 0px)) 0 0; padding: 3px 4px 3px 0; border: 0; border-radius: 6px;
+  background: none; font: 600 14px/1.4 var(--sans); color: var(--card); text-align: left; cursor: pointer;
+}
+.core-more[hidden] { display: none; }
+.core-more:hover .core-more-l { text-decoration: underline; text-underline-offset: 3px; }
+.core-more:focus-visible { outline: 2px solid var(--card); outline-offset: 2px; }
+.core-more-n { font-weight: 500; color: var(--muted); }
+/* rows / legend items (data-more="on"): a short "More" in the cell; no text nodes, so stage
+   code that reads the row's textContent is unaffected (the name is in aria-label) */
+.core-more-c { display: flex; margin: 2px 0 0; padding: 2px 4px 2px 0; font-size: 13px; }
+.core-more-c::before { content: "More \2193"; content: "More \2193" / ""; }
+.core-more-c[aria-expanded="true"]::before { content: "Less \2191"; content: "Less \2191" / ""; }
+/* focus lands on the text a keyboard user just opened */
+.core-more-f[data-core-tmp]:focus-visible { outline: 2px solid var(--card); outline-offset: 3px; border-radius: 4px; }
+/* the visible lead of a folded run: a few lines, fading out */
+.core-more-clip {
+  max-height: var(--core-more-h); overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.7em), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.7em), transparent);
+}
+/* Cut units carry hidden="until-found": out of the flow (no grid gap), not painted, still
+   found by find-in-page. :is(…, #core-more-x) lifts this above stage rules such as
+   "#chain [hidden] { display: none !important }" so the browser can still search the text. */
+html:not(.core-more-nf) main.wrap :is(.core-more-cut, #core-more-x) {
+  position: absolute !important; display: block !important; content-visibility: hidden;
+  width: 1px !important; height: 0 !important; min-height: 0 !important; max-height: 0 !important;
+  margin: 0 !important; padding: 0 !important; border: 0 !important; overflow: hidden !important; pointer-events: none;
+}
+html.core-more-nf main.wrap .core-more-cut { display: none !important; }    /* no hidden="until-found": plain class */
+.core-more-in { animation: core-more-in .3s ease-out both; }
+@keyframes core-more-in { from { opacity: .35; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media print {
+  .core-more { display: none !important; }
+  .core-more-clip { max-height: none; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+  html main.wrap :is(.core-more-cut, #core-more-x):is(.core-more-cut, #core-more-y) {   /* two ids: above both screen rules */
+    position: static !important; display: revert !important; content-visibility: visible !important;
+    width: auto !important; height: auto !important; min-height: revert !important; max-height: none !important;
+    margin: revert !important; padding: revert !important; border: revert !important; overflow: visible !important;
+  }
+}
+
 /* ---------- reduced motion: no transitions or animations from core ---------- */
 @media (prefers-reduced-motion: reduce) {
+  .core-more-in { animation: none; }
+  .core-ft-sw, .core-ft-sw::after { transition: none; }
   section.stage, .core-next, .core-arrow, .btn, .is-dim, .is-hl, .core-cfg-chev,
   svg :is(.rf,.rfc,.rft,.rfd,.zr,.amp,.conn,.fr,.dr,.clk,.zc,.connc,.fc,.dc,.pwr,.pwrb,.zp,.connp,.fp,.dp,.ctl,.zv,.fv,.dv) { transition: none; }
   .core-next.core-in { animation: none; }
@@ -1905,7 +1970,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     </div>
     <p class="note hw-note" id="hw-ff-count" aria-live="polite">Showing all 8 findings.</p>
   </div>
-  <div class="tbl"><table class="find hw-find">
+  <div class="tbl"><table class="find hw-find" data-more="on">
     <thead><tr><th>Item</th><th>As delivered</th><th>Impact</th><th>What we do</th><th>Status</th></tr></thead>
     <tbody>
       <tr id="hw-f-gtyedge" data-hw-find="gtyedge" data-hw-status="card"><td>GTY to the edge</td><td>TX0–3 fitted through 0.22 µF. TX4–7 go to QSFP2 through 0 Ω; the edge capacitors for lanes 4–7 are not fitted.</td><td>Only 4 of 8 one-bit channels reach the carrier</td><td>Rework 8 capacitors per card: fit C632–35 and C1022–25, remove the QSFP2 TX links. The RX side is not needed. See the checklist below.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-card">Rework on card</span></div></td></tr>
@@ -2915,7 +2980,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   <p>The chain and the one-splitter star carry a single 5&nbsp;MHz clock, the SYSREF rate. Each module locks its two LMK04828s to it in nested zero-delay mode, with the SYSREF divider as the feedback. The divider then has one fixed phase to the incoming edge, so every module makes its own SYSREF. No SYSREF cable runs between modules, and no module samples another module's SYSREF.</p>
   <p class="note">Modules are numbered from the master: module k sits k hops after module 0. The GTY reference does not ride on the chain: each card loops its own J32 (250&nbsp;MHz, one phase to the 5&nbsp;MHz edge) back through carrier J45, so carrier-relayed chains keep J32 free. Only the card-only chain uses J32 for the chain clock. This stage uses 5&nbsp;MHz to match Sync &amp; timing.</p>
 
-  <div class="panel dch-rec">
+  <div class="panel dch-rec" data-more="off">
     <h3>Recommendation</h3>
     <ul class="dch-list">
       <li><b>Use the derived SYSREF unless a true SYSREF is needed.</b> It removes the SYSREF cable, every sampling window between modules and the LMK04832 output limit. It needs only LMK settings, proven on one card first.</li>
@@ -2927,7 +2992,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     </ul>
   </div>
 
-  <div class="panel dch-fix">
+  <div class="panel dch-fix" data-more="off">
     <h3>Corrections this study found</h3>
     <ol class="dch-list">
       <li>As built, J66 goes through jumper J67 (pin 3) to CLKin0, and J35 goes through R345 to CLKin1. A separate SYSREF would have to use CLKin0 and push CLK onto J35, which shows no connector on the vendor photos.</li>
@@ -3920,14 +3985,14 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   </div>
   <p class="note" id="mech-co-cap" aria-live="polite" data-mech-js hidden>Hover, focus or click a numbered callout to find that part in every view.</p>
   <div class="grid2 mech-legs">
-    <ol class="mech-leg">
+    <ol class="mech-leg" data-more="on">
       <li data-mech-li="1">HamGeek card (≈ 235 × 148 mm) standing in the slot, component side toward the RF strips, with its heatsink and 60 mm fan.</li>
       <li data-mech-li="2">PCIe x8 slot on the carrier, under the card's edge fingers: 8 GTY lanes, the GTY reference clock and 12 V.</li>
       <li data-mech-li="3">8 equal-length SSMC jumpers from the card's DAC outputs (J44–J51, in the SSMC column at the front end): a loop in the bend space, back along the card side, then over the one-bit strips to the RF-DAC strip inputs J2–J9. DAC0 (lowest on the card) goes to the nearest strip, so the runs nest without crossing.</li>
       <li data-mech-li="4">Ribbon from card J65 (2 × 10 header on the top edge) to carrier J31 (control bus).</li>
       <li data-mech-li="5">16 RF strips under shield cans, running straight to the front: the 8 one-bit strips next to the slot (short GTY lanes from the edge fingers), then the 8 RF-DAC strips.</li>
     </ol>
-    <ol class="mech-leg" start="6">
+    <ol class="mech-leg" start="6" data-more="on">
       <li data-mech-li="6">16 SMA bulkheads in two rows (RF-DAC 1–8 on top, one-bit 1–8 below), each fed by a short cable W1–W16 with an SMPM plug at the board edge. The SMA flanges don't fit at the 7 mm strip pitch, so they sit on the panel. Each cable rises straight out of its plug, steps back to its own layer (one-bit cables in front, RF-DAC cables 11 mm behind), crosses over and runs straight into the SMA plug: bends of 5 mm radius or more, at least 0.3 mm between any two cables at every card length.</li>
       <li data-mech-li="7">Rear sync SMAs: CLK IN (J26), SYSREF IN (J27) and CLK/SYSREF OUT (J29, a buffered copy of the CLK or the SYSREF, chosen by a 0 Ω strap), each with a short cable (W17, W18, W20) to the carrier jacks in the clock zone; TRIG IO (J28) has no carrier part: W25 (≈ 480 mm) runs over the card's top edge straight to card J64 (PPS_IN, 33 Ω to FPGA pin A10), and the FPGA sets the direction. From the same zone two jumpers run over the card's top edge: J32 (CLK) to card J66 (CLK0_IN, J67 on 2-3, LMK CLKin0 as the PLL1 reference) through an inline DC block, and J33 (SYSREF, DC-coupled LVCMOS, series-terminated) to card J35, which reaches the LMK SYNC pin after the R699 wire mod. J35 shows no connector in the vendor photos: fit an SMA if the footprint is empty. Without the mod only J32 → J66 is used (derived SYSREF). Card J32 (SYS_CLK_OUT, 250 MHz) returns to carrier J45 (GTY REF IN) over W23; C20 on the carrier blocks its DC.</li>
       <li data-mech-li="8">Rear exhaust fan and the 12 V input.</li>
@@ -3938,7 +4003,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 
   <h3 id="mech-j32-h">Card J32 as a reference</h3>
   <p>Card J32 (SYS_CLK_OUT) is the card's only external clock output: LMK04828 SDCLKOUT5, single-ended and DC-coupled LVPECL (about 0.4–0.6 Vpp into 50 Ω, estimate), so every cable from it needs an inline DC block. Its clock group shares only DCLKOUT4 (ADC_REFCLK1, an RF-ADC tile we do not use), so J32 is free to run at VCO/1…32 (250 MHz = ÷12 at VCO1 3000 MHz) or from the SYSREF divider (5 MHz = ÷600).</p>
-  <div class="tbl"><table>
+  <div class="tbl"><table data-more="on">
     <thead><tr><th>Use</th><th>Verdict</th><th>How</th></tr></thead>
     <tbody>
       <tr><td>GTY reference</td><td><span class="ok">Yes, recommended</span></td><td>J32 at 250 MHz → W23 (≈ 250 mm coax) → carrier J45 GTY REF IN → DC block → U27, a single-ended-to-LVDS buffer (LMK1D class; check that it accepts a single-ended input) → PCIE_CLK edge pins (10 nF on the card) → quad A refclk1, shared with quad B. QPLL0 N = 40 gives 10 GHz and 20 Gb/s. The GTYs are then locked to the card's own PL_CLK, DAC and SYSREF clocks, and 250 MHz = 50 × 5 MHz gives one fixed phase to SYSREF (156.25 MHz had four). Release the GTY QPLL only after the card LMK has locked. Jitter ≈ 100 fs plus a few tens of fs from the buffer. Carrier U21 becomes an assembly option (fallback, daisy-chain master).</td></tr>
@@ -3948,7 +4013,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 
   <h3 id="mech-j64-h">Card J64 and J57 in our system</h3>
   <p>Both sit in the card's front SSMC column (schematic p. 17). J64 is a direct FPGA I/O, so it becomes our TRIG IO without a board change. J57 feeds the on-card GNSS receiver, whose time pulse reaches only the FPGA, not the LMK.</p>
-  <div class="tbl"><table>
+  <div class="tbl"><table data-more="on">
     <thead><tr><th>Connector</th><th>Verdict</th><th>How</th></tr></thead>
     <tbody>
       <tr><td>J64 PPS_IN</td><td><span class="ok">Yes, as TRIG IO, no tweak</span></td><td>J64 → R245 33 Ω → FPGA pin A10 (3.3 V HD bank), R248 1 kΩ pull-down, TPD4E001 ESD. As input: a direct LVCMOS33 trigger into the PL (1 kΩ load; drive it from a series-terminated source). As output: FPGA driver + 33 Ω ≈ a 50 Ω series-terminated source into coax. Do not add a 50 Ω shunt, it would load the driver. W25 (≈ 480 mm) from the rear TRIG IO; the carrier trigger receiver, the PERST# trigger route and J42 go away.</td></tr>
@@ -4563,6 +4628,57 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     };
   }
 
+  /* Words in a text: whitespace-separated tokens that hold a letter or a digit
+     ("3 V" = 2, "→" = 0). Pure. */
+  function wordCount(text) {
+    var parts = String(text == null ? '' : text).split(/\s+/);
+    var n = 0;
+    for (var i = 0; i < parts.length; i++) if (/[\p{L}\p{N}]/u.test(parts[i])) n++;
+    return n;
+  }
+
+  /* How a prose run shows ("Continue reading"). words[i] / lines[i] per unit, unit 0 = the
+     lead (lines[0] measured, the others estimated at the current width); forced = data-more="on";
+     T = thresholds { words, lines, lineWords, clamp, min, minLines }. A run collapses when it has
+     more than T.words words, or one unit of at least T.lineWords words runs over T.lines lines,
+     and the fold hides at least T.min words AND at least T.minLines lines (a fold that hides one
+     sentence is not worth the button). The lead stays; it is clamped to T.clamp lines only when
+     that alone hides T.minLines lines or more. Forced runs fold whenever anything can be hidden
+     (a lead over T.clamp lines shows T.clamp, or T.clamp - 1 when it has at most T.lines + 1).
+     Returns { collapse, clamp (lines shown, 0 = none), hidden, total }. Pure. */
+  function morePlan(words, lines, forced, T) {
+    var total = 0, rest = 0, restLines = 0, long = false;
+    for (var i = 0; i < words.length; i++) {
+      total += words[i];
+      if (i) { rest += words[i]; restLines += lines[i] || 0; }
+      if (words[i] >= T.lineWords && (lines[i] || 0) > T.lines) long = true;
+    }
+    var lead = lines[0] || 0, show;
+    if (forced) show = lead > T.clamp ? (lead > T.lines + 1 ? T.clamp : T.clamp - 1) : 0;
+    else show = lead >= T.clamp + T.minLines ? T.clamp : 0;
+    var hidden = rest + (show ? Math.round(words[0] * (lead - show) / lead) : 0);
+    var hiddenLines = restLines + (show ? lead - show : 0);
+    var collapse = forced ? hidden >= 1
+      : (total > T.words || long) && hidden >= T.min && hiddenLines >= T.minLines;
+    return { collapse: collapse, clamp: collapse ? show : 0, hidden: collapse ? hidden : 0, total: total };
+  }
+
+  /* Table rows / legend items opted in with data-more="on": per cell, words[i] / lines[i]
+     (measured). A cell of at least T.cellWords words is clamped to T.cellClamp lines when that
+     hides T.minLines lines or more. Returns { collapse, clamps (lines shown per cell, 0 = none),
+     hidden, total }. Pure. */
+  function moreCellPlan(words, lines, T) {
+    var clamps = [], hidden = 0, total = 0;
+    for (var i = 0; i < words.length; i++) {
+      var n = lines[i] || 0;
+      total += words[i];
+      var on = words[i] >= T.cellWords && n - T.cellClamp >= T.minLines;
+      clamps.push(on ? T.cellClamp : 0);
+      if (on) hidden += Math.round(words[i] * (n - T.cellClamp) / n);
+    }
+    return { collapse: hidden > 0, clamps: clamps, hidden: hidden, total: total };
+  }
+
   /* Reset in the rail's Configuration block: { key: default } for every set-up key whose
      current value differs from the page default (an empty object = nothing to reset). Pure. */
   function resetPlan(cur, defs) {
@@ -4790,6 +4906,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     set: set,
     on: on,
     goTo: function (id) { return goTo(id); },
+    reveal: function (el) { return moreReveal(el); },
     stages: stages,
     reducedMotion: !!(mqMotion && mqMotion.matches),
     clickable: clickable,
@@ -4838,6 +4955,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     var el = id ? doc.getElementById(id) : null;
     if (!el) return false;
     closeMenu(false);
+    moreReveal(el);                 // a target inside folded text opens its run first
     var smooth = !PA.reducedMotion && !opt.instant;
     el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
     setHash(id);
@@ -5078,6 +5196,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
           groups +
           cfg +
           '<div class="core-layers"><p class="core-sub" id="core-layer-lbl">Highlight layer</p>' + layers + '</div>' +
+          '<button type="button" class="core-ft" id="core-ft" role="switch" aria-checked="false">' +
+            '<span class="core-ft-t">Full text</span><span class="core-ft-sw" aria-hidden="true"></span></button>' +
           '<div class="core-pn">' +
             '<button type="button" class="btn sm" data-core-act="prev">← Previous</button>' +
             '<button type="button" class="btn sm primary" data-core-act="next">Next →</button>' +
@@ -5109,6 +5229,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       var act = t.closest('[data-core-act]');
       if (act) { step(act.getAttribute('data-core-act') === 'next' ? 1 : -1); return; }
       if (t.closest('.core-now')) { if (menuOpen()) closeMenu(false); else openMenu(); return; }
+      if (t.closest('.core-ft')) { moreSetFull(!moreFull); return; }
       var sb = t.closest('[data-core-key] > [data-core-v]');
       if (sb) { set(sb.parentNode.getAttribute('data-core-key'), sb.getAttribute('data-core-v')); return; }
       var cb = t.closest('[data-core-cfg]');
@@ -5280,6 +5401,651 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   }
 
   /* ------------------------------------------------------------------ */
+  /* Continue reading: long prose runs fold behind one button            */
+  /* ------------------------------------------------------------------ */
+  /* A run = consecutive prose blocks (p, blockquote, text-only ul/ol) that are direct children
+     of the stage or of a plain div inside it. Elements are only marked (classes, hidden=
+     "until-found"), never moved; the one node core adds per run is its button. Unit 0 (the
+     first block, or the first item of a leading list) stays visible, clamped when long;
+     the other units are cut. data-more="off" / "on" on a block or a wrapper opts out / forces.
+     Second kind ('cells'): rows of a table[data-more="on"] and items of a ul/ol[data-more="on"]
+     that is not prose. Long cells / items get their content wrapped in one div.core-more-w that
+     is clamped; one button per row / item, inside the last clamped cell, opens the whole row. */
+
+  var MORE = { words: 70, lines: 5, lineWords: 50, clamp: 4, min: 45, minLines: 3, cellWords: 60, cellClamp: 3 };
+  var MORE_BOX_SKIP = '.draw,.tbl,.legend,.toolbar,.kpis,.chips,.core-flow,[aria-live],[role="dialog"],[role="status"],[role="alert"]';
+  var MORE_CTRL = 'input,select,textarea,button,iframe,video,audio,canvas';
+  var MORE_LIST_BLOCKS = 'div,p,h1,h2,h3,h4,h5,h6,table,svg,figure,img,details,fieldset';
+  /* A block of controls: the prose right before it is its instructions and never folds. */
+  var MORE_CTL = '.toolbar,.seg,.field,form,fieldset,button,input,select,textarea,label,[role="toolbar"],[role="radiogroup"],[role="group"],[role="switch"]';
+  var MORE_SEL = '.core-more-cut, .core-more-clip';
+  var MORE_ID = 'core-more-u';
+  var moreRuns = [];
+  var moreBlockRun = new WeakMap();     // block element (or table row / legend item) -> run
+  var moreBtnRun = new WeakMap();       // button -> run
+  var moreExpect = new WeakMap();       // unit -> the hidden attribute core last wrote
+  var moreHiddenStart = new WeakSet();  // [hidden] before any stage script ran
+  var moreEmptyStart = new WeakSet();   // prose blocks empty before any stage script ran (readouts)
+  var moreReleased = new WeakSet();     // shown / hidden by a stage's own JS: never folded
+  var moreFull = false, morePrinting = false, moreUntilFound = false;
+  var moreMo = null, moreDirty = [], moreW = 0, moreResizeT = 0, moreIdN = 0;
+
+  function moreSnapshot() {
+    doc.querySelectorAll('main [hidden]').forEach(function (el) { moreHiddenStart.add(el); });
+    doc.querySelectorAll('main p, main ul, main ol, main blockquote').forEach(function (el) {
+      if (!wordCount(el.textContent)) moreEmptyStart.add(el);
+    });
+  }
+
+  /* Nearest data-more value inside the stage ('' when none). */
+  function moreFlag(el, sec) {
+    var f = el.closest('[data-more]');
+    return f && sec.contains(f) ? String(f.getAttribute('data-more')).toLowerCase() : '';
+  }
+
+  function moreIsBox(box, sec) {
+    if (box === sec) return true;
+    var e = box;
+    for (; e && e !== sec; e = e.parentElement) {
+      if (!/^(DIV|ASIDE|ARTICLE)$/.test(e.tagName)) return false;
+      if (e.hidden || e.matches(MORE_BOX_SKIP)) return false;
+    }
+    if (!e || box.classList.contains('grid2')) return false;   // a grid2 holds columns, not prose
+    var cs = getComputedStyle(box);
+    if (!/^(block|grid|flow-root)$/.test(cs.display)) return false;
+    if (cs.display === 'grid' && cs.gridTemplateColumns.trim().split(/\s+/).length > 1) return false;
+    return true;
+  }
+
+  function moreCoreId(el) { return !!el.id && el.id.indexOf(MORE_ID) === 0; }
+
+  function moreIsProse(el, sec) {
+    var tag = el.tagName;
+    if (!/^(P|UL|OL|BLOCKQUOTE)$/.test(tag)) return false;
+    if (el.hidden || moreHiddenStart.has(el) || moreReleased.has(el)) return false;
+    if (moreEmptyStart.has(el)) return false;                    // filled by a stage: a readout
+    if (el.matches('[aria-live],[role="status"],[role="alert"],[role="log"],.legend,.kpis,.toolbar')) return false;
+    if (moreFlag(el, sec) === 'off') return false;
+    if (el.querySelector(MORE_CTRL)) return false;
+    if (tag === 'UL' || tag === 'OL') {
+      if (el.id && !moreCoreId(el)) return false;                // an id'd list is a stage component
+      if (el.querySelector(MORE_LIST_BLOCKS)) return false;      // not plain text items
+      if (/flex|inline/.test(getComputedStyle(el).display)) return false;
+    }
+    return wordCount(el.textContent) > 0;
+  }
+
+  function moreIsCtl(el) {
+    if (el.classList.contains('core-more')) return false;
+    var f = el.firstElementChild;                                // a block that starts with controls
+    try { return el.matches(MORE_CTL) || !!(f && f.matches(MORE_CTL)); } catch (e) { return false; }
+  }
+
+  function moreUnits(blocks) {
+    var b0 = blocks[0];
+    if (/^(UL|OL)$/.test(b0.tagName)) {
+      var lis = Array.prototype.filter.call(b0.children, function (c) { return c.tagName === 'LI'; });
+      if (lis.length) return lis.concat(blocks.slice(1));
+    }
+    return blocks.slice();
+  }
+
+  function moreObserve(el) {
+    if (moreMo) moreMo.observe(el, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+  }
+
+  function moreMakeRun(box, sec, blocks, openFirst) {
+    var forced = blocks.some(function (b) { return moreFlag(b, sec) === 'on'; });
+    var units = moreUnits(blocks);
+    var words = units.map(function (u) { return wordCount(u.textContent); });
+    var total = words.reduce(function (a, b) { return a + b; }, 0);
+    if (!forced && total < MORE.lineWords) return null;          // short: stays as it is
+    var cs = getComputedStyle(box);
+    var gap = /grid|flex/.test(cs.display) ? parseFloat(cs.rowGap) || 0 : 0;
+    var r = {
+      kind: 'box', box: box, sec: sec, blocks: blocks, units: units, words: words, forced: forced, gap: gap,
+      open: openFirst.indexOf(blocks[0]) >= 0, lines: [], lh: 0, padT: 0, plan: null, btn: null,
+      gainEl: null, noGain: false, ids: []
+    };
+    blocks.forEach(function (b) { moreBlockRun.set(b, r); moreObserve(b); });
+    moreRuns.push(r);
+    return r;
+  }
+
+  function moreBuildBox(box, sec, openFirst) {
+    var made = [], run = [];
+    function close() {
+      if (run.length) { var r = moreMakeRun(box, sec, run, openFirst); if (r) made.push(r); }
+      run = [];
+    }
+    Array.prototype.forEach.call(box.children, function (c) {
+      if (c.classList.contains('core-more')) return;             // our own button
+      if (moreIsProse(c, sec)) { run.push(c); return; }
+      if (run.length && moreIsCtl(c)) run.pop();                 // instructions for the controls stay
+      close();
+    });
+    close();
+    return made;
+  }
+
+  function moreScan(sec) {
+    var boxes = [];
+    sec.querySelectorAll('p,ul,ol,blockquote').forEach(function (b) {
+      var p = b.parentElement;
+      if (p && boxes.indexOf(p) < 0 && moreIsBox(p, sec)) boxes.push(p);
+    });
+    var made = [];
+    boxes.forEach(function (box) { made = made.concat(moreBuildBox(box, sec, [])); });
+    return made;
+  }
+
+  /* Opted-in tables and lists: one 'cells' run per row / item with a long cell. */
+  function moreMakeCells(g, sec, open) {
+    var cells = g.tagName === 'TR' ? Array.prototype.filter.call(g.cells, function (c) { return c.tagName === 'TD'; }) : [g];
+    cells = cells.filter(function (c) {
+      return moreFlag(c, sec) !== 'off' && !c.querySelector(MORE_CTRL + ',table,svg') &&
+        wordCount(c.textContent) >= MORE.cellWords;
+    });
+    if (!cells.length) return null;
+    var units = cells.map(function (c) {
+      var w = doc.createElement('div');
+      w.className = 'core-more-w';
+      while (c.firstChild) w.appendChild(c.firstChild);
+      c.appendChild(w);
+      return w;
+    });
+    var r = {
+      kind: 'cells', box: g.parentElement, sec: sec, group: g, blocks: [g], cells: cells, units: units,
+      words: units.map(function (u) { return wordCount(u.textContent); }), forced: false, gap: 0,
+      open: !!open, lines: [], lh: 0, padT: 0, plan: null, btn: null, gainEl: null, noGain: false, ids: []
+    };
+    moreBlockRun.set(g, r);
+    moreObserve(g);
+    moreRuns.push(r);
+    return r;
+  }
+
+  function moreScanCells(sec) {
+    var made = [];
+    sec.querySelectorAll('table[data-more="on"], ul[data-more="on"], ol[data-more="on"]').forEach(function (t) {
+      if (moreBlockRun.has(t) || moreHiddenStart.has(t)) return;  // a prose list: folds as a run
+      var groups = t.tagName === 'TABLE' ? Array.prototype.slice.call(t.rows)
+        : Array.prototype.filter.call(t.children, function (c) { return c.tagName === 'LI'; });
+      groups.forEach(function (g) {
+        if (moreBlockRun.has(g)) return;
+        var r = moreMakeCells(g, sec, false);
+        if (r) made.push(r);
+      });
+    });
+    return made;
+  }
+
+  function moreTeardown(r) {
+    r.units.forEach(function (u, i) {
+      if (r.kind === 'cells' || i === 0) moreClip(u, false, r);
+      if (r.kind === 'box' && i > 0) moreCut(u, false);
+    });
+    r.ids.forEach(function (u) { if (moreCoreId(u)) u.removeAttribute('id'); });
+    r.ids = [];
+    if (r.kind === 'cells') {
+      r.units.forEach(function (w) {
+        var c = w.parentNode;
+        if (!c) return;
+        while (w.firstChild) c.insertBefore(w.firstChild, w);
+        c.removeChild(w);
+      });
+    }
+    r.blocks.forEach(function (b) { if (moreBlockRun.get(b) === r) moreBlockRun.delete(b); });
+    if (r.btn) { moreBtnRun.delete(r.btn); r.btn.remove(); r.btn = null; }
+  }
+
+  /* Structure changed (a stage replaced list items, or took over showing / hiding a block):
+     build the runs of that wrapper again, keeping the open ones open. */
+  function moreRebuild(box) {
+    var keep = [], sec = null;
+    moreRuns = moreRuns.filter(function (r) {
+      if (r.kind !== 'box' || r.box !== box) return true;
+      sec = r.sec;
+      if (r.open) keep.push(r.blocks[0]);
+      moreTeardown(r);
+      return false;
+    });
+    if (!sec || !box.isConnected) return;
+    moreBuildBox(box, sec, keep).forEach(function (r) { moreApply(r, true, false); });
+  }
+
+  /* A stage rewrote a long cell (core's wrapper is gone): wrap that row / item again. */
+  function moreRebuildCells(r) {
+    moreRuns = moreRuns.filter(function (x) { return x !== r; });
+    moreTeardown(r);
+    if (!r.group.isConnected) return;
+    var n = moreMakeCells(r.group, r.sec, r.open);
+    if (n) moreApply(n, true, false);
+  }
+
+  function moreRunOf(el) {
+    for (var e = el; e && e.nodeType === 1 && e !== doc.body; e = e.parentElement) {
+      var r = moreBlockRun.get(e) || moreBtnRun.get(e);
+      if (r) return r;
+    }
+    return null;
+  }
+
+  function moreLh(el) {
+    var cs = getComputedStyle(el);
+    var fs = parseFloat(cs.fontSize) || 16;
+    var lh = parseFloat(cs.lineHeight);
+    return { lh: lh > 0 ? lh : fs * 1.2, fs: fs, padT: parseFloat(cs.paddingTop) || 0, padB: parseFloat(cs.paddingBottom) || 0, maxW: parseFloat(cs.maxWidth) };
+  }
+
+  /* Lines of a unit that is not laid out (cut): text length against the line width. */
+  function moreEstLines(u, box) {
+    var m = moreLh(u), bs = getComputedStyle(box);
+    var w = box.clientWidth - (parseFloat(bs.paddingLeft) || 0) - (parseFloat(bs.paddingRight) || 0);
+    if (m.maxW > 0) w = Math.min(w, m.maxW);
+    var chars = u.textContent.replace(/\s+/g, ' ').trim().length;
+    return Math.ceil(chars * m.fs * 0.5 / Math.max(60, w));
+  }
+
+  function moreLinesOf(u) {
+    var m = moreLh(u);
+    return Math.max(1, Math.round((u.scrollHeight - m.padT - m.padB) / m.lh));
+  }
+
+  function moreMeasure(r) {
+    var m = moreLh(r.units[0]);
+    r.lh = m.lh;
+    r.padT = m.padT;
+    if (r.kind === 'cells') {
+      r.lines = r.units.map(function (u) { return u.getClientRects().length ? moreLinesOf(u) : 0; });
+      return;
+    }
+    r.lines = [moreLinesOf(r.units[0])];
+    for (var i = 1; i < r.units.length; i++) r.lines[i] = moreEstLines(r.units[i], r.box);
+  }
+
+  /* The outermost multi-column layout (grid / flex row) the run sits in, or the table row: the
+     element whose height shows what folding really saves. null = folding saves its own height. */
+  function moreMultiCol(p, e) {
+    var cs = getComputedStyle(p);
+    if (/grid/.test(cs.display)) return cs.gridTemplateColumns.trim().split(/\s+/).length > 1;
+    if (/flex/.test(cs.display) && !/column/.test(cs.flexDirection)) {
+      return e.getBoundingClientRect().width < p.getBoundingClientRect().width - 4;
+    }
+    return false;
+  }
+
+  function moreGainEl(r) {
+    if (r.kind === 'cells' && r.group.tagName === 'TR') return r.group;
+    var top = null;
+    for (var e = r.kind === 'cells' ? r.group : r.box; e && e !== r.sec; e = e.parentElement) {
+      var p = e.parentElement;
+      if (p && moreMultiCol(p, e)) top = p;
+    }
+    return top;
+  }
+
+  function morePlanOf(r) {
+    return r.kind === 'cells' ? moreCellPlan(r.words, r.lines, MORE) : morePlan(r.words, r.lines, r.forced, MORE);
+  }
+
+  /* on = number of lines to show (0 = no clamp). A list-item lead is clamped through its list,
+     so the clip and the fade keep the bullet / number that sits outside the item. */
+  function moreClip(u, on, r) {
+    var t = u.tagName === 'LI' && u.parentElement ? u.parentElement : u;
+    if (on) {
+      var off = t === u ? 0 : u.getBoundingClientRect().top - t.getBoundingClientRect().top;
+      t.style.setProperty('--core-more-h', Math.round(Math.max(0, off) + on * r.lh + r.padT) + 'px');
+      t.classList.add('core-more-clip');
+      t.scrollTop = 0;
+    } else if (t.classList.contains('core-more-clip')) {
+      t.classList.remove('core-more-clip');
+      t.style.removeProperty('--core-more-h');
+      if (!t.getAttribute('style')) t.removeAttribute('style');
+    }
+  }
+
+  /* Returns true when the unit changed from cut to shown. */
+  function moreCut(u, on) {
+    var is = u.classList.contains('core-more-cut');
+    if (on === is) return false;
+    if (on) {
+      u.classList.add('core-more-cut');
+      if (moreUntilFound) { moreExpect.set(u, 'until-found'); u.setAttribute('hidden', 'until-found'); }
+      if (pop && !pop.hidden && popAnchor && u.contains(popAnchor)) closePopover(false);
+      return false;
+    }
+    u.classList.remove('core-more-cut');
+    if (moreUntilFound) {
+      moreExpect.set(u, null);
+      if (u.getAttribute('hidden') === 'until-found') u.removeAttribute('hidden');
+    }
+    return true;
+  }
+
+  /* Show (true) or fold (false) the run as r.plan says. Returns the units that came back. */
+  function moreShow(r, show) {
+    var plan = r.plan, shown = [];
+    r.units.forEach(function (u, i) {
+      if (r.kind === 'cells') moreClip(u, show ? 0 : plan.clamps[i] || 0, r);
+      else if (i === 0) moreClip(u, show ? 0 : plan.clamp, r);
+      else if (moreCut(u, !show)) shown.push(u);
+    });
+    return shown;
+  }
+
+  function moreWords(n) { return fmt(n) + (n === 1 ? ' more word' : ' more words'); }
+
+  /* ids of the units the button shows / hides (core ids only where a unit has none). */
+  function moreControls(r) {
+    var ids = [];
+    r.units.forEach(function (u, i) {
+      var on = r.kind === 'cells' ? (r.plan.clamps[i] || 0) > 0 : (i > 0 || r.plan.clamp > 0);
+      if (!on) return;
+      if (!u.id) { u.id = MORE_ID + (++moreIdN); r.ids.push(u); }
+      ids.push(u.id);
+    });
+    return ids.join(' ');
+  }
+
+  function moreBtn(r, need) {
+    if (!need) { if (r.btn && !r.btn.hidden) r.btn.hidden = true; return; }
+    if (!r.btn) {
+      r.btn = doc.createElement('button');
+      r.btn.type = 'button';
+      r.btn.className = r.kind === 'cells' ? 'core-more core-more-c' : 'core-more';
+      moreBtnRun.set(r.btn, r);
+      r.btn.addEventListener('click', function () { moreToggle(r); });
+    }
+    var b = r.btn, open = r.open;
+    if (r.kind === 'cells') {
+      /* No text nodes: stages read row / item text with textContent. The label is CSS content. */
+      var noun = r.group.tagName === 'TR' ? 'row' : 'item';
+      var al = open ? 'Less: fold this ' + noun + ' again' : 'More: ' + moreWords(r.plan.hidden) + ' in this ' + noun;
+      if (b.getAttribute('aria-label') !== al) b.setAttribute('aria-label', al);
+      if (b.title !== al) b.title = al;
+    } else {
+      var html = '<span class="core-more-l">' + (open ? 'Show less' : 'Continue reading') +
+        ' <span class="core-more-a" aria-hidden="true">' + (open ? '↑' : '↓') + '</span></span>' +
+        (open ? '' : '<span class="core-more-n">· ' + moreWords(r.plan.hidden) + '</span>');
+      if (b.innerHTML !== html) b.innerHTML = html;
+      b.style.setProperty('--core-more-gap', r.gap + 'px');
+    }
+    var ex = open ? 'true' : 'false';
+    if (b.getAttribute('aria-expanded') !== ex) b.setAttribute('aria-expanded', ex);
+    var ac = moreControls(r);
+    if (b.getAttribute('aria-controls') !== ac) b.setAttribute('aria-controls', ac);
+    var had = doc.activeElement === b;
+    if (r.kind === 'cells') {
+      var host = null;
+      r.cells.forEach(function (c, i) { if ((r.plan.clamps[i] || 0) > 0) host = c; });
+      host = host || r.cells[r.cells.length - 1];
+      if (b.parentNode !== host || host.lastChild !== b) {
+        host.appendChild(b);
+        if (had) b.focus({ preventScroll: true });
+      }
+    } else {
+      var after = open ? r.blocks[r.blocks.length - 1] : r.blocks[0];
+      if (after.nextElementSibling !== b || !b.isConnected) {
+        after.parentNode.insertBefore(b, after.nextSibling);
+        if (had) b.focus({ preventScroll: true });
+      }
+    }
+    if (b.hidden) b.hidden = false;
+  }
+
+  /* Side by side with a taller column (or a taller cell in the row), a fold saves nothing:
+     compare the height of that layout with the run shown and folded (the other runs as they
+     are), and fold only when that saves 3 lines or more. Sets r.noGain. */
+  function moreGain(r) {
+    r.noGain = false;
+    var plan = r.plan, g = r.gainEl;
+    if (!plan || !plan.collapse || r.forced || !g || !g.isConnected) return;
+    var open = r.open;
+    r.open = false;
+    moreShow(r, true);
+    moreBtn(r, false);
+    var h0 = g.getBoundingClientRect().height;
+    moreShow(r, false);
+    moreBtn(r, true);
+    var h1 = g.getBoundingClientRect().height;
+    r.open = open;
+    r.noGain = h0 - h1 < MORE.minLines * r.lh;
+  }
+
+  /* gain: false = skip the side-by-side check (moreApplyAll weighs all runs together). */
+  function moreApply(r, measure, animate, gain) {
+    if (measure || !r.lines.length) { moreMeasure(r); r.gainEl = moreGainEl(r); r.noGain = false; }
+    var plan = r.plan = morePlanOf(r);
+    if (measure && gain !== false) moreGain(r);
+    if (r.noGain) plan = r.plan = { collapse: false, clamp: 0, clamps: [], hidden: 0, total: plan.total };
+    var show = !plan.collapse || r.open || moreFull || morePrinting;
+    var shown = moreShow(r, show);
+    moreBtn(r, plan.collapse && !moreFull && !morePrinting);
+    if (animate && !PA.reducedMotion) {
+      shown.forEach(function (u) {
+        u.classList.add('core-more-in');
+        setTimeout(function () { u.classList.remove('core-more-in'); }, 400);
+      });
+    }
+  }
+
+  /* All runs. With measure, every run first folds as its plan says; then each run beside
+     another column is weighed with its neighbours already folded (two long columns both fold,
+     a short column next to a long one does not). */
+  function moreApplyAll(measure) {
+    moreRuns.forEach(function (r) { moreApply(r, measure, false, false); });
+    if (!measure) return;
+    moreRuns.forEach(function (r) {
+      if (!r.gainEl || !r.plan || !r.plan.collapse) return;
+      moreGain(r);
+      if (r.noGain) moreApply(r, false, false);
+    });
+  }
+
+  /* Open / close one run. keep = an element whose screen position stays put (no jump). */
+  function moreSet(r, open, keep) {
+    if (r.open === open) return false;
+    var y0 = keep && keep.isConnected ? keep.getBoundingClientRect().top : null;
+    r.open = open;
+    moreApply(r, false, open);
+    if (y0 !== null) {
+      var dy = keep.getBoundingClientRect().top - y0;
+      if (Math.abs(dy) >= 1) window.scrollBy(0, dy);
+    }
+    if (!open && r.btn && !r.btn.hidden) {
+      var b = r.btn.getBoundingClientRect(), top = isWide() ? 0 : 64;
+      if (b.top < top || b.bottom > window.innerHeight) r.btn.scrollIntoView({ block: 'center' });
+    }
+    return true;
+  }
+
+  function moreToggle(r) {
+    var cells = r.kind === 'cells';
+    if (r.open) { moreSet(r, false, cells ? r.group : r.btn); return; }
+    var had = doc.activeElement === r.btn;
+    moreSet(r, true, cells ? r.group : r.blocks[0]);
+    /* The button moved below the text it showed: put focus at the start of that text (the
+       lead itself when it was clamped), so reading and Tab continue there. */
+    if (had && !cells) {
+      var u = r.plan && r.plan.clamp ? r.units[0] : r.units[1] || r.units[0];
+      u.classList.add('core-more-f');
+      u.addEventListener('blur', function () { u.classList.remove('core-more-f'); }, { once: true });
+      focusTarget(u);
+    }
+  }
+
+  /* Open the folded run that hides el (or clips it). True when something opened. */
+  function moreReveal(el) {
+    if (!isEl(el) || moreFull) return false;
+    var r = moreRunOf(el);
+    if (!r || r.open || !r.plan || !r.plan.collapse) return false;
+    if (!el.closest(MORE_SEL) && !el.querySelector(MORE_SEL)) return false;
+    return moreSet(r, true, null);
+  }
+
+  /* The element at the top of the reading area, to hold in place while many runs change. */
+  function moreAnchor() {
+    var main = doc.querySelector('main.wrap');
+    if (!main) return null;
+    var mr = main.getBoundingClientRect();
+    var x = mr.left + Math.min(mr.width / 2, 320);
+    for (var y = isWide() ? 24 : 84; y < window.innerHeight; y += 36) {
+      var el = doc.elementFromPoint(x, y);
+      if (!el || el === main || !main.contains(el)) continue;
+      var r = moreRunOf(el);
+      if (r) el = r.blocks[0];
+      return { el: el, top: el.getBoundingClientRect().top };
+    }
+    return null;
+  }
+
+  function paintFt() {
+    var b = rail && rail.querySelector('.core-ft');
+    if (!b) return;
+    b.setAttribute('aria-checked', moreFull ? 'true' : 'false');
+    b.title = moreFull ? 'Every paragraph is shown in full. Turn off to fold long text behind Continue reading.'
+      : 'Long text is folded behind Continue reading. Turn on to show every paragraph in full.';
+  }
+
+  function moreSetFull(on) {
+    on = !!on;
+    if (moreFull === on) return;
+    var a = moreAnchor();
+    moreFull = on;
+    store('core.fullText', on);
+    paintFt();
+    moreRuns.forEach(function (r) { if (!on) r.open = false; moreApply(r, false, false); });
+    if (a && a.el.isConnected) {
+      var dy = a.el.getBoundingClientRect().top - a.top;
+      if (Math.abs(dy) >= 1) window.scrollBy(0, dy);
+    }
+  }
+
+  function moreFlush() {
+    var list = moreDirty;
+    moreDirty = [];
+    list.forEach(function (r) {
+      if (moreRuns.indexOf(r) < 0) return;
+      if (r.kind === 'cells' && r.units.some(function (u, i) { return u.parentNode !== r.cells[i]; })) {
+        moreRebuildCells(r);
+        return;
+      }
+      r.words = r.units.map(function (u) { return wordCount(u.textContent); });
+      moreApply(r, true, false);
+    });
+  }
+
+  function moreOwnNodes(list) {
+    for (var i = 0; i < list.length; i++) {
+      var n = list[i];
+      if (!(n.nodeType === 1 && n.classList.contains('core-more'))) return false;
+    }
+    return true;
+  }
+
+  function onMoreMut(recs) {
+    var rebuild = [];
+    recs.forEach(function (m) {
+      var t = m.target.nodeType === 1 ? m.target : m.target.parentElement;
+      if (!t || t.closest('.core-more')) return;                 // core's own button
+      if (m.type === 'childList' && moreOwnNodes(m.addedNodes) && moreOwnNodes(m.removedNodes)) return;
+      var r = moreRunOf(t);
+      if (!r) return;
+      if (m.type === 'attributes' && m.attributeName === 'hidden') {
+        var isUnit = r.units.indexOf(t) >= 0 || r.blocks.indexOf(t) >= 0;
+        if (!isUnit || r.kind === 'cells') { if (moreDirty.indexOf(r) < 0) moreDirty.push(r); return; }
+        var exp = moreExpect.has(t) ? moreExpect.get(t) : null;
+        var cur = t.getAttribute('hidden');
+        if (cur === exp) return;
+        if (exp === 'until-found' && cur === null) {          // the browser revealed a find match
+          moreExpect.set(t, null);
+          t.classList.remove('core-more-cut');
+          moreSet(r, true, null);
+          return;
+        }
+        /* A stage shows / hides this block itself: hand it back and rebuild the runs. */
+        moreReleased.add(r.blocks.indexOf(t) >= 0 ? t : r.blocks[0]);
+        if (rebuild.indexOf(r.box) < 0) rebuild.push(r.box);
+      } else if (m.type === 'attributes') {
+        /* A stage highlights something inside folded text: open it (and bring prose into view). */
+        if (t.classList.contains('is-hl') && !r.open && r.plan && r.plan.collapse && (t.closest(MORE_SEL) || t.querySelector(MORE_SEL))) {
+          moreSet(r, true, null);
+          if (r.kind === 'box') {
+            var tr = t.getBoundingClientRect();
+            if (tr.bottom < 0 || tr.top > window.innerHeight) t.scrollIntoView({ block: 'center', behavior: PA.reducedMotion ? 'auto' : 'smooth' });
+          }
+        }
+      } else {
+        if (m.type === 'childList' && r.kind === 'box' && /^(UL|OL)$/.test(t.tagName) && r.blocks[0] === t) {
+          if (rebuild.indexOf(r.box) < 0) rebuild.push(r.box);
+        } else if (moreDirty.indexOf(r) < 0) moreDirty.push(r);
+      }
+    });
+    rebuild.forEach(moreRebuild);
+    if (moreDirty.length) moreFlush();      // observer callbacks are already batched
+  }
+
+  function moreInit() {
+    moreUntilFound = typeof HTMLElement !== 'undefined' && 'onbeforematch' in HTMLElement.prototype;
+    if (!moreUntilFound) root.classList.add('core-more-nf');
+    moreFull = store('core.fullText') === true;
+    paintFt();
+    if (window.MutationObserver) moreMo = new MutationObserver(onMoreMut);
+    stages.forEach(function (s) { moreScan(s.el); });
+    stages.forEach(function (s) { moreScanCells(s.el); });
+    moreApplyAll(true);
+    moreW = window.innerWidth;
+
+    /* Find in page (and #fragment links) reach cut text and open its run. */
+    doc.addEventListener('beforematch', function (e) {
+      var r = moreRunOf(e.target);
+      if (r) moreSet(r, true, null);
+    }, true);
+    /* Focus into the hidden part (Tab to a term below the clamp) opens the run. */
+    doc.addEventListener('focusin', function (e) {
+      var t = e.target;
+      if (!isEl(t) || t.classList.contains('core-more')) return;
+      var c = t.closest(MORE_SEL);
+      if (!c) return;
+      if (c.classList.contains('core-more-clip')) {
+        var cr = c.getBoundingClientRect();
+        if (t.getBoundingClientRect().bottom <= cr.bottom - 2) return;    // still inside the shown lines
+      }
+      var r = moreRunOf(t);
+      if (r) moreSet(r, true, null);
+    });
+    /* A clamped lead that gets scrolled (find in page inside it) opens instead. */
+    doc.addEventListener('scroll', function (e) {
+      var t = e.target;
+      if (!isEl(t) || !t.classList.contains('core-more-clip') || t.scrollTop <= 0) return;
+      t.scrollTop = 0;
+      var r = moreRunOf(t);
+      if (r) moreSet(r, true, null);
+    }, true);
+    window.addEventListener('beforeprint', function () {
+      morePrinting = true;
+      moreApplyAll(false);
+    });
+    window.addEventListener('afterprint', function () {
+      morePrinting = false;
+      moreApplyAll(false);
+    });
+    /* Line-based decisions follow the width; word counts do not change on resize. */
+    window.addEventListener('resize', function () {
+      if (window.innerWidth === moreW) return;
+      clearTimeout(moreResizeT);
+      moreResizeT = setTimeout(function () {
+        moreW = window.innerWidth;
+        moreApplyAll(true);
+      }, 150);
+    });
+    if (doc.fonts && doc.fonts.ready) {
+      doc.fonts.ready.then(function () { moreApplyAll(true); });
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Global listeners                                                    */
   /* ------------------------------------------------------------------ */
 
@@ -5381,6 +6147,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   /* ------------------------------------------------------------------ */
 
   function init() {
+    moreSnapshot();               // before any stage script shows its JS-only parts
     collectStages();
     var saved = store('core.visited');
     if (Array.isArray(saved)) saved.forEach(function (id) { if (stageById[id]) visited[id] = true; });
@@ -5406,6 +6173,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     var q = readyQ;
     readyQ = [];
     q.forEach(runSafe);
+    runSafe(moreInit);            // after the stages have built their content
     honourInitialHash();
   }
 
