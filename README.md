@@ -8,6 +8,7 @@ A home page and static tools, served from this repository at <https://seguar.git
 | [`/radar-sim/`](https://seguar.github.io/radar-sim/) | **MIMO/FMCW Radar Simulator** — single-page simulator for first-order MIMO FMCW radar sizing (it used to be served at `/`) |
 | [`/eband-distribution/`](https://seguar.github.io/eband-distribution/) | **E-Band Distribution Comparison Tool** — interactive hardware map and parameterized model for LO/reference and baseband distribution in a tiled E-band array |
 | [`/rfsoc-pulse-array/`](https://seguar.github.io/rfsoc-pulse-array/) | **ZU67DR Pulse Array** — interactive design walkthrough for a 4-module RFSoC pulse generator with 32 RF-DAC and 32 one-bit outputs |
+| [`/esp32-c5-phased-array/`](https://seguar.github.io/esp32-c5-phased-array/) | **ESP32-C5 Phased Array** — student-project proposal and design walkthrough for a 16-element 5.2 GHz digital array built from ESP32-C5 radios |
 
 To add a tool or a repository to the home page, copy an entry in `index.html`;
 the HTML comments above the tools list and the repository list say what to change.
@@ -51,3 +52,23 @@ One HTML file with no build step needed to serve it; the 3D view loads
 three.js from a CDN and the fonts come from Google Fonts. Part numbers are
 first candidates to check against datasheets, and dimensions and power figures
 are estimates until the hardware is measured.
+
+## ESP32-C5 Phased Array
+
+Student-project proposal for a low-cost 16-element 4 × 4 digital array at
+5.2 GHz, inspired by ESPARGOS and ESP-SDR. Every element is an ESP32-C5
+transceiver; the array is two 8-element tiles, and in each tile eight 2-bit
+PARLIO lanes feed one ESP32-S31 that forwards about 640 Mbit/s over one
+Gigabit port. A master board shares the 48 MHz reference, the 40 MHz PARLIO
+clock, the capture trigger and a 5.2 GHz calibration tone.
+
+The page walks through synchronization, calibration, the data path and its
+rate budget, the tile PCB, experiments (receive beamforming with a steering
+slider, radar, communications, transmit), costs, the bench tests that decide
+the design, and the staged plan. Every claim carries a status — confirmed,
+inference, open or speculative — backed by
+[`esp32-c5-phased-array/evidence.html`](esp32-c5-phased-array/evidence.html).
+The slide deck (PDF and PowerPoint) is in
+[`esp32-c5-phased-array/deck/`](esp32-c5-phased-array/deck/), and the Python
+that builds both the deck and the page is in
+[`esp32-c5-phased-array/deck-src/`](esp32-c5-phased-array/deck-src/).
