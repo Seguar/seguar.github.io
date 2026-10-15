@@ -167,11 +167,60 @@ main.wrap [id] { scroll-margin-top: 16px; }
 .core-dot[data-l="clk"] { background: var(--clk); }
 .core-dot[data-l="pwr"] { background: var(--pwr); }
 .core-dot[data-l="ctl"] { background: var(--ctl); }
-.core-sum { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); font-size: 13.5px; }
-.core-sum b { font-size: 14.5px; }
-.core-sum a { color: var(--card); font-size: 13px; }
+/* Configuration block: modules / outputs / sync + live summary, on every stage */
+.core-cfg { display: grid; gap: 8px; min-width: 0; padding: 8px 10px 10px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); }
+.core-cfg [hidden] { display: none !important; }
+.core-cfg-h { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.core-cfg-h .core-sub { margin: 0 auto 0 2px; }
+.core-cfg-btn {
+  font: 600 12px/1 var(--sans); color: var(--card); background: transparent; border: 1px solid transparent;
+  border-radius: 6px; padding: 4px 7px; min-height: 26px; cursor: pointer;
+}
+.core-cfg-btn:hover { background: var(--card-t); }
+.core-cfg-btn[aria-disabled="true"] { color: var(--muted); background: transparent; cursor: default; }
+.core-cfg-tg { width: 26px; padding: 0; color: var(--muted); font-size: 13px; }
+.core-cfg-chev { display: inline-block; transition: transform .15s ease; }
+.core-cfg-closed .core-cfg-chev { transform: rotate(-90deg); }
+.core-cfg-one { margin: -2px 2px 0; font-size: 12.5px; line-height: 1.35; color: var(--ink); }
+.core-cfg-b { display: grid; gap: 8px; min-width: 0; }
+.core-cfg-f { display: grid; gap: 3px; min-width: 0; }
+.core-cfg-k { font: 600 12px/1.2 var(--sans); color: var(--muted); }
+.core-cfg .seg.core-cfg-seg { display: flex; flex-wrap: nowrap; width: 100%; padding: 2px; }
+.core-cfg .seg.core-cfg-seg > button {
+  flex: 1 1 auto; justify-content: center; min-width: 0; padding: 4px 6px; min-height: 28px;
+  font-size: 12.5px; white-space: nowrap;
+}
+.core-cfg select {
+  font: 500 13px/1.2 var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--line);
+  border-radius: 7px; padding: 4px 6px; min-height: 30px; width: 100%; min-width: 0; box-sizing: border-box; cursor: pointer;
+}
+.core-cfg select:hover { border-color: var(--card); }
+.core-cfg select:focus-visible { outline: 2px solid var(--card); outline-offset: 1px; border-color: var(--card); }
+.core-cfg-note { font-size: 12px; line-height: 1.3; color: var(--muted); }
+.core-cfg-note:empty { display: none; }
+.core-sum { display: grid; gap: 2px; min-width: 0; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.35; color: var(--muted); }
+.core-sum b { font-size: 13.5px; color: var(--ink); }
+.core-sum-l { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 2px; }
+.core-sum a { color: var(--card); font-size: 12.5px; }
 .core-pn { display: flex; gap: 8px; }
 .core-pn .btn { flex: 1 1 0; justify-content: center; }
+
+/* Short desktop screens: keep the Configuration controls on screen; the stage list scrolls above
+   them. At the end of the rail's scroll the block returns to its place above Highlight layer. */
+@media (min-width: 1100px) and (max-height: 959.98px) and (min-height: 560px) {
+  .core-rail-in { padding-top: 20px; gap: 10px; }
+  .core-panel { gap: 10px; }
+  .core-grp { gap: 2px; }
+  .core-grp-h { margin: 4px 0 1px 2px; }
+  .core-list { gap: 0; }
+  .core-link { padding-top: 4px; padding-bottom: 4px; }
+  .core-rail { scroll-padding-bottom: calc(var(--core-cfg-h, 0px) + 16px); }   /* Tab focus never lands under the block */
+  .core-cfg {
+    position: sticky; bottom: 8px; z-index: 2; gap: 6px; padding: 6px 10px 8px;
+    box-shadow: 0 8px 0 0 var(--bg), 0 -10px 18px -12px rgba(36,49,60,.35);   /* masks the strip below, soft top edge */
+  }
+  .core-cfg-b { gap: 6px; }
+}
 
 /* ---------- mobile: rail becomes a sticky top bar with a drop-down stage list ---------- */
 @media (max-width: 1099.98px) {
@@ -195,15 +244,21 @@ main.wrap [id] { scroll-margin-top: 16px; }
   .core-prog { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; border-radius: 0; background: transparent; }
   .core-panel {
     display: none; position: absolute; left: 8px; right: 8px; top: 100%; margin-top: 6px;
-    max-height: calc(100vh - 80px); overflow-y: auto; overscroll-behavior: contain;
+    box-sizing: border-box; max-height: calc(100vh - 80px); max-height: calc(100dvh - 72px);
+    overflow-y: auto; overscroll-behavior: contain;
     background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 16px;
     box-shadow: 0 12px 32px rgba(36,49,60,.18);
   }
   .core-rail.core-open .core-panel { display: grid; }
   .core-panel .core-pn { display: none; }
+  /* touch: roomier controls in the drop-down sheet */
+  .core-cfg .seg.core-cfg-seg > button { min-height: 36px; font-size: 13px; }
+  .core-cfg select { min-height: 38px; font-size: 14px; }
+  .core-cfg-btn { min-height: 32px; padding: 6px 9px; }
+  .core-cfg-tg { width: 34px; }
 }
 @media (max-width: 1099.98px) and (min-width: 640px) {
-  .core-panel { left: auto; width: 380px; }
+  .core-panel { left: auto; width: 410px; }   /* border-box: same 380 px content as before */
 }
 
 /* ---------- header: call to action + stage map ---------- */
@@ -330,7 +385,7 @@ svg .clickable:focus-visible { filter: drop-shadow(0 0 3px var(--card)) drop-sha
 
 /* ---------- reduced motion: no transitions or animations from core ---------- */
 @media (prefers-reduced-motion: reduce) {
-  section.stage, .core-next, .core-arrow, .btn, .is-dim, .is-hl,
+  section.stage, .core-next, .core-arrow, .btn, .is-dim, .is-hl, .core-cfg-chev,
   svg :is(.rf,.rfc,.rft,.rfd,.zr,.amp,.conn,.fr,.dr,.clk,.zc,.connc,.fc,.dc,.pwr,.pwrb,.zp,.connp,.fp,.dp,.ctl,.zv,.fv,.dv) { transition: none; }
   .core-next.core-in { animation: none; }
   .core-next:hover .core-arrow { transform: none; }
@@ -4408,6 +4463,11 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     { id: 'pwr', label: 'Power' }, { id: 'ctl', label: 'Control' }
   ];
   var MODULE_CHOICES = [1, 2, 4, 8];
+  var TOPOLOGIES = [
+    { id: 'unit', label: 'Sync unit' }, { id: 'chain', label: 'Daisy chain' },
+    { id: 'master', label: 'Master + splitter' }, { id: 'master2', label: 'Master + 2 splitters' }
+  ];
+  var DEFAULTS = { modules: 4, dacOnly: false, layer: 'all', cardPrice: 2100, cardPowerW: 32, syncTopology: 'unit' };
   var PERSISTED = { modules: true, dacOnly: true, layer: true, syncTopology: true };
   var SPY_LINE = 0.35;          // a stage is "current" once its top passes 35 % of the viewport
   var DWELL_MS = 1200;          // time on a stage before it counts as visited
@@ -4503,6 +4563,16 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     };
   }
 
+  /* Reset in the rail's Configuration block: { key: default } for every set-up key whose
+     current value differs from the page default (an empty object = nothing to reset). Pure. */
+  function resetPlan(cur, defs) {
+    var out = {};
+    ['modules', 'dacOnly', 'syncTopology', 'cardPrice', 'cardPowerW'].forEach(function (k) {
+      if (cur[k] !== defs[k]) out[k] = defs[k];
+    });
+    return out;
+  }
+
   /* ------------------------------------------------------------------ */
   /* Shared state                                                        */
   /* ------------------------------------------------------------------ */
@@ -4515,7 +4585,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     cardPowerW: function (v) { v = Number(v); return isFinite(v) && v > 0 ? v : undefined; },
     syncTopology: function (v) { return ['unit', 'chain', 'master', 'master2'].indexOf(v) >= 0 ? v : undefined; }
   };
-  var state = { modules: 4, dacOnly: false, layer: 'all', cardPrice: 2100, cardPowerW: 32, syncTopology: 'unit' };
+  var state = {};
+  Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
   Object.keys(PERSISTED).forEach(function (k) {
     var saved = store(k);
     if (saved === undefined) return;
@@ -4856,16 +4927,33 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       b.disabled = cur >= n - 1;
       b.setAttribute('aria-label', cur < n - 1 ? 'Next stage: ' + stages[cur + 1].title : 'Last stage');
     });
-    if (s && isWide()) {
-      var link = rail.querySelector('.core-link[data-core-stage="' + s.id + '"]');
-      if (link) {
-        var rr = rail.getBoundingClientRect(), lr = link.getBoundingClientRect();
-        if (lr.top < rr.top + 8 || lr.bottom > rr.bottom - 8) {
-          rail.scrollTop += lr.top - rr.top - rr.height / 3;
-        }
+    /* Not while the reader works in the Configuration block: a change there re-lays out the
+       page, the spy may pick another stage, and the rail must not scroll away under the pointer.
+       "Works in" = pointer over the block (hover-capable devices only) or a pointer / key /
+       change event there in the last CFG_HOLD_MS. Lasting focus does not count: a clicked button
+       or a picked <select> keeps focus while the reader wheels on through the page. */
+    if (!s || !isWide()) return;
+    var cfgBox = rail.querySelector('.core-cfg');
+    var held = Date.now() < cfgHoldUntil;
+    if (held || (cfgBox && mqHover && mqHover.matches && cfgBox.matches(':hover'))) {
+      if (held && !cfgHoldTimer) {      /* catch up once the hold ends */
+        cfgHoldTimer = setTimeout(function () { cfgHoldTimer = 0; paintBar(); }, cfgHoldUntil - Date.now() + 50);
       }
+      return;
+    }
+    var link = rail.querySelector('.core-link[data-core-stage="' + s.id + '"]');
+    if (!link) return;
+    var rr = rail.getBoundingClientRect(), lr = link.getBoundingClientRect();
+    /* On short desktop screens the block docks at the rail bottom (sticky): measure against it. */
+    var bottom = rr.bottom;
+    if (cfgBox && getComputedStyle(cfgBox).position === 'sticky') bottom = Math.min(bottom, cfgBox.getBoundingClientRect().top);
+    if (lr.top < rr.top + 8 || lr.bottom > bottom - 8) {
+      rail.scrollTop += lr.top - rr.top - (bottom - rr.top) / 3;
     }
   }
+  var CFG_HOLD_MS = 1500;
+  var cfgHoldUntil = 0, cfgHoldTimer = 0;
+  var mqHover = window.matchMedia ? window.matchMedia('(hover: hover)') : null;
 
   /* ------------------------------------------------------------------ */
   /* Mobile stage sheet                                                  */
@@ -4927,11 +5015,53 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
             '<span class="core-tick" aria-hidden="true">✓</span></a></li>';
         }).join('') + '</ol></div>';
     }).join('');
-    var layers = LAYERS.map(function (l) {
-      return '<button type="button" role="radio" aria-checked="false" data-core-layer="' + l.id + '">' +
-        (l.id === 'all' ? '' : '<i class="core-dot" data-l="' + l.id + '" aria-hidden="true"></i>') +
-        esc(l.label) + '</button>';
-    }).join('');
+    /* Segmented radio group bound to a state key: the buttons carry the value as text in
+       data-core-v, set() validates it (so "4" and "false" become 4 and false). */
+    function seg(key, labelId, items, cls) {
+      return '<div class="seg' + (cls ? ' ' + cls : '') + '" role="radiogroup" aria-labelledby="' + labelId +
+        '" data-core-key="' + key + '">' +
+        items.map(function (it) {
+          return '<button type="button" role="radio" aria-checked="false" tabindex="-1" data-core-v="' + esc(it.v) + '"' +
+            (it.aria ? ' aria-label="' + esc(it.aria) + '"' : '') + '>' + it.html + '</button>';
+        }).join('') + '</div>';
+    }
+    var layers = seg('layer', 'core-layer-lbl', LAYERS.map(function (l) {
+      return {
+        v: l.id,
+        html: (l.id === 'all' ? '' : '<i class="core-dot" data-l="' + l.id + '" aria-hidden="true"></i>') + esc(l.label)
+      };
+    }));
+    var cfg =
+      '<div class="core-cfg" role="group" aria-labelledby="core-cfg-lbl">' +
+        '<div class="core-cfg-h">' +
+          '<p class="core-sub" id="core-cfg-lbl">Configuration</p>' +
+          '<button type="button" class="core-cfg-btn" data-core-cfg="reset">Reset</button>' +
+          '<button type="button" class="core-cfg-btn core-cfg-tg" data-core-cfg="toggle" aria-expanded="true"' +
+            ' aria-controls="core-cfg-b" aria-label="Configuration controls">' +
+            '<span class="core-cfg-chev" aria-hidden="true">▾</span></button>' +
+        '</div>' +
+        '<p class="core-cfg-one" hidden></p>' +
+        '<div class="core-cfg-b" id="core-cfg-b">' +
+          '<div class="core-cfg-f"><span class="core-cfg-k" id="core-cfg-m">Modules</span>' +
+            seg('modules', 'core-cfg-m', MODULE_CHOICES.map(function (m) {
+              return { v: m, html: String(m), aria: m + (m === 1 ? ' module' : ' modules') };
+            }), 'core-cfg-seg') + '</div>' +
+          '<div class="core-cfg-f"><span class="core-cfg-k" id="core-cfg-o">Outputs</span>' +
+            seg('dacOnly', 'core-cfg-o', [{ v: false, html: 'DAC + one-bit' }, { v: true, html: 'DAC only' }], 'core-cfg-seg') +
+          '</div>' +
+          '<div class="core-cfg-f"><label class="core-cfg-k" for="core-cfg-sync">Sync</label>' +
+            '<select id="core-cfg-sync" aria-describedby="core-cfg-sn">' +
+              TOPOLOGIES.map(function (t) { return '<option value="' + t.id + '">' + esc(t.label) + '</option>'; }).join('') +
+            '</select>' +
+            '<span class="core-cfg-note" id="core-cfg-sn"></span></div>' +
+          '<div class="core-sum"><b class="core-sum-a"></b>' +
+            '<span class="core-sum-w"></span><span class="core-sum-r"></span>' +
+            '<span class="core-sum-l">' +
+              '<a href="#scaling" data-goto="scaling" title="Card price and the array sizes side by side">More in Scaling</a>' +
+              '<a href="#plan" data-goto="plan" title="Card power in Clocks &amp; power">Card power</a>' +
+            '</span></div>' +
+        '</div>' +
+      '</div>';
 
     rail.className = (rail.className + ' core-rail').trim();
     rail.innerHTML =
@@ -4946,21 +5076,30 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         '</div>' +
         '<div class="core-panel" id="core-panel">' +
           groups +
-          '<div class="core-layers"><p class="core-sub" id="core-layer-lbl">Highlight layer</p>' +
-            '<div class="seg" role="radiogroup" aria-labelledby="core-layer-lbl">' + layers + '</div></div>' +
-          '<div class="core-sum"><span class="core-sub">Array</span><b class="core-sum-a"></b>' +
-            '<span class="core-sum-w"></span><a href="#scaling" data-goto="scaling">Change it in Scaling</a></div>' +
+          cfg +
+          '<div class="core-layers"><p class="core-sub" id="core-layer-lbl">Highlight layer</p>' + layers + '</div>' +
           '<div class="core-pn">' +
             '<button type="button" class="btn sm" data-core-act="prev">← Previous</button>' +
             '<button type="button" class="btn sm primary" data-core-act="next">Next →</button>' +
           '</div>' +
         '</div>' +
       '</div>';
-    if (!stageById.scaling) {
-      var sumLink = rail.querySelector('.core-sum a');
-      if (sumLink) sumLink.remove();
-    }
+    rail.querySelectorAll('.core-sum-l a[data-goto]').forEach(function (a) {
+      if (!stageById[a.getAttribute('data-goto')]) a.remove();
+    });
     menuBtn = rail.querySelector('.core-now');
+    cfgOpen(store('core.cfgOpen') !== false);
+    var cfgEl = rail.querySelector('.core-cfg');
+    if (cfgEl) {
+      /* Recent interaction in the block pauses the rail's auto-scroll (see paintBar). */
+      ['pointerdown', 'keydown', 'change'].forEach(function (t) {
+        cfgEl.addEventListener(t, function () { cfgHoldUntil = Date.now() + CFG_HOLD_MS; });
+      });
+      /* Block height for the rail's scroll-padding when the block is docked (short screens). */
+      var setCfgH = function () { rail.style.setProperty('--core-cfg-h', cfgEl.offsetHeight + 'px'); };
+      setCfgH();
+      if (window.ResizeObserver) new ResizeObserver(setCfgH).observe(cfgEl);
+    }
     var layout = rail.closest('.layout');
     if (layout) layout.classList.add('core-on');
 
@@ -4970,20 +5109,31 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       var act = t.closest('[data-core-act]');
       if (act) { step(act.getAttribute('data-core-act') === 'next' ? 1 : -1); return; }
       if (t.closest('.core-now')) { if (menuOpen()) closeMenu(false); else openMenu(); return; }
-      var lb = t.closest('[data-core-layer]');
-      if (lb) set('layer', lb.getAttribute('data-core-layer'));
+      var sb = t.closest('[data-core-key] > [data-core-v]');
+      if (sb) { set(sb.parentNode.getAttribute('data-core-key'), sb.getAttribute('data-core-v')); return; }
+      var cb = t.closest('[data-core-cfg]');
+      if (cb && cb.getAttribute('data-core-cfg') === 'toggle') {
+        var open = cb.getAttribute('aria-expanded') !== 'true';
+        cfgOpen(open);
+        store('core.cfgOpen', open);
+      } else if (cb) {
+        resetConfig();
+      }
     });
+    var sel = rail.querySelector('#core-cfg-sync');
+    if (sel) sel.addEventListener('change', function () { set('syncTopology', sel.value); });
 
-    /* Radio-group arrow keys for the layer chips (roving focus). */
-    var seg = rail.querySelector('.core-layers .seg');
-    seg.addEventListener('keydown', function (e) {
+    /* Radio-group arrow keys for every state seg in the rail (roving focus). */
+    rail.addEventListener('keydown', function (e) {
       var keys = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
       if (!keys[e.key] || e.altKey || e.ctrlKey || e.metaKey) return;
+      var group = isEl(e.target) ? e.target.closest('.seg[data-core-key]') : null;
+      if (!group) return;
       e.preventDefault();
-      var btns = Array.prototype.slice.call(seg.querySelectorAll('[data-core-layer]'));
+      var btns = Array.prototype.slice.call(group.querySelectorAll('[data-core-v]'));
       var i = btns.indexOf(doc.activeElement);
       var nx = btns[(i + keys[e.key] + btns.length) % btns.length];
-      set('layer', nx.getAttribute('data-core-layer'));
+      set(group.getAttribute('data-core-key'), nx.getAttribute('data-core-v'));
       nx.focus();
     });
 
@@ -5050,25 +5200,83 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   /* State-bound bits: layer filter and the array summary                */
   /* ------------------------------------------------------------------ */
 
-  function applyLayer(v) {
-    root.setAttribute('data-layer', v);
+  /* Checked state + roving tabindex of the rail seg bound to `key`. */
+  function paintSeg(key) {
     if (!rail) return;
-    rail.querySelectorAll('[data-core-layer]').forEach(function (b) {
-      var onIt = b.getAttribute('data-core-layer') === v;
+    var v = String(state[key]);
+    rail.querySelectorAll('.seg[data-core-key="' + key + '"] > [data-core-v]').forEach(function (b) {
+      var onIt = b.getAttribute('data-core-v') === v;
       b.setAttribute('aria-checked', onIt ? 'true' : 'false');
       b.setAttribute('tabindex', onIt ? '0' : '-1');
     });
   }
 
+  function applyLayer(v) {
+    root.setAttribute('data-layer', v);
+    paintSeg('layer');
+  }
+
+  function topoLabel(id) {
+    for (var i = 0; i < TOPOLOGIES.length; i++) if (TOPOLOGIES[i].id === id) return TOPOLOGIES[i].label;
+    return TOPOLOGIES[0].label;
+  }
+
   function paintSummary() {
     if (!rail) return;
     var c = PA.calc();
+    var mods = c.modules + (c.modules === 1 ? ' module' : ' modules');
     var a = rail.querySelector('.core-sum-a'), w = rail.querySelector('.core-sum-w');
-    if (a) {
-      a.textContent = c.modules + (c.modules === 1 ? ' module' : ' modules') + ' · ' + fmt(c.outputs) + ' outputs' +
-        (c.dacOnly ? ' (DAC only)' : '');
-    }
+    var r = rail.querySelector('.core-sum-r'), one = rail.querySelector('.core-cfg-one');
+    if (a) a.textContent = mods + ' · ' + fmt(c.outputs) + ' outputs' + (c.dacOnly ? ' (DAC only)' : '');   /* no break inside the parenthesis */
     if (w) w.textContent = fmt(c.systemW, 0) + ' W load · ' + fmt(c.psuW) + ' W supply';
+    if (r) r.textContent = 'Rack ≈ ' + c.rackU + 'U · bench ≈ ' + fmt(c.benchWidthMm) + ' mm';
+    if (one) {
+      one.textContent = mods + ' · ' + fmt(c.outputs) + ' out' + ' · ' +
+        (c.modules === 1 ? 'no sync' : topoLabel(c.syncTopology));
+    }
+  }
+
+  /* The rail's Configuration block: segs, sync select, reset button, summary. */
+  function paintConfig() {
+    if (!rail) return;
+    paintSeg('modules');
+    paintSeg('dacOnly');
+    var sel = rail.querySelector('#core-cfg-sync');
+    if (sel && sel.value !== state.syncTopology) sel.value = state.syncTopology;
+    var note = rail.querySelector('#core-cfg-sn');
+    if (note) note.textContent = state.modules === 1 ? 'single module: no sync cabling' : '';
+    var rb = rail.querySelector('[data-core-cfg="reset"]');
+    if (rb) {
+      var plan = resetPlan(state, DEFAULTS);
+      var extra = [];
+      if ('cardPrice' in plan) extra.push('card price $' + fmt(DEFAULTS.cardPrice));
+      if ('cardPowerW' in plan) extra.push('card power ' + fmt(DEFAULTS.cardPowerW) + ' W');
+      var tip = 'Back to ' + DEFAULTS.modules + ' modules, DAC + one-bit outputs and ' + topoLabel(DEFAULTS.syncTopology) +
+        (extra.length ? '; also resets ' + extra.join(' and ') : '');
+      var none = !Object.keys(plan).length;
+      rb.title = none ? 'Already the page defaults (' + DEFAULTS.modules + ' modules, DAC + one-bit, ' +
+        topoLabel(DEFAULTS.syncTopology) + ')' : tip;
+      rb.setAttribute('aria-disabled', none ? 'true' : 'false');
+    }
+    paintSummary();
+  }
+
+  function resetConfig() {
+    var plan = resetPlan(state, DEFAULTS);
+    Object.keys(plan).forEach(function (k) { set(k, plan[k]); });
+  }
+
+  function cfgOpen(open) {
+    if (!rail) return;
+    var tg = rail.querySelector('[data-core-cfg="toggle"]');
+    var body = rail.querySelector('#core-cfg-b'), one = rail.querySelector('.core-cfg-one');
+    if (!tg || !body) return;
+    tg.setAttribute('aria-expanded', open ? 'true' : 'false');
+    tg.title = open ? 'Hide the controls' : 'Show the controls';
+    body.hidden = !open;
+    if (one) one.hidden = open;
+    var box = tg.closest('.core-cfg');
+    if (box) box.classList.toggle('core-cfg-closed', !open);
   }
 
   /* ------------------------------------------------------------------ */
@@ -5185,12 +5393,9 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     });
 
     applyLayer(state.layer);
-    paintSummary();
+    paintConfig();
     on('layer', applyLayer);
-    on('modules', paintSummary);
-    on('dacOnly', paintSummary);
-    on('cardPowerW', paintSummary);
-    on('syncTopology', paintSummary);
+    ['modules', 'dacOnly', 'syncTopology', 'cardPowerW', 'cardPrice'].forEach(function (k) { on(k, paintConfig); });
 
     doc.addEventListener('click', onDocClick);
     doc.addEventListener('keydown', onKey);
