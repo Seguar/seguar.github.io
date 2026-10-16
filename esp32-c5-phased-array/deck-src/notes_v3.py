@@ -42,7 +42,7 @@ NOTES = [
     # 20 plan B
     "If eight C5 lanes cannot be kept in lockstep, or the S31 cannot sustain 640 Mbit/s in and out, a small FPGA takes over the per-lane capture and alignment.",
     # 21 PCB
-    "Two constraints drive the tile layout. First, the antenna block must sit against the seam so rows stay 28.8 mm apart across boards. Second, a patch on the thin L1–L2 dielectric of a standard 4-layer board is very narrowband — either a thicker antenna substrate or a separate aperture board.",
+    "Two constraints drive the tile layout. First, the antenna block must sit against the seam so rows stay 28.8 mm apart across boards. Second, a patch on the thin 0.21 mm L1–L2 dielectric of a standard 4-layer board radiates poorly, so Rev 1 uses a custom stack with a 1.065 mm core under the patches. The front carries only the patches; each C5 sits behind its own patch, and all digital lines are behind the L2 ground.",
     # 22 beamforming
     "Receive steering is purely digital: rotate each element's IQ and sum. The real success test is repeatability after a power cycle — that proves the calibration works.",
     # 23 radar
@@ -64,7 +64,7 @@ NOTES = [
     # 31 dev sequence
     "Six steps, each ending with a measurable result. Nothing larger is built until the previous step passes; step 3 (two C5s on one reference) is the key go / no-go point.",
     # 32 risks
-    "The team's eight risks plus two from the research: no continuous capture on the C5, and narrowband patches on thin FR-4 dielectric.",
+    "The team's eight risks plus two from the research: no continuous capture on the C5, and patches that stay narrowband and lossy on FR-4.",
     # 33 claims
     "The evidence summary. Notice how much of the C5 side is still open — that is the research content of the project.",
     # 34 alternatives

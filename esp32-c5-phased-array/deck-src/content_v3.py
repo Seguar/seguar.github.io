@@ -64,8 +64,8 @@ F["calnet_routing"] = "2 cables"
 F["calnet_sources"] = "2 sources"
 F["calnet_proposal"] = "one MAX2871-class source on the master board, a 1:2 split to the tiles, a 1:8 Wilkinson tree and eight SPDTs per tile. "
 F["calnet_budget"] = [["Stage", "Loss"], ["1:2 + 1:8 split (ideal 3 + 9 dB)", "≈ 14–15 dB"],
-                      ["tile cable + connectors", "≈ 1–2 dB"], ["SPDT insertion loss", "≈ 1 dB"],
-                      ["source 0 dBm → at each C5", "≈ −16 to −18 dBm"]]
+                      ["cables + ≈ 18 cm of tile lines", "≈ 5–7 dB"], ["SPDT insertion loss", "≈ 1 dB"],
+                      ["source 0 dBm → at each C5", "≈ −20 to −23 dBm"]]
 F["cal_source_line"] = "Adapted from ESPARGOS. MAX2871: VCO 3–6 GHz, −1 to +8 dBm, mutable outputs. SKY13351: 0.35 dB loss, 24 dB isolation at 2.45 GHz (datasheet); less expected at 5 GHz."
 F["calnet_note"] = ("Well below the C5's +5 dBm maximum input, but enough to clip the 10-bit samples at high gain: attenuate and "
                     "use one low, fixed gain index. SKY13351-class switches specify ≈ 24 dB isolation (at 2.45 GHz; likely less at "
@@ -185,12 +185,12 @@ F["power_notes"] = [
 ]
 F["power_source_line"] = "C5: datasheet v1.5 Table 5-8 (peak, 3.3 V). S31, PHY and master-board figures are planning estimates — measure in steps 2 and 4."
 F["board_points"] = [
-    "Two tile PCBs, 4-layer FR-4 with controlled impedance; one master timing / RF board.",
-    "Chip-down ESP32-C5 so XTAL_P can be driven from the shared 48 MHz buffer.",
-    "Short, matched-length PARLIO traces to the S31; series termination at 40 MHz.",
-    "48 and 40 MHz trees point-to-point from 1:8 / 1:9 buffers, away from RF and switchers.",
-    "RF: 50 Ω grounded coplanar lines, SPDT close to each C5, via fences between lanes.",
-    "Antenna substrate: thick enough for the C5 bandwidth (see tile PCB slide).",
+    "Two tile PCBs, custom 4-layer FR-4 with controlled impedance; one master timing / RF board.",
+    "Front: patches only. Each chip-down ESP32-C5 sits behind its own patch, so XTAL_P can take the shared 48 MHz.",
+    "PARLIO lines on L4, series-terminated; ≈ 1.2 ns of layout skew (data plus PCLK) and the C5 clock-to-out spread (a bench test) against the 12.5 ns half-period.",
+    "48 and 40 MHz point-to-point from 1:8 / 1:10 buffers: on L3 from the buffers, the last few cm to each C5 on L4; series-terminated, away from RF lines.",
+    "RF: 50 Ω lines on L4 over a solid L3 ground; each SPDT 1 mm from its probe via and 2.5 mm from its C5.",
+    "Antenna substrate: the 1.065 mm core under L1 (see the tile PCB slide).",
 ]
 
 # ---------------------------------------------------------------- software
@@ -222,7 +222,7 @@ F["risk_rows"] = [
     ["FR-4 antenna / array consistency insufficient", "VNA on the first tile", "separate aperture board (ours) or better laminate"],
     ["Power and heat with 16 active C5s", "current and temperature on one tile", "duty-cycle TX, airflow"],
     ["No continuous capture on the C5 (mode 1)", "step 1: back-to-back snapshot timing", "mode 2 only; quasi-continuous snapshots"],
-    ["Thin L1–L2 dielectric makes patches narrowband", "simulate + build one tile", "thicker antenna substrate"],
+    ["Custom stack: cost, warpage; patches lossy (≤ 53 %)", "quote; simulate + VNA one tile", "standard stack + our aperture board"],
 ]
 F["risk_row_heights"] = [0.42] + [0.5] * 10
 F["risk_cols"] = [4.9, 3.7, 3.53]

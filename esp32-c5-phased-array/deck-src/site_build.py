@@ -247,7 +247,7 @@ def svg_cal():
         s.ln(690, yy + 23, 738, yy + 23, "rf")
         s.label(740, yy, 110, 46, "ESP32-C5", None, "zr", "s")
     s.t(560, 290, "4 of 8 elements shown · upper SPDT input: patch · lower input: calibration", "s", "m")
-    s.t(870, 60, "≈ −16 to −18 dBm", "b")
+    s.t(870, 60, "≈ −20 to −23 dBm", "b")
     s.t(870, 78, "at each C5 for 0 dBm", "s")
     s.t(870, 94, "source (estimate)", "s")
     s.t(870, 130, "SPDT isolation ≈ 24 dB", "s wt")
@@ -271,10 +271,10 @@ def svg_pcb():
         for ry in rows:
             for c in range(4):
                 cx = x0 + c * p
-                s.box(cx - 17.4 * k / 2, ry - 13.1 * k / 2, 17.4 * k, 13.1 * k, "zr", 2)
+                s.box(cx - 17.5 * k / 2, ry - 13.5 * k / 2, 17.5 * k, 13.5 * k, "zr", 2)
         ez = ty + 24 if i == 0 else ty + 2 * p + 8
         s.box(ox + 12, ez, tw - 24, th - 2 * p - 34, "zone", 6)
-        s.t(ox + tw / 2, ez + (th - 2 * p - 34) / 2 + 4, "C5s, S31, PHY, clocks, power", "s", "m")
+        s.t(ox + tw / 2, ez + (th - 2 * p - 34) / 2 + 4, "back: S31, PHY, clock buffers, power", "s", "m")
     s.raw(f'<line x1="{ox - 10}" y1="{oy + th}" x2="{ox + tw + 10}" y2="{oy + th}" class="pwr" stroke-dasharray="6 4"/>')
     s.t(ox + tw + 14, oy + th + 4, "seam", "s")
     cx0 = ox + (tw - 4 * p) / 2 + p / 2
@@ -285,10 +285,11 @@ def svg_pcb():
     s.t(xr + 6, oy + th - p + 4, "28.8 mm", "s")
     # notes
     nx = ox + tw + 70
-    s.t(nx, 40, "Drawn to scale (patch ≈ 17 × 13 mm).", "b")
+    s.t(nx, 40, "Drawn to scale (patch ≈ 17.5 × 13.5 mm).", "b")
     lines = ["Rows stay 28.8 mm apart across the", "seam only if each board edge is", "14.4 mm from its nearest row.",
              "", "So the antenna block sits against", "the seam and the electronics grow", "away from it.", "",
-             "The ground plane is cut at the seam:", "edge rows will have different embedded", "patterns — calibrate per element."]
+             "The ground plane is cut at the seam:", "edge rows will have different embedded", "patterns — calibrate per element.", "",
+             "Front: patches only. Back: each C5", "under its own patch."]
     for i, l in enumerate(lines):
         s.t(nx, 66 + 18 * i, l, "s")
     return s.render()
@@ -398,7 +399,7 @@ sec("sync", "timing", "Four synchronization domains", table(F["dom_rows"]) + f"<
         ["Carrier frequency offset", "independent crystals", "removes", "—", "—"],
         ["LO phase offset", "each PLL locks with an arbitrary phase", "—", "removes", "—"],
         ["Sampling-time offset", "independent sample clocks and starts", "partly", "removes (swept tone)", "partly"],
-        ["Capture start misalignment", "firmware / interrupt latency", "—", "partly", "removes"],
+        ["Capture start misalignment", "firmware / interrupt latency", "—", "partly", "removes in a tile"],
         ["Fixed path mismatch", "cables, traces, switches", "—", "after the switch", "—"],
         ["Gain mismatch", "AGC state, LNA spread", "—", "if gain is fixed", "—"]]))
 
@@ -406,7 +407,9 @@ clock_rows = [["Topic", "What we know"]] + [[t, b] for t, b, _ in F["clock_items
 sec("clock", "timing", "Sharing one 48 MHz reference", table(clock_rows) + "<div class='grid2'><div>"
     + table([["At 5.2 GHz", "Value"]] + F["clock_numbers"], num_cols=(1,)) + "</div><div><p class='note'>"
     + tag(F["clock_injection_status"]) + " Driving XTAL_P of 16 chip-down C5s from one buffered TCXO is the first clock bench test. "
-    "Static buffer skew becomes static LO phase and is calibrated out; the 108th harmonic of 48 MHz falls at 5184 MHz.</p></div></div>")
+    "Static buffer skew becomes static LO phase and is calibrated out; the 108th harmonic of 48 MHz falls at 5184 MHz, and the "
+    "130th of the 40 MHz PARLIO clock at exactly 5200 MHz: series-terminate and slew-limit both clocks, keep their last few cm "
+    "on L4 short and away from the RF lines, and pick channels off 5184 and 5200 MHz if spurs show.</p></div></div>")
 
 steps = ["Lock and fix gain: tune all C5s, disable AGC, set one manual gain index.",
          "Measure the reference: all SPDTs to CAL; step the tone across the capture band (as ESPARGOS One does), one synchronized snapshot per step.",
@@ -416,7 +419,11 @@ steps = ["Lock and fix gain: tune all C5s, disable AGC, set one manual gain inde
 sec("cal", "timing", "The 5.2 GHz calibration network and loop", svg_cal()
     + "<ol class='steps'>" + "".join(f"<li>{E(x)}</li>" for x in steps) + "</ol>"
     + "<p>Repeat after every reset, retune or sample-rate change — ESPARGOS treats a calibration as valid for one capture epoch. "
-      "The tone cannot see anything before the switch (patch, feed, cable): measure that once with a VNA or calibrate over the air.</p>")
+      "The tone cannot see anything before the switch. On the tile that is the patch, its probe via and a 1 mm line, the same for "
+      "all eight elements: calibrate it once over the air with a far-field source. Tile B is turned 180°, so its elements carry a "
+      "fixed 180° term. The over-the-air step also absorbs the tone's own distribution (1:2 splitter, the two cables, each 1:8 "
+      "tree), so repeat it whenever a calibration cable is moved or re-coiled. With the separate aperture board the pre-switch "
+      "part is the cable, measured once with a VNA.</p>")
 
 sec("data", "data", "Sixteen receivers create a data problem", svg_bars()
     + "<div class='legend'><span><i class='blk' style='background:var(--card)'></i>what the array produces</span>"
@@ -447,10 +454,72 @@ sec("planb", "data", "Plan B: a small FPGA between the C5s and the S31", "<div c
     + "<div><h3>Cost and benefit</h3>" + ul(F["planb_cost"] + F["planb_adds"]) + "</div></div>"
     + f"<p class='note'>{E(F['planb_source'])}</p>")
 
-sec("pcb", "board", "Tile PCB: geometry, seam and antenna substrate", svg_pcb() + "<div class='grid2'><div><h3>Rev 1 stack-up</h3>"
+sec("pcb", "board", "Tile PCB: geometry, seam and antenna substrate", svg_pcb() + "<div class='grid2'><div><h3>Rev 1 stack-up (custom 4-layer)</h3>"
     + table([["Layer", "Use"]] + F["pcb_stack_rows"]) + "<h3>Fab cost (team estimate)</h3>"
-    + table([["Item", "≈ USD"]] + F["pcb_cost_rows"], num_cols=(1,)) + "</div><div><h3>The patch problem</h3>"
+    + table([["Item", "≈ USD"]] + F["pcb_cost_rows"], num_cols=(1,)) + "</div><div><h3>The patch substrate</h3>"
     + ul(F["pcb_patch_notes"]) + f"</div></div><p class='note'>{E(F['pcb_source'])}</p>")
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+M3_CSS = open(os.path.join(HERE, "tile3d.css"), encoding="utf-8").read()
+M3_JS = open(os.path.join(HERE, "tile3d.js"), encoding="utf-8").read()
+POSTER = os.path.join(OUT, "img", "tile3d-poster.jpg")
+M3_LEGEND = [
+    ("Patch block", "the only parts on the front: 2 × 4 patches, ≈ 17.5 × 13.5 mm, at 28.8 mm pitch, each probe-fed by a through via. Clock and 3.3 V drops are blind L4–L3 vias, so no signal reaches the front; ground-stitching vias show only as tented pads."),
+    ("RF switch per element", "SKY13351-class SPDT, 1 mm from the probe via, set by two control lines from its C5: the C5 sees its patch, or the calibration tone."),
+    ("8 × ESP32-C5", "each under its own patch (it overhangs the outline by ≈ 1.5 mm), 2.5 mm from its switch with a series 0201 in line, so all eight RF paths are 3.5 mm and identical. Chip-down QFN48, so XTAL_P can take the shared 48 MHz."),
+    ("Bundles", "per C5: PARLIO (2 bits at 40 MHz), READY / control, 48 MHz, PCLK and 3.3 V, on the back, down to the S31, the clock via rows and the 3.3 V spine."),
+    ("ESP32-S31", "16-bit PARLIO receive, DMA and the Gigabit MAC (QFN80, 8 × 8 mm). It enables the PCLK buffer, so every lane starts on the same edge."),
+    ("PHY and RJ45", "RTL8211F-class over RGMII and a MagJack: 640 Mbit/s of IQ out."),
+    ("Calibration tree", "1:8 for the 5.2 GHz tone, from the side SMA along the seam side and down beside each column, over solid L3 ground; every branch is 90.6 mm. The splits are drawn as junctions; each is a compact Wilkinson (λ/4 arms and a 100 Ω resistor)."),
+    ("Clock buffers", "48 MHz 1:8 and 40 MHz 1:10 (9 used): one point-to-point line per C5 and one to the S31, on L3 from the buffers, the last few cm to each C5 on L4."),
+    ("SMAs", "right-angle, on the back: 48 MHz, PCLK and trigger (the master GO) on the connector edge, the calibration tone on the side edge."),
+    ("Seam", "the boards butt together, so the rows stay 28.8 mm apart across it (Seam view). In the array a continuous ground joint, stitched every 3 mm, bridges the cut. Tile B is turned 180°, so its elements carry a fixed 180° term."),
+    ("Master board", "48 MHz TCXO, 40 MHz PCLK, trigger and the 5.2 GHz source, split 1:2 to the tiles over a phase-matched pair of calibration cables; tile A's runs out and back under its board to match tile B's (Array)."),
+]
+m3_has = os.path.exists(POSTER)
+m3_poster = '<img class="m3-poster" src="img/tile3d-poster.jpg" width="1600" height="1000" alt="" decoding="async">' if m3_has else ""
+m3_legend = "".join(f'<li data-k="{i + 1}"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>{E(t)}</button>: {E(d)}</li>'
+                    for i, (t, d) in enumerate(M3_LEGEND))
+sec("tile3d", "board", "The tile in 3D", f"""
+<div class="m3" id="m3">
+<p>An interactive model of one 150 × 100 mm tile, drawn from the numbers on this page. The front carries only the eight
+patches. Each ESP32-C5 sits on the back under its own patch, with its RF switch between the probe via and the chip, so
+every element has the same 3.5 mm RF path; all digital lines run behind the L2 ground. The board stands on 16 mm standoffs.
+It is a Rev 1 concept that shows scale and placement, not a PCB layout. Exploded lifts the layers apart and makes the dielectric
+see-through. Array adds the second tile, turned 180° so both antenna blocks meet at the seam, and the master board with its cables.</p>
+<div class="toolbar m3-ctl" id="m3-ctl" hidden>
+<div class="m3-grp"><span class="m3-lbl" id="m3-mode-l">Show</span>
+<div class="seg" role="radiogroup" id="m3-mode" aria-labelledby="m3-mode-l">
+<button type="button" role="radio" aria-checked="true" data-m3-mode="tile">One tile</button>
+<button type="button" role="radio" aria-checked="false" data-m3-mode="array">Array</button></div></div>
+<div class="m3-grp" id="m3-modx"><button type="button" class="btn sm" id="m3-exp" aria-pressed="false">Exploded layers</button></div>
+</div>
+<div class="m3-stage" id="m3-stage">
+<div class="m3-ph {'m3-hasimg' if m3_has else 'm3-noimg'}" id="m3-ph">{m3_poster}
+<p class="m3-msg" id="m3-msg" role="status" tabindex="-1">Interactive 3D model of one tile. It needs JavaScript; the drawings above show the same board.</p>
+<button type="button" class="btn sm primary" id="m3-load" hidden>Load 3D view</button></div>
+<p class="m3-cap" id="m3-cap" hidden></p>
+</div>
+<p class="m3-sr" id="m3-status" role="status"></p>
+<div class="toolbar m3-ctl" id="m3-camrow" hidden>
+<div class="m3-grp"><span class="m3-lbl" id="m3-cam-l">View</span>
+<div class="seg" role="radiogroup" id="m3-cam" aria-labelledby="m3-cam-l">
+<button type="button" role="radio" aria-checked="true" data-m3-cam="back">Back</button>
+<button type="button" role="radio" aria-checked="false" data-m3-cam="front">Front</button>
+<button type="button" role="radio" aria-checked="false" data-m3-cam="plan">Plan</button>
+<button type="button" role="radio" aria-checked="false" data-m3-cam="seam">Seam</button></div></div>
+<div class="m3-grp">
+<button type="button" class="btn sm" id="m3-zout" aria-label="Zoom out">−</button>
+<button type="button" class="btn sm" id="m3-zin" aria-label="Zoom in">+</button>
+<button type="button" class="btn sm" id="m3-reset">Reset view</button>
+<button type="button" class="btn sm" id="m3-lbls" aria-pressed="true">Labels</button>
+<button type="button" class="btn sm" id="m3-cola" aria-pressed="false" title="330 ml can, 66 × 115 mm, for scale">Cola can for scale</button></div>
+</div>
+<p class="note" id="m3-hint" hidden>Drag to turn, Shift-drag or right-drag to pan, Ctrl + scroll to zoom, double-click to reset.
+Hover a part for its name; click a part, a number or a name in the list to highlight it. With the view focused, the arrow keys
+turn it, Shift + arrows pan, + and − zoom and 0 resets.</p>
+<ol class="m3-leg" id="m3-legend">{m3_legend}</ol>
+</div>""")
 
 sec("power", "board", "Power, heat and cost", "<div class='grid2'><div><h3>3.3 V supply estimate</h3>"
     + table(F["power_rows"], num_cols=(1, 2, 3)) + ul(F["power_notes"]) + "</div><div><h3>One tile (electronics)</h3>"
@@ -689,7 +758,7 @@ page = f"""<!doctype html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
-<style>{CSS}</style>
+<style>{CSS}{M3_CSS}</style>
 </head>
 <body>
 {MARKERS}
@@ -704,6 +773,7 @@ to check against datasheets, and costs are the team's estimates. Research checke
 </main>
 </div>
 <script>{AF_JS}</script>
+<script>{M3_JS}</script>
 </body>
 </html>
 """
@@ -768,7 +838,7 @@ HAND = [  # (status, claim, source)
      "https://www.armdesigner.com/download/RTL8211F-CG-Realtek.pdf"),
     ("C", "JLCPCB 4-layer 7628 stack-up: about 0.2 mm prepreg between L1 and L2 (0.2104 mm in current data), 1.065 mm core.",
      "https://jlcpcb.com/quote/pcbOrderFaq/PCB%20Stackup"),
-    ("I", "Patch on FR-4 (εr 4.4, tan δ 0.02) at 5.2 GHz: about 0.3 % bandwidth and 20 % efficiency for h ≈ 0.21 mm; about 2.3 % and 60 % for h ≈ 1.5 mm — from BW ≈ 3.77·(εr−1)/εr²·(W/L)·(h/λ₀) plus a dielectric-Q estimate.",
+    ("I", "Patch on FR-4 (εr 4.4, tan δ 0.02) at 5.2 GHz: lossless radiation bandwidth about 0.3 % and efficiency at most about 18 % for h ≈ 0.21 mm; about 1.6 % and 53 % for h ≈ 1.065 mm (the Rev 1 custom stack); about 2.3 % and 62 % for h ≈ 1.5 mm. From BW ≈ 3.77·(εr−1)/εr²·(W/L)·(h/λ₀) (lossless space-wave bandwidth) with efficiency from dielectric loss only; conductor and surface-wave loss lower it.",
      "https://www.mikrocontroller.net/attachment/208694/microstrip_antennas_overview.pdf"),
 ]
 

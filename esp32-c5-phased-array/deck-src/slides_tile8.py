@@ -93,7 +93,7 @@ def slide_tile8(d, F):
     box2(s, 3.15, 4.75, 1.55, 0.58, "1:8 buffer 48 MHz", None, line_c=BLUE, size=10)
     line(s, 3.6, 4.75, 3.6, 3.3, BLUE, 1.25, tail=True)
     text(s, 3.65, 3.85, 0.8, 0.25, "XTAL_P", size=8, color=BLUE)
-    box2(s, 4.9, 4.75, 1.55, 0.58, "1:9 buffer 40 MHz", None, line_c=DCLK, size=10)
+    box2(s, 4.9, 4.75, 1.55, 0.58, "1:10 buffer 40 MHz", None, line_c=DCLK, size=10)
     line(s, 5.05, 4.75, 5.05, 3.75, DCLK, 1.25)
     line(s, 5.05, 3.75, 4.4, 3.75, DCLK, 1.25)
     line(s, 4.4, 3.75, 4.4, 3.3, DCLK, 1.25, tail=True)
@@ -101,7 +101,7 @@ def slide_tile8(d, F):
     text(s, 4.45, 3.5, 0.7, 0.25, "PCLK", size=8, color=DCLK)
     # SPDT control
     path(s, [(sx, 4.25), (2.45, 4.25), (2.45, 3.1)], AMBER, 1.0, dash="dash", end_arrow=True)
-    text(s, 2.55, 3.98, 1.6, 0.25, "ANT / CAL select", size=8, color=AMBER)
+    text(s, 2.55, 3.98, 1.6, 0.25, "ANT / CAL via C5", size=8, color=AMBER)
     for lab, x, col in (("from master: 5.2 GHz", 1.45, TEAL), ("from master: 48 MHz", 3.15, BLUE),
                         ("from master: 40 MHz", 4.9, DCLK)):
         line(s, x + 0.7, 5.65, x + 0.7, 5.33, col, 1.25, tail=True)
@@ -211,7 +211,7 @@ def slide_tile_pcb(d, F):
         # electronics zone
         ez_y = ty + 0.35 if i == 0 else ty + 2 * p + 0.1
         rect(s, ox + 0.15, ez_y, tw - 0.3, th - 2 * p - 0.5, fill=BG2, line=None,
-             content="C5s, S31, PHY, clocks, power", size=9, color=MUTED)
+             content="back: S31, PHY, clock buffers, power", size=9, color=MUTED)
     # seam line
     line(s, ox - 0.15, oy + th, ox + tw + 0.15, oy + th, RED, 1.0, dash="dash")
     text(s, ox + tw + 0.2, oy + th - 0.13, 1.3, 0.26, "seam", size=9, color=RED)
@@ -222,12 +222,12 @@ def slide_tile_pcb(d, F):
     text(s, 0.6, oy + 2 * th + 0.12, 4.1, 0.9, F["pcb_geom_note"], size=10, color=MUTED)
     # stack-up and notes
     x0 = 5.05
-    text(s, x0, 1.45, 3.4, 0.3, "Rev 1 stack-up (4-layer FR-4)", size=13, color=INK)
+    text(s, x0, 1.45, 3.4, 0.3, "Rev 1 stack-up (custom 4-layer FR-4)", size=13, color=INK)
     table(s, x0, 1.8, [0.55, 2.85], F["pcb_stack_rows"], row_h=0.3, size=10, header=False)
     text(s, x0, 3.15, 3.4, 0.3, "Fab cost (team estimate)", size=13, color=INK)
     table(s, x0, 3.5, [2.2, 1.2], F["pcb_cost_rows"], row_h=0.28, size=10, header=False, col_align=["l", "r"])
     x1 = 8.85
-    text(s, x1, 1.45, 3.9, 0.3, "The patch problem", size=13, color=INK)
+    text(s, x1, 1.45, 3.9, 0.3, "The patch substrate", size=13, color=INK)
     text(s, x1, 1.8, 3.9, 4.6, F["pcb_patch_notes"], size=11, color=MUTED, bullets=True, para_space=5)
     return s
 

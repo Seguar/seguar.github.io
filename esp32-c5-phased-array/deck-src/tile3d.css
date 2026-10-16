@@ -1,0 +1,79 @@
+/* tile3d.css: 3D tile viewer, modelled on the ZU67DR page's mechanics viewer. */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1.2 var(--sans);color:var(--ink);
+text-decoration:none;cursor:pointer;padding:9px 16px;min-height:38px;border-radius:10px;box-sizing:border-box;background:var(--paper);
+border:1px solid var(--line);box-shadow:0 1px 2px rgba(36,49,60,.05);transition:background-color .15s,border-color .15s,color .15s}
+.btn:hover{border-color:var(--card);color:var(--card)}
+.btn.primary{background:var(--card);border-color:var(--card);color:var(--paper)}
+.btn.primary:hover{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.btn[aria-disabled="true"]{opacity:.7;cursor:progress}
+.btn.sm{font-size:13px;padding:5px 10px;min-height:32px;border-radius:8px}
+.btn:focus-visible,.seg>button:focus-visible{outline:2px solid var(--card);outline-offset:2px}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:10px;background:var(--zone);border:1px solid var(--line);max-width:100%;box-sizing:border-box}
+.seg>button{display:inline-flex;align-items:center;gap:6px;font:600 13.5px/1.2 var(--sans);color:var(--muted);background:transparent;border:0;
+border-radius:7px;padding:6px 12px;min-height:32px;cursor:pointer}
+.seg>button:hover{color:var(--ink)}
+.seg>button[aria-checked="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(36,49,60,.15)}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;min-width:0}
+
+#tile3d .m3{--m3-mask:#2f6a4c;--m3-fr4:#cdbf86;--m3-gold:#d6ab4f;--m3-copper:#b8763f;--m3-chip:#1f2326;--m3-silk:#eef3ef;
+--m3-zinc:#bcc3c9;--m3-coax:#4b6f9e;--m3-cable:#a3a9b0;--m3-shade:#24313c;--m3-cola:#c3161c;--m3-colaband:#f4f2ee;
+display:grid;gap:14px;min-width:0}
+#tile3d [hidden]{display:none!important}
+#tile3d .m3-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+#tile3d .m3-grp{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+#tile3d .m3-lbl{font:600 13px/1 var(--sans);color:var(--muted)}
+#tile3d #m3-zout,#tile3d #m3-zin{font-size:17px;line-height:1;padding-inline:8px;min-width:36px}
+#tile3d #m3-exp[aria-pressed="true"],#tile3d #m3-lbls[aria-pressed="true"],#tile3d #m3-cola[aria-pressed="true"]{background:var(--card-t);border-color:var(--card);color:#3d6596}
+#tile3d .m3-stage{position:relative;min-width:0;width:100%;aspect-ratio:16/10;overflow:hidden;border-radius:10px;background:var(--zone);
+border:1px solid var(--line);box-sizing:border-box}
+@supports not (aspect-ratio:1/1){#tile3d .m3-stage{height:0;padding-top:62.5%}}
+#tile3d .m3-stage.m3-collapsed{aspect-ratio:auto;min-height:150px;height:auto;padding-top:0}
+#tile3d .m3-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab;-webkit-tap-highlight-color:transparent}
+#tile3d .m3-stage canvas.m3-drag{cursor:grabbing}
+#tile3d .m3-stage canvas:focus{outline:none}
+#tile3d .m3-stage canvas:focus-visible{outline:2px solid var(--card);outline-offset:-3px}
+#tile3d .m3-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:12px;padding:16px;
+box-sizing:border-box;text-align:center;background:var(--zone)}
+#tile3d .m3-ph.m3-noimg{justify-content:center}
+#tile3d .m3-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#tile3d .m3-ph .m3-msg,#tile3d .m3-ph .btn{position:relative}
+#tile3d .m3-msg{font-size:14px;color:var(--ink);max-width:46ch;margin:0;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 12px}
+#tile3d .m3-msg:focus{outline:2px solid var(--card);outline-offset:2px}
+#tile3d .m3-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#tile3d .m3-lb{position:absolute;left:0;top:0;pointer-events:auto;box-sizing:border-box;width:26px;height:26px;margin:-13px 0 0 -13px;padding:0;
+border-radius:50%;border:2px solid var(--paper);background:var(--ink);color:var(--paper);font:700 12.5px/22px var(--sans);text-align:center;
+cursor:pointer;box-shadow:0 1px 4px rgba(36,49,60,.35);transition:background-color .15s}
+#tile3d .m3-lb.m3-occ:not(.m3-on){background:var(--muted);border-style:dashed;box-shadow:none}
+#tile3d .m3-lb.m3-on{background:#a94d1c}
+@media (hover:hover){#tile3d .m3-lb:hover{background:#a94d1c}}
+#tile3d .m3-lb[aria-pressed="true"]{background:#a94d1c;border-style:solid;box-shadow:0 0 0 3px var(--rf-t),0 1px 4px rgba(36,49,60,.35)}
+#tile3d .m3-lb:focus{outline:none}
+#tile3d .m3-lb:focus-visible{outline:2px solid var(--card);outline-offset:2px}
+#tile3d .m3-tag{position:absolute;left:0;top:0;pointer-events:none;white-space:nowrap;transform-origin:0 50%;margin-top:-11px;
+padding:2px 8px;border-radius:6px;background:rgba(255,255,255,.92);border:1px solid var(--line);font:600 12px/1.45 var(--sans);color:var(--ink)}
+#tile3d .m3-tag b{color:#a94d1c}
+#tile3d .m3-dim{color:#a94d1c}
+#tile3d .m3-tip{position:absolute;left:0;top:0;pointer-events:none;max-width:260px;box-sizing:border-box;padding:4px 9px;border-radius:7px;
+background:var(--paper);border:1px solid var(--line);font:500 12.5px/1.35 var(--sans);color:var(--ink);box-shadow:0 2px 8px rgba(36,49,60,.18)}
+#tile3d .m3-whint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);pointer-events:none;max-width:calc(100% - 24px);
+box-sizing:border-box;text-align:center;padding:6px 12px;border-radius:8px;background:var(--ink);color:var(--paper);font:500 13px/1.35 var(--sans);opacity:.92}
+#tile3d .m3-cap{position:absolute;left:10px;top:10px;margin:0;max-width:calc(100% - 20px);box-sizing:border-box;padding:5px 10px;border-radius:8px;
+background:var(--paper);border:1px solid var(--line);font:600 13px/1.35 var(--sans);color:var(--ink);pointer-events:none}
+#tile3d .m3-leg{margin:0;padding-left:22px;display:grid;gap:5px;font-size:14.5px}
+#tile3d .m3-leg li{border-radius:6px;padding:1px 6px;margin-left:-6px;transition:background-color .15s}
+#tile3d .m3-leg li.is-hl{background:var(--rf-t);box-shadow:inset 3px 0 0 var(--rf)}
+#tile3d .m3-leg li.is-pin{background:var(--rf-t);box-shadow:inset 3px 0 0 #a94d1c}
+#tile3d .m3-legbtn{font:inherit;font-weight:700;color:var(--ink);background:none;border:0;padding:0;margin:0;cursor:pointer;
+text-decoration:underline dotted;text-underline-offset:3px}
+#tile3d .m3-legbtn:disabled{cursor:default;text-decoration:none;color:var(--ink)}
+#tile3d .m3-legbtn[aria-pressed="true"]{color:#a94d1c}
+#tile3d .m3-legbtn:focus{outline:none}
+#tile3d .m3-legbtn:focus-visible{outline:2px solid var(--card);outline-offset:2px;border-radius:3px}
+#tile3d.m3-shot .m3-stage{position:fixed;inset:0;z-index:999;aspect-ratio:auto;border-radius:0;border:0}
+#tile3d.m3-shot .m3-cap,#tile3d.m3-shot .m3-labels{display:none}
+@media (prefers-reduced-motion:reduce){#tile3d .m3-lb,#tile3d .m3-leg li{transition:none}}
+@media (max-width:640px){#tile3d .m3-stage{aspect-ratio:4/5}
+@supports not (aspect-ratio:1/1){#tile3d .m3-stage{padding-top:125%}}
+#tile3d .m3-lb{width:24px;height:24px;margin:-12px 0 0 -12px;line-height:20px;font-size:12px}
+#tile3d .m3-cap,#tile3d .m3-tag{font-size:11.5px}
+#tile3d .m3-tag .m3-tl{display:none}}

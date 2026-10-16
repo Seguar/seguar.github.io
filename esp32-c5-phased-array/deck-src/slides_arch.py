@@ -314,9 +314,9 @@ def slide_calloop(d):
     x0 = 7.0
     text(s, x0, 4.1, 5.7, 0.3, "What the tone cannot see", size=14, color=INK)
     items = [
-        "Everything before the switch: patch, feed, cable from the antenna board. Measure once with a VNA, "
-        "or calibrate over the air with a far-field source.",
-        "Mutual coupling between elements: measure embedded element patterns once the 2×2 tile works.",
+        "Everything before the switch: patch, probe via and a 1 mm line, the same for all eight (or the cable, "
+        "with a separate aperture). Calibrate once over the air; tile B adds a fixed 180°.",
+        "Mutual coupling between elements: measure embedded element patterns once the first tile works.",
         "Errors that change faster than the calibration interval.",
     ]
     text(s, x0, 4.55, 5.7, 2.3, items, size=12, color=MUTED, bullets=True, para_space=6)

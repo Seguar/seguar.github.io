@@ -8,6 +8,8 @@ Python that builds the slide deck and the web page for the ESP32-C5 phased-array
 - `content.py`, `content_tile8.py`, `content_v3.py` — all slide text and numbers
 - `notes_text.py`, `notes_v3.py` — speaker notes
 - `slides_arch.py`, `slides_content.py`, `slides_tile8.py` — slide layouts and diagrams
+- `tile3d.js`, `tile3d.css` — the interactive 3D tile viewer (three.js r128 from cdnjs), inlined into `index.html`;
+  open the page with `?m3check=1` to run its layout check (clearances, RF over ground, equal path lengths)
 - `deckkit.py` — drawing helpers; `budget.py` — rate and array-factor calculations
 - `render.ps1` — renders each slide to PNG through PowerPoint (Windows)
 

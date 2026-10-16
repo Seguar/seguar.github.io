@@ -32,10 +32,10 @@ T["tile8_take"] = [[("8 × 80 Mbit/s = 640 Mbit/s on one 16-bit bus at 40 MHz �
 # ---------------------------------------------------------------- bus mapping
 T["map_source"] = "C5 TRM v1.1 §43: PARLIO ≤ 40 MHz, external TX clock, not an ETM peripheral; a gated external clock may start after TX_START. Lockstep across chips is an inference to test."
 T["map_sequence"] = [
-    "1   all C5s capture on the common trigger and load their PARLIO DMA descriptors",
+    "1   the S31 arms all C5s; each captures a snapshot and loads its PARLIO DMA descriptors",
     "2   each C5 raises READY",
     "3   the S31 waits until all eight READY lines are high",
-    "4   GO: the S31 starts the shared PCLK (or asserts GO)",
+    "4   GO: the S31 enables the PCLK buffer, so all lanes start on one edge",
     "5   all C5s shift out on the same clock edges",
     "6   the S31 captures 16-bit words by DMA",
     "7   every frame starts with a sync word common to all lanes",
@@ -90,20 +90,22 @@ T["planb_adds"] = ["each C5 can run on its own lane clock", "deterministic, insp
                    "data reduction before Ethernet", "a path to real-time beamforming"]
 
 # ---------------------------------------------------------------- PCB
-T["pcb_source"] = "To scale for 28.8 mm pitch. JLCPCB 4-layer 7628 stack-up: L1–L2 prepreg ≈ 0.21 mm. Patch estimate: BW ≈ 3.77·(εr−1)/εr²·(W/L)·(h/λ₀), εr 4.4, tan δ 0.02. Fab prices: team estimates."
-T["pcb_geom_note"] = "To scale: the 2 × 4 antenna block sits against the seam, electronics on the outer side. Rows keep 28.8 mm pitch across the seam only if each board edge is 14.4 mm from its nearest row."
-T["pcb_stack_rows"] = [["L1", "RF, components, high-speed"], ["L2", "solid ground"], ["L3", "power, slow signals"],
-                       ["L4", "PARLIO, RGMII, control"]]
-T["pcb_cost_rows"] = [["4-layer FR-4, 5 boards", "$25–35"], ["+ ENIG, impedance control", "$35–55"],
-                      ["per tile (5-board order)", "$7–11"], ["6-layer, per board", "$10–16"], ["shipping to Israel", "$20–35"]]
+T["pcb_source"] = "To scale for 28.8 mm pitch. Custom 4-layer stack (JLCPCB's standard one has only 0.21 mm under L1). Patch: εr 4.4, tan δ 0.02; lossless BW ≈ 3.77·(εr−1)/εr²·(W/L)·(h/λ₀); efficiency counts dielectric loss only. Prices: team estimates."
+T["pcb_geom_note"] = "To scale: the 2 × 4 antenna block sits against the seam. Front: patches only. Back: each C5 under its own patch, the rest on the outer half. Rows keep 28.8 mm pitch across the seam only if each board edge is 14.4 mm from its nearest row."
+T["pcb_stack_rows"] = [["L1", "patches only (the front)"], ["L2", "solid ground (patch ground)"], ["L3", "ground; clock lines, 3.3 V spine"],
+                       ["L4", "all parts, RF, data lines"]]
+T["pcb_cost_rows"] = [["standard 4-layer, 5 boards", "$25–35"], ["+ ENIG, impedance control", "$35–55"],
+                      ["Rev 1 custom stack + blind vias", "quote"], ["per tile (standard, 5 boards)", "$7–11"],
+                      ["6-layer, per board", "$10–16"], ["shipping to Israel", "$20–35"]]
 T["pcb_patch_notes"] = [
-    "A standard 1.6 mm 4-layer board has only ≈ 0.21 mm between L1 and L2. A 5.2 GHz patch over L2 would have ≈ 0.3 % "
-    "(≈ 16 MHz) bandwidth and ≈ 20 % radiation efficiency on FR-4 — narrower than one 20 MHz Wi-Fi channel and far below the C5's 48 MHz maximum.",
-    "With h ≈ 1.5 mm (like our existing board): ≈ 2.3 % (≈ 120 MHz) and ≈ 60 % efficiency (estimates).",
-    "Options: keep a separate ~1.5 mm aperture board (ours) and cable each element; put the patch ground on L4 with "
-    "L2/L3 cleared; use a custom thick L1–L2 core; or a different printed element.",
-    "Seam: ground is interrupted between tiles, so edge-row patterns will differ — calibrate per element and keep "
-    "the gap small and bridged.",
+    "A standard 1.6 mm 4-layer board has only ≈ 0.21 mm between L1 and L2: a 5.2 GHz patch there radiates at most ≈ 18 % "
+    "of its power on FR-4 (lossless bandwidth ≈ 0.3 %; the loss makes the S11 dip look wider than it is).",
+    "Rev 1 uses a custom stack with a 1.065 mm core under L1: ≈ 1.6 % (≈ 85 MHz) lossless bandwidth and at most ≈ 53 % "
+    "efficiency; patch ≈ 17.5 × 13.5 mm, trimmed after a test coupon (≈ 55 MHz per 0.1 of εr).",
+    "Front: patches only (plus tented through-via pads). Each C5 sits behind its own patch: probe via, 1 mm to the SPDT, "
+    "2.5 mm to the C5, the same for all eight. All digital lines run behind the L2 ground.",
+    "Seam: the ground is cut between tiles, so bridge it continuously and calibrate per element. Tile B is turned 180°, "
+    "so elements 9–16 carry a fixed 180° term.",
 ]
 
 # ---------------------------------------------------------------- bench tests
@@ -196,7 +198,7 @@ T["cost_sys_rows"] = [
 ]
 T["cost_notes"] = [
     "Chip-down C5s replace modules because modules carry their own crystal; parts cost is similar, layout work is higher.",
-    "If the patches need a thick substrate, a separate antenna board adds a second fab order and 16 RF connections.",
+    "The custom stack-up (with blind L4–L3 vias) keeps the patches on the tile but needs a quote: the PCB line assumes standard-stack prices. Ask for a balanced build and a bow/twist limit. A separate antenna board would add a second fab order and 16 RF connections.",
     "A MAX2871 evaluation board alone costs more than the $15–20 line; a bare synthesizer on the master board is assumed.",
     "For scale: an ESPARGOS One Core Kit (8 elements, 2.4 GHz, finished product with enclosure, PoE and firmware) is €350 excl. VAT.",
 ]
@@ -208,7 +210,7 @@ T["dom_rows"] = [
     ["Domain", "Signal and path", "Guarantees", "Does not guarantee"],
     [{"c": "RF reference", "color": BLUE}, "48 MHz TCXO → fan-out → 16 × XTAL_P", "one frequency for all LOs", "LO phase after each lock"],
     [{"c": "Data transport", "color": "6F4E9E"}, "40 MHz PCLK → fan-out → 16 C5 + 2 S31", "lane-to-lane cycle alignment", "which sample a lane starts with"],
-    [{"c": "Capture trigger", "color": AMBER}, "master GO → all C5 (+ READY back)", "common capture start", "sub-sample alignment (firmware latency)"],
+    [{"c": "Capture trigger", "color": AMBER}, "master GO → S31 → PCLK enable (+ READY)", "common start within a tile", "tile-to-tile start (two S31s)"],
     [{"c": "RF calibration", "color": TEAL}, "5.2 GHz tone → 1:2 → 1:8 → SPDT", "measures φₖ, τₖ and path mismatch", "anything before the switch"],
     [{"c": "Ethernet / PTP", "color": MUTED}, "S31 EMAC, 1588 timestamps", "logging, tile coordination", "sample or phase alignment"],
 ]
