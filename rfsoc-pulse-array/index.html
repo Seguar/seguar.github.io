@@ -2128,7 +2128,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <tr id="hw-f-dac" data-hw-find="dac" data-hw-status="card"><td>DAC outputs</td><td>0.1 µF → TCM2-63WX+ → 0.1 µF → SSMC J44–51. Unfitted resistor options sit around each balun.</td><td>30 MHz lowest frequency, set by the balun (the capacitors alone allow ≈ 32 kHz)</td><td>Swap to UWB2-50E, or bypass to one leg. Build both versions to compare, as suggested in the requirements review.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-card">Rework on card</span></div></td></tr>
       <tr id="hw-f-gpio" data-hw-find="gpio" data-hw-status="ok"><td>GPIO</td><td>J65 2×10 header: 10 GPIO (3.3 V HD bank) + I²C. PERST# on the edge goes to FPGA pin D9.</td><td>Enough for carrier control</td><td>The J65 ribbon is unchanged: IO3 = SYNC_GATE (out), IO8 = MON_SYNC and IO9 = MON_CLK (in), and the carrier's TCA9538 (0x70) switches the clock zone over I²C. PERST# now carries TRIG IO (next row); no new ribbon line.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-ok">OK as is</span></div></td></tr>
       <tr id="hw-f-perst" data-hw-find="perst" data-hw-status="ok"><td>TRIG IO over <br>PERST# → D9</td><td>Edge finger A11 PERST# → net PCIE_PERST_B_LS_R → R242 0 Ω → PCIE_PERST → FPGA D9 (HD bank 88, 3.3 V). The R304 pull-up is not fitted (V1 sheet 2).</td><td>No host resets the card, so the pin is free. TRIG needs no card work, and J64 is free for the true SYSREF</td><td>D9 as IOBUF LVCMOS33, SLEW SLOW, DRIVE 8, pull-down, no PCIe IP bound to it. The carrier feeds A11 from J28 through D11, U62 and 33 Ω (<a href="#carrier" data-goto="carrier">Carrier schematic</a>). Check on the first card: A11 position (≈ u 58.6 mm, unverified), R242 = 0 Ω, R304 absent, no buffer on rev 2.1, and D9 driven and read through the slot. If rev 2.1 has a one-way buffer, listeners still read D9 and the master drives out on J65 IO7 through a small carrier gate.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-ok">OK as is, check</span></div></td></tr>
-      <tr id="hw-f-j5764" data-hw-find="j5764" data-hw-status="ok"><td>J57 GNSS and J64 PPS_IN</td><td>Schematic page 17. J64 (SSMC, PPS_IN) → R245 33 Ω → FPGA pin A10 (3.3 V HD bank), R248 1 kΩ to ground, TPD4E001 ESD. J57 (SSMC) → NEO-M8N RF_IN, antenna bias through L40 10 nH; the TIMEPULSE goes only to FPGA pin A9, not to the LMK. U101 (the NEO-M8N) is not fitted on the stock card.</td><td>J64 becomes the true SYSREF entry (the tweak above) and A10 an input-only monitor; the PPS_IN function is given up. GNSS gives time of day and a PPS of tens-of-ns class (check the datasheet), not a ps clock reference, and needs U101</td><td>J57 stays free: position 0 is clear for an antenna plug. For a GNSS-armed start, fit U101 on every card as an identical option; the SYNC coax then re-routes below its outline and is re-measured. The antenna (or a GNSS splitter arm) reaches J57 through the front SSMC access (inlet plate off) or a front-panel feed-through fitted by the user. A lab PPS enters J28 → D9. See <a href="#sync" data-goto="sync">Sync &amp; timing</a>.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-ok">OK as is</span></div></td></tr>
+      <tr id="hw-f-j5764" data-hw-find="j5764" data-hw-status="ok"><td>J57 GNSS and J64 PPS_IN</td><td>Schematic page 17. J64 (SSMC, PPS_IN) → R245 33 Ω → FPGA pin A10 (3.3 V HD bank), R248 1 kΩ to ground, TPD4E001 ESD. J57 (SSMC) → NEO-M8N RF_IN, antenna bias through L40 10 nH; the TIMEPULSE goes only to FPGA pin A9, not to the LMK. U101 (the NEO-M8N) is not fitted on the stock card.</td><td>J64 becomes the true SYSREF entry (the tweak above) and A10 an input-only monitor; the PPS_IN function is given up. GNSS gives time of day and a PPS of tens-of-ns class (check the datasheet), not a ps clock reference, and needs U101</td><td>J57 stays free: position 0 is clear for an antenna plug. For a GNSS-armed start, fit U101 on every card as an identical option; the SYNC coax then re-routes below its outline and is re-measured. The antenna (or a GNSS splitter arm) reaches J57 through the front SSMC access (inlet plate off, or U-cover off in the flat box) or a front-panel feed-through fitted by the user. A lab PPS enters J28 → D9. See <a href="#sync" data-goto="sync">Sync &amp; timing</a>.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-ok">OK as is</span></div></td></tr>
       <tr id="hw-f-power" data-hw-find="power" data-hw-status="ok"><td>Power</td><td>12 V through the edge fingers and the P3 connector. The VCCINT regulator is rated 40 A.</td><td>The card runs from the carrier's 12 V</td><td>Feed the slot 12 V pins (≤ 66 W by the PCIe spec) and/or cable to P3. Check the real card power in XPE.</td><td class="hw-stc"><div class="hw-stw"><span class="hw-st hw-st-ok">OK as is</span></div></td></tr>
     </tbody>
   </table></div>
@@ -2908,7 +2908,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         <tr data-tim-topo="chain" data-tim-sys="derived"><td><b>CHAIN-DZ</b><br>Daisy chain</td><td>J29 of module k → J26 of module k + 1, all one length (N − 1). TRIG bus for N ≤ 4: 2(N − 1); fan-out above: 2N − 1<span class="tim-cabn" data-tim-cab="chain:derived"></span>.</td><td>Root: Y1 on, LOCAL5 on, U20 = U28 = LOCAL5. Middle: U20 = U28 = J26 (relay). Tail: U28 off. All: U22 off. Card DZ.</td><td>Derived</td><td>One LMK00804B per hop, ≈ 1–2.2&nbsp;ns (check), drift k·α·ΔT. Up to 4 modules; 8 only with the MON_CLK drift monitor.</td></tr>
         <tr data-tim-topo="chain" data-tim-sys="true"><td><b>CHAIN-TS</b><br>Daisy chain</td><td>Same cables as CHAIN-DZ<span class="tim-cabn" data-tim-cab="chain:true"></span>.</td><td>As CHAIN-DZ, with U22 = own CLK edge for one gated edge. Card TS5.</td><td>True: the relayed 5&nbsp;MHz edge, re-clocked once on each card</td><td>Replaces chain B2 (a separate SYSREF lane with a re-clock per hop). Verification profile.</td></tr>
         <tr data-tim-prof="a1"><td><b>A1</b><br>Bare cards</td><td>Card J32 → DC block → next card J35; no terminators (R348 terminates J35). TRIG: a ≤ 2.5&nbsp;V, 50&nbsp;Ω-source LVCMOS into every J64, or a GNSS start.</td><td>SDCLKout5 = SYSREF divider, 5&nbsp;MHz. Root card: PLL1 on a PL clock (CLKin2) or in holdover. Others: DZ on CLKin1. A10 listens to TRIG; LMK SYNC off (SYNC_MODE = 0, SYNC_DISX = 1).</td><td>Derived</td><td>Sync strictly root → tail, card k after card k − 1 has settled. No slot, so no PERST#: no bare card can be TRIG master. GTY on the free-running SI5341, so the one-bit rows are not locked.</td></tr>
-        <tr data-tim-prof="gnss"><td><b>GNSS start</b><br>overlay</td><td>Antenna (or GNSS splitter arm) → card J57 SSMC through the front SSMC access (inlet plate off) or a front-panel feed-through fitted by the user. Needs U101 NEO-M8N fitted on every card (not fitted on the stock card). The base profile's CLK cables stay.</td><td>trig = gnss on top of the base profile.</td><td>As the base profile</td><td>The PPS (FPGA A9) picks the start second; the epoch counter does the rest. The TRIG option for large N without a fan-out. With U101 fitted the SYNC coax re-routes below its outline.</td></tr>
+        <tr data-tim-prof="gnss"><td><b>GNSS start</b><br>overlay</td><td>Antenna (or GNSS splitter arm) → card J57 SSMC through the front SSMC access (inlet plate off, or U-cover off in the flat box) or a front-panel feed-through fitted by the user. Needs U101 NEO-M8N fitted on every card (not fitted on the stock card). The base profile's CLK cables stay.</td><td>trig = gnss on top of the base profile.</td><td>As the base profile</td><td>The PPS (FPGA A9) picks the start second; the epoch counter does the rest. The TRIG option for large N without a fan-out. With U101 fitted the SYNC coax re-routes below its outline.</td></tr>
       </tbody>
     </table></div>
 
@@ -3676,7 +3676,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   <h3 id="tim-opts">Distribution options</h3>
   <p>Every option runs the same carrier and the same card prep: the build differences are none. They differ in where CLK, SYSREF and TRIG come from, which cables are plugged and which profile is loaded. For 2 to 8 modules in one rack, <b>Master + splitter with derived SYSREF (MASTER-DZ)</b> is the recommended option: one passive splitter and no box. MASTER-TS runs on the same cables when a true SYSREF is wanted.</p>
   <div class="tbl"><table id="tim-optt">
-    <thead><tr><th>Option</th><th>What is distributed</th><th>Timing cables</th><th>External kit</th><th>Build differences</th><th>Rack, <span id="tim-opt-n">4 modules</span></th><th>Choose it when</th></tr></thead>
+    <thead><tr><th>Option</th><th>What is distributed</th><th>Timing cables</th><th>External kit</th><th>Build differences</th><th>Rack, <span id="tim-opt-n">4 modules, upright box</span></th><th>Choose it when</th></tr></thead>
     <tbody>
       <tr data-tim-topo="master"><td><b>Master + splitter</b><br><span class="ok">recommended</span></td><td>One 5 MHz clock: root J29 (U28 = LOCAL5) → passive 1:N splitter → J26 of every module, the root included (loop-back). DZ: each card makes its own SYSREF. TS: the same edge goes to each SYNC pin. TRIG: root J28 → one cable (N = 2), a resistive star (N ≤ 4) or the active fan-out (N &gt; 4).</td><td><span data-tim-sys="derived">MASTER-DZ</span> and <span data-tim-sys="true">MASTER-TS</span>: 2N + 1 (2N at N = 2), the same cables<span class="tim-cabn" data-tim-cab="master:*"></span>.</td><td>ZFSC-4-1, or ZSC-2-1+ → 2 × ZFSC-4-1 at N = 8; TRIG star (N ≤ 4) or active fan-out (≈ $30–60, estimate)</td><td>none</td><td class="n" data-tim-rack="master">14U</td><td>2 to 8 modules in one rack: no box, every module one cable from the root</td></tr>
       <tr data-tim-topo="master2"><td><b>Master + 2 splitters</b><br>legacy cabling</td><td>Root J29 → 1:2 splitter → splitter A → every J26 and splitter B → every J27 → U22 → W22 → card J64 → SYNC pin. TRIG as for Master + splitter.</td><td><span data-tim-sys="true">MASTER2-TS</span>: ≈ 3N + 3<span class="tim-cabn" data-tim-cab="master2:*"></span>.</td><td>ZSC-2-1+ plus two splitters; TRIG star (N ≤ 4) or active fan-out</td><td>none</td><td class="n" data-tim-rack="master2">14U</td><td>Only to reuse the old cabling; it adds nothing over MASTER-TS</td></tr>
@@ -3685,7 +3685,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <tr data-tim-topo="cards"><td><b>Card-only chain</b> A1</td><td>Card J32 at 5 MHz → DC block → next card J35; TRIG from a ≤ 2.5 V, 50 Ω source into J64, or GNSS. GTY on the free-running SI5341, so the one-bit rows are not locked.</td><td>N − 1 coax + the TRIG feed</td><td>DC blocks, SMA-to-SSMC cables, a TRIG source; no terminators</td><td>bare cards</td><td class="n">bench</td><td>Bring-up of bare cards</td></tr>
     </tbody>
   </table></div>
-  <p class="note" id="tim-opt-note">The page-wide choice is the Sync and SYSREF setting in the rail, or <b>Use this for the whole page</b> in the <a href="#chain" data-goto="chain">Daisy-chain option</a>; its row and SYSREF mode are marked here. Rack height counts the 2U shelf for the control PC and switch, 5U per two modules, 2U supply and 1U for a sync unit.</p>
+  <p class="note" id="tim-opt-note">The page-wide choice is the Sync and SYSREF setting in the rail, or <b>Use this for the whole page</b> in the <a href="#chain" data-goto="chain">Daisy-chain option</a>; its row and SYSREF mode are marked here. Rack height counts the 2U shelf for the control PC and switch, 5U per two modules for the upright box or 2U for the flat box, 2U supply and 1U for a sync unit.</p>
 
   <div class="panel tim-j5764" id="tim-j5764">
     <h3>Card J35, J64 and J57</h3>
@@ -3718,7 +3718,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         <p>J57 → NEO-M8N RF_IN, with antenna bias from VCC_RF through L40 10 nH. U101 (the NEO-M8N) is not fitted on the stock card, so J57 stays free and position 0 is clear for an antenna plug. The TIMEPULSE goes only to FPGA pin A9 (GNSS_PPS), not to the LMK: time of day and a PPS of tens-of-ns class (check the datasheet), not a reference for ps alignment.</p>
         <ul>
           <li><b>To use GNSS:</b> fit U101 on every card as an identical option; the SYNC coax then re-routes below its outline and is re-measured.</li>
-          <li><b>Antenna feed:</b> no rear GNSS port. The antenna (or a GNSS splitter arm) goes to card J57 through the front SSMC access (inlet plate off) or a front-panel feed-through fitted by the user.</li>
+          <li><b>Antenna feed:</b> no rear GNSS port. The antenna (or a GNSS splitter arm) goes to card J57 through the front SSMC access (inlet plate off, or U-cover off in the flat box) or a front-panel feed-through fitted by the user.</li>
           <li><b>GNSS-armed start:</b> every module arms on the same GNSS second and starts on the first common SYSREF edge after it, so no TRIG cable is needed. The modules still share CLK. If a PPS lands within ≈ 50 ns of a SYSREF edge on any module, the PC moves to the next second.</li>
           <li><b>Time stamps and set-ups far apart:</b> common time without a cable between them.</li>
         </ul>
@@ -4334,7 +4334,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         <tbody>
           <tr data-tim-io="trig"><td>TRIG IO</td><td>slot A11 PERST# → R242 0 Ω → FPGA D9 (IOBUF, SLEW SLOW)</td><td>The trigger, both directions: the TRIG master drives, the others listen. From the rear TRIG IO through W19, J28, D11 and U62 on the carrier; no card work</td></tr>
           <tr data-tim-io="sysmon"><td>SYNC monitor</td><td>SSMC J64 (PPS_IN) → R245 33 Ω → FPGA A10, input only</td><td>Counts the SYSREF edges after W22: 1 per TS sync, 0 in DZ. J64 feeds the LMK SYNC pin after the tweak; the PPS_IN function is given up</td></tr>
-          <tr data-tim-io="gnss"><td>GNSS</td><td>antenna → SSMC J57 (front SSMC access, inlet plate off, or a user-fitted front feed-through) → NEO-M8N; TIMEPULSE → FPGA A9</td><td>Option: time stamps and a GNSS-armed start. U101 (NEO-M8N) is not fitted on the stock card; needs an active antenna; not a clock reference</td></tr>
+          <tr data-tim-io="gnss"><td>GNSS</td><td>antenna → SSMC J57 (front SSMC access with the inlet plate off or the flat box U-cover off, or a user-fitted front feed-through) → NEO-M8N; TIMEPULSE → FPGA A9</td><td>Option: time stamps and a GNSS-armed start. U101 (NEO-M8N) is not fitted on the stock card; needs an active antenna; not a clock reference</td></tr>
           <tr data-tim-io="lmk"><td>LMK SYNC / SPI</td><td>PS MIO: K19 = MIO26 (input, cut off by the R699 removal), SPI, CLKin_SEL on MIO33/34</td><td>The PS programs the card's LMK04828 over SPI. After the tweak the SYNC pin takes only J64 (carrier U22), MIO26 is never driven, and divider sync goes over SPI</td></tr>
           <tr data-tim-io="bus"><td>CAN, RS-485</td><td>J54, J55 (PS)</td><td>Spare low-speed bus between modules if Ethernet is not wanted</td></tr>
           <tr data-tim-io="gbe"><td>GbE</td><td>RJ45 (PS)</td><td>Patterns, settings, status to the PC</td></tr>
@@ -4561,7 +4561,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   <!-- ===== 3D model (mech3d) ===== -->
   <div class="m3" id="m3">
     <h3 id="m3-h">3D model</h3>
-    <p>An interactive 3D model of one module and of the bench and rack layouts. The numbered labels match the drawings below. Box switches between today's upright card and the flat card on a 90° PCIe connector (214 × 74 × 324 mm, 5.13 L instead of 8.65 L; two modules per 2U shelf). Set Inlet plate to Off to take the front plate away and see the card's SSMC column through the opening. Bench and Rack show the control PC (Minisforum MS-A2) next to the GbE switch, a patch cable to every card RJ45, and the sync cable set of the chosen option (sync unit star, daisy chain, master + splitter, or the legacy two-splitter cabling) for the chosen SYSREF mode. The modules are the same in every option.</p>
+    <p>An interactive 3D model of one module and of the bench and rack layouts. The numbered labels match the drawings below. Box switches between today's upright card and the flat card on a 90° PCIe connector (214 × 74 × 324 mm, 5.13 L instead of 8.65 L; two modules per 2U shelf). In the upright box, set Inlet plate to Off to take the front plate away and see the card's SSMC column; in the flat box, Lid takes off the U-cover. Bench and Rack show the control PC (Minisforum MS-A2) next to the GbE switch, a patch cable to every card RJ45, and the sync cable set of the chosen option (sync unit star, daisy chain, master + splitter, or the legacy two-splitter cabling) for the chosen SYSREF mode. The modules are the same in every option.</p>
     <div class="toolbar m3-ctl" id="m3-ctl" hidden>
       <div class="m3-grp"><span class="m3-lbl" id="m3-mode-l">Show</span>
         <div class="seg" role="radiogroup" id="m3-mode" aria-labelledby="m3-mode-l">
@@ -4949,7 +4949,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <g data-mech="9">
       <g class="box"><rect x="114.6" y="70.2" width="32.2" height="86.8"/><rect x="151" y="70.2" width="32.2" height="86.8"/><rect x="192.3" y="75.8" width="10.5" height="39.2"/><rect x="209.1" y="75.8" width="9.1" height="28"/><rect x="223.8" y="78.6" width="29.4" height="29.4"/><rect x="104.8" y="75.8" width="4.9" height="21"/></g>
       <text class="s mid mf-k" x="130.7" y="122" transform="rotate(-90 130.7 122)">QSFP2</text><text class="s mid mf-k" x="167.1" y="122" transform="rotate(-90 167.1 122)">QSFP1</text>
-      <text class="s mid mf-k" x="238.5" y="98.2">RJ45</text>
+      <text class="s mid mf-k" x="238.5" y="98.2" style="paint-order:stroke;stroke:var(--paper);stroke-width:3px;stroke-linejoin:round">RJ45</text>
       <rect x="55.8" y="68.8" width="203" height="5.6" style="fill:var(--paper);stroke:var(--ink);stroke-width:.8"/>
     </g>
     <g data-mech="5">
@@ -5046,14 +5046,14 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <text class="s mid mf-k" x="570" y="168" style="paint-order:stroke;stroke:var(--paper);stroke-width:3px;stroke-linejoin:round">HamGeek card</text>
     </g>
     <g data-mech="2"><rect x="602.2" y="168" width="78.4" height="13.3" style="fill:#3e4a55"/><text class="s mid mf-k" x="641.4" y="177.6" style="fill:#fff;font-weight:700">J1</text></g>
-    <g data-mech="9"><rect class="box" x="787" y="153.1" width="86.8" height="18.9"/><text class="s mid mf-k" x="830.4" y="165.6">QSFP</text></g>
+    <g data-mech="9"><rect class="box" x="787" y="153.1" width="86.8" height="18.9"/><text class="s mid mf-k" x="850" y="165.6">QSFP</text></g>
     <g data-mech="3"><path class="rfd" style="stroke-width:1.2" d="M519.6 173.1 L 512.6 173.1 L 509.8 160.4 L 479.3 160.4 L 473.7 167.4 L 473.7 175"/><rect x="509.1" y="163.3" width="7" height="9.8" style="fill:var(--paper);stroke:var(--rf);stroke-width:1"/></g>
     <g data-mech="6"><path class="rft" style="stroke-width:1.2" d="M502.2 175.1 L 502.2 153.4 L 462.2 153.4 L 448.9 125.4 L 448.9 115.6 L 437 115.6"/><path class="rft" style="stroke-width:1.2" d="M464.2 175.1 L 464.2 167.4 L 464.2 161.8 L 448.9 161.8 L 448.9 147.8 L 437 147.8"/><rect class="conn" x="409.2" y="111" width="11" height="9.2" style="stroke-width:1.2"/><rect x="437" y="110" width="11.9" height="11.2" style="fill:var(--paper);stroke:var(--rf);stroke-width:1"/><rect class="conn" x="409.2" y="143.2" width="11" height="9.2" style="stroke-width:1.2"/><rect x="437" y="142.2" width="11.9" height="11.2" style="fill:var(--paper);stroke:var(--rf);stroke-width:1"/></g>
     <g data-mech="7"><path class="clk" style="stroke-width:1.2" d="M857 110 L 788.4 110 L 780 152.6 L 780 164.5"/><path class="clk" style="stroke-width:1.2" d="M857 138 L 830.4 138 L 822 152.6 L 822 164.5"/><rect class="connc" x="775.5" y="164.5" width="9" height="16.8" style="stroke-width:1"/><rect class="connc" x="817.5" y="164.5" width="9" height="16.8" style="stroke-width:1"/><rect class="connc" x="873.8" y="105.4" width="10" height="9.2" style="stroke-width:1.2"/><rect class="connc" x="873.8" y="133.4" width="10" height="9.2" style="stroke-width:1.2"/></g>
     <g data-mech="8" class="mech-airx"><rect class="box" x="838.1" y="93.5" width="28" height="56"/><text class="s mid mf-k" x="855.1" y="121.5" transform="rotate(-90 855.1 121.5)">fans A, B</text></g>
     <rect class="zp" x="852.8" y="167.8" width="16.8" height="13.4" style="stroke-width:1"/>
     <rect class="metal" x="420.2" y="90.4" width="4.2" height="103.6"/><rect class="metal" x="869.6" y="90.4" width="4.2" height="103.6"/>
-    <g data-mech="10"><rect class="metal" x="424.4" y="90.4" width="445.2" height="2.1"/><rect x="598" y="92.5" width="161" height="73.5" style="fill:none;stroke:var(--ink);stroke-width:1.2;stroke-dasharray:5 3"/><text class="s mid mf-k" x="733.8" y="96.8" style="paint-order:stroke;stroke:var(--paper);stroke-width:3px;stroke-linejoin:round">lid baffle</text></g>
+    <g data-mech="10"><rect class="metal" x="424.4" y="90.4" width="445.2" height="2.1"/><rect x="598" y="92.5" width="161" height="73.5" style="fill:none;stroke:var(--ink);stroke-width:1.2;stroke-dasharray:5 3"/><text class="s mid mf-k" x="737" y="104" style="paint-order:stroke;stroke:var(--paper);stroke-width:3px;stroke-linejoin:round">lid baffle</text></g>
     <line class="dim" x1="710" y1="116" x2="710" y2="92.5" marker-start="url(#mfd)" marker-end="url(#mfd)"/>
     <text class="s mid mf-k" x="658.2" y="107.4">plenum 16.8 mm</text>
     <g class="mech-airg mf-fair"><path class="air" d="M658.2 96 L 658.2 129.6" marker-end="url(#mfa)"/><path class="air" d="M705.8 152 L 826.2 129.6" marker-end="url(#mfa)"/><path class="air" d="M857 122.6 L 887.8 122.6" marker-end="url(#mfa)"/></g>
@@ -5061,7 +5061,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <text id="mech-fd-side" class="s mid" x="647" y="229">≈ 324 mm deep (card length + 89 mm)</text>
     <line class="dim" x1="930" y1="90.4" x2="930" y2="194" marker-start="url(#mfd)" marker-end="url(#mfd)"/>
     <text class="s mid" x="944" y="142" transform="rotate(-90 944 142)">74 mm high</text>
-    <g class="mech-co" data-mech-co="1"><circle class="co" cx="776" cy="140" r="9"/><text class="cot" x="776" y="144">1</text></g>
+    <g class="mech-co" data-mech-co="1"><circle class="co" cx="584" cy="138" r="9"/><text class="cot" x="584" y="142">1</text></g>
     <g class="mech-co" data-mech-co="2"><circle class="co" cx="641" cy="206" r="9"/><text class="cot" x="641" y="210">2</text></g>
     <g class="mech-co" data-mech-co="3"><circle class="co" cx="520" cy="206" r="9"/><text class="cot" x="520" y="210">3</text></g>
     <g class="mech-co" data-mech-co="5"><circle class="co" cx="470" cy="206" r="9"/><text class="cot" x="470" y="210">5</text></g>
@@ -5210,7 +5210,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <div class="tbl"><table id="mech-flat-cab">
       <thead><tr><th>Cable</th><th>From → to</th><th>As drawn (mm)</th><th>Part (mm)</th></tr></thead>
       <tbody>
-        <tr><td>D0–D7</td><td>Card DAC0…DAC7 (J44…J51) → carrier J2…J9, right-angle SSMC both ends, 1.13 mm micro-coax</td><td>65.9 · 69.3 · 68.7 · 68.2 · 67.6 · 67.3 · 73.5 · 77.1</td><td>80 (×8, one part)</td></tr>
+        <tr><td>D0–D7</td><td>Card DAC0…DAC7 (J44…J51) → carrier J2…J9, right-angle SSMC both ends, 1.13 mm micro-coax</td><td>65.9 · 69.3 · 68.7 · 68.2 · 67.6 · 67.1 · 73.5 · 77.1</td><td>80 (×8, one part)</td></tr>
         <tr><td>W1–W8</td><td>RF-DAC SMPM J10…J17 → front RF-DAC OUT 1–8 (upper row 1–4, lower 5–8)</td><td>87.5 · 74.3 · 64.2 · 63.2 · 53.8 · 34.2 · 26.8 · 40.2</td><td>95 (W1, W2), 70 (W3–W5), 45 (W6–W8)</td></tr>
         <tr><td>W9–W16</td><td>One-bit SMPM J18…J25 → front ONE-BIT OUT 1–8</td><td>50.5 · 53.2 · 56.3 · 85.6 · 64.1 · 59.5 · 57.1 · 56.0</td><td>95 (W12), 70 (the others)</td></tr>
         <tr><td>W17</td><td>Rear CLK IN → carrier J26</td><td>80.6</td><td>90</td></tr>
@@ -5220,7 +5220,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         <tr><td>W21</td><td>Carrier J32 (CLK) → card J35, right-angle SMA → right-angle SSMC</td><td>42.2</td><td>50 (upright ≈ 380)</td></tr>
         <tr><td>W22</td><td>Carrier J33 (SYNC) → card J64, same plugs</td><td>33.1</td><td>45 (upright ≈ 390)</td></tr>
         <tr><td>W23</td><td>Card J32 → carrier J45 (GTY REF IN), right-angle SMA both ends</td><td>73.7</td><td>80 (upright ≈ 210)</td></tr>
-        <tr><td>Ribbon</td><td>Card J65 → carrier J31, 2 × 10 IDC, two 45° folds</td><td>132.4</td><td>150</td></tr>
+        <tr><td>Ribbon</td><td>Card J65 → carrier J31, 2 × 10 IDC, two 45° folds</td><td>133.1</td><td>150</td></tr>
         <tr><td>On the carrier</td><td>One-bit lanes; REFCLK LVDS (L3); PERST# J28 → U62 → J1 A11; CLK IN, SYSREF IN and CLK/SYSREF OUT striplines (L5) to the front-left clock zone</td><td>17–48 · ≈ 235 · ≈ 155 · ≈ 460–480</td><td>traces</td></tr>
       </tbody>
     </table></div>
@@ -5243,7 +5243,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     <thead><tr><th>Connector</th><th>Verdict</th><th>How</th></tr></thead>
     <tbody>
       <tr><td>J64 PPS_IN</td><td><span class="ok">Yes, SYNC in after a one-time tweak</span></td><td>W22 (carrier J33, U22, DC-coupled 0–2.5 V) → J64 → one jacketed 1.13 mm micro-coax, one fixed length on every card (45–70 mm expected, ± 2 mm), from the J64 centre-finger joint to the LMK-side pad of the removed R699 → LMK SYNC pin 6. It crosses the empty U101 footprint on Kapton; braid to the J64 ground finger and to one fixed ground pad near R699. R245 33 Ω, R248 1 kΩ and the TPD4E001 ESD stay: FPGA A10 becomes an input-only SYSREF monitor (one edge per TS sync, none in DZ, compared with MON_SYNC before the cable), and R248 holds the pin low with W22 unplugged. Never drive J64 above 3.3 V; a bare card takes ≤ 2.5 V from a 50 Ω source. To check on the first card: where R699 sits, the coax length, and a clean monotonic edge at the pad (probe or TDR). If R699 cannot be reached cleanly, every module runs derived SYSREF only, with no soldering.</td></tr>
-      <tr><td>J57 GNSS_ANT</td><td><span class="ok">Free</span></td><td>J57 → U101 RF_IN, antenna bias from VCC_RF through L40 10 nH. U101 (NEO-M8N) is not fitted on the stock card, so J57 carries nothing and stays free for a later GNSS option. Fitting U101 on every card is an identical option: TIMEPULSE → FPGA A9 (GNSS_PPS, tens-of-ns class, check the datasheet) for time stamps or the GNSS-armed start; the SYNC coax then moves below the U101 outline. There is no rear GNSS port: the antenna reaches J57 through the front SSMC access with the inlet plate off, or a front-panel feed-through fitted by the user.</td></tr>
+      <tr><td>J57 GNSS_ANT</td><td><span class="ok">Free</span></td><td>J57 → U101 RF_IN, antenna bias from VCC_RF through L40 10 nH. U101 (NEO-M8N) is not fitted on the stock card, so J57 carries nothing and stays free for a later GNSS option. Fitting U101 on every card is an identical option: TIMEPULSE → FPGA A9 (GNSS_PPS, tens-of-ns class, check the datasheet) for time stamps or the GNSS-armed start; the SYNC coax then moves below the U101 outline. There is no rear GNSS port: the antenna reaches J57 through the front SSMC access with the inlet plate off (upright) or the U-cover off (flat), or a front-panel feed-through fitted by the user.</td></tr>
       <tr><td>TRIG IO (slot PERST#)</td><td><span class="ok">Yes, no card work</span></td><td>Rear TRIG IO → W19 → carrier J28 → D11 TVS → 50 Ω trace → U62 isolation switch (on only while U59 reports card power good) → 33 Ω → slot pin A11 PERST# → card R242 0 Ω → FPGA D9 (IOBUF, LVCMOS33, SLEW SLOW). 10 kΩ idle low at J28, 100 kΩ on the slot side. The TRIG master drives 60 ns after its own SYSREF edge; listeners arm on ≥ 4 consecutive high samples at 125 MHz. A resistive star works up to 4 modules (≈ 3.0–3.2 V at D9, estimate); above 4 use an active TRIG fan-out, the sync unit's TRIG outputs or the GNSS-armed start. To check on the first card: the A11 position (u ≈ 58.6 mm, estimate), R242 = 0 Ω with R304 not fitted, and that rev 2.1 has no one-way buffer on this net.</td></tr>
     </tbody>
   </table></div>
@@ -5383,7 +5383,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
         <tr><td>One-bit coax W9–W16</td><td>79–105 mm</td><td>51–86 mm drawn; parts 70 / 95 mm</td></tr>
         <tr><td>W21 / W22 (CLK / SYNC to the card)</td><td>≈ 381 / 389 mm</td><td>42 / 33 mm drawn (parts 50 / 45)</td></tr>
         <tr><td>W23 (GTY reference)</td><td>≈ 211 mm</td><td>74 mm (part 80) + ≈ 235 mm of buried LVDS</td></tr>
-        <tr><td>J65 ribbon</td><td>≈ 180 mm down the upright card</td><td>132 mm drawn, part 150, two 45° folds</td></tr>
+        <tr><td>J65 ribbon</td><td>≈ 180 mm down the upright card</td><td>133 mm drawn, part 150, two 45° folds</td></tr>
         <tr><td>Rear sync cables W17–W20</td><td>≈ 60–100 mm (W19 ≈ 58)</td><td>50–115 mm (W19 50); CLK and SYSREF continue ≈ 460–480 mm as buried stripline to the front-left clock zone</td></tr>
         <tr><td>TRIG path</td><td>W19 + ≈ 200–240 mm of trace</td><td>W19 + ≈ 155 mm (J28 → U62 → A11)</td></tr>
         <tr><td>Under the card</td><td>Not applicable</td><td>12 mm ledge (parts ≤ 1 mm) + Kapton; no strips, no powered parts</td></tr>
@@ -5571,24 +5571,24 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <tr class="grp" data-bld-grp="cab"><td colspan="4">Panels &amp; cabling (per module)</td></tr>
       <tr data-bld-dac-only="8"><td class="r">RF OUT 1–16</td><td>Front-panel outputs at 13 mm pitch: 2 rows of 8 (upright) or two 2 × 4 blocks, RF-DAC left and one-bit right (flat)</td><td>SMA female bulkhead, 18 GHz rated</td><td class="n">16</td></tr>
       <tr data-bld-dac-only="8" data-bld-mech="upright"><td class="r">W1–W16<span class="bld-mtag">upright</span></td><td>Board-edge J10–J25 to the RF OUT bulkheads</td><td>SMPM plug to SMA plug, equal length, ≈ 100 mm</td><td class="n">16</td></tr>
-      <tr data-bld-mech="flat" data-bld-dac-only="3"><td class="r">W6–W8<span class="bld-mtag">flat</span></td><td>Board-edge SMPM to the RF OUT bulkheads, short RF-DAC runs (31–45 mm drawn)</td><td>right-angle SMPM plug to right-angle SMA plug, flexible coax, 45 mm</td><td class="n">3</td></tr>
+      <tr data-bld-mech="flat" data-bld-dac-only="3"><td class="r">W6–W8<span class="bld-mtag">flat</span></td><td>Board-edge SMPM to the RF OUT bulkheads, short RF-DAC runs (26.8–40.2 mm drawn)</td><td>right-angle SMPM plug to right-angle SMA plug, flexible coax, 45 mm</td><td class="n">3</td></tr>
       <tr data-bld-mech="flat" data-bld-dac-only="3"><td class="r">W3–W5, W9–W11, W13–W16<span class="bld-mtag">flat</span></td><td>Board-edge SMPM to the RF OUT bulkheads, middle runs</td><td>right-angle SMPM plug to right-angle SMA plug, flexible coax, 70 mm</td><td class="n">10</td></tr>
-      <tr data-bld-mech="flat" data-bld-dac-only="2"><td class="r">W1, W2, W12<span class="bld-mtag">flat</span></td><td>Board-edge SMPM to the RF OUT bulkheads, long runs (up to 92 mm drawn)</td><td>right-angle SMPM plug to right-angle SMA plug, flexible coax, 95 mm</td><td class="n">3</td></tr>
-      <tr data-bld-mech="flat"><td class="r">D0–D7<span class="bld-mtag">flat</span></td><td>DAC jumpers: card DAC SSMC outputs to carrier J2–J9, eight identical parts crossing on two height layers (70.6–79.6 mm drawn); replace the ≈ 260 mm SSMC jumpers</td><td>1.13 mm jacketed micro-coax, right-angle SSMC plug at both ends, 80 mm overall</td><td class="n">8</td></tr>
+      <tr data-bld-mech="flat" data-bld-dac-only="2"><td class="r">W1, W2, W12<span class="bld-mtag">flat</span></td><td>Board-edge SMPM to the RF OUT bulkheads, long runs (up to 87.5 mm drawn)</td><td>right-angle SMPM plug to right-angle SMA plug, flexible coax, 95 mm</td><td class="n">3</td></tr>
+      <tr data-bld-mech="flat"><td class="r">D0–D7<span class="bld-mtag">flat</span></td><td>DAC jumpers: card DAC SSMC outputs to carrier J2–J9, eight identical parts crossing on two height layers (65.9–77.1 mm drawn); replace the ≈ 260 mm SSMC jumpers</td><td>1.13 mm jacketed micro-coax, right-angle SSMC plug at both ends, 80 mm overall</td><td class="n">8</td></tr>
       <tr data-bld-mech="upright"><td class="r">PL1<span class="bld-mtag">upright</span></td><td>Removable inlet plate over the card's SSMC column: air slots only, no connectors; unscrew it to reach the card's ADC and J57 GNSS_ANT SSMCs (J35 and J64 carry W21 and W22)</td><td>2 mm aluminium, black anodised, ≈ 44 × 168 mm, 18 slots, with dust filter</td><td class="n">1</td></tr>
       <tr data-bld-mech="upright"><td class="r">PL1 screws<span class="bld-mtag">upright</span></td><td>Inlet-plate thumb screws and the press-in nuts in the front panel</td><td>M3 knurled captive thumb screw + M3 press-in nut (flush)</td><td class="n">4 sets</td></tr>
       <tr><td class="r">Rear sync SMAs</td><td>CLK IN, SYSREF IN, TRIG IO and CLK/SYSREF OUT bulkheads; rear decals "5 / 10 MHz square" (CLK IN), "3.3 V LVCMOS only" (TRIG IO), "5 MHz · source set by software" (CLK/SYSREF OUT) and "12V 6A" at the J30 12 V jack</td><td>SMA female bulkhead</td><td class="n">4</td></tr>
       <tr data-bld-mech="upright"><td class="r">W17, W18, W20<span class="bld-mtag">upright</span></td><td>Rear CLK IN, SYSREF IN and CLK/SYSREF OUT bulkheads to carrier J26, J27 and J29 (≥ 10 mm straight at each plug, 5 mm bend radius)</td><td>SMA plug to SMA plug, ≈ 70–100 mm, flexible coax</td><td class="n">3</td></tr>
       <tr data-bld-mech="flat"><td class="r">W17, W18, W20<span class="bld-mtag">flat</span></td><td>Rear CLK IN, SYSREF IN and CLK/SYSREF OUT bulkheads to carrier J26, J27 and J29 at the rear-left of the arm; the signals continue ≈ 460–480 mm as buried stripline to the clock zone</td><td>straight SMA plug (bulkhead) to right-angle SMA plug (carrier jack), 90 / 125 / 95 mm, flexible coax</td><td class="n">3</td></tr>
       <tr data-bld-mech="upright"><td class="r">W19<span class="bld-mtag">upright</span></td><td>TRIG IO: rear bulkhead to carrier J28 (≥ 10 mm straight at each plug, 5 mm bend radius); replaces W25, the old ≈ 480 mm coax over the card to J64</td><td>SMA plug to SMA plug, ≈ 60 mm as routed (estimate), flexible coax</td><td class="n">1</td></tr>
-      <tr data-bld-mech="flat"><td class="r">W19<span class="bld-mtag">flat</span></td><td>TRIG IO: rear bulkhead to carrier J28 (53 mm drawn), then ≈ 155 mm of trace through D11 and U62 to slot pin A11</td><td>straight SMA plug to right-angle SMA plug, 60 mm, flexible coax</td><td class="n">1</td></tr>
+      <tr data-bld-mech="flat"><td class="r">W19<span class="bld-mtag">flat</span></td><td>TRIG IO: rear bulkhead to carrier J28 (50.4 mm drawn), then ≈ 155 mm of trace through D11 and U62 to slot pin A11</td><td>straight SMA plug to right-angle SMA plug, 60 mm, flexible coax</td><td class="n">1</td></tr>
       <tr data-bld-mech="upright"><td class="r">W21<span class="bld-mtag">upright</span></td><td>J32 jumper: carrier J32 (U20 CLK, ≈ 1.65 Vpp) to card J35 CLK1_IN (R345 0 Ω, R348 49.9 Ω, C374 to LMK CLKin1, the PLL1 reference; stock, no rework); DC-blocked by the series 0.1 µF at carrier J32 (R348 is a 49.9 Ω DC shunt); fixed in every profile</td><td>SMA plug to right-angle SSMC plug, ≈ 380 mm as routed at the 235 mm card (estimate), phase-matched across modules</td><td class="n">1</td></tr>
       <tr data-bld-mech="upright"><td class="r">W22<span class="bld-mtag">upright</span></td><td>J33 jumper: carrier J33 (U22 SYNC, 0–2.5 V, series-terminated at the driver, low unless gated) to card J64 PPS_IN, DC-coupled, beside W21 one SSMC pitch higher; on the card the tweak coax takes it to the LMK SYNC pin and R245 to the A10 monitor; fixed in every profile</td><td>SMA plug to right-angle SSMC plug, ≈ 390 mm (≈ W21 + 10 mm, estimate), phase-matched across modules, no DC block</td><td class="n">1</td></tr>
       <tr data-bld-mech="upright"><td class="r">W23<span class="bld-mtag">upright</span></td><td>GTY reference: card J32 (SYS_CLK_OUT, DC-coupled LVPECL) to carrier J45 GTY REF IN; up over the J65 ribbon and down onto J45; fixed in every profile</td><td>SMA plug to SMA plug, ≈ 210 mm as routed at the 235 mm card (≈ 185–275 mm for 160–320 mm cards, estimate), flexible coax (DC block C20 on the carrier)</td><td class="n">1</td></tr>
-      <tr data-bld-mech="flat"><td class="r">W21<span class="bld-mtag">flat</span></td><td>J32 jumper: carrier J32 (U20 CLK) to card J35 CLK1_IN, the same circuit as upright; 45 mm drawn</td><td>right-angle SMA plug to right-angle SSMC plug, 50 mm (was ≈ 380 mm), phase-matched across modules</td><td class="n">1</td></tr>
-      <tr data-bld-mech="flat"><td class="r">W22<span class="bld-mtag">flat</span></td><td>J33 jumper: carrier J33 (U22 SYNC) to card J64 PPS_IN, DC-coupled; 37 mm drawn</td><td>right-angle SMA plug to right-angle SSMC plug, 45 mm (was ≈ 390 mm), phase-matched across modules, no DC block</td><td class="n">1</td></tr>
-      <tr data-bld-mech="flat"><td class="r">W23<span class="bld-mtag">flat</span></td><td>GTY reference: card J32 (SYS_CLK_OUT) to carrier J45; 76 mm drawn, then ≈ 235 mm of buried LVDS to the slot</td><td>right-angle SMA plug to right-angle SMA plug, 80 mm (was ≈ 210 mm), flexible coax</td><td class="n">1</td></tr>
-      <tr data-bld-mech="flat"><td class="r">Ribbon<span class="bld-mtag">flat</span></td><td>Carrier J31 to card J65 (136 mm drawn, two 45° folds)</td><td>2 × 10 IDC ribbon, 150 mm</td><td class="n">1</td></tr>
+      <tr data-bld-mech="flat"><td class="r">W21<span class="bld-mtag">flat</span></td><td>J32 jumper: carrier J32 (U20 CLK) to card J35 CLK1_IN, the same circuit as upright; 42.2 mm drawn</td><td>right-angle SMA plug to right-angle SSMC plug, 50 mm (was ≈ 380 mm), phase-matched across modules</td><td class="n">1</td></tr>
+      <tr data-bld-mech="flat"><td class="r">W22<span class="bld-mtag">flat</span></td><td>J33 jumper: carrier J33 (U22 SYNC) to card J64 PPS_IN, DC-coupled; 33.1 mm drawn</td><td>right-angle SMA plug to right-angle SSMC plug, 45 mm (was ≈ 390 mm), phase-matched across modules, no DC block</td><td class="n">1</td></tr>
+      <tr data-bld-mech="flat"><td class="r">W23<span class="bld-mtag">flat</span></td><td>GTY reference: card J32 (SYS_CLK_OUT) to carrier J45; 73.7 mm drawn, then ≈ 235 mm of buried LVDS to the slot</td><td>right-angle SMA plug to right-angle SMA plug, 80 mm (was ≈ 210 mm), flexible coax</td><td class="n">1</td></tr>
+      <tr data-bld-mech="flat"><td class="r">Ribbon<span class="bld-mtag">flat</span></td><td>Carrier J31 to card J65 (133 mm drawn, two 45° folds)</td><td>2 × 10 IDC ribbon, 150 mm</td><td class="n">1</td></tr>
       <tr class="grp" data-bld-grp="box"><td colspan="4">Box &amp; cooling (per module)</td></tr>
       <tr data-bld-mech="upright"><td class="r">Box<span class="bld-mtag">upright</span></td><td>Module enclosure ≈ 170 × 185 × 275 mm (W × H × D), side-vented walls; two modules per 5U shelf</td><td>aluminium sheet-metal box with front and rear panels</td><td class="n">1 set</td></tr>
       <tr data-bld-mech="upright"><td class="r">Standoffs<span class="bld-mtag">upright</span></td><td>Carrier to floor</td><td>M3 × 8 mm hex standoff</td><td class="n">6</td></tr>
@@ -5681,7 +5681,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       <tr data-bld-kit="cab"><td>Sync cable set</td><td>Equal-length SMA cables with a cable-set ID: one length L for star arms, splitter feeds and chain hops (250 mm bench, ≈ 450 mm between shelves, ≈ 1–1.5 m rack star, estimate)</td><td>Every multi-module option (the same count as in Scaling)</td><td class="n">8</td></tr>
       <tr data-bld-kit="unit"><td>Sync unit</td><td>The existing 1U box (OCXO, LMK04832), CLK outputs preferably set to 5 MHz (divider 600, check)</td><td>Sync unit star</td><td class="n">1</td></tr>
       <tr data-bld-kit="a1"><td>Bare-card chain kit</td><td>N − 1 inline SMA DC blocks, SMA-to-SSMC cables (card J32 to the next J35), no terminators; TRIG ≤ 2.5 V from a 50 Ω source into J64 (no slot, so no PERST#), or a GNSS start</td><td>Bring-up on bare cards only (chain A1)</td><td class="n">option</td></tr>
-      <tr data-bld-kit="gnss"><td>GNSS antenna feed</td><td>One active antenna and a 1:N GNSS splitter with DC pass on one port to every card J57 (front SSMC access with the inlet plate off, or a front-panel feed-through fitted by the user), or one antenna per module; needs U101 (NEO-M8N) fitted on every card, an identical option (not fitted on the stock card)</td><td>GNSS-armed start, on top of any multi-module option</td><td class="n">option</td></tr>
+      <tr data-bld-kit="gnss"><td>GNSS antenna feed</td><td>One active antenna and a 1:N GNSS splitter with DC pass on one port to every card J57 (front SSMC access with the inlet plate off (upright) or the U-cover off (flat), or a front-panel feed-through fitted by the user), or one antenna per module; needs U101 (NEO-M8N) fitted on every card, an identical option (not fitted on the stock card)</td><td>GNSS-armed start, on top of any multi-module option</td><td class="n">option</td></tr>
       <tr data-bld-kit="gen"><td>Function generator</td><td>10 MHz external-reference input, 5 MHz square, 0.35–1.8 Vpp into 50 Ω, ≥ 0.2 V/ns (often already in the lab)</td><td>External-root star, and the squarer for any sine lab reference (Rb, GPSDO, OCXO): J26 takes square waves only</td><td class="n">option</td></tr>
     </tbody>
   </table></div>
@@ -5713,7 +5713,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 
   <div class="panel rm-ms" id="rm-mech-box" data-more="off">
     <h3>Flat box gates</h3>
-    <p class="note" id="rm-mech-now">Two box options are drawn in <a href="#mech" data-goto="mech">Mechanics</a>: the upright card (170 × 185 × 275 mm) and the flat card on a right-angle PCIe connector (214 × 74 × 324 mm, 41 % less volume, half the rack height). The flat box needs these checks before its carrier freezes; the upright box needs only a Gen4/Gen5-rated J1.</p>
+    <p class="note" id="rm-mech-now">Two box options are drawn in <a href="#mech" data-goto="mech">Mechanics</a>: the upright card (170 × 185 × 275 mm) and the flat card on a right-angle PCIe connector (214 × 74 × 324 mm, 41 % less volume, 2U instead of 5U per shelf of two modules: 12U against 24U for eight). The flat box needs these checks before its carrier freezes; the upright box needs only a Gen4/Gen5-rated J1.</p>
     <ol class="rm-ms-list" id="rm-mech" style="display:grid;gap:6px;margin:8px 0 0;padding-left:24px">
       <li><b>Measure the card first.</b> The card geometry comes from vendor photos (±3 %). On the first card: length (the flat box needs 225–320 mm), the corner and finger tabs, finger protrusion and thickness (1.57 mm), the four hole positions (the BR hole and the RJ45 disagree by ≈ 2 mm), back-side part heights (≤ 2.67 mm assumed). <a href="#hw-f-measure" data-goto="hw-f-measure">Card findings</a> <a class="chip" href="#rm-p0" data-rm-open="0">P0</a></li>
       <li><b>12 V current through J1.</b> Measure the card current at full load. The five J1 12 V pins carry ≤ 4 A after derating (40 W plus the fan is ≈ 3.5 A, estimate); above 4 A fit the optional J34 → P3 lead. <a class="chip" href="#rm-p0" data-rm-open="0">P0</a></li>
@@ -13479,7 +13479,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
        i = 0 J57 GNSS_ANT, 1 J64 PPS_IN, 2 J35 CLK1_IN, 3…10 DAC7…DAC0, 11…18 ADC7…ADC0 */
     var sBody = [], sBar = [], dBody = [], dBar = [];
     for (var si = 0; si < 19; si++) {
-      var nm = si === 0 ? 'J57 GNSS_ANT, SSMC: to the empty U101 footprint (NEO-M8N not fitted on the stock card), so it stays free; reached with the inlet plate off' :
+      var nm = si === 0 ? 'J57 GNSS_ANT, SSMC: to the empty U101 footprint (NEO-M8N not fitted on the stock card), so it stays free; reached from the front: inlet plate off (upright box) or U-cover off (flat box)' :
         si === 1 ? 'J64 PPS_IN, SSMC: true SYSREF in (W22, DC 2.5 V) over the one-time micro-coax to LMK SYNC pin 6; R245 33 Ω to FPGA A10, now an input-only SYSREF monitor; drive ≤ 2.5 V from a 50 Ω source, never above 3.3 V' :
         si === 2 ? 'J35 CLK1_IN, SSMC: R345 0 Ω, R348 49.9 Ω and C374 to LMK04828 CLKin1 as fitted (no rework); W21 brings the 5 MHz CLK' :
         si <= 10 ? 'DAC' + (10 - si) + ' out, SSMC J' + dacJ(10 - si) + ' (balun ' + DAC_BALUN[10 - si] + ')' : 'ADC' + (18 - si) + ' in, SSMC J' + (36 + 18 - si);
@@ -14707,7 +14707,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     inst(hexGeo, k.m('gold', 7), rh, rear, 'Rear SMA');
     inst(smaGeo, k.m('gold', 7), rb, rear, 'Rear SMA');
     inst(k.g(cylZ(4, 15, 16)), k.m('zinc', 7), rp, rear, 'SMA plug');
-    anchor(7, rear, 15, 70, -D / 2 - 6).userData.hosts = [rear];
+    anchor(7, rear, 10, 74, -D / 2 - 6).userData.hosts = [rear];
     var fA = fan(k, 40, 20, 8, 'z', rear, 'Rear fan A, 40 × 40 × 20 mm, ball bearing: takes the card air turned rearward by the lid baffle');
     fA.position.set(-40, 51.8, R(-146.5));
     var fB = fan(k, 40, 20, 8, 'z', rear, 'Rear fan B, 40 × 40 × 20 mm, ball bearing: end of the arm channel (RF-DAC rows and one-bit strips)');
@@ -16523,18 +16523,39 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
           rects.push([r[0] - 4, r[1] + 4, r[2] - 4, r[3] + 4]);
         });
       });
-      var moved = false;
-      placed.forEach(function (p) {
-        if (!p.b.m3occ) return;
-        rects.forEach(function (r) {
-          if (p.x <= r[0] || p.x >= r[1] || p.y <= r[2] || p.y >= r[3]) return;
-          var e = [p.x - r[0], r[1] - p.x, p.y - r[2], r[3] - p.y], m = Math.min.apply(null, e);
-          if (m === e[0]) p.x = r[0] - 14; else if (m === e[1]) p.x = r[1] + 14;
-          else if (m === e[2]) p.y = r[2] - 14; else p.y = r[3] + 14;
+      // the label disc (radius 13 px) must clear the print, not only its centre: test 9 px wider
+      var inRect = function (x, y) {
+        for (var ri = 0; ri < rects.length; ri++) {
+          var r = rects[ri];
+          if (x > r[0] - 9 && x < r[1] + 9 && y > r[2] - 9 && y < r[3] + 9) return r;
+        }
+        return null;
+      };
+      // de-colliding can push a label back into a box, so repeat (at most 3 passes)
+      for (var pass = 0; pass < 3; pass++) {
+        var moved = false;
+        placed.forEach(function (p) {
+          if (!p.b.m3occ) return;
+          var r = inRect(p.x, p.y);
+          if (!r) return;
+          // leave through the nearest box edge whose landing spot is clear of every box
+          // (two print rows closer than a label can not take it between them)
+          var cand = [[r[0] - 14, p.y], [r[1] + 14, p.y], [p.x, r[2] - 14], [p.x, r[3] + 14]].map(function (c) {
+            return { x: clamp(c[0], 10, w - 10), y: clamp(c[1], 10, h - 10), d: Math.abs(c[0] - p.x) + Math.abs(c[1] - p.y) };
+          }).sort(function (a, b) { return a.d - b.d; });
+          var ok = cand.filter(function (c) { return !inRect(c.x, c.y); });
+          var c = ok.length ? ok[0] : cand[0];
+          if (!ok.length) {
+            // both neighbours of the nearest edge are print: step over the next box too
+            var r2 = inRect(c.x, c.y);
+            if (r2) { if (c.y < p.y) c.y = clamp(r2[2] - 14, 10, h - 10); else if (c.y > p.y) c.y = clamp(r2[3] + 14, 10, h - 10); }
+          }
+          p.x = c.x; p.y = c.y;
           moved = true;
         });
-      });
-      if (moved) decollide();
+        if (!moved) break;
+        decollide();
+      }
     }
     placed.forEach(function (p) {
       p.b.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px)';
@@ -18430,9 +18451,14 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     return PA.get('syncSysref') === 'true' ? 'true' : 'derived';
   }
 
-  /* same formula as PA.calc: 2U PC + switch shelf, 5U per two modules, 2U supply, 1U sync unit */
+  /* rack height from PA.calc (follows mechOption); the fallback is the same formula:
+     2U PC + switch shelf, one shelf per two modules (upright 5U, flat 2U), 2U supply, 1U sync unit */
   function rackU(topo, n) {
-    return (topo === 'unit' && n >= 2 ? 1 : 0) + 2 + 5 * Math.ceil(n / 2) + 2;
+    try {
+      var c = PA.calc(n, !!PA.get('dacOnly'), topo);
+      if (c && isFinite(c.rackU)) return c.rackU;
+    } catch (e) { /* no system model: use the fallback */ }
+    return (topo === 'unit' && n >= 2 ? 1 : 0) + 2 + (PA.get('mechOption') === 'flat' ? 2 : 5) * Math.ceil(n / 2) + 2;
   }
 
   /* timing cables per option, the same counting as PA.calc().syncCables (core), which wins for the page set-up:
@@ -18473,7 +18499,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 
     function paint() {
       var n = modulesNow(), t = topoNow(), sys = sysrefNow();
-      if (nLbl) nLbl.textContent = n + (n === 1 ? ' module' : ' modules');
+      if (nLbl) nLbl.textContent = n + (n === 1 ? ' module, ' : ' modules, ') + (PA.get('mechOption') === 'flat' ? 'flat' : 'upright') + ' box';
       racks.forEach(function (td) { td.textContent = rackU(td.getAttribute('data-tim-rack'), n) + 'U'; });
       rows.forEach(function (tr) {
         var on = n >= 2 && tr.getAttribute('data-tim-topo') === t;
@@ -18516,6 +18542,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     PA.on('modules', paint);
     PA.on('syncTopology', paint);
     PA.on('syncSysref', paint);
+    PA.on('mechOption', paint);
     paint();
   }
 
@@ -18669,7 +18696,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     sysmon: { name: 'SYSREF monitor (J64, PPS_IN)', pin: 'A10 (J64 → R245 33 Ω, R248 1 kΩ to GND, U127 ESD)', dir: 'into the card, input only',
       dev: 'carrier J33 → W22 → card J64; after the tweak J64 also feeds the LMK SYNC pin through the micro-coax', stage: 'findings',
       use: 'Counts the SYNC edges after the cable: 1 per TS sync, 0 in DZ. IBUF only: a build-time check fails the build if A10 has an output buffer. The PPS_IN function is given up.', rel: [] },
-    gnss: { name: 'GNSS (J57)', pin: 'A9 (GNSS_PPS from the NEO-M8N TIMEPULSE)', dir: 'into the card', dev: 'active antenna (or GNSS splitter arm) → card J57 SSMC through the front SSMC access (inlet plate off) or a front-panel feed-through fitted by the user', stage: 'sync',
+    gnss: { name: 'GNSS (J57)', pin: 'A9 (GNSS_PPS from the NEO-M8N TIMEPULSE)', dir: 'into the card', dev: 'active antenna (or GNSS splitter arm) → card J57 SSMC through the front SSMC access (inlet plate off, or U-cover off in the flat box) or a front-panel feed-through fitted by the user', stage: 'sync',
       use: 'Time of day and a PPS of tens-of-ns class: time stamps and a GNSS-armed start. Not a clock reference. U101 (NEO-M8N) is not fitted on the stock card, so this needs U101 on every card.', rel: [] },
     lmk: { name: 'LMK SYNC / SPI', pin: 'K19 = PS_MIO26; SPI on MIO32, 35–37; CLKin_SEL on MIO33/34', dir: 'PS ↔ card LMK04828', dev: 'on the card, not on the carrier', stage: 'sync',
       use: 'The PS programs the card LMK over SPI. K19 is PS_MIO26, a PS GPIO, so the stock SYNC is software-timed only. The tweak removes R699: the SYNC pin then takes only J64 (carrier U22), MIO26 is an input, never driven, and divider sync goes over SPI. CLKin_SEL_MODE = 1, so MIO33/34 are plain inputs. The LMK runs at 3.3 V and bank 501 at 1.8 V, so the SPI readback (MIO36) is open-drain.', rel: [] },
