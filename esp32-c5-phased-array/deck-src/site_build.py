@@ -159,25 +159,26 @@ def svg_system():
                 s.ln(cx + 29, cy + 16, cx + 29, cy + 30, "rft", False)
                 s.label(cx, cy + 30, 60, 34, "C5", None, "zr", "s")
         s.label(tx + 330, ty + 60, 120, 110, "ESP32-S31", ["16-bit PARLIO", "UDP, PTP"], "zk")
-        s.ln(tx + 312, ty + 115, tx + 328, ty + 115, "pclk")
+        s.ln(tx + 312, ty + 115, tx + 328, ty + 115, "data")
         s.t(tx + 160, ty + 220, "8 × 2-bit lanes @ 40 MHz = 640 Mbit/s", "s", "m")
         s.label(tx + 470, ty + 85, 76, 60, "PHY", "RTL8211F", "box")
         s.ln(tx + 450, ty + 115, tx + 468, ty + 115, "data")
         # references
         for k, (cls, yy) in enumerate(lines):
             xb = 262 + k * 14
-            ty_in = ty + 40 + k * 40
+            ty_in = ty + 50 + k * 40
             s.ln(250, yy, xb, yy, cls, False)
             s.ln(xb, yy, xb, ty_in, cls, False)
             s.ln(xb, ty_in, tx - 2, ty_in, cls)
-        s.pl([(tx + 546, ty + 115), (930, ty + 115), (930, 280), (948, 280)], "data")
+        xv, ye = (922, 250) if i == 0 else (936, 310)
+        s.pl([(tx + 546, ty + 115), (xv, ty + 115), (xv, ye), (948, ye)], "data")
         s.t(tx + 560, ty + 108, "1 GbE", "s")
     s.label(950, 200, 150, 160, "Host PC", ["2 × GbE", "de-interleave bits", "calibrate, FFT", "beamform, AoA", "radar / sensing"], "box")
     return s.render()
 
 
 def svg_bus():
-    s = Svg(1100, 470, "Eight C5s each drive two bits of the ESP32-S31's 16-bit PARLIO bus on a shared 40 MHz clock; READY/GO start", 900)
+    s = Svg(1100, 482, "Eight C5s each drive two bits of the ESP32-S31's 16-bit PARLIO bus on a shared 40 MHz clock; READY/GO start", 900)
     y0, step = 40, 50
     s.label(20, 0 + 4, 140, 30, "40 MHz PCLK", None, "zk", "s")
     s.ln(160, 19, 200, 19, "pclk", False)
@@ -194,9 +195,9 @@ def svg_bus():
     s.label(390, 160, 150, 120, "ESP32-S31", ["PARLIO RX", "16 bit × 40 MHz"], "zk")
     s.ln(348, 220, 388, 220, "data")
     s.pl([(300, y0 + 33), (300, y0 + 7 * step + 33), (465, y0 + 7 * step + 33), (465, 282)], "ctl")
-    s.t(470, y0 + 7 * step + 30, "READY × 8 → S31", "s")
-    s.pl([(200, y0 + 8 * step - 10), (200, 452), (465, 452), (465, 400)], "pclk", False)
-    s.t(210, 447, "same PCLK at the receiver (sampled on the falling edge)", "s")
+    s.t(352, y0 + 7 * step + 27, "READY × 8 → S31", "s")
+    s.pl([(200, y0 + 8 * step - 10), (200, 452), (515, 452), (515, 282)], "pclk")
+    s.t(210, 472, "same PCLK at the receiver (sampled on the falling edge)", "s")
     # waveform panel
     x0, wy = 600, 30
     s.t(x0, wy, "Clock-held start (inference to test)", "b")
@@ -359,122 +360,165 @@ def sec(id_, phase, title, body, step=None):
 
 lam = 299792458 / 5.2e9
 
-sec("build", "concept", "What we are building", f"""
-<p class="lede">A 16-element digital array at 5.2 GHz in which every element is a complete ESP32-C5 transceiver, arranged as
-two 8-element tiles. Each C5 sends its IQ over a 2-bit PARLIO lane into one ESP32-S31 per tile, which forwards
-640&nbsp;Mbit/s over one Gigabit port. Receive beamforming, AoA, Wi-Fi sensing, channel sounding and radar-like experiments
-come first; coherent transmission stays a research question.</p>
-{svg_chain()}
-<div class="legend"><span><i class="sw" style="border-color:var(--rf)"></i>RF</span>
+HAND = [  # (status, claim, source)
+    ("C", "Broadcom BCM53202M: eight 10/100 PHYs plus two GMII/RGMII/TBI Gigabit interfaces and a 384 KB packet buffer.",
+     "https://docs.broadcom.com/doc/53202M-PB00-R"),
+    ("C", "MAX2871: 23.5–6000 MHz; integrated VCOs cover 3.0–6.0 GHz (5.2 GHz is a VCO fundamental); outputs −1 to +8 dBm and can be muted.",
+     "https://www.analog.com/en/products/max2871.html"),
+    ("C", "SKY13351-378LF SPDT: 0.35 dB insertion loss and 24 dB isolation at 2.45 GHz (datasheet typical); 5–6 GHz values only from distributor summaries — to be measured.",
+     "https://shop.richardsonrfpd.com/Products/Product/SKY13351-378LF"),
+    ("C", "RTL8211F(I)-CG: integrated 10/100/1000 Ethernet PHY with an RGMII MAC interface (3.3/2.5/1.8/1.5 V signalling).",
+     "https://www.armdesigner.com/download/RTL8211F-CG-Realtek.pdf"),
+    ("C", "JLCPCB 4-layer 7628 stack-up: about 0.2 mm prepreg between L1 and L2 (0.2104 mm in current data), 1.065 mm core.",
+     "https://jlcpcb.com/quote/pcbOrderFaq/PCB%20Stackup"),
+    ("I", "Patch on FR-4 (εr 4.4, tan δ 0.02) at 5.2 GHz: lossless radiation bandwidth about 0.3 % and efficiency at most about 18 % for h ≈ 0.21 mm; about 1.6 % and 53 % for h ≈ 1.065 mm (the Rev 1 custom stack); about 2.3 % and 62 % for h ≈ 1.5 mm. From BW ≈ 3.77·(εr−1)/εr²·(W/L)·(h/λ₀) (lossless space-wave bandwidth) with efficiency from dielectric loss only; conductor and surface-wave loss lower it.",
+     "https://www.mikrocontroller.net/attachment/208694/microstrip_antennas_overview.pdf"),
+]
+
+def key_counts():
+    c = {}
+    for r in F["claims_rows"][1:]:
+        c[r[0]] = c.get(r[0], 0) + 1
+    return c, sum(c.values())
+
+
+def evidence_counts():
+    c = {}
+    files = sorted(glob.glob(os.path.join(RESEARCH, "research_*.json"))) if RESEARCH else []
+    for p in files:
+        for cl in json.load(open(p, encoding="utf-8"))["result"]["claims"]:
+            k = {"CONFIRMED": "C", "INFERRED": "I", "UNKNOWN": "O"}[cl["status"]]
+            c[k] = c.get(k, 0) + 1
+    if not files:
+        for r in F["claims_rows"][1:]:
+            c[r[0]] = c.get(r[0], 0) + 1
+    else:
+        for st, _, _ in HAND:
+            c[st] = c.get(st, 0) + 1
+    return c, sum(c.values())
+
+
+import site_visual as V
+
+LEG = """<div class="legend"><span><i class="sw" style="border-color:var(--rf)"></i>RF</span>
 <span><i class="sw d" style="border-color:var(--rf)"></i>5.2 GHz calibration</span>
 <span><i class="sw" style="border-color:var(--clk)"></i>48 MHz reference</span>
 <span><i class="sw" style="border-color:var(--card)"></i>40 MHz PARLIO clock</span>
 <span><i class="sw d" style="border-color:var(--ctl)"></i>trigger / READY / GO</span>
-<span><i class="sw" style="border-color:var(--ink)"></i>data</span></div>
-<div class="grid2">
-<div><h3>Geometry</h3>
-{table([["Quantity", "Value"], ["Wavelength at 5.2 GHz", f"{lam * 1e3:.1f} mm"], ["Element pitch (λ/2)", f"{lam / 2 * 1e3:.1f} mm"],
-        ["Outer element centres", f"{3 * lam / 2 * 1e3:.1f} mm"], ["Half-power beamwidth, 4 elements", "≈ 25°"],
-        ["Tiles", "2 × (2 × 4), stacked to 4 × 4"]], num_cols=(1,))}</div>
-<div><h3>What it is for</h3>
-<ul class="open">{"".join(f'<li>{tag(st)}<span><b>{E(t)}</b> — {E(d)}</span></li>' for t, d, st in F["what_uses"])}</ul>
-<p class="note">Status is strict: <em>confirmed</em> means stated or shown in a primary source — here by ESPARGOS on ESP32 hardware at 2.4 GHz, not yet on the C5 at 5 GHz.</p></div>
-</div>
-""")
+<span><i class="sw" style="border-color:var(--ink)"></i>data</span></div>"""
 
-ex_cols = [("ESPARGOS (Univ. of Stuttgart)", F["espargos_points"]), ("ESP-SDR", F["espsdr_points"]), ("What this project adds", F["new_points"])]
-sec("prior", "concept", "What already exists, and what is new", "<div class='grid3'>" + "".join(
-    f"<div><h3>{E(t)}</h3><ul class='open'>" + "".join(f"<li>{tag(st)}<span>{E(b)}</span></li>" for st, b in pts) + "</ul></div>"
-    for t, pts in ex_cols) + "</div>")
+sec("build", "concept", "What we are building", svg_chain() + LEG
+    + V.stats([("16", "ESP32-C5 elements, 4 × 4"), ("5.2 GHz", "λ/2 = 28.8 mm"), ("640 Mbit/s", "per 8-element tile, 1 GbE"),
+               ("≈ $220–300", "hardware target")])
+    + V.uses_html(F, tag)
+    + V.more(table([["Quantity", "Value"], ["Wavelength at 5.2 GHz", f"{lam * 1e3:.1f} mm"], ["Element pitch (λ/2)", f"{lam / 2 * 1e3:.1f} mm"],
+                    ["Outer element centres", f"{3 * lam / 2 * 1e3:.1f} mm"], ["Half-power beamwidth, 4 elements", "≈ 25°"],
+                    ["Tiles", "2 × (2 × 4), stacked to 4 × 4"]], num_cols=(1,)),
+             "<ul class='open'>" + "".join(f'<li>{tag(st)}<span><b>{E(t)}</b> — {E(d)}</span></li>' for t, d, st in F["what_uses"]) + "</ul>"))
 
-sec("chip", "concept", "Why the ESP32-C5", table(F["chips_rows"]) + f"<p>{E(plain(F['chips_takeaway']))}</p>"
+ex_cols = [("ESPARGOS", "Univ. of Stuttgart", F["espargos_points"]), ("ESP-SDR", "raw IQ on ESP32s", F["espsdr_points"]),
+           ("This project", "what is new", F["new_points"])]
+sec("prior", "concept", "What exists, and what is new", V.fig_prior(Svg)
+    + V.more("<div class='grid3'>" + "".join(
+        f"<div><h3>{E(t)}</h3><ul class='open'>" + "".join(f"<li>{tag(st)}<span>{E(b)}</span></li>" for st, b in pts) + "</ul></div>"
+        for t, _, pts in ex_cols) + "</div>"))
+
+sec("chip", "concept", "Why the ESP32-C5", V.fig_bands(Svg)
     + """<div class="grid2"><figure><img src="img/patch_side.jpg" alt="Our 4 by 4 patch antenna board, radiating side" loading="lazy" width="731" height="820">
-<figcaption>Our existing 5.2 GHz 4 × 4 patch board (FR4, εr 4.5, 60 mil) — radiating side, plus four test patches.</figcaption></figure>
+<figcaption>Our 5.2 GHz 4 × 4 patch board.</figcaption></figure>
 <figure><img src="img/sma_side.jpg" alt="Back of the antenna board with one SMA connector per element" loading="lazy" width="785" height="820">
-<figcaption>Back: one SMA per element. Rev 1 can use it as a separate aperture and cable it to the tiles.</figcaption></figure></div>""")
+<figcaption>Back: one SMA per element.</figcaption></figure></div>"""
+    + V.more(table(F["chips_rows"]), f"<p>{E(plain(F['chips_takeaway']))}</p>"))
 
-sec("sync", "timing", "Four synchronization domains", table(F["dom_rows"]) + f"<p>{E(plain(F['dom_take']))}</p>"
-    + "<h3>What each domain fixes</h3>" + table([
+clock_rows = [["Topic", "What we know"]] + [[t, b] for t, b, _ in F["clock_items"]]
+sec("sync", "timing", "Four shared signals keep sixteen radios coherent", V.fig_domains(Svg)
+    + V.stats([(E(v), k) for k, v in F["clock_numbers"]])
+    + V.more(table(F["dom_rows"]), f"<p>{E(plain(F['dom_take']))}</p>", table([
         ["Error term", "Cause", "Shared clock", "Calibration tone", "Common trigger"],
         ["Carrier frequency offset", "independent crystals", "removes", "—", "—"],
         ["LO phase offset", "each PLL locks with an arbitrary phase", "—", "removes", "—"],
         ["Sampling-time offset", "independent sample clocks and starts", "partly", "removes (swept tone)", "partly"],
         ["Capture start misalignment", "firmware / interrupt latency", "—", "partly", "removes in a tile"],
         ["Fixed path mismatch", "cables, traces, switches", "—", "after the switch", "—"],
-        ["Gain mismatch", "AGC state, LNA spread", "—", "if gain is fixed", "—"]]))
-
-clock_rows = [["Topic", "What we know"]] + [[t, b] for t, b, _ in F["clock_items"]]
-sec("clock", "timing", "Sharing one 48 MHz reference", table(clock_rows) + "<div class='grid2'><div>"
-    + table([["At 5.2 GHz", "Value"]] + F["clock_numbers"], num_cols=(1,)) + "</div><div><p class='note'>"
-    + tag(F["clock_injection_status"]) + " Driving XTAL_P of 16 chip-down C5s from one buffered TCXO is the first clock bench test. "
-    "Static buffer skew becomes static LO phase and is calibrated out; the 108th harmonic of 48 MHz falls at 5184 MHz, and the "
-    "130th of the 40 MHz PARLIO clock at exactly 5200 MHz: series-terminate and slew-limit both clocks, keep their last few cm "
-    "on L4 short and away from the RF lines, and pick channels off 5184 and 5200 MHz if spurs show.</p></div></div>")
+        ["Gain mismatch", "AGC state, LNA spread", "—", "if gain is fixed", "—"]]),
+        "<h3>Sharing one 48 MHz reference</h3>", table(clock_rows),
+        "<p class='note'>" + tag(F["clock_injection_status"]) + " Driving XTAL_P of every chip-down C5 from one buffered TCXO is the "
+        "first clock bench test. The 108th harmonic of 48 MHz falls at 5184 MHz and the 130th of the 40 MHz PARLIO clock at 5200 MHz: "
+        "series-terminate and slew-limit both clocks, keep them away from the RF lines, and if the spurs show use "
+        "channel 44 (5210–5230 MHz), the only one of channels 36–48 clear of both clocks' harmonics.</p>"))
 
 steps = ["Lock and fix gain: tune all C5s, disable AGC, set one manual gain index.",
          "Measure the reference: all SPDTs to CAL; step the tone across the capture band (as ESPARGOS One does), one synchronized snapshot per step.",
          "Estimate per element, relative to element 1: gain gₖ and phase φₖ, and delay τₖ from the phase slope across the tone steps.",
          "Measure the scene: all SPDTs to ANT, synchronized snapshots (source muted).",
          "Correct per FFT bin with Cₖ(f) = exp[−j(φₖ + 2πfτₖ)] / gₖ, then combine."]
-sec("cal", "timing", "The 5.2 GHz calibration network and loop", svg_cal()
-    + "<ol class='steps'>" + "".join(f"<li>{E(x)}</li>" for x in steps) + "</ol>"
-    + "<p>Repeat after every reset, retune or sample-rate change — ESPARGOS treats a calibration as valid for one capture epoch. "
-      "The tone cannot see anything before the switch. On the tile that is the patch, its probe via and a 1 mm line, the same for "
-      "all eight elements: calibrate it once over the air with a far-field source. Tile B is turned 180°, so its elements carry a "
-      "fixed 180° term. The over-the-air step also absorbs the tone's own distribution (1:2 splitter, the two cables, each 1:8 "
-      "tree), so repeat it whenever a calibration cable is moved or re-coiled. With the separate aperture board the pre-switch "
-      "part is the cable, measured once with a VNA.</p>")
+sec("cal", "timing", "Calibration: one tone, five steps", svg_cal() + V.fig_calloop(Svg)
+    + V.more("<ol class='steps'>" + "".join(f"<li>{E(x)}</li>" for x in steps) + "</ol>",
+             "<p>Repeat after every reset, retune or sample-rate change. The tone cannot see anything before the switch: on the tile "
+             "that is the patch, its probe via and a 1 mm line, the same for all eight elements, so calibrate it once over the air. "
+             "That step also absorbs the tone's own distribution (splitter, cables, trees): repeat it when a calibration cable "
+             "moves. Tile B is turned 180°, so its elements carry a fixed 180° term.</p>"))
 
-sec("data", "data", "Sixteen receivers create a data problem", svg_bars()
+sec("data", "data", "Sixteen receivers make a data problem", svg_bars()
     + "<div class='legend'><span><i class='blk' style='background:var(--card)'></i>what the array produces</span>"
       "<span><i class='blk' style='background:#c3ccd6'></i>what links and ports carry</span></div>"
-    + ul(F["dataproblem_text"]))
+    + V.more(ul(F["dataproblem_text"])))
 
 sec("system", "data", "Two 8-element tiles and one timing board", svg_system()
-    + "<p>A master timing / RF board provides the 48 MHz reference, the 40 MHz PARLIO clock, the trigger and the calibration "
-      "tone. Each tile is 8 chip-down C5s, one ESP32-S31 and one Gigabit PHY; Ethernet and PTP only carry data, control and "
-      "timestamps — never sample alignment.</p>" + ul(F["tile8_notes"]))
+    + V.more(ul(F["tile8_notes"])))
 
-sec("bus", "data", "Eight 2-bit streams on one 16-bit bus", svg_bus() + "<div class='grid2'><div><h3>Start sequence</h3>"
-    + "<ol class='steps'>" + "".join(f"<li>{E(x.split('   ', 1)[-1])}</li>" for x in F["map_sequence"]) + "</ol></div>"
-    + "<div><h3>Per-lane frame</h3>" + table(F["map_frame_rows"], num_cols=(1,)) + "</div></div>"
-    + f"<p>{E(plain(F['map_note']))}</p><p class='note'>{E(F['map_source'])}</p>")
+sec("bus", "data", "Eight 2-bit streams on one 16-bit bus", svg_bus()
+    + "<ol class='flow'>" + "".join(f"<li>{E(x.split('   ', 1)[-1])}</li>" for x in F["map_sequence"]) + "</ol>"
+    + V.more("<h3>Per-lane frame</h3>", table(F["map_frame_rows"], num_cols=(1,)), f"<p>{E(plain(F['map_note']))}</p>",
+             f"<p class='note'>{E(F['map_source'])}</p>"))
 
 m1, m2 = F["modes2_cols"]
-sec("modes", "data", "Two data modes", "<div class='grid2'>" + "".join(
-    f"<div><h3>{tag(st)} {E(t)}</h3><p>{E(lede)}</p>" + table([["Quantity", "Value"]] + rows, num_cols=(1,)) + ul(nts) + "</div>"
-    for t, st, lede, rows, nts in (m1, m2)) + "</div>")
+sec("modes", "data", "Two data modes", V.fig_modes(Svg)
+    + V.more("<div class='grid2'>" + "".join(
+        f"<div><h3>{tag(st)} {E(t)}</h3><p>{E(lede)}</p>" + table([["Quantity", "Value"]] + rows, num_cols=(1,)) + ul(nts) + "</div>"
+        for t, st, lede, rows, nts in (m1, m2)) + "</div>"))
 
-sec("budget", "data", "Data-rate budget, stage by stage", table(F["budget_rows"], num_cols=(1, 2, 3))
-    + f"<p>{E(plain(F['budget_takeaway']))}</p><p class='note'>{E(F['budget_source_line'])}</p>")
+sec("budget", "data", "Data rate, stage by stage (one tile)", V.logbars(Svg, [
+    ("inside the 8 C5s, 80 MS/s", 10240, "need", "10.2 Gbit/s"),
+    ("Gigabit Ethernet", 1000, "link", "1 Gbit/s"),
+    ("PARLIO, 8 × 2 bit × 40 MHz", 640, "link", "640 Mbit/s"),
+    ("Mode 1: 4 MS/s IQ8 × 8", 512, "need", "512 Mbit/s"),
+    ("USB-Serial-JTAG (one C5 today)", 12, "link", "12 Mbit/s"),
+    ("64 FFT bins per snapshot, 100/s", 1.64, "need", "1.6 Mbit/s")],
+    "Per-tile data rates on a log scale, from the raw IQ inside the chips down to reduced FFT bins", lo=0, hi=5)
+    + "<div class='legend'><span><i class='blk' style='background:var(--card)'></i>what the tile produces</span>"
+      "<span><i class='blk' style='background:#c3ccd6'></i>what links and ports carry</span></div>"
+    + V.more(table(F["budget_rows"], num_cols=(1, 2, 3)), f"<p>{E(plain(F['budget_takeaway']))}</p>",
+             f"<p class='note'>{E(F['budget_source_line'])}</p>"))
 
-sec("planb", "data", "Plan B: a small FPGA between the C5s and the S31", "<div class='grid3'>"
-    + "<div><h3>Switch to Plan B if</h3>" + ul(F["planb_when"]) + "</div>"
-    + "<div><h3>What the FPGA does</h3>" + ul(F["planb_fpga_items"]) + "</div>"
-    + "<div><h3>Cost and benefit</h3>" + ul(F["planb_cost"] + F["planb_adds"]) + "</div></div>"
-    + f"<p class='note'>{E(F['planb_source'])}</p>")
+sec("planb", "data", "Plan B: a small FPGA in front of the S31", V.fig_planb(Svg, F)
+    + V.more("<div class='grid3'><div><h3>Switch to Plan B if</h3>" + ul(F["planb_when"]) + "</div>"
+             "<div><h3>What the FPGA does</h3>" + ul(F["planb_fpga_items"]) + "</div>"
+             "<div><h3>Cost and benefit</h3>" + ul(F["planb_cost"] + F["planb_adds"]) + "</div></div>",
+             f"<p class='note'>{E(F['planb_source'])}</p>"))
 
-sec("pcb", "board", "Tile PCB: geometry, seam and antenna substrate", svg_pcb() + "<div class='grid2'><div><h3>Rev 1 stack-up (custom 4-layer)</h3>"
-    + table([["Layer", "Use"]] + F["pcb_stack_rows"]) + "<h3>Fab cost (team estimate)</h3>"
-    + table([["Item", "≈ USD"]] + F["pcb_cost_rows"], num_cols=(1,)) + "</div><div><h3>The patch substrate</h3>"
-    + ul(F["pcb_patch_notes"]) + f"</div></div><p class='note'>{E(F['pcb_source'])}</p>")
+sec("pcb", "board", "Tile PCB: seam and stack-up", svg_pcb() + V.fig_stack(Svg)
+    + V.more("<div class='grid2'><div><h3>Rev 1 stack-up (custom 4-layer)</h3>", table([["Layer", "Use"]] + F["pcb_stack_rows"]),
+             "<h3>Fab cost (team estimate)</h3>", table([["Item", "≈ USD"]] + F["pcb_cost_rows"], num_cols=(1,)),
+             "</div><div><h3>The patch substrate</h3>", ul(F["pcb_patch_notes"]), "</div></div>",
+             f"<p class='note'>{E(F['pcb_source'])}</p>"))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 M3_CSS = open(os.path.join(HERE, "tile3d.css"), encoding="utf-8").read()
 M3_JS = open(os.path.join(HERE, "tile3d.js"), encoding="utf-8").read()
 POSTER = os.path.join(OUT, "img", "tile3d-poster.jpg")
 M3_LEGEND = [
-    ("Patch block", "the only parts on the front: 2 × 4 patches, ≈ 17.5 × 13.5 mm, at 28.8 mm pitch, each probe-fed by a through via. Clock and 3.3 V drops are blind L4–L3 vias, so no signal reaches the front; ground-stitching vias show only as tented pads."),
-    ("RF switch per element", "SKY13351-class SPDT, 1 mm from the probe via, set by two control lines from its C5: the C5 sees its patch, or the calibration tone."),
-    ("8 × ESP32-C5", "each under its own patch (it overhangs the outline by ≈ 1.5 mm), 2.5 mm from its switch with a series 0201 in line, so all eight RF paths are 3.5 mm and identical. Chip-down QFN48, so XTAL_P can take the shared 48 MHz."),
-    ("Bundles", "per C5: PARLIO (2 bits at 40 MHz), READY / control, 48 MHz, PCLK and 3.3 V, on the back, down to the S31, the clock via rows and the 3.3 V spine."),
-    ("ESP32-S31", "16-bit PARLIO receive, DMA and the Gigabit MAC (QFN80, 8 × 8 mm). It enables the PCLK buffer, so every lane starts on the same edge."),
-    ("PHY and RJ45", "RTL8211F-class over RGMII and a MagJack: 640 Mbit/s of IQ out."),
-    ("Calibration tree", "1:8 for the 5.2 GHz tone, from the side SMA along the seam side and down beside each column, over solid L3 ground; every branch is 90.6 mm. The splits are drawn as junctions; each is a compact Wilkinson (λ/4 arms and a 100 Ω resistor)."),
-    ("Clock buffers", "48 MHz 1:8 and 40 MHz 1:10 (9 used): one point-to-point line per C5 and one to the S31, on L3 from the buffers, the last few cm to each C5 on L4."),
-    ("SMAs", "right-angle, on the back: 48 MHz, PCLK and trigger (the master GO) on the connector edge, the calibration tone on the side edge."),
-    ("Seam", "the boards butt together, so the rows stay 28.8 mm apart across it (Seam view). In the array a continuous ground joint, stitched every 3 mm, bridges the cut. Tile B is turned 180°, so its elements carry a fixed 180° term."),
-    ("Master board", "48 MHz TCXO, 40 MHz PCLK, trigger and the 5.2 GHz source, split 1:2 to the tiles over a phase-matched pair of calibration cables; tile A's runs out and back under its board to match tile B's (Array)."),
+    ("Patch block", "2 × 4, ≈ 17.5 × 13.5 mm, probe-fed; the only parts on the front."),
+    ("RF switch", "SKY13351-class, 1 mm from the probe via."),
+    ("8 × ESP32-C5", "each under its own patch; 3.5 mm RF path, equal for all eight."),
+    ("Bundles", "PARLIO, control, clocks and 3.3 V from each C5."),
+    ("ESP32-S31", "PARLIO RX, DMA, Gigabit MAC; enables the PCLK."),
+    ("PHY and RJ45", "RGMII to 1 GbE: 640 Mbit/s out."),
+    ("Calibration tree", "1:8 for the 5.2 GHz tone; every branch 90.6 mm."),
+    ("Clock buffers", "48 MHz 1:8 and 40 MHz 1:10, point-to-point."),
+    ("SMAs", "48 MHz, PCLK, trigger; the tone on the side."),
+    ("Seam", "rows stay 28.8 mm apart; continuous ground joint."),
+    ("Master board", "clocks, GO and the 5.2 GHz source (Array)."),
 ]
 m3_has = os.path.exists(POSTER)
 m3_poster = '<img class="m3-poster" src="img/tile3d-poster.jpg" width="1600" height="1000" alt="" decoding="async">' if m3_has else ""
@@ -482,11 +526,7 @@ m3_legend = "".join(f'<li data-k="{i + 1}"><button type="button" class="m3-legbt
                     for i, (t, d) in enumerate(M3_LEGEND))
 sec("tile3d", "board", "The tile in 3D", f"""
 <div class="m3" id="m3">
-<p>An interactive model of one 150 × 100 mm tile, drawn from the numbers on this page. The front carries only the eight
-patches. Each ESP32-C5 sits on the back under its own patch, with its RF switch between the probe via and the chip, so
-every element has the same 3.5 mm RF path; all digital lines run behind the L2 ground. The board stands on 16 mm standoffs.
-It is a Rev 1 concept that shows scale and placement, not a PCB layout. Exploded lifts the layers apart and makes the dielectric
-see-through. Array adds the second tile, turned 180° so both antenna blocks meet at the seam, and the master board with its cables.</p>
+<p class="cap">Front: only the patches. Back: every part, each C5 under its own patch. A Rev 1 concept, not a layout.</p>
 <div class="toolbar m3-ctl" id="m3-ctl" hidden>
 <div class="m3-grp"><span class="m3-lbl" id="m3-mode-l">Show</span>
 <div class="seg" role="radiogroup" id="m3-mode" aria-labelledby="m3-mode-l">
@@ -515,54 +555,75 @@ see-through. Array adds the second tile, turned 180° so both antenna blocks mee
 <button type="button" class="btn sm" id="m3-lbls" aria-pressed="true">Labels</button>
 <button type="button" class="btn sm" id="m3-cola" aria-pressed="false" title="330 ml can, 66 × 115 mm, for scale">Cola can for scale</button></div>
 </div>
-<p class="note" id="m3-hint" hidden>Drag to turn, Shift-drag or right-drag to pan, Ctrl + scroll to zoom, double-click to reset.
-Hover a part for its name; click a part, a number or a name in the list to highlight it. With the view focused, the arrow keys
-turn it, Shift + arrows pan, + and − zoom and 0 resets.</p>
+<p class="note" id="m3-hint" hidden>Drag to turn, Shift-drag to pan, Ctrl + scroll to zoom, double-click to reset; arrow keys, + and − work too.</p>
 <ol class="m3-leg" id="m3-legend">{m3_legend}</ol>
 </div>""")
 
-sec("power", "board", "Power, heat and cost", "<div class='grid2'><div><h3>3.3 V supply estimate</h3>"
-    + table(F["power_rows"], num_cols=(1, 2, 3)) + ul(F["power_notes"]) + "</div><div><h3>One tile (electronics)</h3>"
-    + table(F["cost_tile_rows"], num_cols=(1,)) + "<h3>Full system</h3>" + table(F["cost_sys_rows"], num_cols=(1,))
-    + "</div></div>" + ul(F["cost_notes"]) + f"<p class='note'>{E(F['cost_source'])}</p>")
+# ---- 16 C5s on one board: the alternatives ----
+ALT = __import__("content_alt16").ALT
+sec("alt16", "board", "Sixteen C5s on one board?", "<p class='cap'>Five ways to put all sixteen C5s on one board with "
+    "the same 1 GbE + USB (B–F), next to today's 2 × 8 plan (A). All of them use the master board for the clocks, GO "
+    "and the 5.2 GHz tone.</p><div class='altgrid'>" + "".join(
+    f"<figure class='alt'><figcaption><b>{E(o['key'])} · {E(o['name'])}</b>{tag(o['status'])}</figcaption>{V.fig_alt(Svg, o['key'])}"
+    f"<p class='cap'>{E(o['line'])}</p></figure>" for o in ALT["options"])
+    + f"<div class='verdict'><p>{ALT['verdict']}</p></div></div>"
+    + "<h3>Side by side</h3>" + V.alt_matrix(ALT["matrix"], [o["key"] for o in ALT["options"]])
+    + f"<p class='note'>●● better · ●○ middle · ○○ weaker. {E(ALT['matrix_note'])}</p>"
+    + "<h3>One S31 controls sixteen C5s</h3>" + V.fig_control16(Svg, ALT["gpio_total"])
+    + "<h3>Option B to scale</h3>" + V.fig_floor16(Svg)
+    + V.more(*ALT["details"], "<h3>Other alternatives considered</h3>", table(F["alt_rows"]), f"<p class='note'>{E(F['alt_source'])}</p>"))
 
-sec("beam", "exp", "First useful experiment: receive beamforming", """
-<p>Receive steering is purely digital: rotate each element's IQ by φₖ and sum. With λ/2 spacing the phase step between
-neighbours is Δφ = −π·sin θ. Move the slider to steer one 4-element row.</p>
+sec("power", "board", "Power and cost", "<p class='cap'>Power: the whole array at 3.3 V (16 C5s, 2 S31s with PHYs, "
+    "clocks, master board). Cost: one tile, then the full prototype.</p>" + V.fig_power(Svg) + V.fig_cost(Svg)
+    + V.more("<div class='grid2'><div><h3>3.3 V supply estimate</h3>", table(F["power_rows"], num_cols=(1, 2, 3)), ul(F["power_notes"]),
+             "</div><div><h3>One tile (electronics)</h3>", table(F["cost_tile_rows"], num_cols=(1,)), "<h3>Full system</h3>",
+             table(F["cost_sys_rows"], num_cols=(1,)), "</div></div>", ul(F["cost_notes"]), f"<p class='note'>{E(F['cost_source'])}</p>"))
+
+sec("beam", "exp", "First experiment: receive beamforming", """
 <div class="ctl-row"><label for="steer">Steering angle <b id="steerVal">30°</b></label>
 <input id="steer" type="range" min="-60" max="60" step="1" value="30"><span>Δφ per element: <b id="dphi">−90.0°</b></span></div>
 """ + svg_af() + """
 <div class="legend"><span><i class="sw" style="border-color:var(--muted)"></i>broadside (0°)</span>
 <span><i class="sw" style="border-color:var(--rf)"></i>steered</span></div>
-""" + "<div class='grid2'><div><h3>Experiment</h3>" + ul(F["bf_steps"]) + "</div><div><h3>Success criterion</h3>" + ul(F["bf_success"]) + "</div></div>")
+""" + V.more("<div class='grid2'><div><h3>Experiment</h3>" + ul(F["bf_steps"]) + "</div><div><h3>Success criterion</h3>" + ul(F["bf_success"]) + "</div></div>"))
 
-sec("radar", "exp", "Radar and communications experiments", table(F["radar_rows"], status_first=True)
-    + ul(F["radar_after"][2]) + "<h3>Communications</h3>" + table(F["comms_rows"], status_first=True))
+sec("radar", "exp", "Radar and communications experiments",
+    V.cards([(r[0], r[1], "") for r in F["radar_rows"][1:]] + [(r[0], r[1], "") for r in F["comms_rows"][1:]], tag)
+    + V.more(table(F["radar_rows"], status_first=True), ul(F["radar_after"][2]), "<h3>Communications</h3>",
+             table(F["comms_rows"], status_first=True)))
 
-sec("tx", "exp", "Transmit: what we know, and why steering is the easy part", table(F["tx_rows"], status_first=True)
-    + "<div class='grid2'><div><h3>Phase step at λ/2</h3>" + table(F["txs_rows"], num_cols=(0, 1)) + "</div><div><h3>What is actually hard</h3>"
-    + ul(F["txs_hard"]) + "<h3>Until then</h3>" + ul(F["txs_fallback"]) + "</div></div>" + ul(F["tx_after"][2]))
+sec("tx", "exp", "Transmit: steering is the easy part", V.fig_tx(Svg)
+    + V.cards([(r[0], r[1], "") for r in F["tx_rows"][1:]], tag)
+    + V.more(table(F["tx_rows"], status_first=True), "<div class='grid2'><div><h3>Phase step at λ/2</h3>",
+             table(F["txs_rows"], num_cols=(0, 1)), "</div><div><h3>What is actually hard</h3>", ul(F["txs_hard"]),
+             "<h3>Until then</h3>", ul(F["txs_fallback"]), "</div></div>", ul(F["tx_after"][2])))
 
-sec("bench", "plan", "Critical bench experiments", table(F["bench_rows"], status_first=True) + f"<p class='note'>{E(F['bench_source'])}</p>")
+sec("bench", "plan", "Bench tests that decide the design", V.fig_bench(Svg, F)
+    + V.more(table(F["bench_rows"], status_first=True), f"<p class='note'>{E(F['bench_source'])}</p>"))
 
-sec("steps", "plan", "Development sequence", "<div class='seq'>" + "".join(
-    f"<div class='card'><div class='num'>{E(st['n'])}</div><h3>{E(st['title'])}</h3>{ul(st['goals'])}"
-    f"<p class='gate'><b>Done when</b> {E(st['gate'])}</p></div>" for st in F["dev_steps"]) + "</div>")
+sec("steps", "plan", "Development sequence", V.fig_steps(Svg, F)
+    + V.more("<div class='seq'>" + "".join(
+        f"<div class='card'><div class='num'>{E(st['n'])}</div><h3>{E(st['title'])}</h3>{ul(st['goals'])}"
+        f"<p class='gate'><b>Done when</b> {E(st['gate'])}</p></div>" for st in F["dev_steps"]) + "</div>"))
 
-sec("risks", "plan", "Main technical risks", table(F["risk_rows"]) + f"<p class='note'>{E(F['risks_source_line'])}</p>")
+sec("risks", "plan", "Main risks, and the step that tests each", V.fig_risks(Svg, F)
+    + V.more(table(F["risk_rows"]), f"<p class='note'>{E(F['risks_source_line'])}</p>"))
 
-sec("evidence", "plan", "What we know, infer and must test", table(F["claims_rows"], status_first=True)
-    + "<p>The full evidence register — every researched claim with its status and source — is on <a href='evidence.html'>a separate page</a>.</p>")
+_rc, _rt = evidence_counts()
+sec("evidence", "plan", "What we know, infer and must test", V.fig_evidence(Svg, *key_counts(), label="key design claims")
+    + V.more(table(F["claims_rows"], status_first=True))
+    + f"<p class='cap'>Behind them: the <a href='evidence.html'>evidence register</a>, {_rt} sourced claims "
+      f"({_rc.get('C', 0)} confirmed, {_rc.get('I', 0)} inference, {_rc.get('O', 0)} open).</p>")
 
-sec("alt", "plan", "Alternatives we considered", table(F["alt_rows"]) + f"<p class='note'>{E(F['alt_source'])}</p>")
-
-sec("success", "plan", "What a successful project looks like", "<div class='grid3'>" + "".join(
-    f"<div><h3>{E(t)}</h3><p class='note'>{E(sub)}</p>{ul(items)}</div>" for t, sub, items in F["success_tiers"]) + "</div>")
+sec("success", "plan", "What success looks like", V.fig_success(Svg, F)
+    + V.more("<div class='grid3'>" + "".join(
+        f"<div><h3>{E(t)}</h3><p class='note'>{E(sub)}</p>{ul(items)}</div>" for t, sub, items in F["success_tiers"]) + "</div>"))
 
 refs_html = "<ol class='refs'>" + "".join(
     f"<li>{E(t)} <a href='https://{E(u)}'>{E(u)}</a></li>" if not u.startswith("http") else f"<li>{E(t)} <a href='{E(u)}'>{E(u)}</a></li>"
     for t, u in REFS) + "</ol>"
-sec("refs", "plan", "References", refs_html)
+sec("refs", "plan", "References", V.more(refs_html, label=f"{len(REFS)} references"))
+
 
 PHASES = [("concept", "Concept", "card"), ("timing", "Synchronization", "clk"), ("data", "Data path", "rf"),
           ("board", "Board", "pwr"), ("exp", "Experiments", "ctl"), ("plan", "Plan and evidence", "warn")]
@@ -723,6 +784,53 @@ svg .mid{text-anchor:middle}svg .end{text-anchor:end}svg .wt{fill:#8f580c}
 .pwr{stroke:var(--pwr);stroke-width:1.6;fill:none}
 .bar-need{fill:var(--card)}.bar-link{fill:#c3ccd6}
 .af0{stroke:var(--muted);stroke-width:1.6;fill:none}.af1{stroke:var(--rf);stroke-width:2.2;fill:none}
+.cap{font-size:15px;color:#44515c;max-width:80ch}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--zone);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:2px;align-content:start}
+.stat b{font:700 21px/1.2 var(--sans);color:color-mix(in srgb,var(--ph,var(--card)) 80%,#000)}
+.stat span{font-size:13px;line-height:1.35;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.crd{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--zone);display:grid;gap:6px;align-content:start}
+.crd b{font-size:15px;line-height:1.3}.crd span{font-size:13.5px;line-height:1.45;color:var(--muted)}
+.uses{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.use{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:4px;justify-items:start;align-content:start;background:var(--zone)}
+.use svg{width:40px;height:40px}.use b{font-size:15px}.use span{font-size:13.5px;line-height:1.4;color:var(--muted)}
+.ic{stroke:var(--ink);stroke-width:2;fill:none;stroke-linecap:round}.ic2{stroke:var(--rf);stroke-width:2;fill:none;stroke-linecap:round}
+.pc{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--zone)}
+.pc ul.open li{grid-template-columns:96px 1fr;font-size:14px}
+details.more{border-top:1px solid var(--line);padding-top:10px}
+details.more>summary{cursor:pointer;font:600 14px/1.5 var(--sans);color:var(--card);list-style:none;display:inline-flex;gap:8px;align-items:center;
+border-radius:8px;padding:2px 6px 2px 0}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"+";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;
+background:var(--card-t);color:var(--card);font:700 14px/1 var(--mono)}
+details.more[open]>summary::before{content:"\2212"}
+details.more>summary:focus-visible{outline:2px solid var(--card);outline-offset:2px}
+.more-b{display:grid;gap:14px;margin-top:12px}
+.dot-full{fill:var(--clk)}.dot-half{fill:var(--clk-t);stroke:var(--clk);stroke-width:2}.dot-none{fill:#c3ccd6}
+.stepdot{fill:var(--card-t);stroke:var(--card);stroke-width:2}
+ol.flow{list-style:none;counter-reset:f;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px}
+ol.flow li{counter-increment:f;background:var(--zone);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 5px;
+font-size:13.5px;line-height:1.35;display:inline-flex;gap:8px;align-items:center}
+ol.flow li::before{content:counter(f);flex:none;font:700 12px/22px var(--mono);width:22px;height:22px;border-radius:50%;background:var(--card);color:#fff;text-align:center}
+.altgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+figure.alt{border:1px solid var(--line);border-radius:12px;padding:12px;gap:8px;align-content:start}
+figure.alt figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;color:var(--ink);font-size:14.5px}
+figure.alt .cap{font-size:13.5px}
+table.heat{font-size:13.5px}table.heat td,table.heat th{padding:7px 10px}
+table.heat thead th{text-align:center}table.heat td{text-align:center;border:0;border-radius:6px}
+table.heat th[scope=row]{color:var(--ink);font-size:13px;white-space:nowrap}
+td.g2{background:var(--clk-t);color:#0b5c54}td.g1{background:var(--warn-t);color:#7a4b0a}td.g0{background:var(--pwr-t);color:#9a3043}
+.mk-o{fill:var(--warn-t);stroke:var(--warn);stroke-width:2}.mk-i{fill:var(--card-t);stroke:var(--card);stroke-width:2}
+.mk-c{fill:var(--clk-t);stroke:var(--clk);stroke-width:2}.mk-s{fill:#eef1f4;stroke:var(--muted);stroke-width:2}
+svg .mk{font-size:12px}
+figure.alt svg .s{font-size:13px}figure.alt svg .b{font-size:14.5px}
+.verdict{border-left:4px solid var(--clk);background:var(--clk-t);padding:14px 18px;border-radius:0 12px 12px 0;font-size:15px;
+line-height:1.55;align-self:stretch;display:grid;align-content:center}
+.verdict p{max-width:none}.verdict b{color:#0b5c54}.altgrid .verdict{grid-column:1/-1}
+table.heat{border-collapse:separate;border-spacing:3px}table.heat th{border-bottom:0}
+.gm{font-size:10px;letter-spacing:-1px;opacity:.75}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(max-width:560px){section.sheet{padding:16px}ul.open li{grid-template-columns:1fr;gap:2px}.wrap{padding:20px 12px 56px}.dl a{flex:1 1 100%}}
 """
 
@@ -768,7 +876,7 @@ page = f"""<!doctype html>
 {header}
 {"".join(body)}
 <footer><p>Research claims are sourced in the <a href="evidence.html">evidence register</a>; part choices are candidates
-to check against datasheets, and costs are the team's estimates. Research checked 12–13 October 2026.</p>
+to check against datasheets, and costs are the team's estimates. Research checked 12–16 October 2026.</p>
 <p><a href="../">seguar.github.io</a></p></footer>
 </main>
 </div>
@@ -785,6 +893,14 @@ print("index.html", len(page))
 import re as _re
 
 FIXES = [   # research-tool remarks and inconsistencies -> publishable text
+    (r"Option A: UART bus from S31 \(cheapest\)", "UART bus from the S31 (cheapest)"),
+    (r"Option B: USB hub tree to PC", "USB hub tree to the PC"),
+    (r"Option A: 16 RX x 1-bit", "main-page option B: 16 RX x 1-bit"),
+    (r"Option B: 8 TX \+ 8 RX", "main-page option C: 8 TX + 8 RX"),
+    (r"Option A's 40 Mbit/s per element", "the 1-bit 16-RX option's 40 Mbit/s per element (option B on the main page)"),
+    (r", so TX and RX run at the same time\.", ". Whether 16-bit RX and 16-bit TX run together at 40 MHz is untested."),
+    (r" The extracted datasheet table was garbled: 'pull GPIO28 low for download' is an inference, so verify the exact levels in the PDF\.",
+     " Download mode needs GPIO28 low and GPIO27 high at reset (Table 3-3; see the control topic)."),
     (r"I could not fetch the ESP32-C5 Technical Reference Manual: the PDF is over the 10 MB WebFetch limit, and I did not bulk-download it without permission\. ", ""),
     (r"Could not be fetched by WebFetch due to size limit; details pending", "not reviewed in this topic; the PARLIO chapter was checked later (see the PARLIO topic)"),
     (r"WebFetch returned only the page title", "product selector page; content not retrievable"),
@@ -825,22 +941,11 @@ SHORT = [("Espressif chip family", "Espressif chip family and 5 GHz support"),
          ("Espressif chips with both", "ESP32 chips with Ethernet; ESP32-S31 IQ streaming"),
          ("ESPARGOS One as an existing", "ESPARGOS One as an 8-element tile (2.4 GHz variant)"),
          ("Engineering trade-offs", "2.4 GHz versus 5.2 GHz (2.4 GHz variant)"),
-         ("Ethernet switching", "Ethernet switches for an 8-element tile (2.4 GHz variant)")]
+         ("Ethernet switching", "Ethernet switches for an 8-element tile (2.4 GHz variant)"),
+         ("16-C5 board: control", "One board, 16 C5s: control and flashing from one S31"),
+         ("16-C5 board: ESP32-S31", "One board, 16 C5s: ESP32-S31 and ESP32-P4 resources"),
+         ("16-C5 board: data", "One board, 16 C5s: rates on one GbE, FPGA and switch options")]
 
-HAND = [  # (status, claim, source)
-    ("C", "Broadcom BCM53202M: eight 10/100 PHYs plus two GMII/RGMII/TBI Gigabit interfaces and a 384 KB packet buffer.",
-     "https://docs.broadcom.com/doc/53202M-PB00-R"),
-    ("C", "MAX2871: 23.5–6000 MHz; integrated VCOs cover 3.0–6.0 GHz (5.2 GHz is a VCO fundamental); outputs −1 to +8 dBm and can be muted.",
-     "https://www.analog.com/en/products/max2871.html"),
-    ("C", "SKY13351-378LF SPDT: 0.35 dB insertion loss and 24 dB isolation at 2.45 GHz (datasheet typical); 5–6 GHz values only from distributor summaries — to be measured.",
-     "https://shop.richardsonrfpd.com/Products/Product/SKY13351-378LF"),
-    ("C", "RTL8211F(I)-CG: integrated 10/100/1000 Ethernet PHY with an RGMII MAC interface (3.3/2.5/1.8/1.5 V signalling).",
-     "https://www.armdesigner.com/download/RTL8211F-CG-Realtek.pdf"),
-    ("C", "JLCPCB 4-layer 7628 stack-up: about 0.2 mm prepreg between L1 and L2 (0.2104 mm in current data), 1.065 mm core.",
-     "https://jlcpcb.com/quote/pcbOrderFaq/PCB%20Stackup"),
-    ("I", "Patch on FR-4 (εr 4.4, tan δ 0.02) at 5.2 GHz: lossless radiation bandwidth about 0.3 % and efficiency at most about 18 % for h ≈ 0.21 mm; about 1.6 % and 53 % for h ≈ 1.065 mm (the Rev 1 custom stack); about 2.3 % and 62 % for h ≈ 1.5 mm. From BW ≈ 3.77·(εr−1)/εr²·(W/L)·(h/λ₀) (lossless space-wave bandwidth) with efficiency from dielectric loss only; conductor and surface-wave loss lower it.",
-     "https://www.mikrocontroller.net/attachment/208694/microstrip_antennas_overview.pdf"),
-]
 
 if RESEARCH:
     files = sorted(glob.glob(os.path.join(RESEARCH, "research_*.json")))
@@ -859,16 +964,25 @@ if RESEARCH:
             total += 1
             st = {"CONFIRMED": "C", "INFERRED": "I", "UNKNOWN": "O"}[c["status"]]
             val = f" <b>{E(fix(c['value']))}</b>" if c.get("value") else ""
-            src = E(fix_url(c["source_url"]))
-            det = f" <span class='note'>({E(fix(c['source_detail']))})</span>" if c.get("source_detail") else ""
-            rows.append(f"<tr><td class='st'>{tag(st)}</td><td>{E(fix(c['claim']))}{val}</td>"
-                        f"<td><a href='{src}'>{src}</a>{det}</td></tr>")
+            raw = fix_url(c["source_url"])
+            m = _re.search(r"https?://\S+", raw)
+            notes = [fix(c["source_detail"])] if c.get("source_detail") else []
+            if m:
+                url = m.group(0).rstrip(".,;")
+                rest = (raw[:m.start()] + raw[m.end():]).strip()
+                if rest:
+                    notes.insert(0, rest)
+                cell = f"<a href='{E(url)}'>{E(url)}</a>"
+            else:
+                cell = E(raw)
+            det = f" <span class='note'>({E(' / '.join(notes))})</span>" if notes else ""
+            rows.append(f"<tr><td class='st'>{tag(st)}</td><td>{E(fix(c['claim']))}{val}</td><td>{cell}{det}</td></tr>")
         oq = "".join(f"<li>{E(fix(q))}</li>" for q in r["open_questions"] if fix(q).strip())
         nav.append(f"<li><a href='#t{i}'>{E(short)}</a> <span class='note'>({len(r['claims'])})</span></li>")
         blocks.append(f"<section class='sheet' id='t{i}'><h2>{E(short)}</h2><p class='note'>{E(fix(r['topic']))}</p>"
                       f"<div class='tbl'><table><thead><tr><th class='st'>Status</th>"
                       f"<th>Claim</th><th>Source</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
-                      f"<h3>Open questions</h3><ul>{oq}</ul></section>")
+                      + (f"<h3>Open questions</h3><ul>{oq}</ul>" if oq else "") + "</section>")
     hand_rows = "".join(f"<tr><td class='st'>{tag(st)}</td><td>{E(c)}</td><td><a href='{E(u)}'>{E(u)}</a></td></tr>"
                         for st, c, u in HAND)
     blocks.append("<section class='sheet' id='parts'><h2>Parts and estimates checked by hand</h2>"
@@ -882,7 +996,8 @@ if RESEARCH:
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>{CSS} td a{{word-break:break-all}} .wrap{{max-width:1180px;margin:0 auto}} ol.topics{{margin:0;padding-left:22px;display:grid;gap:4px}}</style></head><body><main class="wrap">
 <header><div class="kicker"><a href="./">← ESP32-C5 Phased Array</a></div><h1>Evidence register</h1>
-<p class="lede">{total} claims collected from primary sources on 12–13 October 2026, grouped by topic.</p>
+<p class="lede">{total} claims collected from datasheets, source code, papers and other cited sources on 12–16 October
+2026, grouped by topic.</p>
 <div class="legend"><span>{tag('C')} stated or shown in the cited source</span><span>{tag('I')} engineering inference</span>
 <span>{tag('O')} not found, or needs a bench test</span><span>{tag('S')} used on the main page: no evidence yet</span></div>
 <p class="note">An independent re-check ran for the ESP32-S31 Ethernet and ESPARGOS-One-as-a-tile topics; the most

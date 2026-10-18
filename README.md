@@ -62,9 +62,10 @@ PARLIO lanes feed one ESP32-S31 that forwards about 640 Mbit/s over one
 Gigabit port. A master board shares the 48 MHz reference, the 40 MHz PARLIO
 clock, the capture trigger and a 5.2 GHz calibration tone.
 
-The page walks through synchronization, calibration, the data path and its
-rate budget, the tile PCB with an interactive 3D model of the tile and the two-tile array
-(antennas only on the front, each ESP32-C5 behind its own patch, equal RF paths), experiments (receive beamforming with a steering
+The page is drawing-first (the long tables sit in collapsed Details blocks) and walks
+through synchronization, calibration, the data path and its rate budget, the tile PCB with an interactive 3D model of the tile and the two-tile array
+(antennas only on the front, each ESP32-C5 behind its own patch, equal RF paths), the options for
+putting all sixteen C5s on one board behind one ESP32-S31 (and how to control and flash them), experiments (receive beamforming with a steering
 slider, radar, communications, transmit), costs, the bench tests that decide
 the design, and the staged plan. Every claim carries a status — confirmed,
 inference, open or speculative — backed by

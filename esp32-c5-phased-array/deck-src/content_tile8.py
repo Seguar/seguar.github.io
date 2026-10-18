@@ -181,7 +181,7 @@ T["cost_tile_rows"] = [
     ["1 × ESP32-S31", "7.5"],
     ["1 × RTL8211F Gigabit PHY", "1.4"],
     ["Gigabit MagJack", "2.5"],
-    ["48 / 40 MHz fan-out buffers", "6"],
+    ["48 / 40 MHz fan-out buffers", "7.5"],
     ["40 MHz oscillator", "1.5"],
     ["8 × RF SPDT (SKY13351-class)", "5"],
     ["3.3 V regulation, power", "3"],
