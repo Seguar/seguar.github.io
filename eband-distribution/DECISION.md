@@ -28,9 +28,9 @@ proposal; the tile pitch is the design choice that has to fit inside it, and
 aperture rather than 28 cm of it; 5×5 × 4 dies is exactly the 100-die
 inventory, with nothing stranded; and it sits inside the proposal's own
 5–10 cm sub-tiling range (§4.5), where 4 cm does not. Against a 4 cm pitch it
-costs 0.004° of inter-tile residual — on a 5° spec — and buys 2.2 dB of
+costs 0.003° of inter-tile residual — on a 5° spec — and buys 2.2 dB of
 distribution loss, 6.7 W of distribution power, the full aperture, the two
-stranded dies (+0.09 dB) and a narrower beam (0.650° against 0.696° broadside).
+stranded dies (+0.09 dB) and a narrower beam (0.650° against 0.697° broadside).
 It is also
 the configuration this document has always been written against; the tool's
 default had drifted to 4 cm and is now back in step.
@@ -326,7 +326,8 @@ over the full 30 cm.
 
 **1. The error floor is not the binding metric on a periodic lattice.**
 400 elements over 30 cm is a square 3.90λ × 3.90λ lattice. That puts
-π·A_cell/λ² = **44 grating lobes** inside the horizon, and because a uniform
+**44 grating lobes** inside the horizon at broadside (the closed form
+π·A_cell/λ² gives 47.8), and because a uniform
 progressive-phase array has |AF| = N at every one of them, only the element
 pattern suppresses them: the binding lobe sits at **14.85° and is 0.146 dB
 below the main beam**. Steered to 30° a grating lobe is **0.62 dB above** the
@@ -359,10 +360,11 @@ between the 400-element directivity (32.02 dBi) and the filled aperture
 (4.68 mm²) to its cell (225 mm²), i.e. 2.08% — and identically 10log10 of the
 48 co-equal lattice beams. It closes as element directivity rises toward the
 22.82 dBi ceiling a 1.5 × 1.5 cm cell can support. A cell-filling *nulled*
-radiator puts its sinc nulls exactly on the reciprocal lattice, removing every
+radiator (in the tool, C3 with K = 64 spanning the cell) puts its sinc nulls
+exactly on the reciprocal lattice, removing every
 grating lobe at broadside and recovering the full 48.84 dBi — but only at broadside:
-at 5° the first lobe is already only 5.8 dB down, and steered to 30° a
-grating lobe overtakes the beam by 33 dB. That is a broadside instrument, and
+at 5° the first lobe is already only 5.7 dB down, and steered to 30° a
+grating lobe overtakes the beam by 32 dB. That is a broadside instrument, and
 it is what the *first* version of the tool's pattern model was accidentally
 describing.
 
@@ -373,7 +375,7 @@ quantisation residual e_t = Δτ·round(τ_t/Δτ) − τ_t is deterministic, ex
 zero at broadside, and common to a whole tile column when scanning in one
 plane — so it averages by 5, not 25, and scatters into the scan plane. Swept
 over commanded angles at ±1 GHz it produces a **discrete lobe at −18.9 dB**
-(worst at 34° commanded), against −25.8 dB from the angle-averaged variance
+(worst at 34° commanded), against −24.3 dB from the angle-averaged variance
 proxy and −46 dB for everything else in the error budget. It is the dominant
 band-edge artefact by a wide margin. A finer step buys it down directly
 (−42 dB at 5 ps by the same measure), so the LSB should be specified against
@@ -391,8 +393,11 @@ there is nothing left to trade and minimum separation is 1.50 cm. It still
 does not rescue a periodic layout and it still does not reduce the lobe count,
 which is fixed by element density alone. Separately, a compact filled
 λ/2 array of the same 400 elements would be 3.8 × 3.8 cm, have a 5.1° beam and
-the **same** 32.02 dBi. Spreading 400 channels over 30 cm buys angular
-resolution and buys zero gain.
+about 31.0 dBi: only 1.0 dB less, because a λ/2 cell holds at most π
+(4.97 dBi) per element, where an isolated one keeps its 6 dBi (the tool's
+close-packed C3 clusters integrate to the same 1.01–1.03 dB shortfall).
+Spreading 400 channels over 30 cm, 61 times the area, buys angular resolution
+and about 1 dB of gain.
 
 **Consequence for how this is presented.** The 30 cm panel is not justified by
 array performance; it is justified by the research question, which is LO and

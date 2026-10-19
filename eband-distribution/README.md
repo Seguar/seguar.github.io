@@ -254,7 +254,9 @@ script exists). The copy still takes its fonts from Google Fonts.
 Any parameter change is captured in the URL fragment, so a specific set of
 numbers is citable. **Copy permalink** puts that URL on the clipboard; only
 values that differ from the defaults are stored, so links stay short and a
-later change to a default does not silently freeze an old value.
+later change to a default does not silently freeze an old value. Pasting
+another permalink into an open tab, editing the fragment by hand, or stepping
+Back / Forward across such an edit loads that build in place.
 
 Every table exports as CSV or as a Markdown table ready to paste into the
 thesis, with the confidence labels intact.

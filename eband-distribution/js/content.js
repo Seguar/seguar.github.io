@@ -280,12 +280,15 @@
     '### The design space, and what is not in the option list',
     'The original four LO options and three baseband options came from the proposal. The space was then swept ' +
     'deliberately — classical RF architectures, photonic and digital LO generation, baseband alternatives, and ' +
-    'what is actually built and measured in tiled mmWave arrays — and four things were added: **A5** round-trip ' +
-    'stabilised link, **A6** injection-locked tile oscillator, **B4** current-mode summing, **B5** digitise at ' +
-    'the tile. Each earned a column by being *distinct*, not merely different: A5 is the only architecture with a ' +
-    'return path inside the distribution network, so it attacks drift instead of tracking it; A6 is the only one ' +
-    'whose tile contains no PFD, charge pump or divider, and the only one with a locked-phase-offset error term; ' +
-    'B4 changes the impedance regime rather than the topology; B5 deletes the analog inter-tile tier.',
+    'what is actually built and measured in tiled mmWave arrays — and five things were added: **A5** round-trip ' +
+    'stabilised link, **A6** injection-locked tile oscillator, **A7** radial equal-path feed (at first rejected; ' +
+    'see below), **B4** current-mode summing, **B5** digitise at the tile. Each earned a column by being ' +
+    '*distinct*, not merely different: A5 is the only architecture with a return path inside the distribution ' +
+    'network, so it attacks drift instead of tracking it; A6 is the only one whose tile contains no PFD, charge ' +
+    'pump or divider, and the only one with a locked-phase-offset error term; A7 is the only one whose paths are ' +
+    'all equal, so none of a shared source\'s correlated noise leaks into the inter-tile differential, and the ' +
+    'only one whose junction couples one tile\'s mismatch into every other; B4 changes the impedance regime ' +
+    'rather than the topology; B5 deletes the analog inter-tile tier.',
     'The following were considered and are **not** modelled. They are listed because "we did not think of it" and ' +
     '"we costed it and it lost" are very different statements, and only the second is worth anything in a defence.',
     '- **Sub-harmonic distribution with a subharmonic mixer at the tile.** Real and attractive — it removes the ' +
@@ -649,12 +652,16 @@
         'instrument. Select it and steer away from broadside to watch a grating lobe overtake the beam ' +
         'by more than 10 dB. It is also what the *first* version of this model was accidentally ' +
         'describing — which is why its answer looked so good.');
+      /* 4πA/λ² of a λ/2 cell is π, so a close-packed element cannot keep the 6 dBi an isolated one
+         has: the C3 cluster integral shows the same 1.01–1.03 dB shortfall. */
+      var dCompactDbi = 10 * Math.log10(Math.PI * g.nElem);
       out.push('4. **Compact filled λ/2 array of the same ' + g.nElem + ' elements.** ' +
         num(Math.sqrt(g.nElem) * g.lambdaM * 50, 1) + ' × ' + num(Math.sqrt(g.nElem) * g.lambdaM * 50, 1) +
         ' cm aperture, a ' + num(0.886 * g.lambdaM / (Math.sqrt(g.nElem) * g.lambdaM / 2) * 180 / Math.PI, 1) +
-        '° beam, the **same** ' + num(g.dArrayDbi, 1) + ' dBi, no grating lobes, full scan. That is the ' +
-        'punchline worth stating plainly: spreading ' + g.nElem + ' channels over ' +
-        num(g.effApertureCm, 0) + ' cm buys angular *resolution* and buys zero gain.');
+        '° beam, ' + num(dCompactDbi, 1) + ' dBi (a λ/2 cell holds at most 4.97 dBi per element), no ' +
+        'grating lobes, full scan. That is the punchline worth stating plainly: spreading ' + g.nElem +
+        ' channels over ' + num(g.effApertureCm, 0) + ' cm buys angular *resolution* and ' +
+        num(g.dArrayDbi - dCompactDbi, 1) + ' dB of directivity.');
       out.push('So the ' + num(g.effApertureCm, 0) + ' cm panel is not justified by array performance; ' +
         'it is justified by the research question, which is LO and baseband distribution over a ' +
         num(g.effApertureCm, 0) + ' cm baseline. The deliverable should be labelled a **sparse / ' +

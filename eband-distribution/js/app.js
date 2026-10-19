@@ -21,6 +21,11 @@
      map, because the map used to be the default — so without this, adding a
      landing page would silently redirect every link already sent. */
   var CONFIGURED_VIEW = 'map';
+  /* The hash as loadState last read it or syncHash last wrote it. onHashNav
+     compares against this, not against an encoding of `state`, because a
+     link's `_sys` is never part of that encoding: dropping it from the URL
+     would look like no change at all. */
+  var shownHash = '';
   var view = {
     name: DEFAULT_VIEW, selected: 0, tileMetric: 'skewPs',
     showBlocks: true, showLo: true, showBb: true, showDies: true, showAnts: true,
@@ -140,6 +145,13 @@
   function loadState() {
     state = {};
     Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
+    /* Already so at boot. When the hash changes under an open page (see
+       onHashNav) they must be reset too, or a link with no `_v` or no `_sys`
+       would keep the previous link's view or shared systems, where a fresh
+       load of the same URL shows the start page and none. */
+    view.name = DEFAULT_VIEW;
+    view.sys.shared = [];
+    shownHash = location.hash;
     var over = X.decodeState(location.hash);
     view.migrated = migrateRawState(over);
     /* `sawView`: the link named a view outright. `sawConfig`: the link carries
@@ -215,6 +227,7 @@
        page) is omitted by withView, so links stay short. */
     var s = X.encodeState(withView(overrides()));
     history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
+    shownHash = location.hash;
   }
 
   /* Stamp the current view into a parameter set, unless it is the view a bare
@@ -4748,8 +4761,6 @@
   window.addEventListener('load', syncRailTop);
 
   /* ------------------------------- exports ------------------------------- */
-  function tableRows(id) { return UI.tableToRows(document.getElementById(id)); }
-
   var EXPORTS = {
     lo:     { id: 'loTable',    title: 'LO / reference distribution comparison', file: 'lo-distribution.csv' },
     bb:     { id: 'bbTable',    title: 'Baseband split / combine comparison',    file: 'bb-distribution.csv' },
@@ -5014,5 +5025,21 @@
 
   loadState();
   setView(view.name);
+
+  /* The tool writes the hash with replaceState, which fires no event, so
+     these fire only when someone edits the hash in the address bar, pastes a
+     permalink into the open tab, or steps Back / Forward across such an edit.
+     The hash used to be read once at boot, so the page kept showing the old
+     build under the new URL. Read it again the way a fresh load does. Every
+     <a href="#"> on the page calls preventDefault, so none of them lands
+     here. Browsers that fire both events for one navigation get the second
+     one skipped: by then the page already shows that hash. */
+  function onHashNav() {
+    if (location.hash === shownHash) return;
+    loadState();
+    setView(view.name);
+  }
+  window.addEventListener('hashchange', onHashNav);
+  window.addEventListener('popstate', onHashNav);
   X.hideDeadSaveButtons();
 })();

@@ -11787,12 +11787,15 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
     '### The design space, and what is not in the option list',
     'The original four LO options and three baseband options came from the proposal. The space was then swept ' +
     'deliberately — classical RF architectures, photonic and digital LO generation, baseband alternatives, and ' +
-    'what is actually built and measured in tiled mmWave arrays — and four things were added: **A5** round-trip ' +
-    'stabilised link, **A6** injection-locked tile oscillator, **B4** current-mode summing, **B5** digitise at ' +
-    'the tile. Each earned a column by being *distinct*, not merely different: A5 is the only architecture with a ' +
-    'return path inside the distribution network, so it attacks drift instead of tracking it; A6 is the only one ' +
-    'whose tile contains no PFD, charge pump or divider, and the only one with a locked-phase-offset error term; ' +
-    'B4 changes the impedance regime rather than the topology; B5 deletes the analog inter-tile tier.',
+    'what is actually built and measured in tiled mmWave arrays — and five things were added: **A5** round-trip ' +
+    'stabilised link, **A6** injection-locked tile oscillator, **A7** radial equal-path feed (at first rejected; ' +
+    'see below), **B4** current-mode summing, **B5** digitise at the tile. Each earned a column by being ' +
+    '*distinct*, not merely different: A5 is the only architecture with a return path inside the distribution ' +
+    'network, so it attacks drift instead of tracking it; A6 is the only one whose tile contains no PFD, charge ' +
+    'pump or divider, and the only one with a locked-phase-offset error term; A7 is the only one whose paths are ' +
+    'all equal, so none of a shared source\'s correlated noise leaks into the inter-tile differential, and the ' +
+    'only one whose junction couples one tile\'s mismatch into every other; B4 changes the impedance regime ' +
+    'rather than the topology; B5 deletes the analog inter-tile tier.',
     'The following were considered and are **not** modelled. They are listed because "we did not think of it" and ' +
     '"we costed it and it lost" are very different statements, and only the second is worth anything in a defence.',
     '- **Sub-harmonic distribution with a subharmonic mixer at the tile.** Real and attractive — it removes the ' +
@@ -12156,12 +12159,16 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
         'instrument. Select it and steer away from broadside to watch a grating lobe overtake the beam ' +
         'by more than 10 dB. It is also what the *first* version of this model was accidentally ' +
         'describing — which is why its answer looked so good.');
+      /* 4πA/λ² of a λ/2 cell is π, so a close-packed element cannot keep the 6 dBi an isolated one
+         has: the C3 cluster integral shows the same 1.01–1.03 dB shortfall. */
+      var dCompactDbi = 10 * Math.log10(Math.PI * g.nElem);
       out.push('4. **Compact filled λ/2 array of the same ' + g.nElem + ' elements.** ' +
         num(Math.sqrt(g.nElem) * g.lambdaM * 50, 1) + ' × ' + num(Math.sqrt(g.nElem) * g.lambdaM * 50, 1) +
         ' cm aperture, a ' + num(0.886 * g.lambdaM / (Math.sqrt(g.nElem) * g.lambdaM / 2) * 180 / Math.PI, 1) +
-        '° beam, the **same** ' + num(g.dArrayDbi, 1) + ' dBi, no grating lobes, full scan. That is the ' +
-        'punchline worth stating plainly: spreading ' + g.nElem + ' channels over ' +
-        num(g.effApertureCm, 0) + ' cm buys angular *resolution* and buys zero gain.');
+        '° beam, ' + num(dCompactDbi, 1) + ' dBi (a λ/2 cell holds at most 4.97 dBi per element), no ' +
+        'grating lobes, full scan. That is the punchline worth stating plainly: spreading ' + g.nElem +
+        ' channels over ' + num(g.effApertureCm, 0) + ' cm buys angular *resolution* and ' +
+        num(g.dArrayDbi - dCompactDbi, 1) + ' dB of directivity.');
       out.push('So the ' + num(g.effApertureCm, 0) + ' cm panel is not justified by array performance; ' +
         'it is justified by the research question, which is LO and baseband distribution over a ' +
         num(g.effApertureCm, 0) + ' cm baseline. The deliverable should be labelled a **sparse / ' +
@@ -12205,6 +12212,11 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
      map, because the map used to be the default — so without this, adding a
      landing page would silently redirect every link already sent. */
   var CONFIGURED_VIEW = 'map';
+  /* The hash as loadState last read it or syncHash last wrote it. onHashNav
+     compares against this, not against an encoding of `state`, because a
+     link's `_sys` is never part of that encoding: dropping it from the URL
+     would look like no change at all. */
+  var shownHash = '';
   var view = {
     name: DEFAULT_VIEW, selected: 0, tileMetric: 'skewPs',
     showBlocks: true, showLo: true, showBb: true, showDies: true, showAnts: true,
@@ -12324,6 +12336,13 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
   function loadState() {
     state = {};
     Object.keys(DEFAULTS).forEach(function (k) { state[k] = DEFAULTS[k]; });
+    /* Already so at boot. When the hash changes under an open page (see
+       onHashNav) they must be reset too, or a link with no `_v` or no `_sys`
+       would keep the previous link's view or shared systems, where a fresh
+       load of the same URL shows the start page and none. */
+    view.name = DEFAULT_VIEW;
+    view.sys.shared = [];
+    shownHash = location.hash;
     var over = X.decodeState(location.hash);
     view.migrated = migrateRawState(over);
     /* `sawView`: the link named a view outright. `sawConfig`: the link carries
@@ -12399,6 +12418,7 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
        page) is omitted by withView, so links stay short. */
     var s = X.encodeState(withView(overrides()));
     history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
+    shownHash = location.hash;
   }
 
   /* Stamp the current view into a parameter set, unless it is the view a bare
@@ -16932,8 +16952,6 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
   window.addEventListener('load', syncRailTop);
 
   /* ------------------------------- exports ------------------------------- */
-  function tableRows(id) { return UI.tableToRows(document.getElementById(id)); }
-
   var EXPORTS = {
     lo:     { id: 'loTable',    title: 'LO / reference distribution comparison', file: 'lo-distribution.csv' },
     bb:     { id: 'bbTable',    title: 'Baseband split / combine comparison',    file: 'bb-distribution.csv' },
@@ -17198,6 +17216,22 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
 
   loadState();
   setView(view.name);
+
+  /* The tool writes the hash with replaceState, which fires no event, so
+     these fire only when someone edits the hash in the address bar, pastes a
+     permalink into the open tab, or steps Back / Forward across such an edit.
+     The hash used to be read once at boot, so the page kept showing the old
+     build under the new URL. Read it again the way a fresh load does. Every
+     <a href="#"> on the page calls preventDefault, so none of them lands
+     here. Browsers that fire both events for one navigation get the second
+     one skipped: by then the page already shows that hash. */
+  function onHashNav() {
+    if (location.hash === shownHash) return;
+    loadState();
+    setView(view.name);
+  }
+  window.addEventListener('hashchange', onHashNav);
+  window.addEventListener('popstate', onHashNav);
   X.hideDeadSaveButtons();
 })();
 
