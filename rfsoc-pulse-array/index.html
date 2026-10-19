@@ -1507,7 +1507,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
   <p class="lede"><span id="core-hero-lede">Four modules, each a HamGeek XCZU67DR card plugged into a custom AFE + PA carrier. Together they drive 32 RF-DAC columns and 32 one-bit rows. One shared 5 MHz clock keeps them in step.</span> A PC controls everything over Ethernet.</p>
   <div class="chips">
     <span class="chip"><b id="core-hero-out">64</b> outputs</span>
-    <span class="chip"><b>1 MHz – 5 GHz</b> (goal 30 kHz)</span>
+    <span class="chip"><b>1 MHz – 5 GHz</b> target (goal 30 kHz)</span>
     <span class="chip"><b>3 V</b> into 50 Ω</span>
     <span class="chip"><b>DC level</b> per channel</span>
     <span class="chip" id="core-hero-bit"><b>50 ps</b> one-bit timing grid</span>
@@ -1830,7 +1830,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 
     <rect class="zr" x="30" y="540" width="940" height="70" rx="10"/>
     <text class="b mid" x="500" y="562">DUT array</text>
-    <text class="mid" x="500" y="580" id="con-sys-dut-c">32 columns ← RF-DAC · 1 MHz–5 GHz · 3 V · DC level</text>
+    <text class="mid" x="500" y="580" id="con-sys-dut-c">32 columns ← RF-DAC · 1 MHz–5 GHz target · 3 V · DC level</text>
     <text class="mid" x="500" y="597" id="con-sys-dut-r">32 rows ← one-bit GTY · 50 ps timing grid · 3 V · DC level</text>
   </svg>
   </div>
@@ -4557,7 +4557,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 <section class="sheet stage" id="mech" data-stage-title="Mechanics" data-phase="build" data-teaser="What a module looks like and how four fit together.">
   <div class="step">Build · Mechanics</div>
   <h2>Mechanical concept</h2>
-  <p id="mech-opt-intro">Two box options hold the same card, the same carrier circuits and the same four rear sync connectors. <b>Upright card</b> (today's design): the card stands in a vertical PCIe x8 slot, the box is 170 × 185 × 275 mm (8.65 L) and two modules share a 5U shelf. <b>Flat card, 90° PCIe</b>: the card lies flat in a right-angle PCIe x8 connector on an L-shaped carrier, the box is 214 × 74 × 324 mm (5.13 L, −41 %) and two modules share a 2U shelf, so 8 modules need 12U instead of 24U. Box option below switches the drawings, sizes and tables; the comparison at the end of this stage lists the differences and the open connector risk.</p>
+  <p id="mech-opt-intro">Two box options hold the same card, the same carrier circuits and the same four rear sync connectors. <b>Upright card</b> (today's design): the card stands in a vertical PCIe x8 slot, the box is 170 × 185 × 275 mm (8.65 L) and two modules share a 5U shelf. <b>Flat card, 90° PCIe</b>: the card lies flat in a right-angle PCIe x8 connector on an L-shaped carrier, the box is 214 × 74 × 324 mm (5.13 L, −41 %) and two modules share a 2U shelf, <span id="mech-opt-rack">so 8 modules need 13U of rack instead of 25U with the sync unit</span>. Box option below switches the drawings, sizes and tables; the comparison at the end of this stage lists the differences and the open connector risk.</p>
   <p class="note" id="mech-opt-nojs">The drawings below show the upright box; the flat box drawings need JavaScript.</p>
   <p id="mech-flat-intro" data-mech-opt-show="flat" hidden>In the flat box the card lies component side up in J1, a Samtec PCIE-098-02-F-D-RA right-angle x8 connector, on an L-shaped carrier: a front deck under the card's SSMC edge and a right arm along its finger edge. The front ends sit at their connectors: the RF-DAC rows start in front of the card's DAC jacks (eight identical 80 mm jumpers D0–D7, upright ≈ 260 mm), three one-bit strips start in front of J1 and five beside their own lane pins (lanes 17–48 mm, upright ≈ 91 mm), and the CLK, SYNC and GTY reference jumpers shrink to 45–80 mm. The U-cover (lid and both walls) lifts off and exposes everything from above; a lid baffle keeps the heatsink exhaust off the one-bit arm and two 40 mm rear fans pull the air out. The open risk is J1 at 20 Gb/s: it is rated PCIe 3.0, so S-parameters and a pulse test come before the carrier freezes (see the comparison below).</p>
   <p id="mech-up-intro" data-mech-opt-show="upright">The carrier lies flat in a small aluminium box and the HamGeek card stands upright in its slot, like a card in a PC, with its heatsink and fan facing the RF strips. The card's column of 19 SSMC connectors faces the front, about 31 mm behind the panel: room for the connector barrels, right-angle SSMC plugs and the bend of the 8 DAC jumpers back to the strips. Its I/O edge (Ethernet, DisplayPort, USB, both QSFP cages) lines up with a cut-out in the rear panel. The front panel carries the 16 RF outputs, so the cables to the DUT stay short and tidy, and in front of the card a removable inlet plate with the air slots. The plate carries no connectors: unscrew its four thumb screws and lift it off for direct access to the card's SSMC column (ADC inputs, J57 GNSS_ANT). The rear panel takes the 12 V jack, Ethernet and the other card I/O, and four SMAs: CLK IN, SYSREF IN, TRIG IO and CLK/SYSREF OUT. TRIG IO is cabled (W19) to the carrier jack J28 and runs on the carrier to the slot pin PERST#, which reaches FPGA pin D9 through a 0 Ω resistor on the card, so the FPGA sets its direction and the card needs no work for it. Every module is built the same way and nothing inside the box moves between sync options: the rear cable set and a software profile pick the option (see <a href="#sync" data-goto="sync">Sync &amp; timing</a>). Inside, the 8 one-bit strips sit next to the slot, so the GTY lanes stay short; the 8 DAC jumpers loop back along the card and cross over them to the RF-DAC strips on the far side. Carrier J32 (CLK) feeds card J35 (CLK1_IN, the LMK CLKin1 input as fitted), carrier J33 (SYNC) feeds card J64 (PPS_IN), and card J32 (CLK_OUT, the only SMA on the card) comes back to carrier J45 as the GTY reference. Air enters at the front and leaves through a rear fan, passing the card's heatsink on the way.</p>
@@ -5718,7 +5718,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 
   <div class="panel rm-ms" id="rm-mech-box" data-more="off">
     <h3>Flat box gates</h3>
-    <p class="note" id="rm-mech-now">Two box options are drawn in <a href="#mech" data-goto="mech">Mechanics</a>: the upright card (170 × 185 × 275 mm) and the flat card on a right-angle PCIe connector (214 × 74 × 324 mm, 41 % less volume, 2U instead of 5U per shelf of two modules: 12U against 24U for eight). The flat box needs these checks before its carrier freezes; the upright box needs only a Gen4/Gen5-rated J1.</p>
+    <p class="note" id="rm-mech-now">Two box options are drawn in <a href="#mech" data-goto="mech">Mechanics</a>: the upright card (170 × 185 × 275 mm) and the flat card on a right-angle PCIe connector (214 × 74 × 324 mm, 41 % less volume, 2U instead of 5U per shelf of two modules: 13U against 25U for eight with the sync unit). The flat box needs these checks before its carrier freezes; the upright box needs only a Gen4/Gen5-rated J1.</p>
     <ol class="rm-ms-list" id="rm-mech" style="display:grid;gap:6px;margin:8px 0 0;padding-left:24px">
       <li><b>Measure the card first.</b> The card geometry comes from vendor photos (±3 %). On the first card: length (the flat box needs 225–320 mm), the corner and finger tabs, finger protrusion and thickness (1.57 mm), the four hole positions (the BR hole and the RJ45 disagree by ≈ 2 mm), back-side part heights (≤ 2.67 mm assumed). <a href="#hw-f-measure" data-goto="hw-f-measure">Card findings</a> <a class="chip" href="#rm-p0" data-rm-open="0">P0</a></li>
       <li><b>12 V current through J1.</b> Measure the card current at full load. The five J1 12 V pins carry ≤ 4 A after derating (40 W plus the fan is ≈ 3.5 A, estimate); above 4 A fit the optional J34 → P3 lead. <a class="chip" href="#rm-p0" data-rm-open="0">P0</a></li>
@@ -10624,7 +10624,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       if (svg) paintTopo(m);
       if (svg) {
         var c = 8 * m, dc = svg.querySelector('#con-sys-dut-c'), dr = svg.querySelector('#con-sys-dut-r');
-        if (dc) dc.textContent = c + ' columns ← RF-DAC · 1 MHz–5 GHz · 3 V · DC level';
+        if (dc) dc.textContent = c + ' columns ← RF-DAC · 1 MHz–5 GHz target · 3 V · DC level';
         if (dr) dr.textContent = dacOnlyNow() ? 'no one-bit rows: DAC-only carriers' : c + ' rows ← one-bit GTY · 50 ps timing grid · 3 V · DC level';
         paintBits(svg);
       }
@@ -12466,6 +12466,21 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     }
     apply(true);
     PA.on('mechOption', function () { if (optNow() !== opt) apply(false); });
+
+    // the intro's rack heights for eight modules follow the sync option (a separate sync unit adds 1U)
+    var rackT = $('mech-opt-rack');
+    function paintRack() {
+      var up, fl;
+      try {
+        up = PA.calc(8, null, undefined, undefined, 'upright');
+        fl = PA.calc(8, null, undefined, undefined, 'flat');
+      } catch (e) { return; }
+      if (!rackT || !up || !fl || !isFinite(up.rackU) || !isFinite(fl.rackU)) return;
+      rackT.textContent = 'so 8 modules need ' + fl.rackU + 'U of rack instead of ' + up.rackU + 'U' +
+        (fl.syncNeeded ? ' with the sync unit' : '');
+    }
+    paintRack();
+    PA.on('syncTopology', paintRack);
   }
 
   function init() {
