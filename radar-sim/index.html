@@ -529,7 +529,10 @@
         let pt_W = num / Math.max(1e-20, den); 
         let pt_dBm = 10 * Math.log10(Math.max(1e-20, pt_W)) + 30;
 
-        document.getElementById('inputFreq').value = reqFreq;
+        // Option values are strings like '77e9'; select the one whose number matches.
+        let freqSelect = document.getElementById('inputFreq');
+        let freqOpt = [...freqSelect.options].find(opt => parseFloat(opt.value) === reqFreq);
+        if (freqOpt) freqSelect.value = freqOpt.value;
 
         let bwSlider = document.getElementById('inputBW');
         bwSlider.max = Math.max(parseFloat(bwSlider.max) || 8000, neededBW_MHz * 1.2);
