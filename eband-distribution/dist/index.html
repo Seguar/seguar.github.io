@@ -2843,8 +2843,9 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
   }
 
   /* ----------------------------- prose helper ----------------------------- */
-  /* Renders a light markdown subset (headings, bold, `code`, lists, callouts)
-     so the decision text can live as plain strings in decision.js.          */
+  /* Renders a light markdown subset (headings, bold, *emphasis*, `code`,
+     lists, callouts) so the decision text can live as plain strings in
+     decision.js.                                                            */
   function renderProse(mount, md) {
     var html = '';
     var lines = String(md).split('\n');
@@ -2852,9 +2853,16 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
     function closeList() { if (inList) { html += '</' + inList + '>'; inList = null; } }
     lines.forEach(function (raw) {
       var line = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      /* Emphasis runs after bold, so a ** pair is never read as two. The
+         sources use *word* some three dozen times, and until this rule existed
+         every one of them reached the page with its asterisks showing. An
+         opening * may not follow a letter, digit or *, a closing one may not
+         precede one, and neither may touch a space, so a "* " list marker or
+         the * in a product such as a*b never pairs up. */
       line = line
         .replace(/`([^`]+)`/g, '<span class="kv">$1</span>')
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*\w])\*([^*\s](?:[^*]*[^*\s])?)\*(?![*\w])/g, '$1<em>$2</em>');
       var t = line.trim();
       if (!t) { closeList(); return; }
       var m;
