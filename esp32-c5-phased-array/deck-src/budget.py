@@ -6,7 +6,7 @@ F0 = 5.2e9
 LAM = C0 / F0                 # m
 D = LAM / 2                   # element pitch
 N_EL = 16
-N_TILE = 4
+N_TILE = 2                    # two 8-element tiles (the earlier deck, build.py, had four 2×2 tiles)
 
 FS = 80e6                     # complex samples/s inside the chip (upper bound)
 BITS = 16                     # 8-bit I + 8-bit Q

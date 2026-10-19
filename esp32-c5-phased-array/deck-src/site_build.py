@@ -1,8 +1,9 @@
 """Build the GitHub Pages walkthrough for the ESP32-C5 phased array from the deck's content files.
 
 Usage: python site_build.py <out_dir> [<research_dir>]   (index.html; evidence.html only with research_dir)
+Without research_dir the claim counts on the page are read from the evidence.html already in out_dir.
 """
-import sys, os, json, glob, math, html as H
+import sys, os, json, glob, math, re, html as H
 import numpy as np
 from content_v3 import F, REFS
 import budget as B
@@ -383,18 +384,31 @@ def key_counts():
 
 
 def evidence_counts():
+    """Claims by status in the evidence register that the page links to. With research_dir they come
+    from research_*.json + HAND (what evidence.html is built from); without it they are read back from
+    out_dir/evidence.html, so a rebuild keeps the published counts. Anything else stops the build."""
     c = {}
-    files = sorted(glob.glob(os.path.join(RESEARCH, "research_*.json"))) if RESEARCH else []
-    for p in files:
-        for cl in json.load(open(p, encoding="utf-8"))["result"]["claims"]:
-            k = {"CONFIRMED": "C", "INFERRED": "I", "UNKNOWN": "O"}[cl["status"]]
-            c[k] = c.get(k, 0) + 1
-    if not files:
-        for r in F["claims_rows"][1:]:
-            c[r[0]] = c.get(r[0], 0) + 1
-    else:
+    if RESEARCH:
+        files = sorted(glob.glob(os.path.join(RESEARCH, "research_*.json")))
+        if not files:
+            sys.exit(f"site_build.py: no research_*.json in {RESEARCH}")
+        for p in files:
+            for cl in json.load(open(p, encoding="utf-8"))["result"]["claims"]:
+                k = {"CONFIRMED": "C", "INFERRED": "I", "UNKNOWN": "O"}[cl["status"]]
+                c[k] = c.get(k, 0) + 1
         for st, _, _ in HAND:
             c[st] = c.get(st, 0) + 1
+    else:
+        ev = os.path.join(OUT, "evidence.html")
+        if not os.path.exists(ev):
+            sys.exit(f"site_build.py: {ev} not found. Build into the page folder, which holds evidence.html, "
+                     "or give the research folder; the page quotes the register's claim counts.")
+        st_of = {cls: st for st, (_, cls) in STATUS.items()}
+        for m in re.finditer(r"<td class='st'><span class=\"tag (t-\w)\">", open(ev, encoding="utf-8").read()):
+            k = st_of[m.group(1)]
+            c[k] = c.get(k, 0) + 1
+        if not c:
+            sys.exit(f"site_build.py: no claim rows found in {ev}")
     return c, sum(c.values())
 
 
