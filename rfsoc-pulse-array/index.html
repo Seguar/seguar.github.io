@@ -282,7 +282,11 @@ main.wrap [id] { scroll-margin-top: 16px; }
   .core-panel { left: auto; width: 410px; }   /* border-box: same 380 px content as before */
 }
 
-/* ---------- header: call to action + stage map ---------- */
+/* ---------- header: home link, call to action + stage map ---------- */
+/* padding: a 24 px tap target; the negative margins keep the header's top edge and sit the link close above the kicker,
+   with room for the focus ring (2 px + 2 px offset) above the kicker's line */
+.core-home { justify-self: start; padding: 5px 0; margin: -5px 0 -9px; font: 600 13px/1.2 var(--sans); color: var(--muted); text-decoration: none; }
+.core-home:hover { color: var(--card); text-decoration: underline; }
 .core-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
 .core-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .core-map-col { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-top: 3px solid var(--core-ph); border-radius: 12px; padding: 10px 14px 12px; }
@@ -1497,6 +1501,7 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
 <nav id="rail" aria-label="Project stages"></nav>
 <main class="wrap" id="top">
 <header>
+  <a class="core-home" href="../"><span aria-hidden="true">← </span>seguar.github.io</a>
   <div class="kicker">Block schematics · rev 2 · 11 Oct 2026</div>
   <h1>ZU67DR Pulse Array</h1>
   <p class="lede"><span id="core-hero-lede">Four modules, each a HamGeek XCZU67DR card plugged into a custom AFE + PA carrier. Together they drive 32 RF-DAC columns and 32 one-bit rows. One shared 5 MHz clock keeps them in step.</span> A PC controls everything over Ethernet.</p>
@@ -6181,7 +6186,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
     var v = q == null ? undefined : VALID.mechOption(q);
     if (v !== undefined) state.mechOption = v;
   })();
-  /* 'master2' forces true SYSREF; the reader's own choice comes back when they leave it. */
+  /* 'master2' forces true SYSREF; the reader's own choice (the saved value, set() never saves
+     the forced one) comes back when they leave it. */
   var sysrefHeld = null;
   if (state.syncTopology === 'master2' && state.syncSysref !== 'true') {
     sysrefHeld = state.syncSysref;
@@ -6213,7 +6219,8 @@ svg .tim-axis { stroke: var(--line); stroke-width: 1; }
       if (value === 'master2' && state.syncSysref !== 'true') { sysrefHeld = state.syncSysref; state.syncSysref = 'true'; }
       else if (old === 'master2' && sysrefHeld !== null) { state.syncSysref = sysrefHeld; sysrefHeld = null; }
       else if (old === 'master2') sysrefHeld = null;
-      if (state.syncSysref !== srOld) store('syncSysref', state.syncSysref);
+      /* the forced 'true' is not saved: storage keeps the reader's choice for a reload in 'master2' */
+      if (state.syncSysref !== srOld && value !== 'master2') store('syncSysref', state.syncSysref);
     }
     notify(key, value, old);
     if (key === 'syncTopology' && state.syncSysref !== srOld) notify('syncSysref', state.syncSysref, srOld);
