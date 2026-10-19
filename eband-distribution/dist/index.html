@@ -2844,13 +2844,15 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
 
   /* ----------------------------- prose helper ----------------------------- */
   /* Renders a light markdown subset (headings, bold, *emphasis*, `code`,
-     lists, callouts) so the decision text can live as plain strings in
-     decision.js.                                                            */
+     lists, callouts, indented equation blocks) so the decision text can live
+     as plain strings in decision.js.                                        */
   function renderProse(mount, md) {
     var html = '';
     var lines = String(md).split('\n');
-    var inList = null;
-    function closeList() { if (inList) { html += '</' + inList + '>'; inList = null; } }
+    var inList = null;              /* 'ul', 'ol', or 'eqn' for an open equation block */
+    function closeList() {
+      if (inList) { html += inList === 'eqn' ? '</div>' : '</' + inList + '>'; inList = null; }
+    }
     lines.forEach(function (raw) {
       var line = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       /* Emphasis runs after bold, so a ** pair is never read as two. The
@@ -2877,8 +2879,15 @@ a.startcard:hover .sw, a.startcard:hover .sg { color: var(--ink-2); }
       } else if ((m = t.match(/^[-*]\s+(.*)$/))) {
         if (inList !== 'ul') { closeList(); html += '<ul>'; inList = 'ul'; }
         html += '<li>' + m[1] + '</li>';
-      } else if (t.indexOf('    ') === 0 || raw.indexOf('\t') === 0) {
-        closeList(); html += '<div class="eqn">' + t + '</div>';
+      } else if (raw.indexOf('    ') === 0 || raw.indexOf('\t') === 0) {
+        /* A run of indented lines is ONE preformatted block, and only the
+           four-space (or tab) marker comes off, so a continuation line keeps
+           the alignment it was typed with. This used to test the trimmed
+           line, which never starts with spaces, so every equation in the
+           Method view rendered as a paragraph with its spacing collapsed. */
+        if (inList !== 'eqn') { closeList(); html += '<div class="eqn">'; inList = 'eqn'; }
+        else html += '\n';
+        html += line.replace(/^( {4}|\t)/, '').replace(/\s+$/, '');
       } else { closeList(); html += '<p>' + t + '</p>'; }
     });
     closeList();
