@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Complete Multi-Domain Radar Simulator (MIMO/FMCW)</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
     <style>
         :root {
             --primary: #0f172a;
@@ -31,6 +31,11 @@
             margin-bottom: 20px;
             border-bottom: 2px solid var(--border);
             padding-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 4px 20px;
         }
 
         .header h1 {
@@ -39,9 +44,19 @@
             font-size: 1.8rem;
         }
 
+        .home-link {
+            color: var(--accent);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .home-link:hover, .home-link:focus-visible { text-decoration: underline; }
+
         .container {
             display: grid;
-            grid-template-columns: 420px 1fr;
+            grid-template-columns: 420px minmax(0, 1fr); /* minmax(0, ...) lets the charts shrink on resize */
             gap: 20px;
             max-width: 1600px;
             margin: 0 auto;
@@ -111,6 +126,8 @@
         .val-tx { color: var(--accent-tx); }
         .val-rx { color: var(--accent-rx); }
         .val-synth { color: var(--accent-synth); }
+
+        .results-box { overflow-y: auto; max-height: 380px; }
 
         .results-table {
             width: 100%;
@@ -215,12 +232,28 @@
             border-bottom: 1px solid var(--border);
             padding-bottom: 5px;
         }
+
+        /* Tablet / phone: controls stacked above the visualizations in one column */
+        @media (max-width: 1024px) {
+            .container { grid-template-columns: minmax(0, 1fr); }
+            .results-box { max-height: none; }
+        }
+
+        @media (max-width: 640px) {
+            body { padding: 12px; }
+            .header h1 { font-size: 1.35rem; }
+            .panel { padding: 15px; }
+            .val-display { margin-left: 8px; }
+            .split-viz { grid-template-columns: minmax(0, 1fr); gap: 15px; }
+            .results-table td:last-child { white-space: nowrap; }
+        }
     </style>
 </head>
 <body>
 
 <div class="header">
     <h1>Complete Multi-Domain Radar Simulator (MIMO/FMCW)</h1>
+    <a class="home-link" href="../">seguar.github.io</a>
 </div>
 
 <div class="container">
@@ -358,7 +391,7 @@
         </div>
 
         <!-- Results Output -->
-        <div style="background: #f8fafc; border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; margin-top: 15px; overflow-y: auto; max-height: 380px;">
+        <div class="results-box" style="background: #f8fafc; border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; margin-top: 15px;">
             <div class="section-title">Spatial Parameters & Array Size</div>
             <table class="results-table">
                 <tr><td>Virtual RX Channels:</td><td id="resVirtualChan">-</td></tr>
@@ -695,7 +728,9 @@
                     scales: {
                         x: {
                             title: { display: true, text: 'Azimuth Angle (Degrees)' },
-                            ticks: { callback: function(v, i) { return i % 20 === 0 ? this.getLabelForValue(v) + '°' : ''; } }
+                            // Stacked (narrow) layout: keep only the 30° ticks so auto-skip cannot drop the angle labels
+                            afterBuildTicks: s => { if (matchMedia('(max-width: 1024px)').matches) s.ticks = s.ticks.filter(t => t.value % 60 === 0); },
+                            ticks: { callback: function(v) { return v % 20 === 0 ? this.getLabelForValue(v) + '°' : ''; } }
                         },
                         y: { 
                             title: { display: true, text: 'Directivity (dB)' },
