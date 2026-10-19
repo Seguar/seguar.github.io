@@ -736,7 +736,7 @@ box-shadow:0 1px 2px rgba(36,49,60,.04);scroll-margin-top:16px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:24px}
 .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
 .grid2>*,.grid3>*{min-width:0;display:grid;gap:10px;align-content:start}
-.tbl{overflow-x:auto}
+.tbl{overflow-x:auto;position:relative}
 table{border-collapse:collapse;width:100%;font-size:14.5px}
 th,td{text-align:left;padding:8px 14px 8px 0;border-bottom:1px solid var(--line);vertical-align:top}
 th{font:600 12.5px/1.3 var(--sans);color:var(--muted)}
@@ -804,7 +804,7 @@ border-radius:8px;padding:2px 6px 2px 0}
 details.more>summary::-webkit-details-marker{display:none}
 details.more>summary::before{content:"+";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;
 background:var(--card-t);color:var(--card);font:700 14px/1 var(--mono)}
-details.more[open]>summary::before{content:"\2212"}
+details.more[open]>summary::before{content:"\\2212"}
 details.more>summary:focus-visible{outline:2px solid var(--card);outline-offset:2px}
 .more-b{display:grid;gap:14px;margin-top:12px}
 .dot-full{fill:var(--clk)}.dot-half{fill:var(--clk-t);stroke:var(--clk);stroke-width:2}.dot-none{fill:#c3ccd6}
@@ -995,7 +995,7 @@ if RESEARCH:
 <title>Evidence register — ESP32-C5 Phased Array</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>{CSS} td a{{word-break:break-all}} .wrap{{max-width:1180px;margin:0 auto}} ol.topics{{margin:0;padding-left:22px;display:grid;gap:4px}}</style></head><body><main class="wrap">
-<header><div class="kicker"><a href="./">← ESP32-C5 Phased Array</a></div><h1>Evidence register</h1>
+<header><div class="kicker"><a href="../">seguar.github.io</a> / <a href="./">ESP32-C5 Phased Array</a></div><h1>Evidence register</h1>
 <p class="lede">{total} claims collected from datasheets, source code, papers and other cited sources on 12–16 October
 2026, grouped by topic.</p>
 <div class="legend"><span>{tag('C')} stated or shown in the cited source</span><span>{tag('I')} engineering inference</span>
