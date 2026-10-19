@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Seguar — RF and mm-wave array tools</title>
-<meta name="description" content="Seguar: PhD candidate in E-band massive MIMO array hardware. Browser tools for MIMO radar sizing, E-band LO/baseband distribution and an RFSoC pulse array.">
+<meta name="description" content="Seguar: PhD candidate in E-band massive MIMO array hardware. Browser tools for MIMO radar sizing, E-band LO/baseband distribution, RFSoC pulse and ESP32-C5 phased arrays.">
 <link rel="canonical" href="https://seguar.github.io/">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
@@ -14,14 +14,14 @@
 <meta property="og:site_name" content="Seguar">
 <meta property="og:url" content="https://seguar.github.io/">
 <meta property="og:title" content="Seguar — RF and mm-wave array tools">
-<meta property="og:description" content="Browser tools for sizing MIMO radars, comparing E-band array architectures and planning an RFSoC pulse array, plus research code on GitHub.">
+<meta property="og:description" content="Browser tools for sizing MIMO radars, comparing E-band array architectures, planning an RFSoC pulse array and an ESP32-C5 phased array, plus research code on GitHub.">
 <meta property="og:image" content="https://seguar.github.io/assets/img/eband-distribution.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="750">
 <meta property="og:image:alt" content="Hardware map from the E-Band Distribution Comparison tool: a 5 by 5 grid of array tiles shaded by timing skew, with LO and baseband distribution trees drawn over it.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Seguar — RF and mm-wave array tools">
-<meta name="twitter:description" content="Browser tools for sizing MIMO radars, comparing E-band array architectures and planning an RFSoC pulse array, plus research code on GitHub.">
+<meta name="twitter:description" content="Browser tools for sizing MIMO radars, comparing E-band array architectures, planning an RFSoC pulse array and an ESP32-C5 phased array, plus research code on GitHub.">
 <meta name="twitter:image" content="https://seguar.github.io/assets/img/eband-distribution.jpg">
 <meta name="twitter:image:alt" content="Hardware map from the E-Band Distribution Comparison tool: a 5 by 5 grid of array tiles shaded by timing skew, with LO and baseband distribution trees drawn over it.">
 
@@ -530,7 +530,7 @@ h2 { font-size: clamp(1.625rem, 2.6vw, 2.125rem); font-weight: 600; line-height:
               <ul class="tags" role="list" aria-label="Topics">
                 <li>FMCW</li><li>MIMO</li><li>Phased arrays</li><li>Radar equation</li><li>Beamforming</li>
               </ul>
-              <p class="note"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span>First-order sizing: single-chirp radar equation, fixed 10&nbsp;dB noise figure. Formerly the front page of this site. Best on a desktop screen.</span></p>
+              <p class="note"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span>First-order sizing: single-chirp radar equation, fixed 10&nbsp;dB noise figure. Formerly the front page of this site. On narrow screens the controls sit above the plots.</span></p>
             </div>
           </article>
         </li>
@@ -567,12 +567,12 @@ h2 { font-size: clamp(1.625rem, 2.6vw, 2.125rem); font-weight: 600; line-height:
           <article class="tool" aria-labelledby="t-pulse">
             <a class="shot" href="rfsoc-pulse-array/" tabindex="-1" aria-hidden="true">
               <span class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url">seguar.github.io/<b>rfsoc-pulse-array/</b></span></span>
-              <span class="frame"><img src="assets/img/rfsoc-pulse-array.jpg" width="1200" height="750" loading="lazy" decoding="async" alt="Pulse-array walkthrough: the 14-stage navigator beside an exploded 3D model of one module showing the upright RFSoC card, carrier board, SMA panel and fan panel."></span>
+              <span class="frame"><img src="assets/img/rfsoc-pulse-array.jpg" width="1200" height="750" loading="lazy" decoding="async" alt="Pulse-array walkthrough: the stage navigator and Configuration panel beside an exploded 3D model of one module with Box set to Flat, the RFSoC card lying on a 90° PCIe connector between the SMA front panel and the rear fan panel."></span>
             </a>
             <div class="tool-body">
               <p class="eyebrow"><span class="rule"></span>Hardware design walkthrough</p>
               <h3 id="t-pulse"><a href="rfsoc-pulse-array/">ZU67DR Pulse Array</a></h3>
-              <p class="lead">Design walkthrough for a 4-module RFSoC pulse generator: 64 outputs, <span class="nw">1 MHz–5 GHz</span>, 3&nbsp;V into 50&nbsp;ohms, from concept to a build roadmap.</p>
+              <p class="lead">Design walkthrough for an RFSoC pulse generator of 1, 2, 4 or 8 modules: 64 outputs with the default four, 3&nbsp;V into 50&nbsp;ohms, aiming at <span class="nw">1 MHz–5 GHz</span>.</p>
               <div class="actions">
                 <a class="btn btn-accent" href="rfsoc-pulse-array/">Open tool<span class="vh">: ZU67DR Pulse Array walkthrough</span><svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
                 <a class="textlink" href="rfsoc-pulse-array/#m3-h">3D model<span class="vh"> of the pulse-array module</span></a>
@@ -581,7 +581,7 @@ h2 { font-size: clamp(1.625rem, 2.6vw, 2.125rem); font-weight: 600; line-height:
               <ul class="stats" role="list">
                 <li><strong>14</strong><span>stages, concept to roadmap</span></li>
                 <li><strong>50&nbsp;ps</strong><span>one-bit timing grid</span></li>
-                <li><strong>3D</strong><span>module, bench and rack model</span></li>
+                <li><strong>3D</strong><span>module, bench and rack, upright or flat card</span></li>
               </ul>
               <ul class="tags" role="list" aria-label="Topics">
                 <li>RFSoC</li><li>ZU67DR</li><li>Pulse generator</li><li>Multi-board sync</li><li>3D model</li>
@@ -595,7 +595,7 @@ h2 { font-size: clamp(1.625rem, 2.6vw, 2.125rem); font-weight: 600; line-height:
           <article class="tool" aria-labelledby="t-esp32c5">
             <a class="shot" href="esp32-c5-phased-array/" tabindex="-1" aria-hidden="true">
               <span class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="url">seguar.github.io/<b>esp32-c5-phased-array/</b></span></span>
-              <span class="frame"><img src="assets/img/esp32-c5-phased-array.jpg" width="1200" height="750" loading="lazy" decoding="async" alt="ESP32-C5 phased-array walkthrough: section navigator beside the project summary, status legend and the one-element diagram from patch and RF switch through the ESP32-C5 and ESP32-S31 to Gigabit Ethernet."></span>
+              <span class="frame"><img src="assets/img/esp32-c5-phased-array.jpg" width="1200" height="750" loading="lazy" decoding="async" alt="ESP32-C5 phased-array walkthrough: section navigator beside the project summary, slide and evidence links, status legend and the one-element diagram, from patch and RF switch through the ESP32-C5 and ESP32-S31 to Gigabit Ethernet."></span>
             </a>
             <div class="tool-body">
               <p class="eyebrow"><span class="rule"></span>Student project proposal</p>
@@ -608,8 +608,8 @@ h2 { font-size: clamp(1.625rem, 2.6vw, 2.125rem); font-weight: 600; line-height:
               </div>
               <ul class="stats" role="list">
                 <li><strong>16</strong><span>ESP32-C5 elements at λ/2, <span class="nw">28.8 mm</span></span></li>
-                <li><strong>640&nbsp;Mbit/s</strong><span>per 8-element tile on one Gigabit port</span></li>
-                <li><strong>429</strong><span>sourced claims, each tagged by evidence</span></li>
+                <li><strong>640</strong><span>Mbit/s per 8-element tile on one Gigabit port</span></li>
+                <li><strong>523</strong><span>sourced claims, each tagged by evidence</span></li>
               </ul>
               <ul class="tags" role="list" aria-label="Topics">
                 <li>ESP32-C5</li><li>Phased arrays</li><li>Raw IQ</li><li>Synchronization</li><li>Calibration</li>
