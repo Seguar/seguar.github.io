@@ -1,0 +1,7 @@
+# Build by-products, kept out of commits.
+# build-standalone.ps1 writes dist/index.html (committed) and this fragment (not).
+eband-distribution/dist/artifact.html
+
+# Python bytecode from the deck and page generator in esp32-c5-phased-array/deck-src/
+__pycache__/
+*.pyc
