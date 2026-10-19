@@ -11,9 +11,10 @@ decision.
   Distribute 19.5 GHz on the board; multiply to 78 GHz at each tile.
 - **Baseband split/combine → B3, H-tree with active cells**, with B4
   (current-mode summing) as the first alternative. The weighted score cannot
-  separate the two — it puts them 0.001 apart on a 0–1 scale and the tool
-  reports them as tied — so the decision rests on a criterion the score does
-  not carry: how much of the coarse TTD range each spends on its own geometry.
+  separate the two — it puts B3 ahead by 0.011 on a 0–1 scale, inside the
+  0.02 a single defensible re-weighting can move, and the tool reports them as
+  tied — so the decision rests on a criterion the score does not carry: how
+  much of the coarse TTD range each spends on its own geometry.
 
 All numbers below come from the tool at its default configuration: 78 GHz LO,
 2 GHz RF bandwidth, 30 cm aperture, 6 cm tiles (5×5 = 25 tiles, 4 dies each,
@@ -51,36 +52,41 @@ buys, and it is the quantity that caps spatial multiplexing.
 
 Supporting geometry: 0.65° beamwidth broadside; 867 ps of true-time-delay
 **range** required at 60° scan (range binds, not resolution — a 75 ps step
-costs 0.007 dB); 173 ps of residual delay inside a 6 cm sub-tile.
+costs 0.027 dB); 173 ps of residual delay inside a 6 cm sub-tile.
 
-## 2. The six LO options, side by side
+## 2. The seven LO options, side by side
 
 Regenerated from the model at its current defaults. The inter-tile spec is
 **5.00° RMS** (binding constraint: proposal Eq. 16); the null-depth target is
 −35.2 dB and the array-output EVM budget 1.38° RMS for 64QAM against a 95 W
 array.
 
-| Metric | A1 Local PLL | A2 HF foldback | A3 Daisy chain | **A4 Mid + ×4** | A5 Stabilised link | A6 Injection lock |
-|:---|---:|---:|---:|---:|---:|---:|
-| Residual inter-tile φ (°) | 3.139 | 0.212 | 0.249 | **0.147** | 0.770 | 2.235 |
-| — irreducible phase-noise part (°) | 3.137 | 0.193 | 0.235 | 0.104 | 0.104 | **0.086** |
-| — drift left after BIST (°) | 0.107 | 0.086 | 0.078 | 0.086 | 0.761 | 2.232 |
-| Null-depth floor (dB) | −39.2 | −62.6 | −61.2 | **−65.8** | −51.4 | −42.2 |
-| Distribution loss, worst path (dB) | **1.0** | 62.9 | 45.7 | 36.5 | 36.5 | 36.5 |
-| — on the mean path (dB) | **1.0** | 60.6 | 31.5 | 35.4 | 35.4 | 35.4 |
-| Repeater amplifiers | **0** | 51 | 9 | 32 | 32 | 32 |
-| Distribution power (W) | 10.85 | 10.12 | 9.89 | 9.96 | 11.08 | **9.36** |
-| Share of array budget (%) | 11.4 | 10.7 | 10.4 | 10.5 | 11.7 | **9.8** |
-| Frequency on the board (GHz) | 0.1 | 78 | 39 | 19.5 | 19.5 | 19.5 |
-| Array-output EVM (%) | **1.08** | 4.11 | 3.38 | 3.37 | 3.37 | 3.36 |
-| Highest supportable QAM | **64QAM** | QPSK | 16QAM | 16QAM | 16QAM | 16QAM |
-| Static offset to calibrate (wraps) | 8.0 | **6.4** | 47.9 | **6.4** | **6.4** | **6.4** |
-| Risk | medium | high | high | **low** | medium | medium |
+| Metric | A1 Local PLL | A2 HF foldback | A3 Daisy chain | **A4 Mid + ×4** | A5 Stabilised link | A6 Injection lock | A7 Radial feed |
+|:---|---:|---:|---:|---:|---:|---:|---:|
+| Residual inter-tile φ (°) | 3.139 | 0.212 | 0.249 | **0.147** | 0.770 | 2.235 | 2.249 |
+| — irreducible phase-noise part (°) | 3.137 | 0.193 | 0.235 | 0.104 | 0.104 | **0.086** | 0.089 |
+| — drift left after BIST (°) | 0.107 | 0.086 | 0.078 | 0.086 | 0.761 | 2.232 | 0.032 |
+| — port-mismatch coupling (°) | — | — | — | — | — | — | 2.246 |
+| Null-depth floor (dB) | −39.2 | −62.6 | −61.2 | **−65.8** | −51.4 | −42.2 | −42.1 |
+| Distribution loss, worst path (dB) | **1.0** | 62.9 | 45.7 | 36.5 | 36.5 | 36.5 | 22.5 |
+| — on the mean path (dB) | **1.0** | 60.6 | 31.5 | 35.4 | 35.4 | 35.4 | 22.5 |
+| Repeater amplifiers | **0** | 51 | 9 | 32 | 32 | 32 | 50 |
+| Distribution power (W) | 10.85 | 10.12 | 9.89 | 9.96 | 11.08 | **9.36** | 10.11 |
+| Share of array budget (%) | 11.4 | 10.7 | 10.4 | 10.5 | 11.7 | **9.8** | 10.6 |
+| Frequency on the board (GHz) | 0.1 | 78 | 39 | 19.5 | 19.5 | 19.5 | 19.5 |
+| Array-output EVM (%) | **1.08** | 4.11 | 3.38 | 3.37 | 3.37 | 3.36 | 3.37 |
+| Highest supportable QAM | **64QAM** | QPSK | 16QAM | 16QAM | 16QAM | 16QAM | 16QAM |
+| Static offset to calibrate (wraps) | 8.0 | 6.4 | 47.9 | 6.4 | 6.4 | 6.4 | **0.4** |
+| Risk | medium | high | high | **low** | medium | medium | medium |
 
-Every option clears the 5.00° inter-tile spec except A1, which fails on
-per-tile oscillator phase noise, and A6, which fails on the temperature drift
-of its locked phase offset unless the tanks are trimmed. A4 wins the metric
-the decision turns on by 1.4× over its nearest competitor.
+Every option clears the 5.00° inter-tile spec at these defaults. A1 comes
+closest to failing it, with 1.6× margin, on per-tile oscillator phase noise.
+A6 and A7 clear it by 2.2× on error terms no other option has: the
+temperature drift of A6's locked phase offset, which trimming the tanks
+shrinks, and the load-dependent port-mismatch coupling of A7's radial
+junction. A2 passes the spec but is gated out of the ranking as not
+realisable, because its E-band distribution loss is extreme. A4 wins the
+metric the decision turns on by 1.4× over its nearest competitor.
 
 > The residual column moved materially in the September audit: the
 > phase-shifter LSB had been counted at the tile level as well as the element
@@ -89,7 +95,7 @@ the decision turns on by 1.4× over its nearest competitor.
 > tile-level figure — it still reaches the beam through the element term —
 > the architectures separate. See the audit notes in the honesty ledger.
 
-All four **pass** the 5° coherence spec. The choice is therefore about margin,
+All seven **pass** the 5° coherence spec. The choice is therefore about margin,
 board cost and risk — not about one option failing outright.
 
 ## 3. Why A4
@@ -122,10 +128,10 @@ choosing A4, and it is a judgement call, not a numerical knockout. If the link
 budget turns out to demand 64QAM and nulling turns out not to matter, A1 is the
 better answer and the tool will say so.
 
-**Among the three shared-LO options, A4 wins on the board.** A2, A3 and A4 sit
-at 0.212°, 0.249° and 0.147° — a spread of 1.7× on a quantity all three clear
-by 20× or better, so coherence does not separate them and the decision falls to
-loss, power and risk:
+**Among the three shared-LO options from the proposal, A4 wins on the
+board.** A2, A3 and A4 sit at 0.212°, 0.249° and 0.147° — a spread of 1.7× on
+a quantity all three clear by 20× or better, so coherence does not separate
+them and the decision falls to loss, power and risk:
 
 - A2 puts 78 GHz on 45 cm of routed line at 0.872 dB/cm — 60.6 dB total,
   needing 51 repeater amplifiers. Every one is a separate SiGe die on the board.
@@ -153,7 +159,23 @@ accumulates 47.9 wraps of static offset against 6.4 for the tree, which turns
 the integer ambiguity into a real estimation problem. And one dead buffer
 disables every tile downstream.
 
-## 4. A constraint that applies to all four, and changes the chip partition
+**Why not the radial feed (A7).** It is the one option that removes the
+path-delay spread outright: one N-way junction at the centre and every run
+meander-equalised to the 16.97 cm corner radius, so the static offset to
+calibrate falls to 0.4 wraps against 6.4 for the tree, and the shared
+source's correlated noise no longer leaks into the inter-tile differential.
+The price is the junction, which has no isolation resistors: each tile port's
+mismatch is redistributed to all the others as a load-dependent phase error
+that BIST does not track and no LUT holds, because it moves whenever a
+neighbour's match changes. At a 1.5:1 port match that term alone is 2.246°,
+which puts A7's residual at 2.249° and its null floor at −42.1 dB, 23.7 dB
+short of A4. Routing every tile at the longest length also costs 50 repeaters
+against the tree's 32 and 10.11 W against 9.96 W, although the single
+junction leaves a lower worst-path loss, 22.5 dB against 36.5. Only an
+essentially perfect match turns it round: at 1.0:1 A7 reaches 0.110° against
+A4's 0.147°, but at 1.1:1 the coupling term is already 0.535°.
+
+## 4. A constraint that applies to every option, and changes the chip partition
 
 A 78 GHz gain stage is **not realisable in TSMC 65 nm LP CMOS** (f_max/f ≈ 1.9).
 A four-stage CMOS chain reaches roughly 0 dBm saturated; the already-taped-out
@@ -192,14 +214,14 @@ hardware map draws whichever one is selected.
 | Share of TTD range consumed (%) | 69 | 316 | **12** |
 | Geometric skew after coarse TTD (ps) | **21.7** | 1872 | **21.7** |
 | Band-averaged squint loss (dB) | **0.027** | 11.2 | 0.029 |
-| Net insertion loss (dB) | 16.0 | 17.0 | **1.8** |
-| Noise-figure penalty (dB) | 1.20 | 0.75 | **0.26** |
-| −3 dB bandwidth (GHz) | **4.0** | 0.15 | 3.5 |
-| Power per tile, both rails (mW) | 554 | **178** | 477 |
+| Net insertion loss (dB) | 13.0 | 10.6 | **1.8** |
+| Noise-figure penalty (dB) | 0.64 | 0.18 | **0.13** |
+| −3 dB bandwidth (GHz) | **4.0** | 0.25 | 3.5 |
+| Power per tile, both rails (mW) | 362 | 306 | **237** |
 | Delay drift (°/K) | **0.002** | 0.030 | 0.050 |
 
 **B2 is eliminated twice over.** Its capacitive loading grows with channel
-count and the bandwidth collapses to 0.15 GHz against a 1 GHz rail; and its
+count and the bandwidth collapses to 0.25 GHz against a 1 GHz rail; and its
 2738 ps inter-tile ramp is 1872 ps **beyond the coarse TTD's entire range**,
 leaving 11.2 dB of band-averaged squint loss. It routes the least wire of the
 three and that is its only virtue.
@@ -215,42 +237,49 @@ What separates them is what fraction of that range each spends on its own
 geometry rather than on steering the beam: **69 % for the star against 12 % for
 the H-tree**. The 867 ps exists because a 30 cm aperture at 60° needs it for
 steering; handing two-thirds of it to the combiner's own arm mismatch is the
-real cost of a star. Add 16.0 dB of insertion loss against 1.8 dB, 2.5× the
-routed wire, and 554 mW against 477 mW — because the passive network needs a
+real cost of a star. Add 13.0 dB of insertion loss against 1.8 dB, 2.5× the
+routed wire, and 362 mW against 237 mW — because the passive network needs a
 strong TX-direction driver fighting the whole tree — and B3 wins on the network.
 
 B1's genuine advantage is stability: 0.002 °/K against 0.050 °/K, and no
-linearity penalty against B3's 7.0 dB cascaded IIP3 cost. The noise-figure
+linearity penalty against B3's 6.0 dB cascaded IIP3 cost. The noise-figure
 argument usually made for active combining is close to vacuous here — with
-30 dB of RFIC gain ahead of it even the passive network costs only 1.20 dB — so
+30 dB of RFIC gain ahead of it even the passive network costs only 0.64 dB — so
 do not lead with it.
 
 **B4 current-mode ties B3 on the weighted score, and the tie is informative.**
-The tool ranks B4 at 0.832 against B3's 0.831 — a lead of 0.001 on a 0–1 scale,
+The tool ranks B3 at 0.872 against B4's 0.861 — a lead of 0.011 on a 0–1 scale,
 where shifting 0.01 of weight between two criteria can move a gap by 0.02. The
-tool therefore reports the two as **tied** rather than crowning B4, which is the
-honest reading. B4 is best understood as B1's flat star with current-mode
-summing instead of a resistive one: it keeps the star's short answer to loss
-(0.9 dB) and noise (0.01 dB), pays no cascaded-IIP3 penalty at all against B3's
-7.0 dB, drifts at 0.020 °/K against 0.050, and costs 440 mW per tile against
-477 — but it also inherits the star's geometry, consuming **69 % of the coarse
-TTD range** on its own arm mismatch against the H-tree's 12 %.
+tool therefore reports the two as **tied** rather than crowning B3, which is the
+honest reading. Behind them come B1 at 0.800, B5 (digitise at the tile) at
+0.512, its baseband taking 42.1 W or 44 % of the array budget (25.6 W of that
+in the converters alone), and B2 at 0.339. B4 is best understood as B1's flat
+star with current-mode summing instead of a resistive one: it keeps the star's
+short answer to loss (0.9 dB) and noise (0.01 dB), pays no cascaded-IIP3
+penalty at all against B3's 6.0 dB, and drifts at 0.020 °/K against 0.050, at
+248 mW per tile against 237 — but it also inherits the star's geometry,
+consuming **69 % of the coarse TTD range** on its own arm mismatch against the
+H-tree's 12 %.
 
 That last line is the tiebreaker, and it is one the weighted score does not
 carry: TTD-range consumption is not one of the five criteria. So the ranking is
 right to call it a tie, and the argument two paragraphs above — the 867 ps
 exists for steering, not for absorbing the combiner's own geometry — is what
-decides it. **Take B3.** Keep B4 as the first alternative rather than B1: it
-dominates B1 on every axis where B1 was the fallback, so if the H-tree's PVT
-drift or linearity on first silicon disappoints, B4 is the better place to go.
+decides it. **Take B3.** Keep B4 as the first alternative rather than B1:
+against B1 it keeps the clean linearity and beats it on loss (0.9 against
+13.0 dB), noise (0.01 against 0.64 dB) and power (248 against 362 mW), giving
+up bandwidth (2.5 against 4.0 GHz) and B1's near-zero drift (0.020 against
+0.002 °/K, still under the H-tree's 0.050). So if the H-tree's linearity or
+PVT drift on first silicon disappoints, B4 is the better place to go; only a
+drift problem worse than B4's would send it back to B1.
 Two constraints must be
 stated in the specification regardless of choice:
 
 1. At baseband, B1 means a **resistive** network. A Wilkinson passes no DC and
    its arms would need ~8 nH at 1 GHz — 5 mm² at 64 ports, larger than the die.
 2. A baseband delay is a **group-delay** error at the rail edge, not a phase
-   error at 78 GHz: 6.7 ps of skew is 2.41° at 1 GHz, not 188°. The BIST must
-   measure group delay across the baseband span; a single-tone phase
+   error at 78 GHz: B3's 22.5 ps of skew is 8.09° at 1 GHz, not 631°. The
+   BIST must measure group delay across the baseband span; a single-tone phase
    measurement cannot distinguish a delay error from a phase error at all.
 
 Decide the **impedance regime per tier before** choosing among B1/B2/B3 —
@@ -267,7 +296,7 @@ topology choice, and the λ/10 test decides it.
   1, or if the loop bandwidth can be pushed to several MHz, A1 closes the
   coherence gap and its modularity, zero repeaters and 64QAM capability win.
 - **Whether 64QAM is required.** A1 is the only option reaching it at these
-  defaults. If the link budget demands it, that alone can outweigh the 12 dB of
+  defaults. If the link budget demands it, that alone can outweigh the 27 dB of
   coherence margin — widen the carrier-recovery bandwidth in the tool and see
   where the crossover lands before deciding.
 - **Achievable E-band line loss.** A2 is ruled out at 0.872 dB/cm. SIW or WR-12
@@ -339,7 +368,7 @@ describing.
 
 **4. The TTD step is an architectural parameter, and it is set by the
 quantisation lobe, not by the squint loss.** §1 justifies the 75 ps step on
-loss: it costs 0.007 dB. That is true and it is the wrong criterion. The
+loss: it costs 0.027 dB. That is true and it is the wrong criterion. The
 quantisation residual e_t = Δτ·round(τ_t/Δτ) − τ_t is deterministic, exactly
 zero at broadside, and common to a whole tile column when scanning in one
 plane — so it averages by 5, not 25, and scatters into the scan plane. Swept

@@ -330,7 +330,7 @@
     'error of that kind. It costs A7 24 dB of null floor against A4 and is the whole of the trade.',
     '- **Coupled-oscillator arrays, standing-wave/resonant networks, two-tone difference-frequency LO, reference ' +
     'multiplexed onto the baseband or power interconnect, per-tile DDS, SYSREF-only synchronisation.** All real ' +
-    'techniques; none distinct enough at this scale to earn a column against A1–A6.',
+    'techniques; none distinct enough at this scale to earn a column against A1–A7.',
     '- **Fully digital per element** (800 converters rather than 100). The limiting case of B5, and it loses by the ' +
     'same argument by a factor of eight.',
     '- **Frequency-division-multiplexed IF over one coax, delta-sigma bitstream distribution, transformer ' +

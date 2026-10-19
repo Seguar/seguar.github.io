@@ -1,10 +1,19 @@
 # Inline assets/style.css and every js/*.js into one self-contained HTML file.
 #
-# The multi-file site in the repo root IS the GitHub Pages site and needs no
-# build step. This script only produces dist/index.html, a single-file copy for
-# opening straight off disk (file:// blocks nothing) or pasting elsewhere.
+# The multi-file page in this folder IS the published tool (it is served from
+# /eband-distribution/ on seguar.github.io, a branch deploy) and needs no build
+# step. This script produces dist/index.html, an optional single-file copy for
+# opening straight off disk (file:// blocks nothing) or pasting elsewhere, and
+# dist/artifact.html, the same page without its document wrapper for an
+# artifact host (gitignored, never committed). Both still link the IBM Plex
+# fonts from Google Fonts, as index.html does; offline they fall back to the
+# system fonts in the --sans/--mono stacks.
 #
+# Run it from this folder:
 #   pwsh ./build-standalone.ps1
+# Windows PowerShell 5.1 works too, but where the execution policy refuses
+# unsigned local scripts (it does on the machine this is built on) it needs:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File .\build-standalone.ps1
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -14,12 +23,20 @@ $root = $PSScriptRoot
 # of this file gets mangled before it ever runs.
 #
 # Encoding matters here for the same reason. Get-Content defaults to ANSI for
-# files with no BOM, and every source file in this project is UTF-8 without
-# one, so a bare Get-Content turns U+00D7 (bytes C3 97) into two Latin-1
-# characters and Out-File then re-encodes that mangled pair as UTF-8, which is
-# how doubly-encoded text ends up in the bundle. Always read with UTF8, and
-# write with a BOM-less UTF8Encoding: Out-File -Encoding utf8 emits a BOM on
-# 5.1, which would land mid-document inside the artifact fragment.
+# files with no BOM, and every source file in this project is UTF-8, all but
+# index.html without one, so a bare Get-Content turns U+00D7 (bytes C3 97) into
+# two Latin-1 characters and Out-File then re-encodes that mangled pair as
+# UTF-8, which is how doubly-encoded text ends up in the bundle. Always read
+# with UTF8 (ReadAllText consumes index.html's BOM, so it is not copied into
+# the output), and write with a BOM-less UTF8Encoding: Out-File -Encoding utf8
+# emits a BOM on 5.1, which would land mid-document inside the artifact
+# fragment.
+#
+# And insert the sources LITERALLY. -replace and Regex.Replace read $&, $1, $$
+# and the like in the replacement string as substitution tokens, and the
+# sources contain them: glossary.js escapeRe ends in '\\$&', which came out as
+# '\\</body>', so dist never marked a glossary term with a regex metacharacter
+# in it, L(f) among them.
 function Read-Utf8([string]$path) {
   return [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
 }
@@ -31,7 +48,10 @@ $html = Read-Utf8 (Join-Path $root 'index.html')
 
 # --- inline the stylesheet -------------------------------------------------
 $css = Read-Utf8 (Join-Path $root 'assets/style.css')
-$html = $html -replace '<link rel="stylesheet" href="assets/style\.css">', ("<style>`n" + $css + "`n</style>")
+$link = '<link rel="stylesheet" href="assets/style.css">'
+$at = $html.IndexOf($link, [System.StringComparison]::Ordinal)
+if ($at -lt 0) { throw 'No <link rel="stylesheet" href="assets/style.css"> tag found in index.html' }
+$html = $html.Substring(0, $at) + "<style>`n" + $css + "`n</style>" + $html.Substring($at + $link.Length)
 
 # --- inline the scripts, in document order --------------------------------
 $rx = [regex]'<script src="js/([^"]+)"></script>'
@@ -47,9 +67,12 @@ foreach ($m in $matches) {
   [void]$bundle.AppendLine((Read-Utf8 $path))
 }
 
-# replace the first script tag with the bundle, drop the rest
+# drop every script tag, then insert the bundle once, just before the last
+# </body> (a splice, not a replace: see the note on substitution tokens above)
 $html = $rx.Replace($html, { param($m) '' })
-$html = $html -replace '(?s)</body>', ("<script>`n" + $bundle.ToString() + "`n</script>`n</body>")
+$end = $html.LastIndexOf('</body>', [System.StringComparison]::OrdinalIgnoreCase)
+if ($end -lt 0) { throw 'No </body> found in index.html' }
+$html = $html.Substring(0, $end) + "<script>`n" + $bundle.ToString() + "`n</script>`n" + $html.Substring($end)
 
 $outDir = Join-Path $root 'dist'
 New-Item -ItemType Directory -Force $outDir | Out-Null

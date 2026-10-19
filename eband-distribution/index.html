@@ -30,6 +30,11 @@
 
 <header class="top">
   <div class="inner">
+    <!-- Way back to the site this tool lives on. Absolute, because the same
+         markup ships in dist/index.html, which may be opened off disk or
+         served one folder deeper, and in the artifact fragment: no relative
+         href is right in all three. -->
+    <a class="home" href="https://seguar.github.io/">seguar.github.io</a>
     <h1>E-Band Distribution Comparison Tool</h1>
     <span class="sub">LO / reference distribution &amp; baseband split-combine &mdash; 71&ndash;86&nbsp;GHz tiled array</span>
     <nav>
@@ -46,6 +51,10 @@
       <a href="#" class="navlink" data-view="link">Link calculator</a>
       <a href="#" class="navlink" data-view="chooser">Chooser</a>
       <a href="#" class="navlink" data-view="method">Method</a>
+      <!-- The same home link for phones, where the breadcrumb above would take
+           a header row of its own; style.css shows one or the other. Not a
+           .navlink, so the view router leaves it alone. -->
+      <a class="navhome" href="https://seguar.github.io/">seguar.github.io</a>
       <button id="themeBtn" type="button" title="Toggle light / dark">&#9788;</button>
     </nav>
   </div>

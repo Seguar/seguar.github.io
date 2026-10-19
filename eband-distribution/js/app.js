@@ -44,12 +44,20 @@
      with two identical legend swatches. A1 against A6 is the comparison the
      phase-noise view exists to make.
 
-     The dash pattern is the second channel: six overlapping L(f) curves
+     The dash pattern is the second channel: seven overlapping L(f) curves
      separated by hue alone are unreadable printed, projected, or with
      deuteranopia. Index i gets DASHES[i], so the pairs that are closest in
-     hue are never also closest in stroke. */
-  var SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
-  var DASHES = [null, '6 3', null, '2 3', '9 3 2 3', '4 2'];
+     hue are never also closest in stroke.
+
+     ONE entry per LO_META option, in its order. A7 was added to the model
+     while both arrays still had six, so SERIES[6] was undefined: the radial
+     feed's curves and legend swatches drew with no stroke at all, and its
+     sweep markers and compare bars fell back to the SVG default black, near
+     invisible on the dark theme. --s7 is orchid, the hue family the other six
+     leave free, and its long dash keeps it apart from A3, its nearest hue,
+     which is solid. */
+  var SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)'];
+  var DASHES = [null, '6 3', null, '2 3', '9 3 2 3', '4 2', '12 4'];
 
   var TILE_METRICS = [
     { key: 'skewPs', label: 'skew vs array mean (ps)' },
@@ -203,8 +211,8 @@
     /* Carry the view too. loadState has always decoded `_v`, but syncHash
        encoded only the parameter overrides, so every link the student sent
        opened on the Hardware map however carefully they had navigated to the
-       chart they wanted to show. The map is the default, so it is omitted and
-       links stay short. */
+       chart they wanted to show. The default view (DEFAULT_VIEW, now the Start
+       page) is omitted by withView, so links stay short. */
     var s = X.encodeState(withView(overrides()));
     history.replaceState(null, '', s ? '#' + s : location.pathname + location.search);
   }
@@ -3778,8 +3786,15 @@
   /* ---------------------------------------------------------------------
      head-to-head charts
      ------------------------------------------------------------------- */
+  /* One colour per saved system, and the realistic shortlist loads nine.
+     With eight, --accent (byte-identical to --s1) and the wrap gave Anchor,
+     Top rung and Radial feed the same bar colour. --pass and --warn are out:
+     --warn sits 3.6 from --s6 in OKLab on the light theme, and --pass would
+     read as a verdict. The two inks are neutral and sit at least 8.7 from
+     every other entry in both themes, wider than the series palette's own
+     closest pair (7.5). */
   var SYS_COLORS = ['var(--s1)', 'var(--s2)', 'var(--s4)', 'var(--s3)', 'var(--s5)',
-    'var(--accent)', 'var(--pass)', 'var(--warn)'];
+    'var(--s6)', 'var(--s7)', 'var(--ink-2)', 'var(--ink-3)'];
 
   function renderSysCharts(entries, flats) {
     var mount = document.getElementById('sysChartsMount');

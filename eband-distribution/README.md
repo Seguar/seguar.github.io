@@ -21,8 +21,10 @@ Built for the candidacy deliverable *"Distribution comparison tool — September
 of **New Hardware Architectures and Hybrid OTA + BIST Calibration for Large
 E-Band Massive MIMO Arrays** (S. Efimov, adviser Prof. E. Cohen, Technion HFIC).
 
-> **Live tool:** enable GitHub Pages for this repository (Settings → Pages →
-> *Source: GitHub Actions*) and it deploys from `main` with no build step.
+> **Live tool:** <https://seguar.github.io/eband-distribution/>. It is the
+> `eband-distribution/` folder of the `seguar.github.io` repository, which
+> GitHub Pages publishes as a branch deploy from `main` — no workflow file and
+> no build step.
 
 ---
 
@@ -38,6 +40,7 @@ E-Band Massive MIMO Arrays** (S. Efimov, adviser Prof. E. Cohen, Technion HFIC).
 | `mid-mult`    | Mid-frequency LO distribution + per-tile ×M multiplier |
 | `stabilised-link` | Mid-frequency tree **with a return path**: the master reads twice the one-way path phase and pre-corrects it, so the line cancels its own drift |
 | `inj-lock`    | Injection-locked tile oscillator — no PFD, no charge pump, no divider, and a lock corner hundreds of MHz wide |
+| `radial-feed` | Radial equal-path feed: one N-way junction at the centre, every run meander-equalised to the corner radius, so the path-delay spread is zero — paid for in copper and in a load-dependent port-mismatch error, because the junction has no isolation resistors |
 
 **Family B — baseband split/combine**
 
@@ -49,13 +52,27 @@ E-Band Massive MIMO Arrays** (S. Efimov, adviser Prof. E. Cohen, Technion HFIC).
 | `current-mode`  | Virtual-ground current summing — one node, one TIA per rail, the impedance regime rather than another topology |
 | `digital-tile`  | Digitise at the tile and send bits: no analog inter-tile tier at all |
 
+**Family C — antenna arrangement behind each RF port**
+
+| id | Architecture |
+|:---|:---|
+| `single-patch`   | One package patch per RF channel — the original assumption |
+| `cross-column`   | A 1×K patch column across the scan plane, fed from one channel through a fixed tree |
+| `square-cluster` | A Kx×Ky patch cluster behind one port, pitch swept up to spanning the whole cell |
+| `board-radiator` | One wider-band radiator per channel on its own board, reached through an E-band transition |
+
+The die is taped out with 4 RF channels per direction, so family C cannot
+change the port count, the port lattice or the grating lobes; it changes the
+element pattern, its directivity and how much of each cell actually radiates.
+
 A1–A4 and B1–B3 are the candidates from the proposal. A5, A6, B4 and B5 were
-added after a deliberate sweep of the wider design space; the Method tab lists
-what else was considered — photonic LO, space-fed illumination, radial feeds,
-coupled oscillators, per-tile DDS, fully-digital-per-element and others — and
-why each is *not* a column. "We costed it and it lost" is a different statement
-from "we did not think of it," and only the first is worth anything in a
-defence.
+added after a deliberate sweep of the wider design space, and A7 after the
+radial feed's original rejection turned out not to survive reading the code
+(the honesty ledger on the Assumptions tab records why). The same section
+lists what else was considered — photonic LO, space-fed illumination, coupled
+oscillators, per-tile DDS, fully-digital-per-element and others — and why each
+is *not* a column. "We costed it and it lost" is a different statement from
+"we did not think of it," and only the first is worth anything in a defence.
 
 ## What it reports
 
@@ -108,6 +125,12 @@ enforced explicitly and are visible in the Method tab:
 
 ## The views
 
+Thirteen, in the order of the bar at the top. Glossary terms such as L(f),
+TTD or "wraps" are marked at their first occurrence in each block of text or
+table; click one for its definition.
+
+- **Start** — the landing page: the three families, the live verdict, and
+  three ways in (Decision, Hardware map, Compare) by what you came to do.
 - **Hardware map** — the floorplan, with **both** distribution tiers drawn on
   the one aperture:
   - the **LO / reference** tier enters from the source below and lands at each
@@ -122,19 +145,34 @@ enforced explicitly and are visible in the Method tab:
   Toggle either layer, colour the tiles by phase error, skew, path loss or
   power, and click any tile to inspect both tiers for it — routed length, tree
   level or chain hop, repeaters in path, loss, skew, phase error and power.
-  Below: the intra-tile baseband network drawn for one tile's 32 channels, a
-  live cost strip, and a hardware bill of materials with block counts and
-  per-block power taken from the drawn topology.
-- **Compare** — the full metric tables, M1–M6, for all eleven options.
-- **Phase noise** — three L(f) overlays: absolute per tile, inter-tile
-  differential (the curve that decides the architecture), and array-output
-  (where uncorrelated noise has averaged down by 10log10 N).
+  Below: the intra-tile baseband network drawn for one tile's channels (16 at
+  the defaults: 4 baseband dies × 4 IQ channels), a live cost strip, and a
+  hardware bill of materials with block counts and per-block power taken from
+  the drawn topology.
+- **Inside a tile** — one tile cropped from the same drawing, with an
+  every-tier inspector; its baseband dies and RFIC die drawn to one scale;
+  the baseband die's blocks from the bill of materials; and the intra-tile
+  baseband network.
+- **Compare** — the full metric tables for all sixteen options: the seven LO
+  options against M1–M6, the five baseband options, and the four antenna
+  arrangements. Above them, the live recommendation and what the selected
+  build is good and bad at; below, headline bar charts.
+- **Phase noise** — three L(f) overlays for all seven LO options: absolute per
+  tile, inter-tile differential (the curve that decides the architecture), and
+  array-output (where uncorrelated noise has averaged down by 10log10 N); plus
+  integrated phase error and jitter.
+- **TX / RX beam** — what the selected build does to the beam: pattern and
+  statistics, the full 2-D grating-lobe map, the in-tile lattice, both
+  principal planes over the hemisphere, the main beam zoomed (mean pattern
+  against one realisation), squint across the signal band, and what the
+  pattern leaves out.
 - **Sweeps** — multiplication factor, PLL loop bandwidth, BIST update rate,
-  tile count, length tolerance, aperture.
+  tile count, length tolerance (as correction range), aperture.
 - **Decision** — the written recommendation, regenerated from the live numbers,
   with the scoring weights shown as the editable judgement they are.
 - **Assumptions** — every parameter and every block with its provenance and
-  confidence label, plus the honesty ledger.
+  confidence label, plus the honesty ledger, which also records the design
+  space that was considered and deliberately left out.
 - **Systems** — several *whole parameter sets* side by side. Name a
   configuration in the main window, press **Save system**, change things,
   save again; this view puts one column per saved system across the LO,
@@ -155,7 +193,19 @@ enforced explicitly and are visible in the Method tab:
   so a configuration demanding more LO taps than there are dies is marked
   *inconsistent* in its own column instead of quietly reporting inflated
   power and area.
-- **Method** — the equations, and the three rules the model enforces.
+
+  **Load the realistic shortlist** replaces the saved set with nine curated
+  architectures spanning the LO, baseband, antenna and RF-bandwidth axes,
+  each chosen to show something no other one does.
+- **Link calculator** — the selected build in front of a real path: a
+  verdict, the link budget line by line with every term derived, range in
+  clear air and in rain, what each constellation needs, and what the
+  calculator does not model.
+- **Chooser** — state the constraints and it searches every combination of
+  LO, baseband and antenna, ranks the survivors by *one* objective you pick
+  (never a blend), shows what each constraint killed, and plots the trade
+  between link margin and beam coherence.
+- **Method** — the equations and the three rules the model enforces.
 
 ## Repository layout
 
@@ -168,26 +218,36 @@ js/topology.js        the physical construction of each network — ONE generato
                       feeding both the map and the numbers
 js/lattice.js         the 2-D element lattice, its grating-lobe set, and the
                       element-pattern models
-js/model.js           global parameters, block library, reference-clock menu,
-                      and the seven option evaluations
+js/model.js           global parameters, block library, reference-clock menu;
+                      the LO (A1–A7), baseband (B1–B5) and antenna (C1–C4)
+                      evaluations, the link budget, consistency checks, the
+                      Chooser's search and the self-test
 js/systems.js         saved systems: storage, serialisation, evaluation cache
+js/shortlist.js       the nine curated architectures the Systems view loads
 js/budget.js          derivation of the requirement the options are judged on
+js/beam.js            the beam pattern of the selected build: lobes, errors,
+                      squint
 js/decision.js        the written recommendation, with live numbers
 js/diagram.js         the interactive hardware map, inspector and BOM
 js/charts.js          dependency-free inline-SVG plotting
 js/ui.js              parameter panel, tables, provenance ledger
 js/export.js          permalink state, CSV / Markdown export
+js/glossary.js        term definitions, marked in the text and opened on click
 js/content.js         method and honesty-ledger prose
 js/app.js             state, routing, rendering
 DECISION.md           the written decision, standalone
 build-standalone.ps1  optional: inline everything into dist/index.html
+dist/index.html       the generated single-file copy
 ```
 
-No build step, no dependencies, no network calls — the repo root **is** the
-site. Serve it with any static server, or run `build-standalone.ps1` to inline
-everything into a single `dist/index.html` you can open straight off disk
-(browsers block `<script src>` from `file://` in some contexts, which is the
-only reason that script exists).
+No build step and no JavaScript dependencies: this folder **is** the page,
+published at `/eband-distribution/` on seguar.github.io. Its only network
+dependency is the IBM Plex fonts, loaded from Google Fonts; offline it falls
+back to system fonts. Serve the folder with any static server, or run
+`build-standalone.ps1` to inline the stylesheet and scripts into an optional
+single `dist/index.html` you can open straight off disk (browsers block
+`<script src>` from `file://` in some contexts, which is the only reason that
+script exists). The copy still takes its fonts from Google Fonts.
 
 ## Reproducibility
 
