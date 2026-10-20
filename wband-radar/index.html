@@ -4104,6 +4104,13 @@ text-decoration:underline dotted;text-underline-offset:3px}
 </div>
 <div class="m3" id="m3d">
   <div class="toolbar m3-ctl" id="m3d-ctl" hidden>
+    <div class="m3-grp"><span class="m3-lbl" id="m3d-arr-l">Arrays</span>
+      <div class="seg" role="radiogroup" id="m3d-arr" aria-labelledby="m3d-arr-l">
+        <button type="button" role="radio" aria-checked="false" data-m3-arr="a8">8 × 8</button>
+        <button type="button" role="radio" aria-checked="true" data-m3-arr="a12">8 × 12</button>
+        <button type="button" role="radio" aria-checked="false" data-m3-arr="a16">16 × 16</button>
+        <button type="button" role="radio" aria-checked="false" data-m3-arr="a32">32 × 32</button>
+      </div></div>
     <div class="m3-grp"><span class="m3-lbl" id="m3d-shell-l">Shell</span>
       <div class="seg" role="radiogroup" id="m3d-shell" aria-labelledby="m3d-shell-l">
         <button type="button" role="radio" aria-checked="true" data-m3-shell="on">On</button>
@@ -4144,18 +4151,18 @@ text-decoration:underline dotted;text-underline-offset:3px}
   <div class="m3-legs">
     <div class="m3-legw">
       <ol class="m3-leg">
-        <li data-k="1"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Dome</button>: a λ/2 polycarbonate cap (0.92 mm), inner R 90 mm, rim Ø96, smoked; a thin metallised strip runs along the septum line.</li>
+        <li data-k="1"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Dome</button>: a λ/2 polycarbonate cap (0.92 mm), inner R <span data-m3-arr-t="capr">90</span> mm, rim Ø<span data-m3-arr-t="rim">96</span>, smoked; a thin metallised strip runs along the septum line.</li>
         <li data-k="2"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>White top ring and dark liner</button>: the ring holds the dome on an O-ring with two screws; the liner is cosmetic, as in a camera.</li>
-        <li data-k="3"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>TX aperture</button>: 8 × 12 tiles at x = −15.7 mm; the patch plane sits 13.9 mm below the dome apex.</li>
-        <li data-k="4"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>RX aperture</button>: 8 × 12 tiles at x = +15.7 mm, four 24-tile quadrants.</li>
+        <li data-k="3"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>TX aperture</button>: <span data-m3-arr-t="size">8 × 12</span> tiles at x = −<span data-m3-arr-t="ax">15.7</span> mm; the patch plane sits <span data-m3-arr-t="sag">13.9</span> mm below the dome apex.</li>
+        <li data-k="4"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>RX aperture</button>: <span data-m3-arr-t="size">8 × 12</span> tiles at x = +<span data-m3-arr-t="ax">15.7</span> mm, four <span data-m3-arr-t="quad">24</span>-tile quadrants.</li>
         <li data-k="5"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Arched septum fin and absorber</button>: the fin follows the dome to about 0.5 mm, with absorber on both faces.</li>
-        <li data-k="6"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>W-band disc back (Ø90)</button>: chirp synthesizer under its can, the two LO trees, IF LNAs, beam CPLD and the 1.2 V POL in the bottom segment.</li>
-        <li data-k="7"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Six blind-mate SMPM and the control header</button>: 4 IF, dechirp LO and REF in across the 8 mm gap.</li>
+        <li data-k="6"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>W-band disc back (Ø<span data-m3-arr-t="d1">90</span>)</button>: chirp synthesizer under its can, the two LO trees, IF LNAs, beam CPLD and the 1.2 V POL in the bottom segment.</li>
+        <li data-k="7"><button type="button" class="m3-legbtn" aria-pressed="false" disabled><span data-m3-arr-t="b7">Six blind-mate SMPM and the control header</span></button>: 4 IF, dechirp LO and REF in across the 8 mm gap<span data-m3-arr-t="t7"></span>.</li>
         <li data-k="8"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>X-band disc</button>: four RF front ends under cans and 2 × LMS8001 on the front; LA1214, clock cleaner, OCXO and MCU on the back.</li>
         <li data-k="9"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Shared spreader</button>: one 4 mm aluminium plate; the LA1214 presses into it from above, the i.MX 95 from below; the mezzanine passes through a cut-out.</li>
         <li data-k="10"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>L3 compute side</button>: i.MX 95 (19 × 19 mm), one LPDDR5, eMMC, PF09 PMIC and the 2.5GBASE-T PHY.</li>
         <li data-k="11"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>L3 power side</button>: PoE++ Type 3 PD, planar transformer of the isolated 12 V converter, bulk capacitors and the PMBus sequencer; a 2.2 mm slot isolates the PoE primary.</li>
-        <li data-k="12"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Body</button>: die-cast aluminium, white powder coat, Ø100 × 44 mm with the back plate; optional ribs to Ø116 mm for heat are not shown.</li>
+        <li data-k="12"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Body</button>: die-cast aluminium, white powder coat, Ø<span data-m3-arr-t="od">100</span> × 44 mm with the back plate; optional ribs to Ø<span data-m3-arr-t="rib">116</span> mm for heat are not shown.</li>
         <li data-k="13"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Back plate</button>: 4 mm aluminium mounting face with the cable gland, the 0.3 m pigtail to an M12 X-coded plug (shown shortened), the test port under a screw cap and the thermal pad.</li>
         <li data-k="14"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Mount</button>: a flat wall plate or a 30° aluminium wedge under a ceiling plate; it is also the heat path.</li>
       </ol>
@@ -4235,6 +4242,39 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <tr><td>Service</td><td>rear cap off, discs slide out</td><td>dome and top ring off, the stack lifts out as one</td></tr>
 </tbody></table></div>
 <p class="note">B keeps the W-band and X-band electronics, the <a href="#freq">frequency plan</a>, beams, monopulse, i.MX 95 and LA1214, so a single frame performs the same; only the frame rate and the mechanical isolation remedies differ.</p>
+<h3 id="dome-sizes">Other array sizes</h3>
+<p>The same dome takes the other arrays of the array pictures: 8 × 8, 16 × 16 and 32 × 32 tiles per aperture, TX and RX side by side at 3.30 mm with the 5 mm gap. Pick one with <b>Arrays</b> in the 3D view: the W-band disc, the body and the cap grow, while the X-band and compute + power discs stay Ø90 mm behind it (Ø84 for 8 × 8).</p>
+<div class="tbl"><table>
+<thead><tr><th>Per aperture</th><th>8 × 8</th><th>8 × 12 (built above)</th><th>16 × 16</th><th>32 × 32</th></tr></thead>
+<tbody>
+<tr><td>Tiles, TX + RX</td><td class="n">2 × 64</td><td class="n">2 × 96</td><td class="n">2 × 256</td><td class="n">2 × 1024</td></tr>
+<tr><td>Aperture</td><td class="n">26.4 × 26.4 mm</td><td class="n">26.4 × 39.6 mm</td><td class="n">52.8 × 52.8 mm</td><td class="n">105.6 × 105.6 mm</td></tr>
+<tr><td>W-band disc / unit</td><td class="n">Ø84 / Ø94 × 59 mm</td><td class="n">Ø90 / Ø100 × 59 mm</td><td class="n">Ø144 / Ø154 × 64 mm</td><td class="n">Ø262 / Ø272 × 76 mm</td></tr>
+<tr><td>Volume</td><td class="n">0.41 L</td><td class="n">0.46 L</td><td class="n">1.19 L</td><td class="n">4.42 L</td></tr>
+<tr><td>Gain at 95 GHz</td><td class="n">27.2 dBi</td><td class="n">29.0 dBi</td><td class="n">33.3 dBi</td><td class="n">39.3 dBi</td></tr>
+<tr><td>Beam, el × az</td><td class="n">6.0° × 6.0°</td><td class="n">4.0° × 6.0°</td><td class="n">3.0° × 3.0°</td><td class="n">1.5° × 1.5°</td></tr>
+<tr><td>Angle noise at 16 dB SNR, el / az</td><td class="n">0.48° / 0.47°</td><td class="n">0.32° / 0.47°</td><td class="n">0.24° / 0.23°</td><td class="n">0.12° / 0.12°</td></tr>
+<tr><td>SNR for 0.2°, el / az</td><td class="n">23.5 / 23.3 dB</td><td class="n">20.0 / 23.3 dB</td><td class="n">17.5 / 17.3 dB</td><td class="n">11.5 / 11.3 dB</td></tr>
+<tr><td>Range at the same SNR</td><td class="n">0.74 ×</td><td class="n">1</td><td class="n">2.1 ×</td><td class="n">5.9 ×</td></tr>
+<tr><td>EIRP</td><td class="n">≈ 47 dBm</td><td class="n">≈ 50 dBm</td><td class="n">≈ 59 dBm</td><td class="n">≈ 71 dBm</td></tr>
+<tr><td>LO amplifiers / tiles per IF quadrant</td><td class="n">18 / 16</td><td class="n">18 / 24</td><td class="n">34 / 64</td><td class="n">66 / 256</td></tr>
+<tr><td>Nominal input at 100 % duty</td><td class="n">49 W</td><td class="n">61 W</td><td class="n">119 W</td><td class="n">398 W</td></tr>
+<tr><td>Heat at +35 K, ribbed body on a metal mount</td><td class="n">≈ 27 W</td><td class="n">≈ 30 W</td><td class="n">≈ 61 W</td><td class="n">≈ 166 W</td></tr>
+<tr><td>Nominal frame duty that fits</td><td class="n">≈ 22 %</td><td class="n">≈ 23 %</td><td class="n">≈ 41 %</td><td class="n">≈ 39 %</td></tr>
+<tr><td>Supply at that duty</td><td>PoE++ Type 3</td><td>PoE++ Type 3</td><td>PoE++ Type 4</td><td>48 V DC; a fan is likely</td></tr>
+<tr><td>Basis</td><td><span class="tag t-i">inference</span></td><td><span class="tag t-c">confirmed</span></td><td><span class="tag t-i">inference</span></td><td><span class="tag t-i">inference</span></td></tr>
+</tbody></table></div>
+<p class="note">Scaled from the full-wave 8 × 12 results: gain with the tile count, beamwidth and angle noise with the inverse aperture, range with N<sup>¾</sup> (transmit power, transmit gain and receive gain all grow with N), EIRP with N² at +1.5 dBm per tile. The 8 × 8 gain matches the CST array-factor model of the 3.30 mm tile (27.4 dBi); 16 × 16 and 32 × 32 were never solved. Unit sizes keep the cap incidence at or below 23° and a 5.3 mm rim; heat uses the model of the table below, scaled with the body.</p>
+<div class="verdict"><p><b>16 × 16 is the smallest array that nearly meets the 0.2° target</b>: 0.24° / 0.23° at 16 dB, and 0.2° at about 17.5 dB of SNR, in a Ø154 × 64 mm dome on PoE++ Type 4 at about 40 % frame duty. 32 × 32 meets it with margin (0.12°), but it is a Ø272 mm unit that draws about 400 W at full duty and needs 48 V DC. 8 × 8 saves only 6 mm of diameter over 8 × 12, for 1.8 dB less gain and half the elevation resolution.</p></div>
+<details class="more"><summary>Scaling notes</summary><div class="more-b">
+<ul class="open">
+<li><span class="tag t-i">inference</span><span><b>Grating lobes do not change.</b> They are set by the 3.30 mm pitch, not the array size, so ±10° stays the scan limit for every configuration; bigger arrays only make the lobes narrower.</span></li>
+<li><span class="tag t-i">inference</span><span><b>The LA1214 does not change.</b> Every size still reads out four IF quadrants, so the X-band disc, the dechirp and the four channels stay the same; only the 24:1 combiners become 16:1, 64:1 or 256:1.</span></li>
+<li><span class="tag t-i">inference</span><span><b>Heat density stays the same.</b> The tiles dissipate about 1.15 W/cm² at every size; what grows is the total, from 24 W of tile heat at 8 × 12 to 256 W at 32 × 32.</span></li>
+<li><span class="tag t-o">open</span><span><b>Long LO trees and deep combiners.</b> At 32 × 32 the LO paths span more than 100 mm and must still match to about 1 mm; the 256:1 IF combiner adds loss before the IF LNA.</span></li>
+<li><span class="tag t-o">open</span><span><b>Isolation of the larger arrays.</b> Only the 8 × 12 twin was simulated; the facing columns carry most of the coupling, so a larger array spreads the same edge coupling over more tiles, but this needs a CST check.</span></li>
+</ul>
+</div></details>
 <h3>Dome radome</h3>
 <p>A boresight ray meets the cap at the angle whose sine is r/R. At the outermost tile corner (r = 35.0 mm) that is 22.9° for R 90, 35.7° for R 60 and about 44° for a true hemisphere over the aperture. The λ/2 wall is tuned for normal incidence and reflects more as the angle grows.</p>
 <p>A camera-like hemisphere is also a mirror: with its centre of curvature on the aperture plane it images the TX array (x = −15.7) onto the RX array (x = +15.7), a focused path on top of the 21.8–23.5 dB <a href="#iso">isolation shortfall</a>. The R 90 cap is a weak diverging mirror (f = 45 mm, source 14.9 mm away, virtual image 22 mm behind the cap), so its reflection spreads.</p>
@@ -7295,6 +7335,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
       }
     }
     api.setCamName = function (n) { setCam(n, true); };
+    api.labelAria = function () { if (labelsEl) labelAria(); };
     init();
   }
 
@@ -7484,8 +7525,6 @@ text-decoration:underline dotted;text-underline-offset:3px}
   var HOLES = [[32.53, 32.53], [-32.53, 32.53], [-32.53, -32.53], [32.53, -32.53]];
   var IFQ = [{ q: 'UL', x: 9.1, y: 9.9 }, { q: 'UR', x: 22.3, y: 9.9 }, { q: 'LL', x: 9.1, y: -9.9 }, { q: 'LR', x: 22.3, y: -9.9 }];
   var LO_OUT = [-10, 38], REF_IN = [10, 38];
-  function colX(a, i) { return a + (i - 3.5) * 3.3; }
-  function rowY(j) { return (j - 5.5) * 3.3; }
   function quadCol(q) { return { UL: TOK.rf, UR: TOK.clk, LL: TOK.card, LR: TOK.ctl }[q]; }
   /* back-side layout of the W-band disc: option A (Ø110) is the default; option B passes its Ø90 re-pack (WL_D) */
   var WL_A = { r: 55, holes: HOLES, holeTxt: 'r = 46 mm at 45°', holeLand: 3.0, land: 51.5, synth: 34, split: 42.2, amp: 31, tree: [28.6, 27.6, 26.7],
@@ -7495,6 +7534,10 @@ text-decoration:underline dotted;text-underline-offset:3px}
   /* km: callout numbers for the parts; o: { septH, arch(y) → septum top, layout, standoffs, anchors: {key: k} } */
   function buildWDisc(V, km, o) {
     var L = o.layout || WL_A, R = L.r, TR = L.tree;
+    /* array size: 8 × 12 at x = ±15.7 unless the layout says otherwise (the dome's array configurations) */
+    var NC = L.cols || 8, NR = L.rows || 12, AX = L.ax || 15.7, AW = NC * 3.3, AH = NR * 3.3, IQ = L.ifq || IFQ, NT = NC * NR;
+    function cX(a, i) { return a + (i - (NC - 1) / 2) * 3.3; }
+    function rY(j) { return (j - (NR - 1) / 2) * 3.3; }
     var K = V.kit(), g = new T.Group(), front = new T.Group(), pcb = new T.Group(), back = new T.Group();
     g.add(front); g.add(pcb); g.add(back);
     var out = { group: g, front: front, pcb: pcb, back: back, anchors: {}, standoffs: [] };
@@ -7516,7 +7559,8 @@ text-decoration:underline dotted;text-underline-offset:3px}
     var disc = discGeo(R, WD_T, L.holes.map(function (h) { return { x: h[0], y: h[1], r: 1.7 }; }), 0.15, 64);
     disc.translate(0, 0, -WD_T);
     mesh(K.g(disc), K.mat('mask', 0), 0, 0, 0, pcb, L.name);
-    mesh(K.box(64.5, 46.3, 0.03), K.mat('enig', 0), 0, 0, 0.015, front, 'Common ground plate, 64.5 × 46.3 mm (ENIG)');
+    var PW = L.plate ? L.plate[0] : 64.5, PH = L.plate ? L.plate[1] : 46.3;
+    mesh(K.box(PW, PH, 0.03), K.mat('enig', 0), 0, 0, 0.015, front, 'Common ground plate, ' + PW.toFixed(1) + ' × ' + PH.toFixed(1) + ' mm (ENIG)');
     var land = ringGeo(L.land, R - 0.2, 0.03, 64);
     mesh(K.g(land), K.mat('enig', km.holes), 0, 0, ZB - 0.03, back, 'Clamp-ring land: bare rim for the clamp ring and the heat path');
     var hr = K.g(ringGeo(1.7, L.holeLand, 0.03, 24)), hl = [];
@@ -7527,8 +7571,8 @@ text-decoration:underline dotted;text-underline-offset:3px}
     var slabGeo = K.box(3.24, 3.24, 0.535), padGeo = K.box(0.75, 0.75, 0.03), gapGeo = K.box(3.0, 3.0, 0.335);
     function aperture(a, kk, rx) {
       var slabs = [], frames = [], pats = [], gaps = [], quads = [];
-      for (var i = 0; i < 8; i++) for (var j = 0; j < 12; j++) {
-        var x = colX(a, i), y = rowY(j), q = (j >= 6 ? 'U' : 'L') + (i < 4 ? 'L' : 'R');
+      for (var i = 0; i < NC; i++) for (var j = 0; j < NR; j++) {
+        var x = cX(a, i), y = rY(j), q = (j >= NR / 2 ? 'U' : 'L') + (i < NC / 2 ? 'L' : 'R');
         var nm = rx ? 'RX tile R(' + i + ', ' + j + '), quadrant ' + q : 'TX tile T(' + i + ', ' + j + ')';
         slabs.push({ p: [x, y, 0.6025], n: nm, c: TOK.tile });
         quads.push(q);
@@ -7544,8 +7588,8 @@ text-decoration:underline dotted;text-underline-offset:3px}
       inst(gapGeo, K.mat('black', kk), gaps, front);
       return sm;
     }
-    aperture(-15.7, km.tx, false);
-    out.rxSlabs = aperture(15.7, km.rx, true);
+    aperture(-AX, km.tx, false);
+    out.rxSlabs = aperture(AX, km.rx, true);
     out.setQuad = function (on) {
       var im = out.rxSlabs, c = new T.Color();
       im.userData.quads.forEach(function (q, i) {
@@ -7555,7 +7599,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
       im.instanceColor.needsUpdate = true;
     };
     /* septum with absorber on both faces */
-    var sh = o.septH || 5;
+    var sh = o.septH || 5, SY = L.rows ? AH / 2 + 1.2 : 21;
     if (o.arch) {   // arched fin: the top follows the dome; the shape lies in (y, z) and is extruded along x
       var ash = function (y0, y1, dz) {
         var s = new T.Shape(), n = 24;
@@ -7564,10 +7608,10 @@ text-decoration:underline dotted;text-underline-offset:3px}
         return s;
       };
       var rot = new T.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);
-      var sg = extrude([ash(-21, 21, 0)], 4, 0, 8); sg.applyMatrix4(rot); sg.translate(-2, 0, 0);
+      var sg = extrude([ash(-SY, SY, 0)], 4, 0, 8); sg.applyMatrix4(rot); sg.translate(-2, 0, 0);
       sh = o.arch(0);
       mesh(K.g(sg), K.mat('alu', km.septum), 0, 0, 0, front, 'Septum: grounded aluminium fin, 4 mm wide, arched to ≈ 0.5 mm under the dome');
-      var ag = extrude([ash(-20.8, 20.8, 0.3)], 0.4, 0, 8); ag.applyMatrix4(rot);
+      var ag = extrude([ash(0.2 - SY, SY - 0.2, 0.3)], 0.4, 0, 8); ag.applyMatrix4(rot);
       ag = K.g(ag);
       [-2.4, 2.0].forEach(function (x) { mesh(ag, K.mat('absorb', km.septum), x, 0, 0.03, front, 'W-band absorber on the septum face'); });
     } else {
@@ -7586,28 +7630,26 @@ text-decoration:underline dotted;text-underline-offset:3px}
     lines([[[ref[0] - 2.1, ref[1]], [6, ref[1]]]], 0.3, km.synth, 'copper', '100 MHz reference from the X-band disc');
     /* LO trees: split → root amplifier → equal-length 1:8 H-tree → 8 column drivers → via into the 1:12 column tree */
     [-1, 1].forEach(function (s) {
-      var xc = 15.7 * s, kk = s < 0 ? km.txlo : km.rxlo, W = s < 0 ? 'TX' : 'RX', paths = [], nodes = [], drv = [], dots = [];
+      var xc = AX * s, kk = s < 0 ? km.txlo : km.rxlo, W = s < 0 ? 'TX' : 'RX', paths = [], nodes = [], drv = [], dots = [];
       paths.push(L.arm ? [[6 * s, L.arm], [xc, L.arm], [xc, L.amp + 1.5]] : [[0, L.split], [xc, L.split], [xc, L.amp + 1.5]]);
-      paths.push([[xc, L.amp - 1.5], [xc, TR[0]]], [[xc - 6.6, TR[0]], [xc + 6.6, TR[0]]]);
-      nodes.push([xc, TR[0]]);
-      [-6.6, 6.6].forEach(function (d1) {
-        var x1 = xc + d1;
-        paths.push([[x1, TR[0]], [x1, TR[1]]], [[x1 - 3.3, TR[1]], [x1 + 3.3, TR[1]]]);
-        nodes.push([x1, TR[1]]);
-        [-3.3, 3.3].forEach(function (d2) {
-          var x2 = x1 + d2;
-          paths.push([[x2, TR[1]], [x2, TR[2]]], [[x2 - 1.65, TR[2]], [x2 + 1.65, TR[2]]]);
-          nodes.push([x2, TR[2]]);
-          [-1.65, 1.65].forEach(function (d3) { paths.push([[x2 + d3, TR[2]], [x2 + d3, L.drv + 1.2]]); });
+      paths.push([[xc, L.amp - 1.5], [xc, TR[0]]]);
+      /* binary H-tree, depth first: level lv splits each node ±AW / 2^(lv+2); the last level ends at the column drivers */
+      (function split(x0, lv) {
+        var d = AW / 4 / Math.pow(2, lv), ty = TR[lv];
+        paths.push([[x0 - d, ty], [x0 + d, ty]]);
+        nodes.push([x0, ty]);
+        [-d, d].forEach(function (dd) {
+          if (lv < TR.length - 1) { paths.push([[x0 + dd, ty], [x0 + dd, TR[lv + 1]]]); split(x0 + dd, lv + 1); }
+          else paths.push([[x0 + dd, ty], [x0 + dd, L.drv + 1.2]]);
         });
-      });
-      for (var i = 0; i < 8; i++) {
-        var cx = colX(xc, i);
-        drv.push({ p: [cx, L.drv, ZB - 0.425], n: W + ' column driver ' + (i + 1) + ' (HMC1082-class), feeds the 1:12 column tree of column ' + (i + 1) });
+      })(xc, 0);
+      for (var i = 0; i < NC; i++) {
+        var cx = cX(xc, i);
+        drv.push({ p: [cx, L.drv, ZB - 0.425], n: W + ' column driver ' + (i + 1) + ' (HMC1082-class), feeds the 1:' + NR + ' column tree of column ' + (i + 1) });
         paths.push([[cx, L.drv - 1.2], [cx, L.drv - 2.1]]);
-        dots.push({ p: [cx, L.drv - 2.1, ZB - 0.02], n: W + ' column ' + (i + 1) + ': via into the 1:12 stripline tree' });
+        dots.push({ p: [cx, L.drv - 2.1, ZB - 0.02], n: W + ' column ' + (i + 1) + ': via into the 1:' + NR + ' stripline tree' });
       }
-      lines(paths, 0.35, kk, 'rfline', W + ' LO tree: equal-length 1:8 splitter (all 96 paths matched within ≈ 1 mm)');
+      lines(paths, 0.35, kk, 'rfline', W + ' LO tree: equal-length 1:' + NC + ' splitter (all ' + NT + ' paths matched within ≈ 1 mm)');
       part(3, 3, 0.9, xc, L.amp, kk, W + ' LO root amplifier (HMC441-class), about +13 dBm out');
       inst(K.box(0.7, 0.4, 0.3), K.mat('cap', kk), nodes.map(function (n) { return { p: [n[0], n[1], ZB - 0.15], n: 'Wilkinson split (resistor and λ/4 arms not drawn)' }; }), back);
       inst(K.box(2.4, 2.4, 0.85), K.mat('chip', kk), drv, back);
@@ -7615,20 +7657,21 @@ text-decoration:underline dotted;text-underline-offset:3px}
     });
     /* IF: combiner root via, LNA, SMPM per quadrant */
     var smB = [], smC = [], smBase = [], lna = [], ifp = [], ifv = [];
-    IFQ.forEach(function (q) {
+    IQ.forEach(function (q) {
       var sy = q.y > 0 ? 1 : -1;
       lna.push({ p: [q.x, q.y + 3.6 * sy, ZB - 0.425], n: 'IF LNA, quadrant ' + q.q + ' (HMC902-class)' });
       ifp.push([[q.x, q.y + 5.8 * sy], [q.x, q.y + 4.6 * sy]], [[q.x, q.y + 2.6 * sy], [q.x, q.y + 1.6 * sy]]);
-      ifv.push({ p: [q.x, q.y + 5.8 * sy, ZB - 0.02], n: '24:1 IF combiner root, quadrant ' + q.q + ' (combiner on inner layers)' });
+      ifv.push({ p: [q.x, q.y + 5.8 * sy, ZB - 0.02], n: (NT / 4) + ':1 IF combiner root, quadrant ' + q.q + ' (combiner on inner layers)' });
     });
     function smpm(x, y, n) {
       smBase.push({ p: [x, y, ZB - 0.25], n: n });
       smB.push({ p: [x, y, ZB - 0.5 - 1.5], n: n });
       smC.push({ p: [x, y, ZB - 3.55], n: n });
     }
-    IFQ.forEach(function (q) { smpm(q.x, q.y, 'SMPM: IF out, quadrant ' + q.q + ', blind-mate to the X-band disc'); });
-    smpm(lo[0], lo[1], 'SMPM: dechirp LO out (RFoutB) to the X-band disc');
-    smpm(ref[0], ref[1], 'SMPM: 100 MHz REF in from the X-band disc');
+    var viaJ = L.jumpers ? ' through a flexible jumper' : '';
+    IQ.forEach(function (q) { smpm(q.x, q.y, 'SMPM: IF out, quadrant ' + q.q + (L.jumpers ? ', to the X-band disc' + viaJ : ', blind-mate to the X-band disc')); });
+    smpm(lo[0], lo[1], 'SMPM: dechirp LO out (RFoutB) to the X-band disc' + viaJ);
+    smpm(ref[0], ref[1], 'SMPM: 100 MHz REF in from the X-band disc' + viaJ);
     lines(ifp, 0.3, km.iflna, 'rfline', 'IF path: combiner root → LNA → SMPM');
     inst(K.box(2, 2, 0.85), K.mat('chip', km.iflna), lna, back);
     inst(K.g(cylZ(0.35, 0.04, 12)), K.mat('copper', km.iflna), ifv, back);
@@ -7641,12 +7684,13 @@ text-decoration:underline dotted;text-underline-offset:3px}
     var sel = [];
     [-1, 1].forEach(function (s) {
       for (var t = 0; t < 6; t++) {
-        var y = L.cpld + 2.8 - t * 1.0, x = s * (9.5 + t * 0.9);
+        var y = L.cpld + 2.8 - t * 1.0, x = s * ((L.selX0 || 9.5) + t * 0.9);
         sel.push([[s * 3.5, y], [x, y], [x, L.selTop]]);
       }
     });
-    for (var t = 0; t < 4; t++) sel.push([[-1.5 + t, L.cpld - 3.5], [-1.5 + t, L.b2b + 2.5]]);
-    lines(sel, 0.2, km.cpld, 'copper', 'ROW / COL select and serial lines (12 + 8 per array, shared CLK / D / RST / EN)');
+    var hUp = L.b2b > L.cpld ? 1 : -1;   // the header below the CPLD (default) or above it
+    for (var t = 0; t < 4; t++) sel.push([[-1.5 + t, L.cpld + 3.5 * hUp], [-1.5 + t, L.b2b - 2.5 * hUp]]);
+    lines(sel, 0.2, km.cpld, 'copper', 'ROW / COL select and serial lines (' + NR + ' + ' + NC + ' per array, shared CLK / D / RST / EN)');
     var hdTex = canvasTex(K, 520, 100, function (x, W, H) {
       x.fillStyle = '#1f2427'; x.fillRect(0, 0, W, H);
       x.fillStyle = '#0f1214';
@@ -7654,8 +7698,14 @@ text-decoration:underline dotted;text-underline-offset:3px}
     });
     part(26, 5, 4.5, 0, L.b2b, km.b2b, 'Board-to-board header, 2 × 30 pins: SPI ×2, trigger / SYNC, enable, I²C, 12 V', 'black', K.printed('black', km.b2b, hdTex, 5));
     /* 1.2 V POLs: on the side lenses (Ø110) or in the bottom segment (Ø90) */
-    var ind = [], reg = [], cap = [], nInd = '1.2 V POL inductor (multiphase, ≈ 25 A for both arrays)';
-    [-1, 1].forEach(function (s) {
+    var ind = [], reg = [], cap = [], nInd = L.polTxt || '1.2 V POL inductor (multiphase, ≈ 25 A for both arrays)';
+    if (L.pol) L.pol.hx.forEach(function (hx) {   // half-groups (2 inductors, 1 controller, 2 capacitors) at x = hx in the lower segment
+      var s = hx < 0 ? -1 : 1, y0 = L.pol.y;
+      [-2.8, 2.8].forEach(function (d) { ind.push({ p: [hx + d, y0, ZB - 1.5], n: nInd }); });
+      reg.push({ p: [hx - s * 2.1, y0 - 6.3, ZB - 0.45], n: '1.2 V POL controller' });
+      [1.9, 4.0].forEach(function (d) { cap.push({ p: [hx + s * d, y0 - 5.1, ZB - 0.4], n: 'Output capacitor' }); });
+    });
+    else [-1, 1].forEach(function (s) {
       if (L.side) {
         [-6, 6].forEach(function (y) { ind.push({ p: [s * 38, y, ZB - 1.5], n: nInd }); });
         reg.push({ p: [s * 44.5, 0, ZB - 0.45], n: '1.2 V POL controller' });
@@ -7670,20 +7720,26 @@ text-decoration:underline dotted;text-underline-offset:3px}
     inst(K.box(4, 4, 0.9), K.mat('chip', km.pol), reg, back);
     inst(K.box(1.6, 0.8, 0.8), K.mat('cap', km.pol), cap, back);
     /* silkscreen on the back, read from behind */
-    var silk = backDecal(K, 2 * R, 2 * R, 9, function (x, s) {
+    var silk = backDecal(K, 2 * R, 2 * R, Math.min(9, 1600 / (2 * R)), function (x, s) {
       function X(v) { return (R - v) * s; } function Y(v) { return (R - v) * s; }
+      var fk = s / 9;   // the same text size in mm on every disc
       x.fillStyle = TOK.silk; x.strokeStyle = TOK.silk; x.lineWidth = 2; x.textAlign = 'center'; x.textBaseline = 'middle';
-      if (L.side) { x.font = font(30, 700); x.fillText('L1 · W-BAND DISC', X(0), Y(-48.5)); }
+      if (L.side) { x.font = font(30 * fk, 700); x.fillText('L1 · W-BAND DISC', X(0), Y(-48.5)); }
+      else if (L.title) { x.font = font(22 * fk, 700); x.fillText('L1 · W-BAND DISC', X(L.title[0]), Y(L.title[1])); }
       else { x.save(); x.translate(X(-36.2), Y(0)); x.rotate(-Math.PI / 2); x.font = font(22, 700); x.fillText('L1 · W-BAND DISC', 0, 0); x.restore(); }
-      x.font = font(19, 600);
-      x.fillText('TX LO', X(-15.7), Y(L.loTxt)); x.fillText('RX LO', X(15.7), Y(L.loTxt));
+      x.font = font(19 * fk, 600);
+      x.fillText('TX LO', X(-AX), Y(L.loTxt)); x.fillText('RX LO', X(AX), Y(L.loTxt));
       x.fillText('LO OUT', X(lo[0]), Y(lo[1] + L.smTxt)); x.fillText('REF IN', X(ref[0]), Y(ref[1] + L.smTxt));
-      IFQ.forEach(function (q) { x.fillText('IF ' + q.q, X(q.x + 4.6), Y(q.y)); });
-      x.fillText('BEAM CPLD', X(0), Y(L.cpld + 5.4));
-      var pt = L.side ? [41, -17] : [19.6, -26.8];
-      x.fillText('1V2', X(-pt[0]), Y(pt[1])); x.fillText('1V2', X(pt[0]), Y(pt[1]));
-      x.fillText('TX', X(-15.7), Y(-4)); x.fillText('RX', X(15.7), Y(-4));
-      x.strokeRect(X(32.25), Y(23.15), 64.5 * s, 46.3 * s);
+      IQ.forEach(function (q) { x.fillText('IF ' + q.q, X(q.x + 4.6), Y(q.y)); });
+      x.fillText('BEAM CPLD', X(0), Y(L.cpldTxt !== undefined ? L.cpldTxt : L.cpld + 5.4));
+      if (L.pol) L.pol.hx.forEach(function (hx) { x.fillText('1V2', X(hx), Y(L.pol.y + 4.4)); });
+      else {
+        var pt = L.side ? [41, -17] : [19.6, -26.8];
+        x.fillText('1V2', X(-pt[0]), Y(pt[1])); x.fillText('1V2', X(pt[0]), Y(pt[1]));
+      }
+      var ty = L.txy !== undefined ? L.txy : -4;
+      x.fillText('TX', X(-AX), Y(ty)); x.fillText('RX', X(AX), Y(ty));
+      x.strokeRect(X(PW / 2), Y(PH / 2), PW * s, PH * s);
     });
     silk.position.z = ZB - 0.04;
     back.add(silk);
@@ -7696,10 +7752,13 @@ text-decoration:underline dotted;text-underline-offset:3px}
       });
     }
     /* anchors */
-    A('tx', front, -15.7, 12, 0.95); A('rx', front, 15.7, 12, 0.95); A('septum', front, 0, -14, (o.arch ? o.arch(-14) : sh) + 0.02);
-    A('synth', back, 0, L.synth, ZB - 3.05); A('txlo', back, -22.3, TR[0], ZB - 0.1); A('rxlo', back, 22.3, TR[0], ZB - 0.1);
-    A('iflna', back, 22.3, -13.5, ZB - 0.9); A('smpm', back, 9.1, -9.9, ZB - 3.65); A('cpld', back, 0, L.cpld, ZB - 1.05);
-    if (L.side) A('pol', back, -38, 6, ZB - 3.05); else A('pol', back, -22.4, -31.2, ZB - 3.05);
+    var aY = L.rows ? AH * 0.3 : 12, sY = L.rows ? 5.8 - AH / 2 : -14;
+    A('tx', front, -AX, aY, 0.95); A('rx', front, AX, aY, 0.95); A('septum', front, 0, sY, (o.arch ? o.arch(sY) : sh) + 0.02);
+    A('synth', back, 0, L.synth, ZB - 3.05); var loX = L.cols ? AX + AW / 4 : 22.3;
+    A('txlo', back, -loX, TR[0], ZB - 0.1); A('rxlo', back, loX, TR[0], ZB - 0.1);
+    A('iflna', back, IQ[3].x, IQ[3].y - 3.6, ZB - 0.9); A('smpm', back, IQ[2].x, IQ[2].y, ZB - 3.65); A('cpld', back, 0, L.cpld, ZB - 1.05);
+    if (L.pol) A('pol', back, Math.min.apply(null, L.pol.hx) - 2.8, L.pol.y, ZB - 3.05);
+    else if (L.side) A('pol', back, -38, 6, ZB - 3.05); else A('pol', back, -22.4, -31.2, ZB - 3.05);
     A('b2b', back, 0, L.b2b, ZB - 4.55); A('holes', front, L.holes[3][0], L.holes[3][1], 0.05);
     return out;
   }
@@ -8029,7 +8088,6 @@ text-decoration:underline dotted;text-underline-offset:3px}
   }
 
   /* ===== Viewer C: option B, the compact dome (unit frame: boresight +z, y up, patch plane z = 0; mm) ===== */
-  var DOME_R = 90, DOME_RIM = 48, DOME_ZC = 1 - Math.sqrt(DOME_R * DOME_R - DOME_RIM * DOME_RIM);   // cap centre z ≈ −75.1, inner apex +14.9
   var DH4 = [[40, 0], [0, 40], [-40, 0], [0, -40]], T30 = Math.tan(30 * DEG), GLAND = [-22, -34], TPORT = [22, 22];
   var WL_D = { r: 45, holes: DH4, holeTxt: 'r = 40 mm on 0 / 90 / 180 / 270°', holeLand: 2.4, land: 42.5, synth: 32.2, arm: 31.3, amp: 28.6,
     tree: [26.6, 25.8, 25.0], drv: 23.0, lo: [-10, 37], ref: [10, 37], cpld: -26.5, selTop: -21.5, b2b: -33.5, side: false, loTxt: 34.6, smTxt: 4.4,
@@ -8042,12 +8100,65 @@ text-decoration:underline dotted;text-underline-offset:3px}
   };
   var KM_DOME = { tx: 3, rx: 4, septum: 5, synth: 6, txlo: 6, rxlo: 6, iflna: 6, smpm: 7, cpld: 6, pol: 6, b2b: 7, holes: 0 };
   var BUL_D = IFQ.map(function (q) { return [q.x, q.y, 'IF ' + q.q]; }).concat([[-10, 37, 'dechirp LO'], [10, 37, 'REF in']]);
+  /* array-size configurations (TX and RX the same size, 5 mm gap, 3.30 mm pitch). Only L1, the body, top ring, liner, cap, back plate
+     and mount scale; L2 / L3 stay the Ø90 boards (Ø84 for 8 × 8). r1 L1 disc, rb body, rr top-ring inner, r2 L2/L3, hole L1 holes */
+  var DOME_CFG = {
+    a8: { key: 'a8', cols: 8, rows: 8, r1: 42, rb: 47, rr: 45, capR: 81, hole: 37, r2: 42, lbl: '8 × 8', sagT: '13.6' },
+    a12: { key: 'a12', cols: 8, rows: 12, r1: 45, rb: 50, rr: 48, capR: 90, hole: 40, r2: 45, lbl: '8 × 12' },
+    a16: { key: 'a16', cols: 16, rows: 16, r1: 72, rb: 77, rr: 75, capR: 157, hole: 67, r2: 45, lbl: '16 × 16' },
+    a32: { key: 'a32', cols: 32, rows: 32, r1: 131, rb: 136, rr: 134, capR: 308, hole: 126, r2: 45, lbl: '32 × 32' }
+  };
+  function holes4(h) { return [[h, 0], [0, h], [-h, 0], [0, -h]]; }
+  /* L1 back-side layout for a configuration (8 × 12 keeps the built Ø90 re-pack WL_D) */
+  function domeLayout(c) {
+    if (c.key === 'a12') return WL_D;
+    var W = c.cols * 3.3, H = c.rows * 3.3, ax = 2.5 + W / 2, pt = H / 2 + 3.35, n = Math.round(Math.log(c.cols) / Math.LN2), tree = [];
+    var drv = pt - 0.15;
+    for (var k = 0; k < n; k++) tree.push(drv + 2 + (n - 1 - k) * 0.8);
+    var amp = tree[0] + 2, arm = amp + 2.7, synth = arm + 0.9, b2b = c.r2 < 45 ? -30.5 : -33.5, cpld = -(pt + 3.35), selTop = -(H / 2 + 1.7);
+    if (Math.abs(cpld - b2b) < 8) cpld = b2b - 8;
+    var hx = [], grp = c.cols >= 32 ? [ax - W / 4, ax + W / 4] : c.cols >= 16 ? [ax] : null;
+    if (grp) grp.forEach(function (g) { hx.push(g - 5.6, g + 5.6, 5.6 - g, -g - 5.6); }); else hx = [-19.6, 19.6];
+    return { r: c.r1, holes: holes4(c.hole), holeTxt: 'r = ' + c.hole + ' mm on 0 / 90 / 180 / 270°', holeLand: 2.4, land: c.r1 - 2.5,
+      synth: synth, arm: arm, amp: amp, tree: tree, drv: drv, lo: [-10, synth + 4.8], ref: [10, synth + 4.8], cpld: cpld, selTop: selTop, b2b: b2b,
+      selX0: b2b > cpld && b2b < selTop ? 14.5 : 9.5, cpldTxt: b2b > cpld ? cpld - 5.4 : cpld + 5.4, side: false, loTxt: synth + 2.4, smTxt: 4.4,
+      cols: c.cols, rows: c.rows, ax: ax, plate: [2 * W + 11.7, H + 6.7], title: [-ax, -H / 4], txy: 0, jumpers: c.r2 >= 45,
+      ifq: [{ q: 'UL', x: ax - W / 4, y: H / 4 }, { q: 'UR', x: ax + W / 4, y: H / 4 }, { q: 'LL', x: ax - W / 4, y: -H / 4 }, { q: 'LR', x: ax + W / 4, y: -H / 4 }],
+      pol: { y: cpld - 4.7, hx: hx }, polTxt: '1.2 V POL inductor (multiphase' + (grp ? ', ' + grp.length * 2 + ' groups, one per half-aperture)' : ')'),
+      name: 'W-band disc L1: Ø' + 2 * c.r1 + ' × 2.0 mm, low-loss laminate stack-up' };
+  }
+  /* derived numbers of a configuration: cap, sizes, texts */
+  function domeCfg(key) {
+    var c = DOME_CFG[key] || DOME_CFG.a12;
+    if (c.L) return c;
+    c.L = domeLayout(c);
+    c.zc = 1 - Math.sqrt(c.capR * c.capR - c.rr * c.rr);
+    c.sag = c.capR - Math.sqrt(c.capR * c.capR - c.rr * c.rr);
+    c.ht = Math.round(43.1 + 1 + c.sag + 0.92);
+    c.ax = c.L.ax || 15.7;
+    c.n = c.cols * c.rows;
+    c.what = 'Compact dome, ' + c.lbl + ' arrays: Ø' + 2 * c.rb + ' × ' + c.ht + ' mm, ' +
+      (c.r1 === c.r2 ? 'three Ø' + 2 * c.r1 + ' mm discs' : 'L1 Ø' + 2 * c.r1 + ' mm, L2/L3 Ø' + 2 * c.r2 + ' mm');
+    var j = !!c.L.jumpers;
+    c.txt = { capr: String(c.capR), rim: String(2 * c.rr), size: c.lbl, ax: c.ax.toFixed(1), sag: c.sagT || c.sag.toFixed(1), quad: String(c.n / 4),
+      d1: String(2 * c.r1), od: String(2 * c.rb), rib: String(2 * c.rb + 16),
+      b7: j ? 'Six SMPM jumpers and the control header' : 'Six blind-mate SMPM and the control header',
+      t7: j ? ' from the jacks on the larger W-band disc to the Ø90 X-band disc; four 8 mm stand-offs carry that disc' : '' };
+    c.names = { 1: 'dome: λ/2 polycarbonate cap, R ' + c.capR + ' mm', 3: 'TX aperture, ' + c.lbl, 6: 'W-band disc back (Ø' + 2 * c.r1 + ')',
+      7: j ? 'six SMPM jumpers and the control header' : 'six SMPM and the control header',
+      12: 'body: white aluminium, Ø' + 2 * c.rb + ' × 44 mm' };
+    return c;
+  }
   /* view presets: wall mount (boresight horizontal); on the wedge the unit hangs under a ceiling plate, so the presets follow the unit */
   var CAM_WALL = { iso: [38, -14, 32], front: [0, 2, 32], side: [90, 2, 32], top: [0, 89.4, 32], back: [180, 2, 32] };
   var CAM_WEDGE = { iso: [32, -26, 32], front: [0, -58, 32], side: [90, 2, 32], top: [0, 30, 32], back: [180, 58, 32] };
 
   function buildDome(V) {
     var K = V.kit(), st = V.st, root = new T.Group(), U = new T.Group(), groups = [], anchors = {}, lastE = 0;
+    /* the array configuration: L1, body, ring, liner, cap, back plate and mount scale; L2 / L3 stay Ø90 (Ø84 for 8 × 8) */
+    var C = domeCfg(st.arr), L1 = C.L, RB = C.rb, RR = C.rr, R1 = C.r1, R2 = C.r2, CR = C.capR, ZC = C.zc, BO = RB - 4, kS = RB / 50, STD = R2 >= 45;
+    var GL = [GLAND[0] * kS, GLAND[1] * kS], TP = [TPORT[0] * kS, TPORT[1] * kS];
+    Object.keys(C.names).forEach(function (k) { DOME_NAMES[k] = C.names[k]; });
     root.add(U);
     var model = { root: root, anchors: anchors, tags: [], dims: [], occTol: 1.2 };
     function grp(off) { var g = new T.Group(); g.userData.off = off; U.add(g); groups.push(g); return g; }
@@ -8059,87 +8170,118 @@ text-decoration:underline dotted;text-underline-offset:3px}
     function parts(g, z0, s, kk, list) {
       list.forEach(function (p) { box(g, p[2], p[3], p[4], p[0], p[1], z0 + s * p[4] / 2, p[5], kk, p[6], p[7] ? K.printed(p[5], kk, p[7], s > 0 ? 4 : 5) : null); });
     }
-    var DH = DH4.map(function (h) { return { x: h[0], y: h[1], r: 1.7 }; });
+    var DH = (STD ? DH4 : holes4(C.hole)).map(function (h) { return { x: h[0], y: h[1], r: 1.7 }; });   // L2 / L3 holes
+    var DH1 = L1.holes.map(function (h) { return { x: h[0], y: h[1], r: 1.7 }; });                    // L1 holes
     var dome = grp(56), top = grp(44), shell = grp(0), l1 = grp(24), l2 = grp(0), l3 = grp(-22), bk = grp(-44), mt = grp(-60);
     var shellParts = [];
 
-    /* 1: the dome, a spherical cap (inner R 90, rim Ø96 at z +1), smoked; the metallised strip on the septum line */
-    var th = Math.asin(DOME_RIM / DOME_R), dg = new T.SphereGeometry(DOME_R, 96, 20, 0, Math.PI * 2, 0, th);
-    dg.rotateX(Math.PI / 2); dg.translate(0, 0, DOME_ZC);
+    /* 1: the dome, a spherical cap (inner R 90, rim Ø96 at z +1 for 8 × 12), smoked; the metallised strip on the septum line */
+    var th = Math.asin(RR / CR), dg = new T.SphereGeometry(CR, 96, 20, 0, Math.PI * 2, 0, th);
+    dg.rotateX(Math.PI / 2); dg.translate(0, 0, ZC);
     var dm = K.raw(new T.MeshStandardMaterial({ color: lin(TOK.smoke), metalness: 0, roughness: 0.08, transparent: true, opacity: 0.62,
       depthWrite: false, side: T.DoubleSide, envMapIntensity: 0.75 }), 1);
     dm.userData.pass = true;
-    mesh(K.g(dg), dm, 0, 0, 0, dome, 'Dome: λ/2 polycarbonate cap, 0.92 mm, inner R 90 mm, rim Ø96, smoked').renderOrder = 3;
-    var strip = arcGeo(DOME_R + 0.04, DOME_R + 0.2, Math.PI / 2 - th + 0.004, Math.PI / 2 + th - 0.004, 2.5, 64);
-    strip.applyMatrix4(new T.Matrix4().set(0, 0, 1, -1.25, 1, 0, 0, 0, 0, 1, 0, DOME_ZC, 0, 0, 0, 1));
+    mesh(K.g(dg), dm, 0, 0, 0, dome, 'Dome: λ/2 polycarbonate cap, 0.92 mm, inner R ' + CR + ' mm, rim Ø' + 2 * RR + ', smoked').renderOrder = 3;
+    var strip = arcGeo(CR + 0.04, CR + 0.2, Math.PI / 2 - th + 0.004, Math.PI / 2 + th - 0.004, 2.5, 64);
+    strip.applyMatrix4(new T.Matrix4().set(0, 0, 1, -1.25, 1, 0, 0, 0, 0, 1, 0, ZC, 0, 0, 0, 1));
     mesh(K.g(strip), K.mat('zinc', 1), 0, 0, 0, dome, 'Metallised strip on the septum line: the dome version of the window mullion');
-    A(1, dome, -28, 20, DOME_ZC + Math.sqrt(DOME_R * DOME_R - 28 * 28 - 20 * 20) + 0.1);
+    var ka = R1 / 45;
+    A(1, dome, -28 * ka, 20 * ka, ZC + Math.sqrt(CR * CR - 1184 * ka * ka) + 0.1);
 
     /* 2, 12: body with the rounded shoulder (shared with the top ring), O-ring, two screw recesses, dark liner */
-    var SH = function (t) { return [48.2 + 1.8 * Math.cos(t), -3 + 6 * Math.sin(t)]; }, tS = Math.asin(4 / 6), bp = [[46, -39.1], [50, -39.1], [50, -39.1]], rp = [[48, 1]];
+    var SH = function (t) { return [RB - 1.8 + 1.8 * Math.cos(t), -3 + 6 * Math.sin(t)]; }, tS = Math.asin(4 / 6), bp = [[BO, -39.1], [RB, -39.1], [RB, -39.1]], rp = [[RR, 1]];
     for (var i = 0; i <= 8; i++) { bp.push(SH(tS * i / 8)); rp.push(SH(tS + (Math.PI / 2 - tS) * i / 8)); }
-    bp.push(SH(tS), [46, 1], [46, 1], [46, -39.1]);
-    rp.splice(1, 0, SH(tS)); rp.push(SH(Math.PI / 2), [48, 3], [48, 3], [48, 1]);
-    var body = mesh(lathe(bp), K.mat('wpowder', 12), 0, 0, 0, shell, 'Body: die-cast aluminium, white powder coat, Ø100 mm (ribs to Ø116 optional, not shown)');
-    var ringM = mesh(lathe(rp), K.mat('wpowder', 2), 0, 0, 0, top, 'White top ring: holds the dome on an O-ring, ID 96 mm');
-    var oring = mesh(K.g(new T.TorusGeometry(46.9, 0.55, 8, 96)), K.mat('rubber', 2), 0, 0, 2.2, top, 'Dome O-ring');
+    bp.push(SH(tS), [BO, 1], [BO, 1], [BO, -39.1]);
+    rp.splice(1, 0, SH(tS)); rp.push(SH(Math.PI / 2), [RR, 3], [RR, 3], [RR, 1]);
+    var body = mesh(lathe(bp), K.mat('wpowder', 12), 0, 0, 0, shell, 'Body: die-cast aluminium, white powder coat, Ø' + 2 * RB + ' mm (ribs to Ø' + (2 * RB + 16) + ' optional, not shown)');
+    var ringM = mesh(lathe(rp), K.mat('wpowder', 2), 0, 0, 0, top, 'White top ring: holds the dome on an O-ring, ID ' + 2 * RR + ' mm');
+    var oring = mesh(K.g(new T.TorusGeometry(RR - 1.1, 0.55, 8, 96)), K.mat('rubber', 2), 0, 0, 2.2, top, 'Dome O-ring');
     var rec = [30, 150].map(function (a) {
       var r = SH(Math.asin(0.6))[0] - 0.25;
       return { p: [r * Math.cos(a * DEG), r * Math.sin(a * DEG), 0.6], r: [Math.PI / 2, a * DEG + Math.PI / 2, 0], n: 'Screw recess: one of the two screws that hold the top ring' };
     });
     var recM = inst(K.g(cylZ(1.7, 0.8, 20)), K.mat('liner', 2), rec, top), scrM = inst(K.g(cylZ(1.15, 0.9, 6)), K.mat('zinc', 2), rec, top);
-    var liner = mesh(K.g(ringGeo(45.3, 46, 10.8, 96)), K.mat('liner', 2), 0, 0, -9.9, shell, 'Dark liner ring, cosmetic (as in a camera)');
-    var lflange = mesh(K.g(ringGeo(42.6, 45.3, 0.7, 96)), K.mat('liner', 2), 0, 0, -0.9, shell, 'Dark liner ring over the rim of the W-band disc');
+    var liner = mesh(K.g(ringGeo(BO - 0.7, BO, 10.8, 96)), K.mat('liner', 2), 0, 0, -9.9, shell, 'Dark liner ring, cosmetic (as in a camera)');
+    var lflange = mesh(K.g(ringGeo(R1 - 2.4, BO - 0.7, 0.7, 96)), K.mat('liner', 2), 0, 0, -0.9, shell, 'Dark liner ring over the rim of the W-band disc');
     [body, ringM, recM, scrM, oring, liner, lflange].forEach(function (o) { shellParts.push({ o: o, m: o === oring || o === scrM ? null : o.material }); });
-    A(2, ringM, 48.9 * Math.cos(-50 * DEG), 48.9 * Math.sin(-50 * DEG), 2.6);
-    A(12, body, 50.05 * Math.cos(10 * DEG), 50.05 * Math.sin(10 * DEG), -18);
+    A(2, ringM, (RR + 0.9) * Math.cos(-50 * DEG), (RR + 0.9) * Math.sin(-50 * DEG), 2.6);
+    A(12, body, (RB + 0.05) * Math.cos(10 * DEG), (RB + 0.05) * Math.sin(10 * DEG), -18);
 
-    /* L1: the W-band disc (3–6, Ø90 re-pack, septum arched to 0.5 mm under the dome) and its spreader + clamp shoulder */
-    var wd = buildWDisc(V, KM_DOME, { layout: WL_D, arch: function (y) { return DOME_ZC + Math.sqrt(DOME_R * DOME_R - 4 - y * y) - 0.5 + 0.9; },
+    /* L1: the W-band disc (3–6, re-packed for its diameter, septum arched to 0.5 mm under the dome) and its spreader + clamp shoulder */
+    var wd = buildWDisc(V, KM_DOME, { layout: L1, arch: function (y) { return ZC + Math.sqrt(CR * CR - 4 - y * y) - 0.5 + 0.9; },
       anchors: { tx: 3, rx: 4, septum: 5, synth: 6 } });
     wd.group.position.z = -0.9;
     l1.add(wd.group);
     Object.keys(wd.anchors).forEach(function (k) { anchors[k] = wd.anchors[k]; });
-    anchors[3].position.x = -22;   // clear of the tall fin in the iso view
-    disc(l1, 45.6, 4, -9.9, BUL_D.map(function (b) { return { x: b[0], y: b[1], r: 3.0 }; }).concat([{ x: 0, y: -33.5, w: 28, h: 7, r: 1 }], DH), 'alu', 0,
+    anchors[3].position.x = C.key === 'a12' ? -22 : -(C.ax + 0.24 * C.cols * 3.3);   // clear of the tall fin in the iso view
+    /* the six SMPM: P1 on the W-band disc, P2 on the X-band disc (the same points unless the Ø90 X-band disc sits behind a larger L1) */
+    var P1 = L1.ifq ? L1.ifq.map(function (q) { return [q.x, q.y, 'IF ' + q.q]; }).concat([[L1.lo[0], L1.lo[1], 'dechirp LO'], [L1.ref[0], L1.ref[1], 'REF in']]) : BUL_D;
+    var P2 = L1.jumpers ? BUL_D : P1;
+    disc(l1, R1 + 0.6, 4, -9.9, P1.map(function (b) { return { x: b[0], y: b[1], r: 3.0 }; }).concat([{ x: 0, y: L1.b2b, w: 28, h: 7, r: 1 }], DH1), 'alu', 0,
       'L1 spreader and clamp shoulder: 4 mm aluminium behind the W-band disc');
 
-    /* 7: SMPM bullets, receptacles and the header socket across the 8 mm gap (they plug into L2) */
+    /* 7: SMPM bullets (or flexible jumpers), receptacles and the header socket across the 8 mm gap (they plug into L2) */
     function at(list, z, n) { return list.map(function (b) { return { p: [b[0], b[1], z], n: n + b[2] }; }); }
-    inst(K.g(cylZ(1.5, 8.6, 16)), K.mat('gold', 7), at(BUL_D, -11.2, 'SMPM blind-mate bullet: '), l2);
-    inst(K.g(cylZ(2.0, 2.4, 16)), K.mat('gold', 7), at(BUL_D, -16.7, 'SMPM receptacle on the X-band disc: '), l2);
-    box(l2, 26, 5, 10.5, 0, -33.5, -12.65, 'black', 7, 'Header socket: 2 × 30 pins, control and 12 V to the W-band disc');
-    A(7, l2, 22.3, 9.9 + 1.55, -11);
+    if (!L1.jumpers) inst(K.g(cylZ(1.5, 8.6, 16)), K.mat('gold', 7), at(P1, -11.2, 'SMPM blind-mate bullet: '), l2);
+    else {
+      inst(K.g(cylZ(1.5, 4.6, 16)), K.mat('gold', 7), at(P1, -9.2, 'SMPM jumper plug in the W-band disc jack: '), l2);
+      inst(K.g(cylZ(1.5, 2.2, 16)), K.mat('gold', 7), at(P2, -14.4, 'SMPM jumper plug on the X-band disc: '), l2);
+      P1.forEach(function (p, i) {
+        var q = P2[i], dx = q[0] - p[0], dy = q[1] - p[1];
+        var cv = new T.CatmullRomCurve3([new T.Vector3(p[0], p[1], -11.4), new T.Vector3(p[0] + 0.15 * dx, p[1] + 0.15 * dy, -12.7),
+          new T.Vector3(q[0] - 0.15 * dx, q[1] - 0.15 * dy, -12.7), new T.Vector3(q[0], q[1], -13.4)], false, 'centripetal');
+        mesh(K.g(new T.TubeGeometry(cv, 40, 0.75, 8, false)), K.mat('cable', 7), 0, 0, 0, l2,
+          'Flexible SMPM jumper, ' + q[2] + ': from the W-band disc jack ' + (i < 4 ? 'at the quadrant centre' : 'beside the synthesizer') + ' to the X-band disc');
+      });
+      inst(K.g(cylZ(2.9, 8, 6)), K.mat('zinc', 7), DH4.map(function (h) {
+        return { p: [h[0], h[1], -13.9], r: [0, 0, Math.PI / 6], n: 'Stand-off, 8 mm: carries the Ø90 X-band disc, the shared spreader and L3 behind the larger W-band disc' }; }), l2);
+    }
+    inst(K.g(cylZ(2.0, 2.4, 16)), K.mat('gold', 7), at(P2, -16.7, 'SMPM receptacle on the X-band disc: '), l2);
+    box(l2, 26, 5, 10.5, 0, L1.b2b, -12.65, 'black', 7, 'Header socket: 2 × 30 pins, control and 12 V to the W-band disc');
+    A(7, l2, P1[1][0], P1[1][1] + 1.55, -11);
 
     /* L2: the X-band disc (8) and the shared spreader (9) */
-    disc(l2, 45, 1.6, -19.5, DH, 'mask', 8, 'X-band disc L2: Ø90 mm');
+    disc(l2, R2, 1.6, -19.5, DH, 'mask', 8, 'X-band disc L2: Ø' + 2 * R2 + ' mm');
     inst(K.box(14, 10, 3), K.mat('zinc', 8), [[5, 22, 'UL'], [22.3, 22, 'UR'], [5, -22, 'LL'], [22.3, -22, 'LR']].map(function (c) {
       return { p: [c[0], c[1], -16.4], n: 'RF front end ' + c[2] + ' under its can: coupler, LNA, DSA, BPF, splitter (3 mm into the SMPM gap)' }; }), l2);
     var lmsTex = chipTex(K, 'LMS8001', 'QFN-56', 256, 256), laTex = chipTex(K, 'LA1214', '621-ball FBGA', 256, 256), ckTex = chipTex(K, 'LMK04832', 'jitter cleaner', 256, 256);
+    /* dechirp LO buffer: under the LO receptacle (the Ø84 re-pack moves it with the receptacle) */
+    var BF = STD ? [-10, 31] : [P2[4][0], P2[4][1] - 5];
+    var loL = STD ? [[[-10, 35], [-10, 32]], [[-10, 30], [-10, 25], [-26, 25], [-26, 1.25]]]
+      : [[[BF[0], P2[4][1] - 2], [BF[0], BF[1] + 1]], [[BF[0], BF[1] - 1], [BF[0], BF[1] - 2.5], [-26, BF[1] - 2.5], [-26, 1.25]]];
     parts(l2, -17.9, 1, 8, [[-14, 8, 7, 7, 0.9, 'chip', 'LMS8001B #1: I channel, EXTLO 0°', lmsTex], [-14, -8, 7, 7, 0.9, 'chip', 'LMS8001B #2: Q channel, EXTLO 90°', lmsTex],
-      [-26, 0, 3.2, 2.5, 0.9, 'chip', '90° hybrid on the dechirp LO'], [-10, 31, 2, 2, 0.85, 'chip', 'Dechirp LO buffer amplifier']]);
-    var x2 = traceGeo([[[-10, 35], [-10, 32]], [[-10, 30], [-10, 25], [-26, 25], [-26, 1.25]], [[-24.4, 0.5], [-20, 0.5], [-20, 8], [-17.5, 8]],
-      [[-24.4, -0.5], [-20, -0.5], [-20, -8], [-17.5, -8]], [[-2, 20], [-14, 20], [-14, 11.5]], [[-2, -20], [-14, -20], [-14, -11.5]],
-      [[9.1, 11.9], [9.1, 17]], [[22.3, 11.9], [22.3, 17]], [[9.1, -11.9], [9.1, -17]], [[22.3, -11.9], [22.3, -17]]], 0.4, -17.88);
+      [-26, 0, 3.2, 2.5, 0.9, 'chip', '90° hybrid on the dechirp LO'], [BF[0], BF[1], 2, 2, 0.85, 'chip', 'Dechirp LO buffer amplifier']]);
+    var x2 = traceGeo(loL.concat([[[-24.4, 0.5], [-20, 0.5], [-20, 8], [-17.5, 8]],
+      [[-24.4, -0.5], [-20, -0.5], [-20, -8], [-17.5, -8]], [[-2, 20], [-14, 20], [-14, 11.5]], [[-2, -20], [-14, -20], [-14, -11.5]]],
+      P2.slice(0, 4).map(function (p) { var sy = p[1] > 0 ? 1 : -1; return [[p[0], p[1] + 2 * sy], [p[0], 17 * sy]]; })), 0.4, -17.88);
     mesh(K.g(x2), K.mat('rfline', 8), 0, 0, 0, l2, 'X-band RF lines: IF to the front ends, dechirp LO to the hybrid and the LMS8001s').userData.thin = true;
     parts(l2, -19.5, -1, 8, [[0, 0, 21, 21, 2.0, 'chip', 'NXP LA1214: 4T4R, 8 × VSPA, 2 × PCIe Gen3, 21 × 21 mm; presses into the shared spreader', laTex],
       [27, -16, 9, 9, 0.9, 'chip', 'Clock jitter cleaner (LMK04832 or HMC7044)', ckTex], [-27, -16, 7, 7, 0.9, 'chip', 'MCU: SPI to the LMS8001s, DSAs and the synth; health'],
       [27, 14, 14, 9, 6, 'zinc', 'OCXO, 14 × 9 × 6 mm, in a pocket of the shared spreader'], [-27, 14, 6, 5, 1.0, 'chip', 'QSPI flash']]);
     box(l2, 21, 21, 0.2, 0, 0, -21.6, 'tpad', 8, 'Thermal pad: LA1214 to the shared spreader');
     A(8, l2, 22.3, 22, -14.85);
-    disc(l2, 45.6, 4, -25.7, DH.concat([{ x: 0, y: -22, w: 32, h: 8, r: 1 }, { x: 27, y: 14, w: 16, h: 11, r: 1 }]), 'alu', 9,
+    disc(l2, R2 + 0.6, 4, -25.7, DH.concat([{ x: 0, y: -22, w: 32, h: 8, r: 1 }, { x: 27, y: 14, w: 16, h: 11, r: 1 }]), 'alu', 9,
       'Shared spreader, 4 mm aluminium: the LA1214 presses into its top face, the i.MX 95 into its bottom face');
-    A(9, l2, 45.65 * Math.cos(-30 * DEG), 45.65 * Math.sin(-30 * DEG), -23.7);
+    A(9, l2, (R2 + 0.65) * Math.cos(-30 * DEG), (R2 + 0.65) * Math.sin(-30 * DEG), -23.7);
 
     /* L3: compute side A (10) facing L2, power side B (11) facing the back plate; the isolation slot fences off the PoE primary */
+    var f3 = R2 / 45, slotY = -29 * f3, slotW = STD ? 64 : 2 * Math.sqrt(R2 * R2 - slotY * slotY) - 5;
+    function fit3(list) {   // Ø84 re-pack of the power side: positions scaled, then pulled in until each part clears the rim by 1 mm
+      if (STD) return list;
+      return list.map(function (p) {
+        var q = p.slice(); q[0] *= f3; q[1] *= f3;
+        for (var it = 0; it < 30 && Math.sqrt(Math.pow(Math.abs(q[0]) + q[2] / 2, 2) + Math.pow(Math.abs(q[1]) + q[3] / 2, 2)) > R2 - 1; it++) { q[0] *= 0.98; q[1] *= 0.98; }
+        return q;
+      });
+    }
     box(l3, 30, 6, 8, 0, -22, -23.5, 'black', 10, 'Mezzanine, 8 mm stack through the shared spreader: PCIe x1, 12 V, SYNC / GPIO, control');
-    disc(l3, 45, 1.6, -29.1, DH.concat([{ x: 0, y: -29, w: 64, h: 2.2, r: 1.1 }]), 'mask', 10, 'Compute + power disc L3: Ø90 mm, 2.2 mm isolation slot below the PoE primary');
+    disc(l3, R2, 1.6, -29.1, DH.concat([{ x: 0, y: slotY, w: slotW, h: 2.2, r: 1.1 }]), 'mask', 10, 'Compute + power disc L3: Ø' + 2 * R2 + ' mm, 2.2 mm isolation slot below the PoE primary');
     var mxTex = chipTex(K, 'i.MX 95', '19 × 19 mm', 256, 256), ddrTex = chipTex(K, 'LPDDR5', 'x32', 256, 220), pdTex = chipTex(K, 'PoE PD', 'Type 3', 256, 256);
     parts(l3, -27.5, 1, 10, [[0, 2, 19, 19, 1.6, 'chip', 'NXP i.MX 95: 6 × A55, Mali GPU, NPU, 19 × 19 mm; presses into the shared spreader', mxTex],
       [-6, 20.5, 15, 12.4, 1.0, 'chip', 'LPDDR5, one x32 package, 12.4 × 15 mm', ddrTex], [20.5, 9.5, 11.5, 13, 1.0, 'chip', 'eMMC, 11.5 × 13 mm'],
       [20, -7, 8, 8, 0.9, 'chip', 'PF09 PMIC for the i.MX 95'], [-17, -13, 10, 10, 0.9, 'chip', 'Ethernet PHY, 2.5GBASE-T']]);
     box(l3, 19, 19, 0.2, 0, 2, -25.8, 'tpad', 10, 'Thermal pad: i.MX 95 to the shared spreader');
-    parts(l3, -29.1, -1, 11, [
+    parts(l3, -29.1, -1, 11, fit3([
       [-22, -33, 10, 4, 5, 'black', 'Pigtail landing: the four pairs of the M12 X-coded cable'], [-11, -34, 7, 7, 4, 'ferrite', 'Common-mode choke (PoE primary)'],
       [-18, -38.5, 4.3, 2.6, 2.1, 'black', 'TVS diode (PoE primary)'], [-6, -40.5, 6, 5, 0.9, 'chip', 'Active bridge: 4 MOSFETs and controller (PoE primary)'],
       [6, -34, 5, 5, 0.9, 'chip', 'PoE++ Type 3 PD controller (TPS2372 / TPS23730 class)', pdTex], [14, -34, 5, 6, 1, 'chip', 'Primary MOSFET of the active-clamp converter'],
@@ -8149,36 +8291,36 @@ text-decoration:underline dotted;text-underline-offset:3px}
       [16, -23, 22, 6, 6, 'copper', 'Planar transformer: PCB windings'], [-2, -22, 5, 6, 1, 'chip', 'Synchronous rectifier MOSFET (12 V side)'],
       [32, -9, 10, 10, 6, 'ferrite', '12 V output inductor'], [24, 0, 7.3, 4.3, 4, 'elcap', '12 V bulk capacitor, low-profile polymer'],
       [24, 6, 7.3, 4.3, 4, 'elcap', '12 V bulk capacitor, low-profile polymer'], [24, 12, 7.3, 4.3, 4, 'elcap', '12 V bulk capacitor, low-profile polymer'],
-      [-10, -20, 4, 4, 0.9, 'chip', 'PMBus sequencer'], [-10, -13, 3, 3, 0.9, 'chip', 'PMBus current / voltage monitor'], [-4, -13, 3, 3, 0.9, 'chip', 'PMBus current / voltage monitor']]);
+      [-10, -20, 4, 4, 0.9, 'chip', 'PMBus sequencer'], [-10, -13, 3, 3, 0.9, 'chip', 'PMBus current / voltage monitor'], [-4, -13, 3, 3, 0.9, 'chip', 'PMBus current / voltage monitor']]));
     var dec = [];
     for (var di = 0; di < 6; di++) for (var dj = 0; dj < 6; dj++) dec.push({ p: [-6 + di * 2.4, -4 + dj * 2.4, -29.35], n: 'i.MX 95 decoupling capacitors (side B, under the processor)' });
     inst(K.box(1.0, 0.5, 0.5), K.mat('cap', 10), dec, l3);
     A(10, l3, 0, 2 - 9.55, -26.7);
-    A(11, l3, 16, -23 - 8.05, -33.1);
+    A(11, l3, 16 * f3, -23 * f3 - 8.05, -33.1);
 
     /* 13: back plate with the gland, the test-port cap and the thermal pad; the pigtail is rebuilt with the explode state */
-    disc(bk, 50, 4, -43.1, [], 'alu', 13, 'Back plate: 4 mm aluminium, the mounting face');
-    mesh(K.g(cylZ(7.2, 3, 6)), K.mat('zinc', 13), GLAND[0], GLAND[1], -44.6, bk, 'Cable gland, M16 class, for the 0.3 m pigtail').rotation.z = Math.PI / 6;
-    mesh(K.cylz(5.5, 4, 24), K.mat('rubber', 13), GLAND[0], GLAND[1], -48.1, bk, 'Cable gland seal');
-    mesh(K.cylz(5, 2.5, 24), K.mat('zinc', 13), TPORT[0], TPORT[1], -44.35, bk, 'Test port under a screw cap: lab REF in and debug');
-    box(bk, 6, 1, 0.4, TPORT[0], TPORT[1], -45.7, 'black', 13, 'Test port under a screw cap: lab REF in and debug');
-    disc(bk, 36, 0.5, -43.6, [{ x: TPORT[0], y: TPORT[1], r: 7 }], 'tpad', 13, 'Thermal pad, back plate to the mount (the heat path)');
-    A(13, bk, 50.05 * Math.cos(-40 * DEG), 50.05 * Math.sin(-40 * DEG), -41.1);
+    disc(bk, RB, 4, -43.1, [], 'alu', 13, 'Back plate: 4 mm aluminium, the mounting face');
+    mesh(K.g(cylZ(7.2, 3, 6)), K.mat('zinc', 13), GL[0], GL[1], -44.6, bk, 'Cable gland, M16 class, for the 0.3 m pigtail').rotation.z = Math.PI / 6;
+    mesh(K.cylz(5.5, 4, 24), K.mat('rubber', 13), GL[0], GL[1], -48.1, bk, 'Cable gland seal');
+    mesh(K.cylz(5, 2.5, 24), K.mat('zinc', 13), TP[0], TP[1], -44.35, bk, 'Test port under a screw cap: lab REF in and debug');
+    box(bk, 6, 1, 0.4, TP[0], TP[1], -45.7, 'black', 13, 'Test port under a screw cap: lab REF in and debug');
+    disc(bk, 36 * kS, 0.5, -43.6, [{ x: TP[0], y: TP[1], r: 7 }], 'tpad', 13, 'Thermal pad, back plate to the mount (the heat path)');
+    A(13, bk, (RB + 0.05) * Math.cos(-40 * DEG), (RB + 0.05) * Math.sin(-40 * DEG), -41.1);
 
     /* 14: mount: a flat wall plate, or a 30° wedge with a ceiling plate */
     var wall = new T.Group(), wedge = new T.Group();
     mt.add(wall); mt.add(wedge);
-    var sh4 = [45, 135, 225, 315].map(function (a) { return [54 * Math.cos(a * DEG), 54 * Math.sin(a * DEG), 'Wall screw']; });
-    disc(wall, 58, 6, -49.6, [{ x: GLAND[0], y: GLAND[1], r: 9 }, { x: TPORT[0], y: TPORT[1], r: 7 }].concat(sh4.map(function (s) { return { x: s[0], y: s[1], r: 2.2 }; })),
-      'alu', 14, 'Wall plate, Ø116 × 6 mm aluminium: cable hole, test-port access, 4 screws; it also takes the heat');
+    var sh4 = [45, 135, 225, 315].map(function (a) { return [(RB + 4) * Math.cos(a * DEG), (RB + 4) * Math.sin(a * DEG), 'Wall screw']; });
+    disc(wall, RB + 8, 6, -49.6, [{ x: GL[0], y: GL[1], r: 9 }, { x: TP[0], y: TP[1], r: 7 }].concat(sh4.map(function (s) { return { x: s[0], y: s[1], r: 2.2 }; })),
+      'alu', 14, 'Wall plate, Ø' + (2 * RB + 16) + ' × 6 mm aluminium: cable hole, test-port access, 4 screws; it also takes the heat');
     inst(K.g(cylZ(3.2, 1.6, 20)), K.mat('zinc', 14), at(sh4, -42.8, ''), wall);
-    var wg = cylZ(50, 1, 72), wp = wg.attributes.position;
-    for (var vi = 0; vi < wp.count; vi++) wp.setZ(vi, wp.getZ(vi) > 0 ? -43.6 : -49.6 - (50 - wp.getY(vi)) * T30);
+    var wg = cylZ(RB, 1, 72), wp = wg.attributes.position;
+    for (var vi = 0; vi < wp.count; vi++) wp.setZ(vi, wp.getZ(vi) > 0 ? -43.6 : -49.6 - (RB - wp.getY(vi)) * T30);
     wg.computeVertexNormals();
     mesh(K.g(wg), K.mat('alu', 14), 0, 0, 0, wedge, 'Tilt wedge, 30°, aluminium: also the heat path to the ceiling');
-    var cp = mesh(K.box(130, 130, 5), K.mat('alu', 14), 0, 1.25, -49.6 - 50 * T30 - 2.5 * Math.cos(30 * DEG), wedge, 'Ceiling plate, 130 × 130 × 5 mm');
+    var cp = mesh(K.box(2 * RB + 30, 2 * RB + 30, 5), K.mat('alu', 14), 0, 1.25, -49.6 - RB * T30 - 2.5 * Math.cos(30 * DEG), wedge, 'Ceiling plate, ' + (2 * RB + 30) + ' × ' + (2 * RB + 30) + ' × 5 mm');
     cp.rotation.x = 30 * DEG;
-    inst(K.g(cylZ(3.6, 1.4, 20)), K.mat('zinc', 14), [[-55, -55], [55, -55], [55, 55], [-55, 55]].map(function (c) { return { p: [c[0], c[1], 3.2], n: 'Ceiling screw' }; }), cp);
+    inst(K.g(cylZ(3.6, 1.4, 20)), K.mat('zinc', 14), [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(function (c) { return { p: [c[0] * (RB + 5), c[1] * (RB + 5), 3.2], n: 'Ceiling screw' }; }), cp);
     var a14 = A(14, mt, 0, 0, 0);
 
     var cab = null, plug = new T.Group(), Z = new T.Vector3(0, 0, 1);
@@ -8189,8 +8331,8 @@ text-decoration:underline dotted;text-underline-offset:3px}
     function updatePig(e) {
       var w = !!st.wedge, ob = bk.userData.off * e, om = mt.userData.off * e;
       var nOut = w ? new T.Vector3(0, 0.5, -Math.sqrt(3) / 2) : new T.Vector3(0, 0, -1), tv = w ? new T.Vector3(0, Math.sqrt(3) / 2, 0.5) : new T.Vector3(0, -1, 0);
-      var zr = (w ? -49.6 - (50 - GLAND[1]) * T30 - 5 / Math.cos(30 * DEG) : -49.6) + om;
-      var a = new T.Vector3(GLAND[0], GLAND[1], -50.1 + ob), b = new T.Vector3(GLAND[0], GLAND[1], Math.min(a.z - 4, zr - 2));
+      var zr = (w ? -49.6 - (RB - GL[1]) * T30 - 5 / Math.cos(30 * DEG) : -49.6) + om;
+      var a = new T.Vector3(GL[0], GL[1], -50.1 + ob), b = new T.Vector3(GL[0], GL[1], Math.min(a.z - 4, zr - 2));
       var c = b.clone().addScaledVector(nOut, 8), d = c.clone().addScaledVector(nOut, 6).addScaledVector(tv, 12), f = d.clone().addScaledVector(tv, 22);
       var geo = new T.TubeGeometry(new T.CatmullRomCurve3([a, b, c, d, f], false, 'centripetal'), 48, 3.0, 10, false);
       if (cab) { cab.geometry.dispose(); cab.geometry = geo; }
@@ -8205,9 +8347,9 @@ text-decoration:underline dotted;text-underline-offset:3px}
 
     model.tagMode = 'top';
     model.tags = [
-      { b: 'L1', tl: ' W-band', obj: l1, pts: rimPts(45.6, -1.9, 24) },
-      { b: 'L2', tl: ' X-band', obj: l2, pts: rimPts(45.6, -18.7, 24) },
-      { b: 'L3', tl: ' compute + power', obj: l3, pts: rimPts(45.6, -28.3, 24) }
+      { b: 'L1', tl: ' W-band', obj: l1, pts: rimPts(R1 + 0.6, -1.9, 24) },
+      { b: 'L2', tl: ' X-band', obj: l2, pts: rimPts(R2 + 0.6, -18.7, 24) },
+      { b: 'L3', tl: ' compute + power', obj: l3, pts: rimPts(R2 + 0.6, -28.3, 24) }
     ];
 
     /* shell On / See-through / Off (body, top ring, liner); exploded + On shows it see-through; the dome always stays */
@@ -8233,9 +8375,9 @@ text-decoration:underline dotted;text-underline-offset:3px}
       dm.opacity = mode === 'on' ? 0.8 : 0.45; /* smoked like a camera dome when closed; clearer when the shell is opened up */
       U.rotation.x = w ? 60 * DEG : 0;
       wall.visible = !w; wedge.visible = w;
-      if (w) a14.position.set(49.05, -10, -49.6 - 30 * T30); else a14.position.set(58.05 * Math.cos(-15 * DEG), 58.05 * Math.sin(-15 * DEG), -46.6);
+      if (w) a14.position.set(RB - 0.95, -10, -49.6 - 0.6 * RB * T30); else a14.position.set((RB + 8.05) * Math.cos(-15 * DEG), (RB + 8.05) * Math.sin(-15 * DEG), -46.6);
       cola.visible = !!st.cola;
-      if (w) cola.position.set(-120, -30, -10); else cola.position.set(-112, -57.5, -14.6);
+      if (w) cola.position.set(-RB - 70, -30, -10); else cola.position.set(-RB - 62, -57.5, -14.6);
       updatePig(lastE);
     };
     model.hideOcc = function (k) { return st.shell === 'on' && !V.isExploding() && ((k >= 6 && k <= 11) || (st.cam === 'back' && k !== 14)); };
@@ -8362,7 +8504,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
           cams: ['iso', 'front', 'side', 'top', 'back'], defCam: 'iso', camDir: CAM_WALL,
           camWord: { iso: 'iso', front: 'front', side: 'side', top: 'top', back: 'back' },
           what: function (st) {
-            return 'Compact dome: Ø100 × 59 mm, three Ø90 mm discs' + (st.shell === 'glass' ? ', shell see-through' : st.shell === 'off' ? ', shell off' : '') +
+            return domeCfg(st.arr).what + (st.shell === 'glass' ? ', shell see-through' : st.shell === 'off' ? ', shell off' : '') +
               (st.wedge ? ', 30° wedge under a ceiling plate' : '');
           },
           explodeWord: function (st) { return ', discs slid apart along the axis (' + (st.shell === 'off' ? '' : 'shell see-through, ') + 'gaps not to scale)'; },
@@ -8372,8 +8514,27 @@ text-decoration:underline dotted;text-underline-offset:3px}
         }
       },
       wire: function (api, el) {
-        var st = api.st, wedge = el('wedge'), cola = el('cola');
-        st.shell = 'on'; st.wedge = false;
+        var st = api.st, wedge = el('wedge'), cola = el('cola'), box = $('m3d');
+        st.shell = 'on'; st.wedge = false; st.arr = 'a12';
+        /* Arrays: 8 × 8 | 8 × 12 | 16 × 16 | 32 × 32 — rebuilds the scene, keeps shell / explode / wedge / cola, refits the camera */
+        var setArrSeg = seg(el('arr'), 'data-m3-arr', function (v) {
+          if (!DOME_CFG[v] || v === st.arr) return;
+          api.setArr(v);
+          if (api.model()) api.rebuild(true); else api.describe();
+          var c = domeCfg(v);
+          api.announce('Arrays ' + c.lbl + ': Ø' + 2 * c.rb + ' × ' + c.ht + ' mm');
+        });
+        api.setArr = function (v) {
+          var c = domeCfg(v);
+          st.arr = c.key; setArrSeg(c.key);
+          Object.keys(c.names).forEach(function (k) { DOME_NAMES[k] = c.names[k]; });
+          if (box) Array.prototype.forEach.call(box.querySelectorAll('[data-m3-arr-t]'), function (s) {
+            var t = c.txt[s.getAttribute('data-m3-arr-t')];
+            if (t !== undefined) s.textContent = t;
+          });
+          api.labelAria();
+        };
+        api.setArr('a12');
         st.cola = query('m3cola') ? query('m3cola') === 'on' : load_('cola') === true;
         onOff(cola, st.cola);
         var setShell = seg(el('shell'), 'data-m3-shell', function (v) {
@@ -8404,6 +8565,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
         if (t === 'glass' || t === 'off') { api.st.shell = t; api.setShell(t); }
         if (t === 'wedge') api.setWedge(true);
         if (t === 'wall') api.setWedge(false);
+        if (DOME_CFG[t]) api.setArr(t);
       }
     });
   }
