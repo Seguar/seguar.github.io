@@ -242,13 +242,13 @@ dialog.lb .lb-x{position:absolute;top:-14px;right:-14px;width:34px;height:34px;b
 @media(max-width:560px){dialog.lb .lb-x{top:6px;right:6px}}
 
 /* 3D viewers */
-/* m3.css: the two 3D viewers (#m3t in #tile3d, #m3u in #mech). From the ESP32 tile3d CSS and the RFSoC mech3d CSS.
+/* m3.css: the three 3D viewers (#m3t in #tile3d, #m3u in #mech, #m3d in #dome). From the ESP32 tile3d CSS and the RFSoC mech3d CSS.
    Every rule is scoped under .m3. UI colours are tokens (dark-mode aware); the --m3-* values are physical finishes
    read by m3.js and stay the same in both themes. */
 .m3{--m3-mask:#2f6a4c;--m3-lam:#5f9e74;--m3-pp:#9fd3ae;--m3-tile:#33413a;--m3-gold:#d6ab4f;--m3-patch:#e2bd5f;--m3-enig:#cfae63;
 --m3-copper:#b8763f;--m3-via:#c8834a;--m3-chip:#1f2326;--m3-tin:#c9ccd3;--m3-silk:#eef3ef;--m3-zinc:#bcc3c9;--m3-alu:#b9c0c7;
 --m3-anod:#3b424a;--m3-shield:#dde2e6;--m3-win:#c4d2df;--m3-absorb:#2b302e;--m3-ferrite:#3a3f45;--m3-cable:#2f3439;
---m3-brass:#b99b5c;--m3-rubber:#2a2d31;--m3-term:#e8a33d;--m3-shade:#24313c;--m3-cola:#c3161c;--m3-colaband:#f4f2ee;
+--m3-brass:#b99b5c;--m3-rubber:#2a2d31;--m3-term:#e8a33d;--m3-shade:#24313c;--m3-cola:#c3161c;--m3-colaband:#f4f2ee;--m3-wpowder:#eceeef;--m3-smoke:#262b31;
 display:grid;gap:14px;min-width:0}
 .m3 [hidden]{display:none!important}
 .m3 .m3-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
@@ -552,6 +552,76 @@ text-decoration:underline dotted;text-underline-offset:3px}
 #mech .mc-key li.is-hl{background:var(--rf-t);color:var(--ink)}
 @media (prefers-reduced-motion:reduce){#mech #mech-sec>*,#mech .mc-b{transition:none}}
 
+/* section dome */
+/* 19 dome: to-scale comparison (physical part fills, dimensions, numbered callouts), L3 disc faces, dome ray sketch. */
+#dome .dm-al{fill:#b9c0c7;stroke:var(--ink);stroke-opacity:.45;stroke-width:.7}
+#dome .dm-pcb{fill:#2f6a4c}
+#dome .dm-lam{fill:#5f9e74}
+#dome .dm-au{fill:#d6ab4f}
+#dome .dm-ic{fill:#1f2326}
+#dome .dm-cu{fill:#b8763f}
+#dome .dm-wp{fill:color-mix(in srgb,#b9c0c7 30%,var(--paper));stroke:var(--ink);stroke-opacity:.5;stroke-width:.8}
+#dome .dm-dome{fill:#1f2326;fill-opacity:.62;stroke:var(--muted);stroke-width:.8}
+#dome .dm-liner{fill:#1f2326}
+#dome .dm-abs{fill:#1f2326;fill-opacity:.85}
+#dome .dm-pad{fill:var(--gstroke)}
+#dome .dm-cap{fill:color-mix(in srgb,#b9c0c7 65%,#1f2326)}
+#dome .dm-win{fill:var(--card-t);stroke:var(--card);stroke-width:.8}
+#dome .dm-hole{fill:var(--zone)}
+#dome .dm-wall{stroke:var(--muted);stroke-width:.8}
+#dome .dm-hl{stroke:var(--muted);stroke-width:1.2}
+#dome .dm-cab{stroke:var(--ink);stroke-width:2.4;fill:none;stroke-linecap:round;opacity:.75}
+#dome .dm-axis{stroke:var(--muted);stroke-width:.8;fill:none;stroke-dasharray:14 3 2 3}
+#dome .dm-dim{stroke:var(--muted);stroke-width:.8;fill:none}
+#dome .dm-dh{fill:var(--muted)}
+#dome .dm-ext{stroke:var(--muted);stroke-width:.6;fill:none;opacity:.75}
+#dome .dm-guide{stroke:var(--muted);stroke-width:.8;fill:none;stroke-dasharray:3 3}
+#dome .dm-sbk{fill:var(--ink)}
+#dome .dm-sbw{fill:var(--paper);stroke:var(--ink);stroke-width:.8}
+#dome .dm-ld{stroke:var(--ink);stroke-width:.9;fill:none}
+#dome .dm-dot{fill:var(--ink)}
+#dome .dm-b{fill:var(--ink);transition:fill .15s}
+#dome svg text.dm-n{fill:var(--paper);font-size:11px;font-weight:700;text-anchor:middle;pointer-events:none}
+#dome .dm-co{cursor:pointer}
+#dome .dm-co:focus{outline:none}
+#dome .dm-co:focus-visible .dm-b{stroke:var(--rf);stroke-width:3}
+#dome .dm-co:hover .dm-b,#dome .dm-co.dm-on .dm-b{fill:var(--rf)}
+#dome #dome-sec>*{transition:opacity .18s}
+#dome #dome-sec.dm-focus>:not(.dm-on):not(defs){opacity:.22}
+#dome #dome-sec.dm-focus>.dm-co:not(.dm-on){opacity:.45}
+#dome #dome-sec g[data-dm].dm-on{filter:drop-shadow(0 0 2px var(--rf))}
+#dome .dm-key{margin:0;padding-left:28px;columns:4 210px;column-gap:28px;font-size:13.5px;line-height:1.45;color:var(--muted)}
+#dome .dm-key li{break-inside:avoid;padding:1px 6px;margin-left:-6px;border-radius:6px}
+#dome .dm-key li::marker{font:600 12px var(--mono);color:var(--ink)}
+#dome .dm-key li.is-hl{background:var(--rf-t);color:var(--ink)}
+/* L3 disc faces */
+#dome svg text.dm-ct{fill:#b9c0c7}
+#dome svg .dm-xs{font-size:10px}
+#dome .dm-pz{fill:var(--pwr);fill-opacity:.24}
+#dome .dm-slot{fill:none;stroke:var(--zone);stroke-linejoin:round}
+#dome .dm-cut{fill:none;stroke:#b9c0c7;stroke-width:1.2;stroke-dasharray:4 3}
+#dome .dm-capt{fill:none;stroke:#1f2326;stroke-width:1.2;opacity:.55}
+#dome .dm-lg-pcb{background:#2f6a4c}
+#dome .dm-lg-ic{background:#1f2326}
+#dome .dm-lg-pz{background:color-mix(in srgb,var(--pwr) 30%,#2f6a4c)}
+#dome .dm-lg-slot{background:var(--zone);border:1px solid var(--muted)}
+#dome .dm-lg-au{background:#d6ab4f;border-radius:50%;width:12px}
+/* ray sketch */
+#dome .dm-pln{stroke:var(--muted);stroke-width:1;fill:none}
+#dome .dm-tx{stroke:var(--rf);stroke-width:5}
+#dome .dm-rx{stroke:var(--card);stroke-width:5}
+#dome .dm-arc{fill:none;stroke:var(--muted);stroke-width:2.6}
+#dome .dm-ray{stroke:var(--rf);stroke-width:1.4;fill:none}
+#dome .dm-rfl{stroke:var(--rf);stroke-width:1.4;fill:none;stroke-dasharray:5 3}
+#dome .dm-virt{stroke:var(--muted);stroke-width:1;fill:none;stroke-dasharray:2 3}
+#dome .dm-src{fill:var(--rf)}
+#dome .dm-vimg{fill:var(--paper);stroke:var(--muted);stroke-width:1.4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #dome .dm-wp{fill:color-mix(in srgb,#b9c0c7 45%,var(--ink))}}
+:root[data-theme="dark"] #dome .dm-wp{fill:color-mix(in srgb,#b9c0c7 45%,var(--ink))}
+@media (prefers-reduced-motion:reduce){#dome #dome-sec>*,#dome .dm-b{transition:none}}
+
+#dome svg .dm-halo{fill:var(--ink);paint-order:stroke;stroke:var(--zone);stroke-width:5px;stroke-linejoin:round}
+
 /* section thermal */
 /* 19 thermal: heat-path drawing and the temperature bars. */
 #thermal .mc-tam{fill:var(--gstroke)}
@@ -670,13 +740,14 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <div class="grp" style="--ph:var(--pwr)"><div class="grp-h">Power and mechanics</div><ol>
 <li><a href="#power"><span class="num">17</span>Power layer and budget</a></li>
 <li><a href="#mech"><span class="num">18</span>Round housing in 3D</a></li>
-<li><a href="#thermal"><span class="num">19</span>Radome, heat and sealing</a></li>
+<li><a href="#dome"><span class="num">19</span>Option B: compact dome</a></li>
+<li><a href="#thermal"><span class="num">20</span>Radome, heat and sealing</a></li>
 </ol></div>
 <div class="grp" style="--ph:var(--warn)"><div class="grp-h">Plan and evidence</div><ol>
-<li><a href="#risks"><span class="num">20</span>Risks and deciding tests</a></li>
-<li><a href="#plan"><span class="num">21</span>Build and validation sequence</a></li>
-<li><a href="#evidence"><span class="num">22</span>What we know and must test</a></li>
-<li><a href="#refs"><span class="num">23</span>References</a></li>
+<li><a href="#risks"><span class="num">21</span>Risks and deciding tests</a></li>
+<li><a href="#plan"><span class="num">22</span>Build and validation sequence</a></li>
+<li><a href="#evidence"><span class="num">23</span>What we know and must test</a></li>
+<li><a href="#refs"><span class="num">24</span>References</a></li>
 </ol></div>
 </nav>
 <main class="wrap">
@@ -686,10 +757,10 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <p class="lede">A W-band FMCW radar in a round CCTV-style housing: two 8 × 12 antenna-in-package arrays for transmit and receive with the chirp synthesizer on the same board, a 4-channel X-band dechirp and digitising board built around the NXP LA1214, an NXP i.MX 95 for processing and Ethernet, and a power board for all of it. The hard problems are band alignment between the chips and the array, and transmit-to-receive isolation — not the beamforming.</p>
 <div class="chips"><span class="chip"><b>2 × 96</b> tiles, 3.30 mm</span><span class="chip"><b>95–99.9</b> GHz, λ ≈ 3.1 mm</span>
 <span class="chip"><b>29.0</b> dBi, 4.0° × 6.0°</span><span class="chip"><b>×9</b> TX / <b>×8</b> RX LO from one X-band chirp</span>
-<span class="chip"><b>LA1214</b> + <b>i.MX 95</b></span><span class="chip"><b>Ø127</b> mm tube, PoE++</span></div>
+<span class="chip"><b>LA1214</b> + <b>i.MX 95</b></span><span class="chip"><b>Ø127</b> mm tube or <b>Ø100</b> mm dome, PoE++</span></div>
 <div class="legend"><span><span class="tag t-c">confirmed</span> CST result, datasheet or the source deck</span><span><span class="tag t-i">inference</span> engineering inference</span>
 <span><span class="tag t-o">open</span> needs a bench test or a vendor answer</span><span><span class="tag t-s">speculative</span> no evidence yet</span></div>
-<details class="toc"><summary>Sections</summary><ol><li><a href="#build">What we are building</a></li><li><a href="#why">Why W-band</a></li><li><a href="#system">One chain, four boards</a></li><li><a href="#freq">Frequency plan: ×9 out, ×8 in</a></li><li><a href="#wband">W-band board</a></li><li><a href="#tile3d">Tile and board in 3D</a></li><li><a href="#array">Array performance (CST)</a></li><li><a href="#scan">Scan range and grating lobes</a></li><li><a href="#mono">Monopulse from four quadrants</a></li><li><a href="#iso">TX → RX isolation</a></li><li><a href="#xband">X-band board</a></li><li><a href="#chirp">Chirp, dechirp and timing</a></li><li><a href="#clock">Clocks and sync</a></li><li><a href="#compute">Processor: i.MX 95</a></li><li><a href="#pipeline">Processing and data rates</a></li><li><a href="#io">Interfaces</a></li><li><a href="#power">Power layer and budget</a></li><li><a href="#mech">Round housing in 3D</a></li><li><a href="#thermal">Radome, heat and sealing</a></li><li><a href="#risks">Risks and deciding tests</a></li><li><a href="#plan">Build and validation sequence</a></li><li><a href="#evidence">What we know and must test</a></li><li><a href="#refs">References</a></li></ol></details>
+<details class="toc"><summary>Sections</summary><ol><li><a href="#build">What we are building</a></li><li><a href="#why">Why W-band</a></li><li><a href="#system">One chain, four boards</a></li><li><a href="#freq">Frequency plan: ×9 out, ×8 in</a></li><li><a href="#wband">W-band board</a></li><li><a href="#tile3d">Tile and board in 3D</a></li><li><a href="#array">Array performance (CST)</a></li><li><a href="#scan">Scan range and grating lobes</a></li><li><a href="#mono">Monopulse from four quadrants</a></li><li><a href="#iso">TX → RX isolation</a></li><li><a href="#xband">X-band board</a></li><li><a href="#chirp">Chirp, dechirp and timing</a></li><li><a href="#clock">Clocks and sync</a></li><li><a href="#compute">Processor: i.MX 95</a></li><li><a href="#pipeline">Processing and data rates</a></li><li><a href="#io">Interfaces</a></li><li><a href="#power">Power layer and budget</a></li><li><a href="#mech">Round housing in 3D</a></li><li><a href="#dome">Option B: compact dome</a></li><li><a href="#thermal">Radome, heat and sealing</a></li><li><a href="#risks">Risks and deciding tests</a></li><li><a href="#plan">Build and validation sequence</a></li><li><a href="#evidence">What we know and must test</a></li><li><a href="#refs">References</a></li></ol></details>
 </header>
 <section class="sheet" id="build" style="--ph:var(--card)">
 <div class="step">01 · Concept</div><h2>What we are building</h2>
@@ -829,6 +900,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 </div>
 <p>The front board carries two identical 8 × 12 tile arrays side by side, one for transmit and one for receive, with a 5 mm gap between them. Each tile is a 3.30 × 3.30 mm package with a 2 × 2 patch antenna on top and a W-band CMOS IC underneath. The TX IC multiplies an X-band drive by 9. The RX IC mixes the echo with 8 times the same drive. One ramp synthesizer on the back of the same board makes that drive.</p>
 <p>The receive array is split into four 24-tile quadrants. Each quadrant is combined at X-band and sent down to the second board as one channel. There, two LMS8001 shift the four channels to I/Q baseband and the LA1214 digitises them, runs the range FFT and forms the sum and difference beams. The i.MX 95 detects and tracks targets and sends the result out over Ethernet. The last board turns PoE++ or 24/48 V DC into the rails for all four.</p>
+<p>A second packaging, option B, puts the same electronics into a Ø100 × 59 mm dome-camera body with three discs, compute and power sharing the last one. It is about six times smaller than the tube but limited by heat to about 25–30 W (<a href="#dome">section 19</a>).</p>
 <h3>Three things this page argues</h3>
 <ul class="open">
 <li><span class="tag t-i">inference</span><span><b>One chirp, one frequency plan.</b> A single X-band chirp at 10.556–10.833 GHz drives the ×9 transmitters, the ×8 receive LO and the dechirp mixer. The receive IF then falls back into X-band, and the beat is the same as in a native W-band FMCW radar with 9 times the X-band slope. <a href="#freq">Section 04</a>.</span></li>
@@ -888,7 +960,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <li><span class="tag t-i">inference</span><span><b>Tight electrical lengths.</b> The TX IC multiplies by 9, so an X-band delay error acts as the same delay at W-band. 0.05 mm of stripline (0.29 ps) is already 10° at 97 GHz. Static errors can be calibrated with the IC phase control, but 1 mm of mismatch adds about 10° across a 4.9 GHz chirp that calibration cannot remove. All 96 LO paths per array stay equal within about 1 mm.</span></li>
 <li><span class="tag t-c">confirmed</span><span><b>Low power per chip.</b> The simulated TX IC output peaks at about +1.6 dBm; the RX IC noise figure is 6–7 dB at 92–96 GHz. The array supplies the rest: 96 tiles give about 50 dBm EIRP at 95 GHz boresight (our sum of simulated IC output, +19.8 dB array power and 29.0 dBi).</span></li>
 <li><span class="tag t-c">confirmed</span><span><b>Pitch close to λ.</b> 3.30 mm equals λ at 90.85 GHz. Together with a tile-cell resonance near 90.6 GHz this rules out 85–94.4 GHz and leaves 95–99.9 GHz as the usable band. See <a href="#array">section 07</a>.</span></li>
-<li><span class="tag t-i">inference</span><span><b>Thin, accurate radome.</b> A half-wave polycarbonate wall at 97.5 GHz is only 0.92 mm thick. Its reflection stays at or below −27 dB over 95–99.9 GHz, but only if the thickness is held. See <a href="#thermal">section 19</a>.</span></li>
+<li><span class="tag t-i">inference</span><span><b>Thin, accurate radome.</b> A half-wave polycarbonate wall at 97.5 GHz is only 0.92 mm thick. Its reflection stays at or below −27 dB over 95–99.9 GHz, but only if the thickness is held. See <a href="#thermal">section 20</a>.</span></li>
 </ul>
 </div></details>
 </section>
@@ -3412,7 +3484,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <p>The original deck compared three edge-compute options: NVIDIA Jetson Orin for efficiency, Jetson AGX for scale and an AMD APU for general compute <span class="tag t-c">confirmed</span>. All three are good parts; none suits this unit.</p>
 <ul>
 <li><b>Power.</b> Orin NX runs in 10, 15, 25 and 40 W modes; AGX Orin draws up to 60 W. PoE++ Type 4 leaves ≈ 10.7 W of margin at the nominal load (<a href="#power">section 17</a>). A 25–60 W module spends that margin several times over.</li>
-<li><b>Heat.</b> The tube is sealed and passively cooled. At 60 W a bare Ø130 × 250 mm body already runs ≈ 36 K above ambient (<a href="#thermal">section 19</a>). Another 10–50 W has nowhere to go.</li>
+<li><b>Heat.</b> The tube is sealed and passively cooled. At 60 W a bare Ø130 × 250 mm body already runs ≈ 36 K above ambient (<a href="#thermal">section 20</a>). Another 10–50 W has nowhere to go.</li>
 <li><b>Temperature.</b> One distributor lists AGX Orin at −25…+80 °C, so a −40 °C rating would need a pre-heater. The i.MX 95 has native −40 °C grades.</li>
 <li><b>Compute is not the bottleneck.</b> The VSPA array (1.3 TFLOP family peak) does the bulk DSP. The host load is CFAR, angles and tracking: a few GOPS.</li>
 <li><b>Cost of the switch.</b> CUDA is lost. OpenCL 3.0 and Vulkan compute on the Mali cover FFT, CFAR and clustering kernels. The Mali is about 30× slower than an Orin-class GPU, which is why the large FFTs stay on the VSPA <span class="tag t-i">inference</span>.</li>
@@ -3963,7 +4035,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <div class="tbl"><table>
 <thead><tr><th>Element</th><th>Length (mm)</th><th>z (mm)</th><th>What sets it</th></tr></thead>
 <tbody>
-<tr><td>Bezel lip and window</td><td class="n">1.6 + 0.92</td><td class="n">0 to −2.5</td><td>Window held 1.6 mm behind the bezel face; half-wave polycarbonate wall at 97.5 GHz (<a href="#thermal">section 19</a>).</td></tr>
+<tr><td>Bezel lip and window</td><td class="n">1.6 + 0.92</td><td class="n">0 to −2.5</td><td>Window held 1.6 mm behind the bezel face; half-wave polycarbonate wall at 97.5 GHz (<a href="#thermal">section 20</a>).</td></tr>
 <tr><td>Stand-off</td><td class="n">5.0</td><td class="n">−2.5 to −7.5</td><td>Window inner face to the patch plane, the value of the CST radome model; the septum spans it.</td></tr>
 <tr><td>L1 W-band disc + spreader</td><td class="n">11.9</td><td class="n">−7.5 to −19.4</td><td>Tiles 0.9, PCB 2.0, back-side parts 3, aluminium spreader 6, the flatness datum of the array.</td></tr>
 <tr><td>SMPM gap</td><td class="n">10</td><td class="n">−19.4 to −29.4</td><td>Six blind-mate SMPM bullets (4 IF, dechirp LO, REF in) and a 2 × 30 pin header; the X-band shield cans reach 3 mm into it.</td></tr>
@@ -4003,7 +4075,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <li>Build each disc with its spreader and clamp ring and test it on the bench (W-band: LO level at the tiles and TX output; X-band: dechirp on all four channels).</li>
 <li>Fit the M12 jacks, the SMA, the vent and the earth stud to the rear cap, with the harness to the power disc.</li>
 <li>Join the power, compute and X-band discs on their headers and the mezzanine, slide them in from the front and expand the clamp rings against the wall.</li>
-<li>Fit the W-band disc last: the five SMPM bullets blind-mate into the X-band disc. Check the patch-plane depth from the tube face.</li>
+<li>Fit the W-band disc last: the six SMPM bullets blind-mate into the X-band disc. Check the patch-plane depth from the tube face.</li>
 <li>Fit the septum, then the bezel with the window and the heater ring; the mullion lands on the septum line.</li>
 <li>Close the rear cap, pressure-test the sealed tube, then fit the ePTFE vent and the desiccant.</li>
 </ol>
@@ -4016,10 +4088,229 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <p class="note">The clamp rings are drawn as expanding split rings with wedge screws; a press fit would work too but makes the stack hard to remove. <span class="tag t-s">speculative</span></p></div>
 </div>
 </div></details>
+<p class="note">Need it smaller? Option B packs the same electronics into a Ø100 × 59 mm dome with three discs (<a href="#dome">section 19</a>); it gives up continuous 60 W operation for size.</p>
+</section>
+
+<section class="sheet" id="dome" style="--ph:var(--pwr)">
+<div class="step">19 · Power and mechanics</div><h2>Option B: a compact dome with three discs</h2>
+<p class="cap">The same radar in a dome-camera body, Ø100 × 59 mm: compute and power share the third disc, the unit is about six times smaller than the <a href="#mech">tube</a>, and heat limits it to about 25–30 W.</p>
+<div class="stats">
+<div class="stat"><b>Ø100 × 59 mm</b><span>white body and smoked dome, back plate to dome apex</span></div>
+<div class="stat"><b>≈ 0.46 L</b><span>about 6× less than the 2.84 L tube</span></div>
+<div class="stat"><b>3 × Ø90 mm</b><span>discs: W-band, X-band, compute + power</span></div>
+<div class="stat"><b>≈ 26–31 W</b><span>at +35 K with a metal mount (bare or ribbed body)</span></div>
+<div class="stat"><b>20 frames/s</b><span>nominal design at ≈ 25 % frame duty</span></div>
+<div class="stat"><b>PoE++ Type 3</b><span>one M12 pigtail for data and power</span></div>
+</div>
+<div class="m3" id="m3d">
+  <div class="toolbar m3-ctl" id="m3d-ctl" hidden>
+    <div class="m3-grp"><span class="m3-lbl" id="m3d-shell-l">Shell</span>
+      <div class="seg" role="radiogroup" id="m3d-shell" aria-labelledby="m3d-shell-l">
+        <button type="button" role="radio" aria-checked="true" data-m3-shell="on">On</button>
+        <button type="button" role="radio" aria-checked="false" data-m3-shell="glass">See-through</button>
+        <button type="button" role="radio" aria-checked="false" data-m3-shell="off">Off</button>
+      </div></div>
+    <div class="m3-grp">
+      <button type="button" class="btn sm m3-tog" id="m3d-exp" aria-pressed="false">Exploded stack</button>
+      <button type="button" class="btn sm m3-tog" id="m3d-wedge" aria-pressed="false">Wedge 30°</button>
+    </div>
+  </div>
+  <div class="m3-stage" id="m3d-stage">
+    <div class="m3-ph" id="m3d-ph">
+      <p class="m3-msg" id="m3d-msg" role="status" tabindex="-1">Interactive 3D model of option B: the dome, the white body, the three Ø90 mm discs and the mount. It needs JavaScript; the side section below shows the same stack to scale.</p>
+      <button type="button" class="btn sm primary" id="m3d-load" hidden>Load 3D view</button>
+    </div>
+    <p class="m3-cap" id="m3d-cap" hidden></p>
+  </div>
+  <p class="m3-sr" id="m3d-status" role="status"></p>
+  <div class="toolbar m3-ctl" id="m3d-camrow" hidden>
+    <div class="m3-grp"><span class="m3-lbl" id="m3d-cam-l">View</span>
+      <div class="seg" role="radiogroup" id="m3d-cam" aria-labelledby="m3d-cam-l">
+        <button type="button" role="radio" aria-checked="true" data-m3-cam="iso">Iso</button>
+        <button type="button" role="radio" aria-checked="false" data-m3-cam="front">Front</button>
+        <button type="button" role="radio" aria-checked="false" data-m3-cam="side">Side</button>
+        <button type="button" role="radio" aria-checked="false" data-m3-cam="top">Top</button>
+        <button type="button" role="radio" aria-checked="false" data-m3-cam="back">Back</button>
+      </div></div>
+    <div class="m3-grp">
+      <button type="button" class="btn sm m3-zoom" id="m3d-zout" aria-label="Zoom out">−</button>
+      <button type="button" class="btn sm m3-zoom" id="m3d-zin" aria-label="Zoom in">+</button>
+      <button type="button" class="btn sm" id="m3d-reset">Reset view</button>
+      <button type="button" class="btn sm m3-tog" id="m3d-lbls" aria-pressed="true">Labels</button>
+      <button type="button" class="btn sm m3-tog" id="m3d-cola" aria-pressed="false">Cola can for scale</button>
+    </div>
+  </div>
+  <p class="note" id="m3d-hint" hidden>Drag to turn, Shift-drag to pan, Ctrl + scroll to zoom, double-click to reset; arrow keys, + and − work too. Hover a part for its name; click a part or a number to highlight it. With the shell on, the numbers of the parts inside appear when you pick them in the list below.</p>
+  <div class="m3-legs">
+    <div class="m3-legw">
+      <ol class="m3-leg">
+        <li data-k="1"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Dome</button>: a λ/2 polycarbonate cap (0.92 mm), inner R 90 mm, rim Ø96, smoked; a thin metallised strip runs along the septum line.</li>
+        <li data-k="2"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>White top ring and dark liner</button>: the ring holds the dome on an O-ring with two screws; the liner is cosmetic, as in a camera.</li>
+        <li data-k="3"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>TX aperture</button>: 8 × 12 tiles at x = −15.7 mm; the patch plane sits 13.9 mm below the dome apex.</li>
+        <li data-k="4"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>RX aperture</button>: 8 × 12 tiles at x = +15.7 mm, four 24-tile quadrants.</li>
+        <li data-k="5"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Arched septum fin and absorber</button>: the fin follows the dome to about 0.5 mm, with absorber on both faces.</li>
+        <li data-k="6"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>W-band disc back (Ø90)</button>: chirp synthesizer under its can, the two LO trees, IF LNAs, beam CPLD and the 1.2 V POL in the bottom segment.</li>
+        <li data-k="7"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Six blind-mate SMPM and the control header</button>: 4 IF, dechirp LO and REF in across the 8 mm gap.</li>
+        <li data-k="8"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>X-band disc</button>: four RF front ends under cans and 2 × LMS8001 on the front; LA1214, clock cleaner, OCXO and MCU on the back.</li>
+        <li data-k="9"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Shared spreader</button>: one 4 mm aluminium plate; the LA1214 presses into it from above, the i.MX 95 from below; the mezzanine passes through a cut-out.</li>
+        <li data-k="10"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>L3 compute side</button>: i.MX 95 (19 × 19 mm), one LPDDR5, eMMC, PF09 PMIC and the 2.5GBASE-T PHY.</li>
+        <li data-k="11"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>L3 power side</button>: PoE++ Type 3 PD, planar transformer of the isolated 12 V converter, bulk capacitors and the PMBus sequencer; a 2.2 mm slot isolates the PoE primary.</li>
+        <li data-k="12"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Body</button>: die-cast aluminium, white powder coat, Ø100 × 44 mm with the back plate; optional ribs to Ø116 mm for heat are not shown.</li>
+        <li data-k="13"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Back plate</button>: 4 mm aluminium mounting face with the cable gland, the 0.3 m pigtail to an M12 X-coded plug (shown shortened), the test port under a screw cap and the thermal pad.</li>
+        <li data-k="14"><button type="button" class="m3-legbtn" aria-pressed="false" disabled>Mount</button>: a flat wall plate or a 30° aluminium wedge under a ceiling plate; it is also the heat path.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<h3>Side by side, to scale</h3>
+<p class="cap">Option A on the left and option B under its front end share one scale; option B is enlarged on the right with its stack dimensions. Dimensions in mm; the numbers are the 3D legend's.</p>
+<div class="draw"><svg viewBox="0 0 1120 720" role="img" style="min-width:900px" id="dome-sec" aria-label="To-scale comparison of the two housings. Left, option A: the Ø127 mm aluminium tube, 224 mm long and 236 mm to the tips of its M12 connectors, with a sunshield overhanging the front by 35 mm, a Ø131 mm bezel, four discs in the front and a bracket below. Under its front end, option B at the same scale: Ø100 mm and 59 mm long, about as long as the part of the tube that holds the discs. Right, option B enlarged 1.6 times as a side section: a smoked R 90 mm dome with 13.9 mm sag over a 96 mm rim, 14.9 mm above the patches at the centre; the W-band disc 9.9 mm, an 8 mm SMPM gap, the X-band disc, shared spreader and compute-and-power disc 11.2 mm, 10 mm of power parts, a 4 mm back plate, 59 mm overall, on a wall plate. Numbered callouts 1 to 14 match the 3D legend."><defs><pattern id="dome-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="dm-hl"/></pattern></defs><text x="46" y="24" class="t">A · Option A: Ø127 tube, 224 mm long, ≈ 2.84 L</text><line x1="61" y1="250" x2="753.5" y2="250" class="dm-axis"/><rect x="66" y="71.25" width="587.5" height="3.75" class="dm-al"/><rect x="236" y="75" width="35" height="16.25" class="dm-al"/><rect x="548.5" y="75" width="35" height="16.25" class="dm-al"/><polygon points="164.75,125 164.75,107.12 183.5,107.12 183.5,86.25 157.25,86.25 153.5,90 153.5,126.25 156,128.75 157.5,128.75 157.5,125" class="dm-al"/><polygon points="164.75,375 164.75,392.88 183.5,392.88 183.5,413.75 157.25,413.75 153.5,410 153.5,373.75 156,371.25 157.5,371.25 157.5,375" class="dm-al"/><rect x="157.45" y="125.25" width="2.3" height="249.5" class="dm-win"/><rect x="183.5" y="91.25" width="500" height="15.88" class="dm-al"/><rect x="183.5" y="392.88" width="500" height="15.88" class="dm-al"/><rect x="172.25" y="200.5" width="2.25" height="99" class="dm-lam"/><rect x="174.5" y="112.5" width="5" height="275" class="dm-pcb"/><rect x="187" y="107.12" width="15" height="285.75" class="dm-al"/><rect x="227" y="112.5" width="4" height="275" class="dm-pcb"/><rect x="241" y="107.12" width="10" height="285.75" class="dm-al"/><rect x="276" y="112.5" width="4" height="275" class="dm-pcb"/><rect x="280" y="107.12" width="8.5" height="285.75" class="dm-al"/><rect x="308.5" y="112.5" width="4" height="275" class="dm-pcb"/><rect x="312.5" y="185" width="30" height="45" class="dm-ic"/><rect x="312.5" y="270" width="30" height="40" class="dm-ic"/><rect x="179.5" y="150" width="7.5" height="30" class="dm-al"/><rect x="231" y="223.75" width="5" height="52.5" class="dm-ic"/><rect x="683.5" y="91.25" width="30" height="317.5" class="dm-al"/><rect x="663.5" y="212.5" width="20" height="35" class="dm-al"/><rect x="713.5" y="207.5" width="7.5" height="45" class="dm-al"/><rect x="721" y="215" width="22.5" height="30" class="dm-al"/><rect x="713.5" y="313.5" width="5.5" height="23" class="dm-au"/><rect x="719" y="317.12" width="15.25" height="15.75" class="dm-au"/><rect x="734.25" y="315.25" width="7.5" height="19.5" class="dm-ic"/><rect x="416" y="409" width="75" height="12.5" class="dm-al"/><rect x="426" y="421.5" width="55" height="144.75" class="dm-al"/><circle cx="453.5" cy="580" r="32.5" class="dm-al"/><polygon points="416,600 491,600 496,625 411,625" class="dm-al"/><rect x="328.5" y="625" width="250" height="15" class="dm-al"/><rect x="355" y="625.5" width="7" height="14" class="dm-hole"/><rect x="545" y="625.5" width="7" height="14" class="dm-hole"/><line x1="156.5" y1="250" x2="84" y2="250" class="wire" marker-end="url(#a-wire)"/><text x="118" y="243" class="s mid">boresight</text><text x="503.5" y="242" class="s mid">free length</text><text x="353.5" y="66" class="s mid">sunshield</text><text x="533.5" y="530" class="s">bracket</text><line x1="66" y1="69" x2="66" y2="44" class="dm-ext"/><line x1="153.5" y1="84" x2="153.5" y2="44" class="dm-ext"/><line x1="743.5" y1="212" x2="743.5" y2="44" class="dm-ext"/><line x1="66" y1="50" x2="153.5" y2="50" class="dm-dim"/><polygon points="66,50 72,47.8 72,52.2" class="dm-dh"/><polygon points="153.5,50 147.5,52.2 147.5,47.8" class="dm-dh"/><text x="109.75" y="45" class="s mid">35 overhang</text><line x1="153.5" y1="50" x2="743.5" y2="50" class="dm-dim"/><polygon points="153.5,50 159.5,47.8 159.5,52.2" class="dm-dh"/><polygon points="743.5,50 737.5,52.2 737.5,47.8" class="dm-dh"/><text x="448.5" y="45" class="s mid">236 to the M12 tips</text><line x1="151.5" y1="86.25" x2="44" y2="86.25" class="dm-ext"/><line x1="151.5" y1="413.75" x2="44" y2="413.75" class="dm-ext"/><line x1="50" y1="86.25" x2="50" y2="413.75" class="dm-dim"/><polygon points="50,86.25 52.2,92.25 47.8,92.25" class="dm-dh"/><polygon points="50,413.75 47.8,407.75 52.2,407.75" class="dm-dh"/><text x="40" y="310" class="s mid" transform="rotate(-90 40 310)">Ø131 bezel</text><line x1="147.5" y1="575" x2="318" y2="575" class="dm-axis"/><g data-dm="12"><polygon points="190.5,460 190.5,450.86 192.57,450.29 195.5,450 195.5,450 300.75,450 300.75,460" class="dm-wp"/><polygon points="190.5,690 190.5,699.14 192.57,699.71 195.5,700 195.5,700 300.75,700 300.75,690" class="dm-wp"/></g><g data-dm="2"><polygon points="190.5,450.86 189.67,451.18 188.83,451.56 188,452.01 187.17,452.53 186.33,453.13 185.5,453.82 185.5,455 187.71,455 188.29,454.06 188.89,453.12 189.48,452.19 190.09,451.25 190.5,451.25" class="dm-wp"/><rect x="190.5" y="460" width="4.75" height="5" class="dm-liner"/><polygon points="190.5,699.14 189.67,698.82 188.83,698.44 188,697.99 187.17,697.47 186.33,696.87 185.5,696.18 185.5,695 187.71,695 188.29,695.94 188.89,696.88 189.48,697.81 190.09,698.75 190.5,698.75" class="dm-wp"/><rect x="190.5" y="685" width="4.75" height="5" class="dm-liner"/></g><g data-dm="1"><path d="M190.5 455 L190.5 451.25 L190.09 451.25 A227.3 227.3 0 0 0 190.09 698.75 L190.5 698.75 L190.5 695 A225 225 0 0 1 190.5 455Z" class="dm-dome"/></g><g data-dm="5"><rect x="155.88" y="570" width="0.62" height="10" class="dm-al"/><rect x="157" y="572.5" width="38.25" height="5" class="dm-al"/><rect x="157" y="570" width="38.25" height="2.5" class="dm-abs"/><rect x="157" y="577.5" width="38.25" height="2.5" class="dm-abs"/></g><g data-dm="3"><rect x="193" y="502.75" width="2.25" height="66" class="dm-lam"/></g><g data-dm="4"><rect x="193" y="581.25" width="2.25" height="66" class="dm-lam"/></g><g data-dm="6"><rect x="195.25" y="462.5" width="5" height="225" class="dm-pcb"/><rect x="200.25" y="560" width="7.5" height="30" class="dm-al"/><rect x="200.25" y="537.5" width="2.25" height="5" class="dm-ic"/><rect x="200.25" y="527.5" width="2.25" height="5" class="dm-ic"/><rect x="200.25" y="517.5" width="2.25" height="5" class="dm-ic"/><rect x="200.25" y="507.5" width="2.25" height="5" class="dm-ic"/><rect x="200.25" y="607.5" width="2.25" height="5" class="dm-ic"/><rect x="200.25" y="617.5" width="2.25" height="5" class="dm-ic"/><rect x="200.25" y="638.75" width="2.25" height="5" class="dm-ic"/><rect x="200.25" y="487.5" width="7.5" height="12.5" class="dm-ic"/></g><rect x="207.75" y="659.5" width="10" height="30.5" class="dm-al"/><rect x="207.75" y="637" width="10" height="8.5" class="dm-al"/><rect x="207.75" y="604" width="10" height="20.5" class="dm-al"/><rect x="207.75" y="556.25" width="10" height="35.25" class="dm-al"/><rect x="207.75" y="460" width="10" height="83.75" class="dm-al"/><g data-dm="7"><rect x="200.25" y="545" width="5" height="10" class="dm-au"/><rect x="205.25" y="547" width="27.5" height="6" class="dm-au"/><rect x="232.75" y="545" width="5" height="10" class="dm-au"/><rect x="200.25" y="592.75" width="5" height="10" class="dm-au"/><rect x="205.25" y="594.75" width="27.5" height="6" class="dm-au"/><rect x="232.75" y="592.75" width="5" height="10" class="dm-au"/><rect x="200.25" y="625.75" width="5" height="10" class="dm-au"/><rect x="205.25" y="627.75" width="27.5" height="6" class="dm-au"/><rect x="232.75" y="625.75" width="5" height="10" class="dm-au"/><rect x="200.25" y="647.5" width="37.5" height="10" class="dm-ic"/></g><g data-dm="8"><rect x="237.75" y="462.5" width="4" height="225" class="dm-pcb"/><rect x="230.25" y="605" width="7.5" height="18.75" class="dm-al"/><rect x="230.25" y="637.5" width="7.5" height="7.5" class="dm-al"/><rect x="235.5" y="522.5" width="2.25" height="17.5" class="dm-ic"/><rect x="235.5" y="497.5" width="2.25" height="17.5" class="dm-ic"/><rect x="236.25" y="557.5" width="1.5" height="10" class="dm-ic"/><rect x="241.75" y="548.75" width="4" height="52.5" class="dm-ic"/><rect x="245.75" y="548.75" width="1.5" height="52.5" class="dm-pad"/><rect x="241.75" y="517.5" width="2.5" height="22.5" class="dm-ic"/><rect x="241.75" y="615" width="15" height="22.5" class="dm-al"/><rect x="241.75" y="492.5" width="2.25" height="15" class="dm-ic"/></g><g data-dm="9"><rect x="247.25" y="661.25" width="10" height="28.75" class="dm-al"/><rect x="247.25" y="640" width="10" height="3.75" class="dm-al"/><rect x="247.25" y="460" width="10" height="152.5" class="dm-al"/></g><g data-dm="10"><rect x="241.75" y="645" width="20" height="15" class="dm-ic"/><rect x="258.75" y="556.25" width="3" height="47.5" class="dm-ic"/><rect x="257.25" y="556.25" width="1.5" height="47.5" class="dm-pad"/><rect x="259.25" y="609.5" width="2.5" height="31" class="dm-ic"/><rect x="259.5" y="523.75" width="2.25" height="25" class="dm-ic"/><rect x="261.75" y="462.5" width="4" height="225" class="dm-pcb"/></g><g data-dm="11"><rect x="265.75" y="518.25" width="20" height="50" class="dm-ic"/><rect x="272" y="522" width="7.5" height="42.5" class="dm-cu"/><rect x="285.75" y="518.25" width="5" height="50" class="dm-pad"/><rect x="265.75" y="487.5" width="13.75" height="27.5" class="dm-ic"/><rect x="265.75" y="610" width="14.5" height="15" class="dm-al"/><rect x="265.75" y="635" width="14.5" height="15" class="dm-al"/><rect x="265.75" y="577.5" width="2.5" height="25" class="dm-ic"/><rect x="265.75" y="655" width="2.25" height="10" class="dm-ic"/></g><g data-dm="13"><rect x="290.75" y="645" width="10" height="45" class="dm-al"/><rect x="290.75" y="503.75" width="10" height="121.25" class="dm-al"/><rect x="290.75" y="460" width="10" height="36.25" class="dm-al"/><rect x="290.75" y="625" width="5" height="20" class="dm-al"/><rect x="297" y="627.5" width="3.75" height="15" class="dm-cap"/><rect x="283.25" y="503.75" width="7.5" height="6.25" class="dm-cap"/><rect x="283.25" y="490" width="7.5" height="6.25" class="dm-cap"/><rect x="300.75" y="470" width="1.25" height="210" class="dm-pad"/></g><g data-dm="14"><rect x="302" y="470" width="15" height="33.75" class="dm-al"/><rect x="302" y="503.75" width="15" height="176.25" class="dm-al"/></g><line x1="153.5" y1="416.75" x2="153.5" y2="571" class="dm-guide"/><line x1="300.75" y1="411.75" x2="300.75" y2="447" class="dm-guide"/><line x1="153.5" y1="437" x2="300.75" y2="437" class="dm-dim"/><polygon points="153.5,437 159.5,434.8 159.5,439.2" class="dm-dh"/><polygon points="300.75,437 294.75,439.2 294.75,434.8" class="dm-dh"/><text x="227.12" y="432" class="s mid">59</text><text x="140" y="556" class="b end">B at the same</text><text x="140" y="572" class="b end">scale: Ø100 × 59</text><text x="140" y="588" class="s end">≈ 0.46 L</text><text x="600" y="676" class="s">A and the small B, same scale</text><rect x="600" y="682" width="62.5" height="5" class="dm-sbk"/><rect x="662.5" y="682" width="62.5" height="5" class="dm-sbw"/><text x="600" y="703" class="s mid">0</text><text x="725" y="703" class="s mid">50 mm</text><text x="762" y="24" class="t">B · Option B, side section, ×1.6</text><text x="762" y="42" class="s">Cut through both apertures (TX above, RX below); parts in projection</text><text x="762" y="64" class="s">Dome: R 90 cap, λ/2 polycarbonate 0.92</text><text x="762" y="78" class="s">sag 13.9 over the Ø96 rim</text><line x1="762" y1="330" x2="1100" y2="330" class="dm-axis"/><rect x="1083.6" y="146" width="13.6" height="368" class="dm-wall"/><g data-dm="12"><polygon points="881.2,146 881.2,131.37 884.52,130.46 889.2,130 889.2,130 1057.6,130 1057.6,146" class="dm-wp"/><polygon points="881.2,514 881.2,528.63 884.52,529.54 889.2,530 889.2,530 1057.6,530 1057.6,514" class="dm-wp"/></g><g data-dm="2"><polygon points="881.2,131.37 879.87,131.89 878.53,132.5 877.2,133.22 875.87,134.04 874.53,135 873.2,136.11 873.2,138 876.73,138 877.67,136.5 878.62,135 879.58,133.5 880.54,132 881.2,132" class="dm-wp"/><rect x="881.2" y="146" width="7.6" height="8" class="dm-liner"/><polygon points="881.2,528.63 879.87,528.11 878.53,527.5 877.2,526.78 875.87,525.96 874.53,525 873.2,523.89 873.2,522 876.73,522 877.67,523.5 878.62,525 879.58,526.5 880.54,528 881.2,528" class="dm-wp"/><rect x="881.2" y="506" width="7.6" height="8" class="dm-liner"/></g><g data-dm="1"><path d="M881.2 138 L881.2 132 L880.54 132 A363.68 363.68 0 0 0 880.54 528 L881.2 528 L881.2 522 A360 360 0 0 1 881.2 138Z" class="dm-dome"/></g><g data-dm="5"><rect x="825.8" y="322" width="1" height="16" class="dm-al"/><rect x="827.6" y="326" width="61.2" height="8" class="dm-al"/><rect x="827.6" y="322" width="61.2" height="4" class="dm-abs"/><rect x="827.6" y="334" width="61.2" height="4" class="dm-abs"/></g><g data-dm="3"><rect x="885.2" y="214.4" width="3.6" height="105.6" class="dm-lam"/><rect x="885.2" y="315.22" width="1" height="3" class="dm-au"/><rect x="885.2" y="308.58" width="1" height="3" class="dm-au"/><rect x="885.2" y="302.02" width="1" height="3" class="dm-au"/><rect x="885.2" y="295.38" width="1" height="3" class="dm-au"/><rect x="885.2" y="288.82" width="1" height="3" class="dm-au"/><rect x="885.2" y="282.18" width="1" height="3" class="dm-au"/><rect x="885.2" y="275.62" width="1" height="3" class="dm-au"/><rect x="885.2" y="268.98" width="1" height="3" class="dm-au"/><rect x="885.2" y="262.42" width="1" height="3" class="dm-au"/><rect x="885.2" y="255.78" width="1" height="3" class="dm-au"/><rect x="885.2" y="249.22" width="1" height="3" class="dm-au"/><rect x="885.2" y="242.58" width="1" height="3" class="dm-au"/><rect x="885.2" y="236.02" width="1" height="3" class="dm-au"/><rect x="885.2" y="229.38" width="1" height="3" class="dm-au"/><rect x="885.2" y="222.82" width="1" height="3" class="dm-au"/><rect x="885.2" y="216.18" width="1" height="3" class="dm-au"/></g><g data-dm="4"><rect x="885.2" y="340" width="3.6" height="105.6" class="dm-lam"/><rect x="885.2" y="341.78" width="1" height="3" class="dm-au"/><rect x="885.2" y="348.42" width="1" height="3" class="dm-au"/><rect x="885.2" y="354.98" width="1" height="3" class="dm-au"/><rect x="885.2" y="361.62" width="1" height="3" class="dm-au"/><rect x="885.2" y="368.18" width="1" height="3" class="dm-au"/><rect x="885.2" y="374.82" width="1" height="3" class="dm-au"/><rect x="885.2" y="381.38" width="1" height="3" class="dm-au"/><rect x="885.2" y="388.02" width="1" height="3" class="dm-au"/><rect x="885.2" y="394.58" width="1" height="3" class="dm-au"/><rect x="885.2" y="401.22" width="1" height="3" class="dm-au"/><rect x="885.2" y="407.78" width="1" height="3" class="dm-au"/><rect x="885.2" y="414.42" width="1" height="3" class="dm-au"/><rect x="885.2" y="420.98" width="1" height="3" class="dm-au"/><rect x="885.2" y="427.62" width="1" height="3" class="dm-au"/><rect x="885.2" y="434.18" width="1" height="3" class="dm-au"/><rect x="885.2" y="440.82" width="1" height="3" class="dm-au"/></g><g data-dm="6"><rect x="888.8" y="150" width="8" height="360" class="dm-pcb"/><rect x="896.8" y="306" width="12" height="48" class="dm-al"/><rect x="896.8" y="270" width="3.6" height="8" class="dm-ic"/><rect x="896.8" y="254" width="3.6" height="8" class="dm-ic"/><rect x="896.8" y="238" width="3.6" height="8" class="dm-ic"/><rect x="896.8" y="222" width="3.6" height="8" class="dm-ic"/><rect x="896.8" y="382" width="3.6" height="8" class="dm-ic"/><rect x="896.8" y="398" width="3.6" height="8" class="dm-ic"/><rect x="896.8" y="432" width="3.6" height="8" class="dm-ic"/><rect x="896.8" y="190" width="12" height="20" class="dm-ic"/></g><rect x="908.8" y="465.2" width="16" height="48.8" class="dm-al"/><rect x="908.8" y="429.2" width="16" height="13.6" class="dm-al"/><rect x="908.8" y="376.4" width="16" height="32.8" class="dm-al"/><rect x="908.8" y="300" width="16" height="56.4" class="dm-al"/><rect x="908.8" y="146" width="16" height="134" class="dm-al"/><g data-dm="7"><rect x="896.8" y="282" width="8" height="16" class="dm-au"/><rect x="904.8" y="285.2" width="44" height="9.6" class="dm-au"/><rect x="948.8" y="282" width="8" height="16" class="dm-au"/><rect x="896.8" y="358.4" width="8" height="16" class="dm-au"/><rect x="904.8" y="361.6" width="44" height="9.6" class="dm-au"/><rect x="948.8" y="358.4" width="8" height="16" class="dm-au"/><rect x="896.8" y="411.2" width="8" height="16" class="dm-au"/><rect x="904.8" y="414.4" width="44" height="9.6" class="dm-au"/><rect x="948.8" y="411.2" width="8" height="16" class="dm-au"/><rect x="896.8" y="446" width="60" height="16" class="dm-ic"/></g><g data-dm="8"><rect x="956.8" y="150" width="6.4" height="360" class="dm-pcb"/><rect x="944.8" y="378" width="12" height="30" class="dm-al"/><rect x="944.8" y="430" width="12" height="12" class="dm-al"/><rect x="953.2" y="246" width="3.6" height="28" class="dm-ic"/><rect x="953.2" y="206" width="3.6" height="28" class="dm-ic"/><rect x="954.4" y="302" width="2.4" height="16" class="dm-ic"/><rect x="963.2" y="288" width="6.4" height="84" class="dm-ic"/><rect x="969.6" y="288" width="2.4" height="84" class="dm-pad"/><rect x="963.2" y="238" width="4" height="36" class="dm-ic"/><rect x="963.2" y="394" width="24" height="36" class="dm-al"/><rect x="963.2" y="198" width="3.6" height="24" class="dm-ic"/></g><g data-dm="9"><rect x="972" y="468" width="16" height="46" class="dm-al"/><rect x="972" y="434" width="16" height="6" class="dm-al"/><rect x="972" y="146" width="16" height="244" class="dm-al"/></g><g data-dm="10"><rect x="963.2" y="442" width="32" height="24" class="dm-ic"/><rect x="990.4" y="300" width="4.8" height="76" class="dm-ic"/><rect x="988" y="300" width="2.4" height="76" class="dm-pad"/><rect x="991.2" y="385.2" width="4" height="49.6" class="dm-ic"/><rect x="991.6" y="248" width="3.6" height="40" class="dm-ic"/><rect x="995.2" y="150" width="6.4" height="360" class="dm-pcb"/></g><g data-dm="11"><rect x="1001.6" y="239.2" width="32" height="80" class="dm-ic"/><rect x="1011.6" y="245.2" width="12" height="68" class="dm-cu"/><rect x="1033.6" y="239.2" width="8" height="80" class="dm-pad"/><rect x="1001.6" y="190" width="22" height="44" class="dm-ic"/><rect x="1001.6" y="386" width="23.2" height="24" class="dm-al"/><rect x="1001.6" y="426" width="23.2" height="24" class="dm-al"/><rect x="1001.6" y="334" width="4" height="40" class="dm-ic"/><rect x="1001.6" y="458" width="3.6" height="16" class="dm-ic"/></g><g data-dm="13"><rect x="1041.6" y="442" width="16" height="72" class="dm-al"/><rect x="1041.6" y="216" width="16" height="194" class="dm-al"/><rect x="1041.6" y="146" width="16" height="58" class="dm-al"/><rect x="1041.6" y="410" width="8" height="32" class="dm-al"/><rect x="1051.6" y="414" width="6" height="24" class="dm-cap"/><rect x="1029.6" y="216" width="12" height="10" class="dm-cap"/><rect x="1029.6" y="194" width="12" height="10" class="dm-cap"/><rect x="1057.6" y="162" width="2" height="336" class="dm-pad"/></g><g data-dm="14"><rect x="1059.6" y="162" width="24" height="54" class="dm-al"/><rect x="1059.6" y="216" width="24" height="282" class="dm-al"/></g><g data-dm="13"><line x1="1029.6" y1="210" x2="1112.2" y2="210" class="dm-cab"/></g><line x1="888.2" y1="130" x2="770" y2="130" class="dm-ext"/><line x1="776" y1="330" x2="776" y2="130" class="dm-dim"/><polygon points="776,130 778.2,136 773.8,136" class="dm-dh"/><text x="770" y="248" class="s mid" transform="rotate(-90 770 248)">Ø100</text><line x1="879.2" y1="138" x2="790" y2="138" class="dm-ext"/><line x1="796" y1="330" x2="796" y2="138" class="dm-dim"/><polygon points="796,138 798.2,144 793.8,144" class="dm-dh"/><text x="790" y="262" class="s mid" transform="rotate(-90 790 262)">Ø96 rim</text><line x1="825.8" y1="342" x2="885.2" y2="342" class="dm-dim"/><polygon points="825.8,342 831.8,339.8 831.8,344.2" class="dm-dh"/><polygon points="885.2,342 879.2,344.2 879.2,339.8" class="dm-dh"/><text x="855.5" y="356" class="s mid">14.9</text><line x1="885.2" y1="534" x2="885.2" y2="566" class="dm-ext"/><line x1="924.8" y1="534" x2="924.8" y2="566" class="dm-ext"/><line x1="956.8" y1="534" x2="956.8" y2="566" class="dm-ext"/><line x1="1001.6" y1="534" x2="1001.6" y2="566" class="dm-ext"/><line x1="1041.6" y1="534" x2="1041.6" y2="566" class="dm-ext"/><line x1="1057.6" y1="534" x2="1057.6" y2="618" class="dm-ext"/><line x1="822" y1="334" x2="822" y2="618" class="dm-ext"/><line x1="885.2" y1="560" x2="924.8" y2="560" class="dm-dim"/><polygon points="885.2,560 891.2,557.8 891.2,562.2" class="dm-dh"/><polygon points="924.8,560 918.8,562.2 918.8,557.8" class="dm-dh"/><text x="905" y="555" class="s mid">9.9</text><line x1="924.8" y1="560" x2="956.8" y2="560" class="dm-dim"/><polygon points="924.8,560 930.8,557.8 930.8,562.2" class="dm-dh"/><polygon points="956.8,560 950.8,562.2 950.8,557.8" class="dm-dh"/><text x="940.8" y="555" class="s mid">8</text><line x1="956.8" y1="560" x2="1001.6" y2="560" class="dm-dim"/><polygon points="956.8,560 962.8,557.8 962.8,562.2" class="dm-dh"/><polygon points="1001.6,560 995.6,562.2 995.6,557.8" class="dm-dh"/><text x="979.2" y="555" class="s mid">11.2</text><line x1="1001.6" y1="560" x2="1041.6" y2="560" class="dm-dim"/><polygon points="1001.6,560 1007.6,557.8 1007.6,562.2" class="dm-dh"/><polygon points="1041.6,560 1035.6,562.2 1035.6,557.8" class="dm-dh"/><text x="1021.6" y="555" class="s mid">10</text><line x1="1041.6" y1="560" x2="1057.6" y2="560" class="dm-dim"/><polygon points="1041.6,560 1047.6,557.8 1047.6,562.2" class="dm-dh"/><polygon points="1057.6,560 1051.6,562.2 1051.6,557.8" class="dm-dh"/><text x="1049.6" y="555" class="s mid">4</text><text x="905" y="576" class="s mid">L1</text><text x="940.8" y="590" class="s mid">SMPM gap</text><text x="979.2" y="576" class="s mid">L2 + L3</text><text x="1021.6" y="590" class="s mid">power side</text><text x="1049.6" y="576" class="s mid">plate</text><line x1="822" y1="610" x2="1057.6" y2="610" class="dm-dim"/><polygon points="822,610 828,607.8 828,612.2" class="dm-dh"/><polygon points="1057.6,610 1051.6,612.2 1051.6,607.8" class="dm-dh"/><text x="939.8" y="627" class="s mid">59 overall: dome apex to the back face</text><g class="dm-co" data-dm-co="2"><title>2 · White top ring and dark liner</title><line x1="820.82" y1="163.19" x2="885" y2="150" class="dm-ld"/><circle cx="885" cy="150" r="1.9" class="dm-dot"/><circle cx="812" cy="165" r="9" class="dm-b"/><text x="812" y="169" class="dm-n">2</text></g><g class="dm-co" data-dm-co="1"><title>1 · Dome: λ/2 polycarbonate cap, R 90 mm, smoked</title><line x1="821" y1="205" x2="844.08" y2="205" class="dm-ld"/><circle cx="844.08" cy="205" r="1.9" class="dm-dot"/><circle cx="812" cy="205" r="9" class="dm-b"/><text x="812" y="209" class="dm-n">1</text></g><g class="dm-co" data-dm-co="3"><title>3 · TX aperture, 8 × 12 tiles</title><line x1="821" y1="250" x2="887" y2="250" class="dm-ld"/><circle cx="887" cy="250" r="1.9" class="dm-dot"/><circle cx="812" cy="250" r="9" class="dm-b"/><text x="812" y="254" class="dm-n">3</text></g><g class="dm-co" data-dm-co="5"><title>5 · Arched septum fin + absorber, metallised strip on the dome</title><line x1="856" y1="307" x2="856" y2="322" class="dm-ld"/><circle cx="856" cy="322" r="1.9" class="dm-dot"/><circle cx="856" cy="298" r="9" class="dm-b"/><text x="856" y="302" class="dm-n">5</text></g><g class="dm-co" data-dm-co="4"><title>4 · RX aperture, 8 × 12 tiles, four quadrants</title><line x1="867" y1="405" x2="887" y2="405" class="dm-ld"/><circle cx="887" cy="405" r="1.9" class="dm-dot"/><circle cx="858" cy="405" r="9" class="dm-b"/><text x="858" y="409" class="dm-n">4</text></g><g class="dm-co" data-dm-co="6"><title>6 · W-band disc back: synth, LO trees, IF LNAs, CPLD, 1.2 V POL</title><line x1="904.8" y1="113" x2="903" y2="194" class="dm-ld"/><circle cx="903" cy="194" r="1.9" class="dm-dot"/><circle cx="905" cy="104" r="9" class="dm-b"/><text x="905" y="108" class="dm-n">6</text></g><g class="dm-co" data-dm-co="7"><title>7 · Six blind-mate SMPM + control header (8 mm gap)</title><line x1="927.15" y1="113" x2="930" y2="285" class="dm-ld"/><circle cx="930" cy="285" r="1.9" class="dm-dot"/><circle cx="927" cy="104" r="9" class="dm-b"/><text x="927" y="108" class="dm-n">7</text></g><g class="dm-co" data-dm-co="8"><title>8 · X-band disc: front ends, 2 × LMS8001, LA1214</title><line x1="950.44" y1="112.88" x2="960" y2="172" class="dm-ld"/><circle cx="960" cy="172" r="1.9" class="dm-dot"/><circle cx="949" cy="104" r="9" class="dm-b"/><text x="949" y="108" class="dm-n">8</text></g><g class="dm-co" data-dm-co="9"><title>9 · Shared spreader: LA1214 above, i.MX 95 below</title><line x1="972.31" y1="112.9" x2="980" y2="165" class="dm-ld"/><circle cx="980" cy="165" r="1.9" class="dm-dot"/><circle cx="971" cy="104" r="9" class="dm-b"/><text x="971" y="108" class="dm-n">9</text></g><g class="dm-co" data-dm-co="10"><title>10 · L3 compute side: i.MX 95, LPDDR5, eMMC, PF09, PHY</title><line x1="993" y1="113" x2="993" y2="250" class="dm-ld"/><circle cx="993" cy="250" r="1.9" class="dm-dot"/><circle cx="993" cy="104" r="9" class="dm-b"/><text x="993" y="108" class="dm-n">10</text></g><g class="dm-co" data-dm-co="11"><title>11 · L3 power side: PoE++ PD, planar transformer, 12 V converter, sequencer</title><line x1="1015" y1="113" x2="1015" y2="192" class="dm-ld"/><circle cx="1015" cy="192" r="1.9" class="dm-dot"/><circle cx="1015" cy="104" r="9" class="dm-b"/><text x="1015" y="108" class="dm-n">11</text></g><g class="dm-co" data-dm-co="12"><title>12 · Body: aluminium, white, Ø100 × 44 mm</title><line x1="1037" y1="113" x2="1037" y2="137" class="dm-ld"/><circle cx="1037" cy="137" r="1.9" class="dm-dot"/><circle cx="1037" cy="104" r="9" class="dm-b"/><text x="1037" y="108" class="dm-n">12</text></g><g class="dm-co" data-dm-co="13"><title>13 · Back plate: gland and M12 pigtail, test port, thermal pad</title><line x1="1057.52" y1="112.88" x2="1050" y2="158" class="dm-ld"/><circle cx="1050" cy="158" r="1.9" class="dm-dot"/><circle cx="1059" cy="104" r="9" class="dm-b"/><text x="1059" y="108" class="dm-n">13</text></g><g class="dm-co" data-dm-co="14"><title>14 · Mount: wall plate or 30° wedge, also the heat path</title><line x1="1079.75" y1="112.91" x2="1072" y2="168" class="dm-ld"/><circle cx="1072" cy="168" r="1.9" class="dm-dot"/><circle cx="1081" cy="104" r="9" class="dm-b"/><text x="1081" y="108" class="dm-n">14</text></g><text x="1040" y="676" class="s">detail</text><rect x="1040" y="682" width="20" height="5" class="dm-sbk"/><rect x="1060" y="682" width="20" height="5" class="dm-sbw"/><text x="1040" y="703" class="s mid">0</text><text x="1080" y="703" class="s mid">10 mm</text></svg></div>
+<ol class="dm-key" id="dome-key">
+<li data-dm-li="1">Dome: λ/2 polycarbonate cap, R 90 mm, smoked</li>
+<li data-dm-li="2">White top ring and dark liner</li>
+<li data-dm-li="3">TX aperture, 8 × 12 tiles</li>
+<li data-dm-li="4">RX aperture, 8 × 12 tiles, four quadrants</li>
+<li data-dm-li="5">Arched septum fin + absorber, metallised strip on the dome</li>
+<li data-dm-li="6">W-band disc back: synth, LO trees, IF LNAs, CPLD, 1.2 V POL</li>
+<li data-dm-li="7">Six blind-mate SMPM + control header (8 mm gap)</li>
+<li data-dm-li="8">X-band disc: front ends, 2 × LMS8001, LA1214</li>
+<li data-dm-li="9">Shared spreader: LA1214 above, i.MX 95 below</li>
+<li data-dm-li="10">L3 compute side: i.MX 95, LPDDR5, eMMC, PF09, PHY</li>
+<li data-dm-li="11">L3 power side: PoE++ PD, planar transformer, 12 V converter, sequencer</li>
+<li data-dm-li="12">Body: aluminium, white, Ø100 × 44 mm</li>
+<li data-dm-li="13">Back plate: gland and M12 pigtail, test port, thermal pad</li>
+<li data-dm-li="14">Mount: wall plate or 30° wedge, also the heat path</li>
+</ol>
+<p class="note" id="dome-cocap" aria-live="polite">The numbers match the 3D legend above.</p>
+<p class="note">The right view cuts through both apertures; parts away from the cut are drawn in projection at representative positions. Ribs to Ø116 mm for hot sites are optional and not drawn.</p>
+<h3>L3: compute and power on one disc</h3>
+<p class="cap">The i.MX 95 faces the shared spreader; the PoE++ stage faces the back plate, where its heat leaves the body. A 2 mm slot isolates the PoE primary side, and only the transformer and the Ethernet magnetics bridge it.</p>
+<div class="draw"><svg viewBox="0 0 1000 504" role="img" style="min-width:760px" aria-label="Both faces of the Ø90 mm compute and power disc, to scale. Side A, facing the shared spreader: the 19 mm i.MX 95 near the centre, one x32 LPDDR5 and the eMMC to its right, the PF09 PMIC below it, the 2.5GBASE-T PHY to its left, and the mezzanine connector at the right edge inside a cut-out of the spreader. Side B, facing the back plate and drawn mirrored: the PoE++ primary side in a sector cut off by a 2 mm isolation slot, holding the pigtail landing, TVS and common-mode choke, the PoE PD with its active bridge; the planar transformer and the Ethernet magnetics bridge the slot; the 12 V rectifier, bulk capacitors and the PMBus sequencer sit on the secondary side. Four holes at r 40 mm on 0, 90, 180 and 270 degrees."><circle cx="250" cy="262" r="198" class="dm-pcb"/><polygon points="56.74,296.08 58.73,305.87 61.21,315.54 64.17,325.08 67.62,334.45 71.55,343.64 75.93,352.61 80.77,361.35 86.04,369.84 91.74,378.04 97.85,385.94 104.36,393.52 111.24,400.76 118.48,407.64 126.06,414.15 133.96,420.26 142.16,425.96 150.65,431.23 159.39,436.07 168.36,440.45 177.55,444.38 186.92,447.83 196.46,450.79 206.13,453.27 215.92,455.26 236.25,340 232.3,339.2 228.39,338.2 224.54,337 220.76,335.6 217.05,334.02 213.43,332.25 209.9,330.3 206.48,328.17 203.17,325.87 199.98,323.4 196.92,320.78 194,318 191.22,315.08 188.6,312.02 186.13,308.83 183.83,305.52 181.7,302.1 179.75,298.57 177.98,294.95 176.4,291.24 175,287.46 173.8,283.61 172.8,279.7 172,275.75" class="dm-pz"/><polyline points="48.51,297.53 172,275.75 172.8,279.7 173.8,283.61 175,287.46 176.4,291.24 177.98,294.95 179.75,298.57 181.7,302.1 183.83,305.52 186.13,308.83 188.6,312.02 191.22,315.08 194,318 196.92,320.78 199.98,323.4 203.17,325.87 206.48,328.17 209.9,330.3 213.43,332.25 217.05,334.02 220.76,335.6 224.54,337 228.39,338.2 232.3,339.2 236.25,340 214.47,463.49" class="dm-slot" style="stroke-width:8.8px"/><circle cx="426" cy="262" r="13.2" class="dm-au"/><circle cx="426" cy="262" r="7.04" class="dm-hole"/><circle cx="250" cy="86" r="13.2" class="dm-au"/><circle cx="250" cy="86" r="7.04" class="dm-hole"/><circle cx="74" cy="262" r="13.2" class="dm-au"/><circle cx="74" cy="262" r="7.04" class="dm-hole"/><circle cx="250" cy="438" r="13.2" class="dm-au"/><circle cx="250" cy="438" r="7.04" class="dm-hole"/><circle cx="750" cy="262" r="198" class="dm-pcb"/><polygon points="943.26,296.08 941.27,305.87 938.79,315.54 935.83,325.08 932.38,334.45 928.45,343.64 924.07,352.61 919.23,361.35 913.96,369.84 908.26,378.04 902.15,385.94 895.64,393.52 888.76,400.76 881.52,407.64 873.94,414.15 866.04,420.26 857.84,425.96 849.35,431.23 840.61,436.07 831.64,440.45 822.45,444.38 813.08,447.83 803.54,450.79 793.87,453.27 784.08,455.26 763.75,340 767.7,339.2 771.61,338.2 775.46,337 779.24,335.6 782.95,334.02 786.57,332.25 790.1,330.3 793.52,328.17 796.83,325.87 800.02,323.4 803.08,320.78 806,318 808.78,315.08 811.4,312.02 813.87,308.83 816.17,305.52 818.3,302.1 820.25,298.57 822.02,294.95 823.6,291.24 825,287.46 826.2,283.61 827.2,279.7 828,275.75" class="dm-pz"/><polyline points="951.49,297.53 828,275.75 827.2,279.7 826.2,283.61 825,287.46 823.6,291.24 822.02,294.95 820.25,298.57 818.3,302.1 816.17,305.52 813.87,308.83 811.4,312.02 808.78,315.08 806,318 803.08,320.78 800.02,323.4 796.83,325.87 793.52,328.17 790.1,330.3 786.57,332.25 782.95,334.02 779.24,335.6 775.46,337 771.61,338.2 767.7,339.2 763.75,340 785.53,463.49" class="dm-slot" style="stroke-width:8.8px"/><circle cx="574" cy="262" r="13.2" class="dm-au"/><circle cx="574" cy="262" r="7.04" class="dm-hole"/><circle cx="750" cy="86" r="13.2" class="dm-au"/><circle cx="750" cy="86" r="7.04" class="dm-hole"/><circle cx="926" cy="262" r="13.2" class="dm-au"/><circle cx="926" cy="262" r="7.04" class="dm-hole"/><circle cx="750" cy="438" r="13.2" class="dm-au"/><circle cx="750" cy="438" r="7.04" class="dm-hole"/><rect x="217" y="211.4" width="83.6" height="83.6" class="dm-ic" rx="2"/><text x="258.8" y="250.7" class="b mid dm-ct">i.MX 95</text><text x="258.8" y="263.7" class="s mid dm-ct">19 × 19</text><rect x="310.72" y="211.4" width="54.56" height="66" class="dm-ic" rx="2"/><text x="338" y="241.9" class="b mid dm-ct">LPDDR5</text><text x="338" y="254.9" class="s mid dm-ct">x32</text><rect x="312.7" y="303.8" width="50.6" height="57.2" class="dm-ic" rx="2"/><text x="338" y="335.9" class="b mid dm-ct">eMMC</text><rect x="250" y="319.2" width="35.2" height="35.2" class="dm-ic" rx="2"/><text x="267.6" y="334.3" class="b mid dm-ct">PF09</text><text x="267.6" y="347.3" class="dm-xs mid dm-ct">PMIC</text><rect x="159.8" y="222.4" width="44" height="44" class="dm-ic" rx="2"/><text x="181.8" y="241.9" class="b mid dm-ct">PHY</text><text x="181.8" y="254.9" class="dm-xs mid dm-ct">2.5 GbE</text><rect x="373.2" y="165.2" width="26.4" height="105.6" class="dm-ic" rx="2"/><text x="390.4" y="218" class="b mid dm-ct" transform="rotate(-90 390.4 218)">mezzanine</text><rect x="366.6" y="156.4" width="39.6" height="123.2" class="dm-cut"/><text x="386.4" y="291.04" class="s mid dm-ct">cut-out</text><text x="153.64" y="348.24" class="b mid dm-ct">primary side</text><text x="153.64" y="362.32" class="s mid dm-ct">PoE, on side B</text><text x="153.64" y="376.4" class="s mid dm-ct">slot ≥ 2 mm</text><rect x="761.88" y="282.68" width="88" height="70.4" class="dm-ic" rx="2"/><text x="805.88" y="309.38" class="b mid dm-ct">planar</text><text x="805.88" y="322.38" class="s mid dm-ct">transformer</text><text x="805.88" y="334.38" class="s mid dm-ct">20 × 16 × 8</text><rect x="853.4" y="266.4" width="57.2" height="39.6" class="dm-ic" rx="2"/><text x="882" y="289.2" class="s mid dm-ct">magnetics</text><rect x="849" y="360.12" width="44" height="22" class="dm-ic" rx="2"/><text x="871" y="374.12" class="dm-xs mid dm-ct">pigtail</text><rect x="871.88" y="314.36" width="44" height="30.8" class="dm-ic" rx="2"/><text x="893.88" y="327.26" class="b mid dm-ct">TVS</text><text x="893.88" y="340.26" class="dm-xs mid dm-ct">CM choke</text><rect x="784.76" y="375.96" width="52.8" height="35.2" class="dm-ic" rx="2"/><text x="811.16" y="391.06" class="b mid dm-ct">PoE PD</text><text x="811.16" y="404.06" class="dm-xs mid dm-ct">+ bridge</text><rect x="701.6" y="290.6" width="44" height="39.6" class="dm-ic" rx="2"/><text x="723.6" y="307.9" class="b mid dm-ct">SR</text><text x="723.6" y="320.9" class="dm-xs mid dm-ct">12 V</text><rect x="648.8" y="178.4" width="61.6" height="44" class="dm-ic" rx="2"/><text x="679.6" y="191.9" class="b mid dm-ct">PMBus</text><text x="679.6" y="204.9" class="dm-xs mid dm-ct">sequencer</text><text x="679.6" y="216.9" class="dm-xs mid dm-ct">+ monitors</text><circle cx="697.2" cy="394" r="13.86" class="dm-al"/><circle cx="697.2" cy="394" r="9.68" class="dm-capt"/><circle cx="644.4" cy="358.8" r="13.86" class="dm-al"/><circle cx="644.4" cy="358.8" r="9.68" class="dm-capt"/><circle cx="609.2" cy="314.8" r="13.86" class="dm-al"/><circle cx="609.2" cy="314.8" r="9.68" class="dm-capt"/><text x="653.2" y="402.8" class="dm-xs mid dm-ct">12 V bulk caps</text><text x="250" y="26" class="t mid">Side A: faces L2 and the shared spreader</text><text x="250" y="44" class="s mid">compute, seen from the dome side</text><text x="750" y="26" class="t mid">Side B: faces the back plate</text><text x="750" y="44" class="s mid">power, seen from the back (mirrored)</text><line x1="440" y1="262" x2="482" y2="262" class="dm-ld"/><line x1="560" y1="262" x2="518" y2="262" class="dm-ld"/><text x="500" y="244" class="s mid">4 holes</text><text x="500" y="258" class="s mid">at r 40</text><text x="500" y="288" class="s mid">Ø90 discs</text><rect x="455" y="478" width="22" height="5" class="dm-sbk"/><rect x="477" y="478" width="22" height="5" class="dm-sbw"/><text x="455" y="496" class="s mid">0</text><text x="499" y="496" class="s mid">10 mm</text></svg></div>
+<div class="legend"><span><i class="blk dm-lg-pcb"></i>PCB, Ø90 mm</span><span><i class="blk dm-lg-ic"></i>parts</span><span><i class="blk dm-lg-pz"></i>PoE primary side, isolated</span><span><i class="blk dm-lg-slot"></i>isolation slot, ≥ 2 mm</span><span><i class="blk dm-lg-au"></i>holes at r 40 mm</span></div>
+<ul class="open">
+<li><span class="tag t-i">inference</span><span><b>Ø90 is the floor.</b> The twin array plate is 64.5 × 46.3 mm (79.4 mm diagonal), so the hard minimum is about Ø86 mm; Ø90 leaves a 5.3 mm rim at the plate corners for the clamp shoulder.</span></li>
+<li><span class="tag t-i">inference</span><span><b>Low power side.</b> A planar transformer about 20 × 16 × 8 mm for the isolated active-clamp converter keeps side B within 10 mm; the PD is a TPS2372/TPS23730-class part with an active bridge.</span></li>
+<li><span class="tag t-o">open</span><span><b>Slot and creepage.</b> The slot width and the parts that bridge it must pass the PoE isolation test; check it on the first layout.</span></li>
+</ul>
+<details class="more"><summary>Axial stack</summary><div class="more-b">
+<div class="tbl"><table>
+<thead><tr><th>Element</th><th>z (mm)</th><th>Length (mm)</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>Dome, outer apex</td><td class="n">+15.8</td><td class="n">0.92</td><td>Spherical cap, inner R 90 mm, λ/2 polycarbonate, inner rim Ø96.</td></tr>
+<tr><td>Dome, inner apex</td><td class="n">+14.9</td><td class="n">13.9</td><td>Sag above the rim seat; 14.9 mm above the patches at the centre.</td></tr>
+<tr><td>Rim seat</td><td class="n">+1.0</td><td class="n">–</td><td>The dome sits on an O-ring in the white top ring (z +1.0 to +3.0, ID 96).</td></tr>
+<tr><td>L1 tiles</td><td class="n">0 to −0.9</td><td class="n">0.9</td><td>Patch plane. Above the rim plane the dome rises 13.9 mm at the centre, 9.1 mm at x = ±28.9 and 6.8 mm at the outer tile corner.</td></tr>
+<tr><td>L1 PCB</td><td class="n">−0.9 to −2.9</td><td class="n">2.0</td><td></td></tr>
+<tr><td>L1 back parts</td><td class="n">−2.9 to −5.9</td><td class="n">3</td><td>Synth can 12 × 12 mm at (0, +33), LO trees, IF LNAs, CPLD, 1.2 V POL in the bottom segment.</td></tr>
+<tr><td>L1 spreader + clamp shoulder</td><td class="n">−5.9 to −9.9</td><td class="n">4</td><td></td></tr>
+<tr><td>SMPM gap</td><td class="n">−9.9 to −17.9</td><td class="n">8</td><td>Six blind-mate SMPM and the B2B header; the L2 front cans reach 3 mm into it.</td></tr>
+<tr><td>L2 PCB</td><td class="n">−17.9 to −19.5</td><td class="n">1.6</td><td></td></tr>
+<tr><td>LA1214 + pad</td><td class="n">−19.5 to −21.7</td><td class="n">2.2</td><td></td></tr>
+<tr><td>Shared spreader</td><td class="n">−21.7 to −25.7</td><td class="n">4</td><td>One aluminium plate for the LA1214 (top face) and the i.MX 95 (bottom face); the mezzanine passes a cut-out.</td></tr>
+<tr><td>i.MX 95 + pad</td><td class="n">−25.7 to −27.5</td><td class="n">1.8</td><td>Mezzanine L2 → L3 spans −19.5 to −27.5, 8.0 mm.</td></tr>
+<tr><td>L3 PCB</td><td class="n">−27.5 to −29.1</td><td class="n">1.6</td><td></td></tr>
+<tr><td>L3 power side parts</td><td class="n">−29.1 to −39.1</td><td class="n">≤ 10</td><td>Planar magnetics set the height.</td></tr>
+<tr><td>Back plate</td><td class="n">−39.1 to −43.1</td><td class="n">4</td><td>Aluminium mounting face: cable gland, test port, thermal pad to the mount.</td></tr>
+<tr class="tot"><td>Overall</td><td class="n">+15.8 to −43.1</td><td class="n">59</td><td>Body 44 mm tall (z −43.1 to +1.0), OD 100 mm.</td></tr>
+</tbody></table></div>
+<p class="note">One shared spreader instead of two saves a spreader and a gap compared with <a href="#mech">option A</a>. <span class="tag t-i">inference</span></p>
+</div></details>
+<h3>Option A or option B</h3>
+<div class="tbl"><table>
+<thead><tr><th></th><th>A: tube (<a href="#mech">18</a>, <a href="#thermal">20</a>)</th><th>B: dome (this section)</th></tr></thead>
+<tbody>
+<tr><td>Size</td><td>Ø127 × 236 mm, Ø131 bezel</td><td>Ø100 × 59 mm</td></tr>
+<tr><td>Volume, mass</td><td>≈ 2.84 L, ≈ 2.5 kg</td><td>≈ 0.46 L, ≈ 0.5 kg (rough)</td></tr>
+<tr><td>Discs</td><td>4 × Ø110 mm</td><td>3 × Ø90 mm; compute and power on one</td></tr>
+<tr><td>Heat</td><td>≈ +42 K at 60 W, bare tube</td><td>+35 K at 26–31 W with a metal mount; 8 W without</td></tr>
+<tr><td>Continuous power</td><td>≈ 60 W nominal</td><td>≈ 25–30 W</td></tr>
+<tr><td>Frame rate, nominal design</td><td>continuous</td><td>≈ 20 frames/s (26 % duty)</td></tr>
+<tr><td>PoE</td><td>Type 4 + 24/48 V DC input</td><td>Type 3 (51 W) is enough</td></tr>
+<tr><td>Isolation remedies</td><td>septum + absorber, mullion, wider TX–RX gap, tilted window</td><td>arched septum + absorber, strip on the dome; no wider gap, no tilt</td></tr>
+<tr><td>Radome</td><td>flat λ/2 window, 5 mm stand-off</td><td>R 90 λ/2 cap, 14.9 mm at the centre</td></tr>
+<tr><td>Sun</td><td>sunshield</td><td>white body, smoked dome</td></tr>
+<tr><td>Connectors</td><td>M12 Ethernet + PoE++, M12 DC, REF SMA</td><td>one M12 pigtail; test port under a cap</td></tr>
+<tr><td>Aiming</td><td>bracket with ball joint</td><td>flat on a wall, or on a 15/30/45° wedge</td></tr>
+<tr><td>Service</td><td>rear cap off, discs slide out</td><td>dome and top ring off, the stack lifts out as one</td></tr>
+</tbody></table></div>
+<p class="note">B keeps the W-band and X-band electronics, the <a href="#freq">frequency plan</a>, beams, monopulse, i.MX 95 and LA1214, so a single frame performs the same; only the frame rate and the mechanical isolation remedies differ.</p>
+<h3>Dome radome</h3>
+<p>A boresight ray meets the cap at the angle whose sine is r/R. At the outermost tile corner (r = 35.0 mm) that is 22.9° for R 90, 35.7° for R 60 and about 44° for a true hemisphere over the aperture. The λ/2 wall is tuned for normal incidence and reflects more as the angle grows.</p>
+<p>A camera-like hemisphere is also a mirror: with its centre of curvature on the aperture plane it images the TX array (x = −15.7) onto the RX array (x = +15.7), a focused path on top of the 21.8–23.5 dB <a href="#iso">isolation shortfall</a>. The R 90 cap is a weak diverging mirror (f = 45 mm, source 14.9 mm away, virtual image 22 mm behind the cap), so its reflection spreads.</p>
+<div class="draw"><svg viewBox="0 0 820 272" role="img" style="min-width:640px" aria-label="Two ray sketches to scale. Left, a concentric dome of radius 48 mm whose centre of curvature lies on the patch plane: five rays from a TX point at x = −15.7 mm reflect and all land on the RX array. Right, the option B cap of radius 90 mm with its centre 75 mm behind the patches: the same five rays reflect as a diverging bundle that appears to come from a virtual image behind the cap, and land mostly back over the TX side."><text x="205" y="22" class="t mid">Concentric dome, R 48</text><text x="205" y="39" class="s mid">centre of curvature on the patch plane</text><line x1="49" y1="222" x2="361" y2="222" class="dm-pln"/><line x1="118.3" y1="222" x2="197.5" y2="222" class="dm-tx"/><line x1="212.5" y1="222" x2="291.7" y2="222" class="dm-rx"/><text x="157.9" y="239" class="s mid">TX</text><text x="252.1" y="239" class="s mid">RX</text><path d="M61 222 A144 144 0 0 1 349 222" class="dm-cap"/><line x1="157.9" y1="222" x2="108.19" y2="115.4" class="dm-ray"/><line x1="108.19" y1="115.4" x2="289.08" y2="222" class="dm-rfl"/><line x1="157.9" y1="222" x2="130.57" y2="98.73" class="dm-ray"/><line x1="130.57" y1="98.73" x2="276.16" y2="222" class="dm-rfl"/><line x1="157.9" y1="222" x2="157.9" y2="85.92" class="dm-ray"/><line x1="157.9" y1="85.92" x2="264.92" y2="222" class="dm-rfl"/><line x1="157.9" y1="222" x2="189.64" y2="78.82" class="dm-ray"/><line x1="189.64" y1="78.82" x2="255.63" y2="222" class="dm-rfl"/><line x1="157.9" y1="222" x2="224.43" y2="79.32" class="dm-ray"/><line x1="224.43" y1="79.32" x2="248.28" y2="222" class="dm-rfl"/><circle cx="157.9" cy="222" r="3.2" class="dm-src"/><text x="205" y="152" class="s mid dm-halo">all five land</text><text x="205" y="166" class="s mid dm-halo">on the RX array</text><text x="615" y="22" class="t mid">Option B: R 90 cap</text><text x="615" y="39" class="s mid">centre of curvature 75 mm behind the patches</text><line x1="459" y1="222" x2="771" y2="222" class="dm-pln"/><line x1="528.3" y1="222" x2="607.5" y2="222" class="dm-tx"/><line x1="622.5" y1="222" x2="701.7" y2="222" class="dm-rx"/><text x="567.9" y="239" class="s mid">TX</text><text x="662.1" y="239" class="s mid">RX</text><path d="M471 218.91 A270 270 0 0 1 759 218.91" class="dm-cap"/><line x1="471" y1="218.91" x2="471" y2="222" class="dm-pln"/><line x1="759" y1="218.91" x2="759" y2="222" class="dm-pln"/><line x1="567.9" y1="222" x2="547.1" y2="185.98" class="dm-ray"/><line x1="547.1" y1="185.98" x2="546.55" y2="222" class="dm-rfl"/><line x1="547.1" y1="185.98" x2="548" y2="126.6" class="dm-virt"/><line x1="567.9" y1="222" x2="557.58" y2="183.48" class="dm-ray"/><line x1="557.58" y1="183.48" x2="564.06" y2="222" class="dm-rfl"/><line x1="557.58" y1="183.48" x2="548" y2="126.6" class="dm-virt"/><line x1="567.9" y1="222" x2="567.9" y2="181.44" class="dm-ray"/><line x1="567.9" y1="181.44" x2="582.74" y2="222" class="dm-rfl"/><line x1="567.9" y1="181.44" x2="547.84" y2="126.6" class="dm-virt"/><line x1="567.9" y1="222" x2="579.24" y2="179.68" class="dm-ray"/><line x1="579.24" y1="179.68" x2="603.89" y2="222" class="dm-rfl"/><line x1="579.24" y1="179.68" x2="548.32" y2="126.6" class="dm-virt"/><line x1="567.9" y1="222" x2="593.2" y2="178.18" class="dm-ray"/><line x1="593.2" y1="178.18" x2="629.02" y2="222" class="dm-rfl"/><line x1="593.2" y1="178.18" x2="551.04" y2="126.6" class="dm-virt"/><circle cx="567.9" cy="222" r="3.2" class="dm-src"/><circle cx="547.8" cy="126.6" r="4" class="dm-vimg"/><text x="538.8" y="130.6" class="s end">virtual image</text><text x="657" y="176" class="s mid dm-halo">spreads, mostly back</text><text x="657" y="190" class="s mid dm-halo">over the TX side</text><text x="410" y="262" class="s mid">Rays from one TX point, drawn without the septum; to scale (patch plane 1 mm below the dome rim).</text></svg></div>
+<div class="legend"><span><i class="sw" style="border-color:var(--rf)"></i>ray from one TX point</span><span><i class="sw d" style="border-color:var(--rf)"></i>reflected ray</span><span><i class="sw d" style="border-color:var(--muted)"></i>traced back to the virtual image</span></div>
+<ul class="open">
+<li><span class="tag t-i">inference</span><span><b>Arched septum.</b> The fin follows the dome to about 0.5 mm, with absorber on both faces, and the dome carries a thin metallised or absorber-loaded strip on the septum line: the dome version of option A's mullion.</span></li>
+<li><span class="tag t-o">open</span><span><b>Full-size CST with the dome.</b> The septum gap, the strip and the dome reflections need a run on the full twin array.</span></li>
+</ul>
+<details class="more"><summary>|S11| of the λ/2 cap versus angle</summary><div class="more-b">
+<div class="tbl"><table>
+<thead><tr><th>Incidence</th><th>Where on the cap</th><th>95.0 GHz TE / TM</th><th>97.5 GHz TE / TM</th><th>99.9 GHz TE / TM</th></tr></thead>
+<tbody>
+<tr><td class="n">0°</td><td>aperture centre</td><td class="n">−27.3 dB</td><td class="n">−43.5 dB</td><td class="n">−27.6 dB</td></tr>
+<tr><td class="n">10°</td><td>array centres, r 15.7 mm</td><td class="n">−25.5 / −25.9</td><td class="n">−38.8 / −39.2</td><td class="n">−29.6 / −29.9</td></tr>
+<tr><td class="n">17°</td><td>r ≈ 26 mm</td><td class="n">−22.9 / −23.9</td><td class="n">−31.0 / −32.1</td><td class="n">−35.2 / −36.3</td></tr>
+<tr><td class="n">23°</td><td>outermost tile corner, r 35.0 mm</td><td class="n">−20.2 / −22.2</td><td class="n">−25.7 / −27.7</td><td class="n">−39.6 / −41.6</td></tr>
+</tbody></table></div>
+<p class="note">Polycarbonate 0.92 mm, εr 2.8, plane-wave slab model, computed. The flat window of option A sees only normal incidence (<a href="#thermal">section 20</a>). <span class="tag t-i">inference</span></p>
+</div></details>
+<h3>Heat and power</h3>
+<p class="cap">The small body is the binding limit: natural convection and radiation at +55 °C ambient move only about 8 W at +35 K unless a metal mount takes heat from the back plate.</p>
+<div class="tbl"><table class="heat">
+<thead><tr><th scope="col">Body (surface rise over ambient)</th><th scope="col">10 W</th><th scope="col">15 W</th><th scope="col">20 W</th><th scope="col">25 W</th><th scope="col">30 W</th><th scope="col">Power at +35 K</th></tr></thead>
+<tbody>
+<tr><th scope="row">Ø100 × 48 + dome, mount adds nothing</th><td class="g0">+41 K</td><td class="g0">+57 K</td><td class="g0">+72 K</td><td class="g0">+85 K</td><td class="g0">+97 K</td><td>8 W</td></tr>
+<tr><th scope="row">Ø100 × 48 + 0.5 W/K into a metal mount</th><td class="g2">+14 K</td><td class="g2">+21 K</td><td class="g2">+28 K</td><td class="g2">+34 K</td><td class="g1">+40 K</td><td>26 W</td></tr>
+<tr><th scope="row">ribbed Ø116 × 48 + dome</th><td class="g2">+28 K</td><td class="g1">+39 K</td><td class="g1">+49 K</td><td class="g0">+59 K</td><td class="g0">+68 K</td><td>13 W</td></tr>
+<tr><th scope="row">ribbed Ø116 + 0.5 W/K into a metal mount</th><td class="g2">+12 K</td><td class="g2">+18 K</td><td class="g2">+24 K</td><td class="g2">+29 K</td><td class="g2">+34 K</td><td>31 W</td></tr>
+</tbody></table></div>
+<p class="note">Green ≤ +35 K, amber ≤ +50 K, red above. Simple correlations (ε 0.85, still air), not CFD; option A's bare tube is ≈ +42 K at 60 W for comparison. <span class="tag t-i">inference</span></p>
+<div class="tbl"><table class="heat">
+<thead><tr><th scope="col">Frame duty (input W)</th><th scope="col">Low</th><th scope="col">Nominal</th><th scope="col">High</th></tr></thead>
+<tbody>
+<tr><th scope="row">100 %</th><td class="g1">30.6</td><td class="g0">60.6</td><td class="g0">123.2</td></tr>
+<tr><th scope="row">50 %</th><td class="g2">20.9</td><td class="g0">40.7</td><td class="g0">81.4</td></tr>
+<tr><th scope="row">26 %: one 12.9 ms frame every 50 ms</th><td class="g2">16.2</td><td class="g1">31.2</td><td class="g0">61.3</td></tr>
+<tr><th scope="row">13 %: 10 frames/s</th><td class="g2">13.7</td><td class="g2">26.0</td><td class="g0">50.4</td></tr>
+</tbody></table></div>
+<p class="note">Per-block numbers of <a href="#power">section 17</a>; the TX and RX tiles, LO amplifiers, LMS8001 and front ends scale with duty, the rest does not. Green ≤ 26 W (bare body on a mount), amber ≤ ≈ 31 W (ribbed, on a mount), red above. <span class="tag t-i">inference</span></p>
+<div class="verdict"><p><b>Option B is a ≈ 25–30 W unit.</b> It needs a metal mount that takes ≈ 0.5 W/K and the ribbed body; then it runs the nominal design at ≈ 25 % frame duty (20 frames/s), or the low case at full duty. The fixed loads (synth, LA1214, i.MX 95, PHY) draw 20.8 W at the input even at 0 % duty in the nominal case, so the LA1214 power decides the floor. A Type 3 PD (51 W) is enough; PoE+ Type 2 (25.5 W) fits only the low case at ≤ 74 % duty or the nominal case at ≤ 12 %. <span class="tag t-i">inference</span></p></div>
+<ul class="open">
+<li><span class="tag t-o">open</span><span><b>LA1214 power.</b> Not public; it sets the floor of every row above.</span></li>
+<li><span class="tag t-o">open</span><span><b>Mount conductance.</b> The 0.5 W/K into a metal mount is an assumption; measure it on a real wall plate and wedge.</span></li>
+<li><span class="tag t-o">open</span><span><b>Dome and septum in CST.</b> A full-size run with the R 90 cap, the arched septum and the strip.</span></li>
+<li><span class="tag t-o">open</span><span><b>Impact.</b> The IK rating of a 0.92 mm polycarbonate cap needs a test.</span></li>
+</ul>
+<details class="more"><summary>Details</summary><div class="more-b">
+<div class="grid2">
+<div><h3>Mounting and aiming</h3>
+<ul class="open">
+<li><span class="tag t-i">inference</span><span><b>No internal gimbal.</b> A tilting eyeball needs a sphere of R ≈ 49 mm around the stack, which roughly doubles the height.</span></li>
+<li><span class="tag t-i">inference</span><span><b>Wall:</b> boresight perpendicular to the wall. <b>Ceiling or pole:</b> aluminium wedges of 15°, 30° or 45° between the back plate and the mount; the ±10° electronic scan does the rest.</span></li>
+<li><span class="tag t-i">inference</span><span><b>Aim stability.</b> The mount must hold the aim to about 0.05°, well inside the 0.32–0.47° monopulse noise. The metal wedge or bracket is also the heat path, through a thermal pad on the back plate.</span></li>
+</ul>
+<h3>Connections</h3>
+<ul class="open">
+<li><span class="tag t-i">inference</span><span><b>One cable.</b> A 0.3 m pigtail through a gland in the back plate (or a side conduit entry, as on cameras) ends in an M12 X-coded plug: 2.5GBASE-T and PoE++ Type 3.</span></li>
+<li><span class="tag t-i">inference</span><span><b>No DC input, no REF SMA.</b> A test port under a screw cap on the back plate gives lab REF and debug access; several units share time over PTP on the Ethernet link.</span></li>
+</ul></div>
+<div><h3>Assembly and service</h3>
+<ul class="open">
+<li><span class="tag t-i">inference</span><span><b>One stack.</b> L3, the shared spreader with L2, and L1 with its spreader and septum are aligned on the four holes at r 40 mm and drop into the body as one; the pigtail plugs onto L3 side B.</span></li>
+<li><span class="tag t-i">inference</span><span><b>Service.</b> The top ring and dome unscrew and the stack lifts out as one; single discs do not slide out as in the tube.</span></li>
+</ul>
+<h3>What B keeps and gives up</h3>
+<ul class="open">
+<li><span class="tag t-i">inference</span><span><b>Keeps</b> the per-frame radar performance: same chain, frequency plan, beams, monopulse and processing.</span></li>
+<li><span class="tag t-i">inference</span><span><b>Gives up</b> continuous 60 W operation, the wider TX–RX gap, the sunshield (white body and smoked dome instead), the DC input and REF SMA, and slide-out service.</span></li>
+</ul></div>
+</div>
+</div></details>
 </section>
 
 <section class="sheet" id="thermal" style="--ph:var(--pwr)">
-<div class="step">19 · Power and mechanics</div><h2>Radome, heat and sealing</h2>
+<div class="step">20 · Power and mechanics</div><h2>Radome, heat and sealing</h2>
 <p class="cap">Three things decide whether the tube works outdoors: a window that passes 95–99.9 GHz and survives impact, a heat path that gets about 60 W out through the wall, and seals that keep water off the window and out of the tube.</p>
 <div class="stats">
 <div class="stat"><b>0.92 mm</b><span>λ/2 polycarbonate window; |S11| ≤ −27 dB over 95–99.9 GHz</span></div>
@@ -4122,8 +4413,8 @@ text-decoration:underline dotted;text-underline-offset:3px}
 </section>
 
 <section class="sheet" id="risks" style="--ph:var(--warn)">
-<div class="step">20 · Plan and evidence</div><h2>Main risks, and the test that settles each</h2>
-<p class="cap">Eight risks are open, six from the design deck and two from this work; the chart places each one’s first evidence and its settling test on the development phases of <a href="#plan">section 21</a>.</p>
+<div class="step">21 · Plan and evidence</div><h2>Main risks, and the test that settles each</h2>
+<p class="cap">Eight risks are open, six from the design deck and two from this work; the chart places each one’s first evidence and its settling test on the development phases of <a href="#plan">section 22</a>.</p>
 <div class="draw"><svg viewBox="0 0 1100 466" role="img" aria-label="Chart of the eight open risks against the six development phases: for each risk a hollow marker shows where the first evidence comes from and a filled marker shows the phase whose test settles it; band alignment and the LMS8001 settle in RF module validation, isolation and velocity ambiguity in system integration, thermal margin in qualification and manufacturability in the pilot build." style="min-width:860px">
 <rect x="330" y="8" width="128" height="412" class="band"/>
 <rect x="586" y="8" width="128" height="412" class="band"/>
@@ -4141,7 +4432,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <circle cx="1034" cy="24" r="11" class="stepdot"/><text x="1034" y="28" class="b mid">6</text>
 <text x="1034" y="61" class="s mid hd">Pilot build</text>
 <text x="22" y="28" class="b">Risk</text><text x="22" y="46" class="s">and what we know now</text>
-<text x="308" y="28" class="s end">development phase (section 21) →</text>
+<text x="308" y="28" class="s end">development phase (section 22) →</text>
 <line x1="16" y1="84" x2="1098" y2="84" class="sep"/>
 <text x="22" y="103" class="b m">1</text>
 <text x="42" y="103" class="b">Band alignment</text>
@@ -4260,10 +4551,10 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <div class="card" id="risks-r5">
 <div class="num">R5 · from the deck</div>
 <h3>Thermal margin</h3>
-<p class="know">60.6 W nominal input; 24 W of it in the tiles (≈ 1.15 W/cm²). The bare Ø127 × 200 mm tube runs ≈ +42 K at 60 W; a finned Ø160 × 300 mm body ≈ +26 K (section 19).</p>
+<p class="know">60.6 W nominal input; 24 W of it in the tiles (≈ 1.15 W/cm²). The bare Ø127 × 200 mm tube runs ≈ +42 K at 60 W; a finned Ø160 × 300 mm body ≈ +26 K (section 20).</p>
 <p class="test"><b>Test</b>Resistors at the tile, LA1214 and i.MX 95 positions in the real tube; +55 °C chamber with a solar lamp.</p>
 <p class="gate"><b>Done when</b>Every die stays below its junction limit at rated ambient; body and TX duty cap are fixed.</p>
-<p class="see">See <a href="#thermal">19 Radome and heat</a></p>
+<p class="see">See <a href="#thermal">20 Radome and heat</a></p>
 </div>
 <div class="card" id="risks-r6">
 <div class="num">R6 · from the deck</div>
@@ -4325,9 +4616,9 @@ text-decoration:underline dotted;text-underline-offset:3px}
 </section>
 
 <section class="sheet" id="plan" style="--ph:var(--warn)">
-<div class="step">21 · Plan and evidence</div><h2>Build and validation sequence</h2>
-<p class="cap">Six phases without dates, as in the design deck; each phase ends on a gate that names a number measured on this design, and settles the risks of <a href="#risks">section 20</a> in the order shown.</p>
-<div class="draw"><svg viewBox="0 0 1100 344" role="img" aria-label="Development sequence in six phases without dates: architecture freeze, RF module validation, board integration, system integration, qualification and pilot build. Each column shows what is built, the exit gate that ends the phase, and the risks from section 20 that the phase settles: band alignment and the LMS8001 in phase 2, scan margin and the LA1214 host in phase 3, isolation and velocity ambiguity in phase 4, thermal margin in phase 5 and manufacturability in phase 6." style="min-width:880px">
+<div class="step">22 · Plan and evidence</div><h2>Build and validation sequence</h2>
+<p class="cap">Six phases without dates, as in the design deck; each phase ends on a gate that names a number measured on this design, and settles the risks of <a href="#risks">section 21</a> in the order shown.</p>
+<div class="draw"><svg viewBox="0 0 1100 344" role="img" aria-label="Development sequence in six phases without dates: architecture freeze, RF module validation, board integration, system integration, qualification and pilot build. Each column shows what is built, the exit gate that ends the phase, and the risks from section 21 that the phase settles: band alignment and the LMS8001 in phase 2, scan margin and the LA1214 host in phase 3, isolation and velocity ambiguity in phase 4, thermal margin in phase 5 and manufacturability in phase 6." style="min-width:880px">
 <line x1="112" y1="30" x2="259" y2="30" class="wire" marker-end="url(#a-wire)"/>
 <line x1="294" y1="30" x2="441" y2="30" class="wire" marker-end="url(#a-wire)"/>
 <line x1="476" y1="30" x2="623" y2="30" class="wire" marker-end="url(#a-wire)"/>
@@ -4483,7 +4774,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 </section>
 
 <section class="sheet" id="evidence" style="--ph:var(--warn)">
-<div class="step">22 · Plan and evidence</div><h2>What we know, infer and must test</h2>
+<div class="step">23 · Plan and evidence</div><h2>What we know, infer and must test</h2>
 <p class="cap">45 claims carry this design; the chart shows, layer by layer, how many are confirmed by CST or a datasheet, how many are our reasoning, and how many still need a test or a vendor answer.</p>
 <div class="draw"><svg viewBox="0 0 1000 298" role="img" aria-label="Bar chart of the 45 claims in the register, one bar per layer, split by evidence tag: W-band array and tile 12 (10 confirmed, 2 open); Frequency plan and W-band chain 9 (4 confirmed, 3 inference, 2 open); X-band disc 8 (4 confirmed, 2 inference, 2 open); Compute and data 6 (2 confirmed, 2 inference, 2 open); Power 4 (1 confirmed, 1 inference, 1 open, 1 speculative); Mechanics, radome and heat 6 (1 confirmed, 3 inference, 2 open). The array is backed by full-wave CST; the X-band, compute, power and mechanical layers rest more on inference and open items." style="min-width:640px">
 <text x="20" y="22" class="s">layer (opens its list below)</text>
@@ -4571,7 +4862,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <text x="411" y="229" class="b mid ev-n">1</text>
 <text x="444" y="229" class="s">4 claims</text>
 <a href="#evidence-mech"><text x="20" y="266" class="b ev-lk">Mechanics, radome and heat</text></a>
-<text x="20" y="281" class="s">sections 18 · 19</text>
+<text x="20" y="281" class="s">sections 18 · 19 · 20</text>
 <rect x="250" y="254" width="46" height="24" rx="4" class="zc"/>
 <text x="273" y="271" class="b mid ev-n">1</text>
 <rect x="296" y="254" width="138" height="24" rx="4" class="zk"/>
@@ -4584,7 +4875,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <text x="536" y="271" class="s">6 claims</text>
 </svg></div>
 <div class="legend"><span><i class="blk ev-b-c"></i>confirmed: CST result, datasheet or the source deck</span><span><i class="blk ev-b-i"></i>inference: our reasoning or arithmetic</span><span><i class="blk ev-b-o"></i>open: needs a test or a vendor answer</span><span><i class="blk ev-b-s"></i>speculative: no evidence yet</span></div>
-<div class="stats"><div class="stat"><b>45</b><span>claims in the register</span></div><div class="stat"><b>22</b><span>confirmed, most of them by full-wave CST</span></div><div class="stat"><b>11</b><span>inference: our algebra, level plans and the power budget</span></div><div class="stat"><b>12</b><span>open or speculative; each has a test or a question in <a href="#plan">section 21</a></span></div></div>
+<div class="stats"><div class="stat"><b>45</b><span>claims in the register</span></div><div class="stat"><b>22</b><span>confirmed, most of them by full-wave CST</span></div><div class="stat"><b>11</b><span>inference: our algebra, level plans and the power budget</span></div><div class="stat"><b>12</b><span>open or speculative; each has a test or a question in <a href="#plan">section 22</a></span></div></div>
 <div class="grid2"><div><h3>What the design rests on</h3><ul class="open">
 <li><span class="tag t-c">confirmed</span><span>Full-wave CST of the 8 × 12 array: 29.0 dBi, 3.99° × 6.04°, usable band 95–99.9 GHz. <a href="#array">07 Array</a></span></li>
 <li><span class="tag t-c">confirmed</span><span>The ×9 / ×8 multiplication in the tile ICs, so one X-band chirp feeds TX, RX LO and dechirp. <a href="#freq">04 Frequency plan</a></span></li>
@@ -4632,17 +4923,17 @@ text-decoration:underline dotted;text-underline-offset:3px}
 <details class="more ev-fold" id="evidence-mech"><summary>Mechanics, radome and heat · 6 claims <span class="ev-sum">1 confirmed · 3 inference · 2 open</span></summary><div class="more-b">
 <ul class="open ev-reg"><li data-ev="c"><span class="tag t-c">confirmed</span><span>The TX + RX ground plate is 64.5 × 46.3 mm, 79.4 mm across the diagonal.<span class="src">full-wave CST, TX + RX twin</span></span></li><li data-ev="i"><span class="tag t-i">inference</span><span>Half-wave windows at 97.5 GHz: PC 0.92, Rexolite 0.96, HDPE 1.01, PTFE 1.06 mm; |S11| ≤ −27 dB over 95–99.9 GHz.<span class="src">our calculation from material data</span></span></li><li data-ev="i"><span class="tag t-i">inference</span><span>Bare Ø127 × 200 mm tube at 60 W: ≈ +42 K over ambient; finned Ø160 × 300 mm: ≈ +26 K.<span class="src">convection correlations, not CFD</span></span></li><li data-ev="i"><span class="tag t-i">inference</span><span>Tile heat ≈ 1.15 W/cm²; 5–7 K from the tiles to the tube wall.<span class="src">our estimate</span></span></li><li data-ev="o"><span class="tag t-o">open</span><span>Septum, absorber, split window and a 15–20 mm gap together close the isolation gap.<span class="src">needs full-size CST runs</span></span></li><li data-ev="o"><span class="tag t-o">open</span><span>Polycarbonate loss at W-band, and a water film on the window.<span class="src">needs a measurement</span></span></li></ul>
 <p class="note ev-none" hidden>No claims with this tag in this layer.</p>
-<p class="note">Sections: <a href="#mech">18</a>, <a href="#thermal">19</a></p>
+<p class="note">Sections: <a href="#mech">18</a>, <a href="#thermal">20</a></p>
 </div></details>
 <p class="note">Values read from plots carry ±0.1–0.2 dB. Requirements (65 dB isolation per channel, ±10° scan, 0.2° at SNR 16 dB) are targets, not results.</p>
 </section>
 
 <section class="sheet" id="refs" style="--ph:var(--warn)">
-<div class="step">23 · Plan and evidence</div><h2>References</h2>
+<div class="step">24 · Plan and evidence</div><h2>References</h2>
 <p class="cap">The page rests on five kinds of source; the public ones are listed below with links, the internal ones are described but not linked.</p>
 <ul class="open">
 <li><span class="tag t-c">confirmed</span><span><b>Full-wave CST runs</b>: the 3.30 mm tile, the 8 × 12 array (77.2 M cells, time-domain solver) and the twin TX + RX model (152 M cells). They back the array, scan, monopulse and isolation numbers in <a href="#array">07</a>–<a href="#iso">10</a>.</span></li>
-<li><span class="tag t-c">confirmed</span><span><b>The original design deck</b>: block diagram, chirp plan, bundle timing, the earlier X-band receiver and LO distribution, the risk list and the build plan. Used in <a href="#system">03</a>, <a href="#freq">04</a>, <a href="#chirp">12</a>, <a href="#risks">20</a> and <a href="#plan">21</a>.</span></li>
+<li><span class="tag t-c">confirmed</span><span><b>The original design deck</b>: block diagram, chirp plan, bundle timing, the earlier X-band receiver and LO distribution, the risk list and the build plan. Used in <a href="#system">03</a>, <a href="#freq">04</a>, <a href="#chirp">12</a>, <a href="#risks">21</a> and <a href="#plan">22</a>.</span></li>
 <li><span class="tag t-c">confirmed</span><span><b>The X-band layer schematic</b> and the <b>TX IC interface sheet</b> with the simulated TX and measured RX IC plots. Used in <a href="#xband">11</a> and <a href="#freq">04</a>.</span></li>
 <li><span class="tag t-c">confirmed</span><span><b>Public datasheets, fact sheets and papers</b>: the 50 entries below.</span></li>
 <li><span class="tag t-i">inference</span><span><b>Our arithmetic</b>: frequency plan, LO levels, data rates, power, thermal and window thickness. Each such number carries an inference tag where it is used.</span></li>
@@ -5573,6 +5864,73 @@ text-decoration:underline dotted;text-underline-offset:3px}
 })();
 </script>
 <script>
+/* section dome */
+/* 19 dome: link the numbered callouts of the to-scale drawing with its key list.
+   Hover or focus a callout (or hover a key entry) to highlight the part in both copies of option B;
+   click or Enter keeps it lit; Esc clears. */
+(function () {
+  'use strict';
+  var svg = document.getElementById('dome-sec');
+  if (!svg) return;
+  var key = document.getElementById('dome-key');
+  var cap = document.getElementById('dome-cocap');
+  var cos = Array.prototype.slice.call(svg.querySelectorAll('.dm-co[data-dm-co]'));
+  var parts = Array.prototype.slice.call(svg.querySelectorAll('g[data-dm]'));
+  var lis = key ? Array.prototype.slice.call(key.querySelectorAll('li[data-dm-li]')) : [];
+  var hint = 'Point at a number, or at an entry of the list, to find the part; click a number to keep it lit, Esc to clear.';
+  var hoverK = null, focusK = null, pinK = null, shown;
+
+  function name(k) {
+    for (var i = 0; i < lis.length; i++) if (lis[i].getAttribute('data-dm-li') === k) return lis[i].textContent;
+    return '';
+  }
+  function apply() {
+    var k = hoverK || focusK || pinK;
+    var sig = k + '|' + pinK;
+    if (sig === shown) return;
+    shown = sig;
+    svg.classList.toggle('dm-focus', !!k);
+    cos.forEach(function (c) { c.classList.toggle('dm-on', c.getAttribute('data-dm-co') === k); });
+    parts.forEach(function (g) { g.classList.toggle('dm-on', g.getAttribute('data-dm') === k); });
+    lis.forEach(function (li) { li.classList.toggle('is-hl', li.getAttribute('data-dm-li') === k); });
+    cos.forEach(function (c) { c.setAttribute('aria-pressed', c.getAttribute('data-dm-co') === pinK ? 'true' : 'false'); });
+    if (cap) cap.textContent = k ? (k + ' · ' + name(k) + (pinK === k ? ' (kept; click again or press Esc to clear)' : '')) : hint;
+  }
+  function isMouse(e) { return !e.pointerType || e.pointerType === 'mouse' || e.pointerType === 'pen'; }
+  function pin(k) { pinK = (pinK === k) ? null : k; apply(); }
+
+  // the callouts become buttons, so the drawing is a group rather than one image
+  svg.setAttribute('role', 'group');
+  cos.forEach(function (c) {
+    var k = c.getAttribute('data-dm-co');
+    var t = c.querySelector('title');
+    if (t) t.parentNode.removeChild(t);
+    c.setAttribute('tabindex', '0');
+    c.setAttribute('role', 'button');
+    c.setAttribute('aria-label', 'Callout ' + k + ': ' + name(k));
+    c.addEventListener('click', function () { pin(k); });
+    c.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pin(k); }
+      else if (e.key === 'Escape') { pinK = null; focusK = null; apply(); }
+    });
+    c.addEventListener('pointerenter', function (e) { if (isMouse(e)) { hoverK = k; apply(); } });
+    c.addEventListener('pointerleave', function (e) { if (isMouse(e) && hoverK === k) { hoverK = null; apply(); } });
+    c.addEventListener('focus', function () {
+      var vis = true;
+      try { vis = c.matches(':focus-visible'); } catch (err) { vis = true; }
+      if (vis) { focusK = k; apply(); }
+    });
+    c.addEventListener('blur', function () { if (focusK === k) { focusK = null; apply(); } });
+  });
+  lis.forEach(function (li) {
+    var k = li.getAttribute('data-dm-li');
+    li.addEventListener('pointerenter', function (e) { if (isMouse(e)) { hoverK = k; apply(); } });
+    li.addEventListener('pointerleave', function (e) { if (isMouse(e) && hoverK === k) { hoverK = null; apply(); } });
+  });
+  if (cap) cap.textContent = hint;
+})();
+</script>
+<script>
 /* section evidence */
 /* 22 evidence (W7): tag filter for the claim register, open-all toggle, chart links that open a layer. */
 (function () {
@@ -5762,7 +6120,7 @@ text-decoration:underline dotted;text-underline-offset:3px}
       zinc: g('--m3-zinc', '#bcc3c9'), alu: g('--m3-alu', '#b9c0c7'), anod: g('--m3-anod', '#3b424a'), shield: g('--m3-shield', '#dde2e6'),
       win: g('--m3-win', '#c4d2df'), absorb: g('--m3-absorb', '#2b302e'), ferrite: g('--m3-ferrite', '#3a3f45'), cable: g('--m3-cable', '#2f3439'),
       brass: g('--m3-brass', '#b99b5c'), rubber: g('--m3-rubber', '#2a2d31'), term: g('--m3-term', '#e8a33d'), shade: g('--m3-shade', '#24313c'),
-      cola: g('--m3-cola', '#c3161c'), colaband: g('--m3-colaband', '#f4f2ee'),
+      cola: g('--m3-cola', '#c3161c'), colaband: g('--m3-colaband', '#f4f2ee'), wpowder: g('--m3-wpowder', '#eceeef'), smoke: g('--m3-smoke', '#262b31'),
       zone: g('--zone', '#f8fafc'), rf: g('--rf', '#d4652a'), rfd: g('--rf-d', '') || g('--rf', '#d4652a'), card: g('--card', '#4570a6'),
       cardT: g('--card-t', '#e8eff8'), ink: g('--ink', '#24313c'), muted: g('--muted', '#5b6670'), clk: g('--clk', '#12897d'),
       ctl: g('--ctl', '#5e55c4'), warn: g('--warn', '#b26f12')
@@ -5787,7 +6145,8 @@ text-decoration:underline dotted;text-underline-offset:3px}
     cap: { c: '#b39a72', m: 0, r: 0.6 }, elcap: { c: '#2b3a55', m: 0.3, r: 0.4 }, cable: { c: 'cable', m: 0, r: 0.6 },
     brass: { c: 'brass', m: 0.9, r: 0.35 }, rubber: { c: 'rubber', m: 0, r: 0.9 }, white: { c: '#e9ebed', m: 0, r: 0.5 },
     term: { c: 'term', m: 0, r: 0.5 }, win: { c: 'win', m: 0, r: 0.08, o: 0.55, pass: 1, side: 1 },
-    canrim: { c: 'zinc', m: 0.95, r: 0.22 }
+    canrim: { c: 'zinc', m: 0.95, r: 0.22 }, wpowder: { c: 'wpowder', m: 0, r: 0.6 }, liner: { c: '#2a2f35', m: 0.1, r: 0.6 },
+    tpad: { c: '#8f9aa3', m: 0, r: 0.85 }
   };
   function Kit() { this.geos = []; this.mats = []; this.texs = []; this.mk = {}; this.gk = {}; }
   Kit.prototype.g = function (geo) { this.geos.push(geo); return geo; };
@@ -7128,9 +7487,14 @@ text-decoration:underline dotted;text-underline-offset:3px}
   function colX(a, i) { return a + (i - 3.5) * 3.3; }
   function rowY(j) { return (j - 5.5) * 3.3; }
   function quadCol(q) { return { UL: TOK.rf, UR: TOK.clk, LL: TOK.card, LR: TOK.ctl }[q]; }
+  /* back-side layout of the W-band disc: option A (Ø110) is the default; option B passes its Ø90 re-pack (WL_D) */
+  var WL_A = { r: 55, holes: HOLES, holeTxt: 'r = 46 mm at 45°', holeLand: 3.0, land: 51.5, synth: 34, split: 42.2, amp: 31, tree: [28.6, 27.6, 26.7],
+    drv: 24.7, lo: LO_OUT, ref: REF_IN, cpld: -34, selTop: -23.6, b2b: -41, side: true, loTxt: 35.5, smTxt: 5,
+    name: 'W-band disc: Ø110 × 2.0 mm, low-loss laminate stack-up' };
 
-  /* km: callout numbers for the parts; o: { septH, standoffs, anchors: {key: k} } */
+  /* km: callout numbers for the parts; o: { septH, arch(y) → septum top, layout, standoffs, anchors: {key: k} } */
   function buildWDisc(V, km, o) {
+    var L = o.layout || WL_A, R = L.r, TR = L.tree;
     var K = V.kit(), g = new T.Group(), front = new T.Group(), pcb = new T.Group(), back = new T.Group();
     g.add(front); g.add(pcb); g.add(back);
     var out = { group: g, front: front, pcb: pcb, back: back, anchors: {}, standoffs: [] };
@@ -7149,14 +7513,14 @@ text-decoration:underline dotted;text-underline-offset:3px}
       return m;
     }
     /* PCB, ground plate, holes and lands */
-    var disc = discGeo(WD_R, WD_T, HOLES.map(function (h) { return { x: h[0], y: h[1], r: 1.7 }; }), 0.15, 64);
+    var disc = discGeo(R, WD_T, L.holes.map(function (h) { return { x: h[0], y: h[1], r: 1.7 }; }), 0.15, 64);
     disc.translate(0, 0, -WD_T);
-    mesh(K.g(disc), K.mat('mask', 0), 0, 0, 0, pcb, 'W-band disc: Ø110 × 2.0 mm, low-loss laminate stack-up');
+    mesh(K.g(disc), K.mat('mask', 0), 0, 0, 0, pcb, L.name);
     mesh(K.box(64.5, 46.3, 0.03), K.mat('enig', 0), 0, 0, 0.015, front, 'Common ground plate, 64.5 × 46.3 mm (ENIG)');
-    var land = ringGeo(51.5, WD_R - 0.2, 0.03, 64);
+    var land = ringGeo(L.land, R - 0.2, 0.03, 64);
     mesh(K.g(land), K.mat('enig', km.holes), 0, 0, ZB - 0.03, back, 'Clamp-ring land: bare rim for the clamp ring and the heat path');
-    var hr = K.g(ringGeo(1.7, 3.0, 0.03, 24)), hl = [];
-    HOLES.forEach(function (h) { hl.push({ p: [h[0], h[1], 0], n: 'Mounting hole, r = 46 mm at 45°' }, { p: [h[0], h[1], ZB - 0.03], n: 'Mounting hole, r = 46 mm at 45°' }); });
+    var hr = K.g(ringGeo(1.7, L.holeLand, 0.03, 24)), hl = [];
+    L.holes.forEach(function (h) { hl.push({ p: [h[0], h[1], 0], n: 'Mounting hole, ' + L.holeTxt }, { p: [h[0], h[1], ZB - 0.03], n: 'Mounting hole, ' + L.holeTxt }); });
     inst(hr, K.mat('enig', km.holes), hl, pcb);
     /* the two apertures: dark laminate tiles with a gold frame, cross and four patches each */
     var frameGeo = K.g(extrude(addHoles(squareShape(1.62), WIN4.map(function (s) { return { x: s[0] * 0.775, y: s[1] * 0.775, w: 1.35, h: 1.35 }; })), 0.03, 0, 4));
@@ -7192,41 +7556,59 @@ text-decoration:underline dotted;text-underline-offset:3px}
     };
     /* septum with absorber on both faces */
     var sh = o.septH || 5;
-    mesh(K.box(4, 42, sh), K.mat('alu', km.septum), 0, 0, sh / 2, front, 'Septum: grounded aluminium wall, 4 mm wide, ' + sh.toFixed(1) + ' mm tall');
-    [-2.2, 2.2].forEach(function (x) { mesh(K.box(0.4, 41.6, sh - 0.3), K.mat('absorb', km.septum), x, 0, (sh - 0.3) / 2 + 0.03, front, 'W-band absorber on the septum face'); });
+    if (o.arch) {   // arched fin: the top follows the dome; the shape lies in (y, z) and is extruded along x
+      var ash = function (y0, y1, dz) {
+        var s = new T.Shape(), n = 24;
+        s.moveTo(y0, 0); s.lineTo(y1, 0);
+        for (var ai = 0; ai <= n; ai++) { var ay = y1 + (y0 - y1) * ai / n; s.lineTo(ay, o.arch(ay) - dz); }
+        return s;
+      };
+      var rot = new T.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+      var sg = extrude([ash(-21, 21, 0)], 4, 0, 8); sg.applyMatrix4(rot); sg.translate(-2, 0, 0);
+      sh = o.arch(0);
+      mesh(K.g(sg), K.mat('alu', km.septum), 0, 0, 0, front, 'Septum: grounded aluminium fin, 4 mm wide, arched to ≈ 0.5 mm under the dome');
+      var ag = extrude([ash(-20.8, 20.8, 0.3)], 0.4, 0, 8); ag.applyMatrix4(rot);
+      ag = K.g(ag);
+      [-2.4, 2.0].forEach(function (x) { mesh(ag, K.mat('absorb', km.septum), x, 0, 0.03, front, 'W-band absorber on the septum face'); });
+    } else {
+      mesh(K.box(4, 42, sh), K.mat('alu', km.septum), 0, 0, sh / 2, front, 'Septum: grounded aluminium wall, 4 mm wide, ' + sh.toFixed(1) + ' mm tall');
+      [-2.2, 2.2].forEach(function (x) { mesh(K.box(0.4, 41.6, sh - 0.3), K.mat('absorb', km.septum), x, 0, (sh - 0.3) / 2 + 0.03, front, 'W-band absorber on the septum face'); });
+    }
 
     /* back: chirp synthesizer under its can, the 2-way split, LO-out and REF-in */
-    var canTex = chipTex(K, 'LMX2595', 'chirp synth', 256, 256, TOK.zinc);
-    part(12, 12, 3, 0, 34, km.synth, 'Chirp synthesizer under a 12 × 12 mm can: LMX2595 baseline (ADF4159 + X-band VCO alternative)', 'zinc', K.printed('zinc', km.synth, canTex, 5));
-    part(2.0, 1.6, 0.5, 0, 42.2, km.synth, 'Wilkinson 2-way split, TX / RX LO trees', 'cap');
-    lines([[[0, 40], [0, 42.2]]], 0.4, km.synth, 'rfline', 'RFoutA to the 2-way split');
-    lines([[[-6, 38], [LO_OUT[0] + 2.1, 38]]], 0.4, km.synth, 'rfline', 'RFoutB: dechirp LO to the X-band disc');
-    lines([[[REF_IN[0] - 2.1, 38], [6, 38]]], 0.3, km.synth, 'copper', '100 MHz reference from the X-band disc');
+    var canTex = chipTex(K, 'LMX2595', 'chirp synth', 256, 256, TOK.zinc), lo = L.lo, ref = L.ref;
+    part(12, 12, 3, 0, L.synth, km.synth, 'Chirp synthesizer under a 12 × 12 mm can: LMX2595 baseline (ADF4159 + X-band VCO alternative)' + (L.arm ? '; the 2-way split sits under the same can' : ''), 'zinc', K.printed('zinc', km.synth, canTex, 5));
+    if (!L.arm) {
+      part(2.0, 1.6, 0.5, 0, L.split, km.synth, 'Wilkinson 2-way split, TX / RX LO trees', 'cap');
+      lines([[[0, L.synth + 6], [0, L.split]]], 0.4, km.synth, 'rfline', 'RFoutA to the 2-way split');
+    }
+    lines([[[-6, lo[1]], [lo[0] + 2.1, lo[1]]]], 0.4, km.synth, 'rfline', 'RFoutB: dechirp LO to the X-band disc');
+    lines([[[ref[0] - 2.1, ref[1]], [6, ref[1]]]], 0.3, km.synth, 'copper', '100 MHz reference from the X-band disc');
     /* LO trees: split → root amplifier → equal-length 1:8 H-tree → 8 column drivers → via into the 1:12 column tree */
     [-1, 1].forEach(function (s) {
       var xc = 15.7 * s, kk = s < 0 ? km.txlo : km.rxlo, W = s < 0 ? 'TX' : 'RX', paths = [], nodes = [], drv = [], dots = [];
-      paths.push([[0, 42.2], [xc, 42.2], [xc, 32.5]]);
-      paths.push([[xc, 29.5], [xc, 28.6]], [[xc - 6.6, 28.6], [xc + 6.6, 28.6]]);
-      nodes.push([xc, 28.6]);
+      paths.push(L.arm ? [[6 * s, L.arm], [xc, L.arm], [xc, L.amp + 1.5]] : [[0, L.split], [xc, L.split], [xc, L.amp + 1.5]]);
+      paths.push([[xc, L.amp - 1.5], [xc, TR[0]]], [[xc - 6.6, TR[0]], [xc + 6.6, TR[0]]]);
+      nodes.push([xc, TR[0]]);
       [-6.6, 6.6].forEach(function (d1) {
         var x1 = xc + d1;
-        paths.push([[x1, 28.6], [x1, 27.6]], [[x1 - 3.3, 27.6], [x1 + 3.3, 27.6]]);
-        nodes.push([x1, 27.6]);
+        paths.push([[x1, TR[0]], [x1, TR[1]]], [[x1 - 3.3, TR[1]], [x1 + 3.3, TR[1]]]);
+        nodes.push([x1, TR[1]]);
         [-3.3, 3.3].forEach(function (d2) {
           var x2 = x1 + d2;
-          paths.push([[x2, 27.6], [x2, 26.7]], [[x2 - 1.65, 26.7], [x2 + 1.65, 26.7]]);
-          nodes.push([x2, 26.7]);
-          [-1.65, 1.65].forEach(function (d3) { paths.push([[x2 + d3, 26.7], [x2 + d3, 25.9]]); });
+          paths.push([[x2, TR[1]], [x2, TR[2]]], [[x2 - 1.65, TR[2]], [x2 + 1.65, TR[2]]]);
+          nodes.push([x2, TR[2]]);
+          [-1.65, 1.65].forEach(function (d3) { paths.push([[x2 + d3, TR[2]], [x2 + d3, L.drv + 1.2]]); });
         });
       });
       for (var i = 0; i < 8; i++) {
         var cx = colX(xc, i);
-        drv.push({ p: [cx, 24.7, ZB - 0.425], n: W + ' column driver ' + (i + 1) + ' (HMC1082-class), feeds the 1:12 column tree of column ' + (i + 1) });
-        paths.push([[cx, 23.5], [cx, 22.6]]);
-        dots.push({ p: [cx, 22.6, ZB - 0.02], n: W + ' column ' + (i + 1) + ': via into the 1:12 stripline tree' });
+        drv.push({ p: [cx, L.drv, ZB - 0.425], n: W + ' column driver ' + (i + 1) + ' (HMC1082-class), feeds the 1:12 column tree of column ' + (i + 1) });
+        paths.push([[cx, L.drv - 1.2], [cx, L.drv - 2.1]]);
+        dots.push({ p: [cx, L.drv - 2.1, ZB - 0.02], n: W + ' column ' + (i + 1) + ': via into the 1:12 stripline tree' });
       }
       lines(paths, 0.35, kk, 'rfline', W + ' LO tree: equal-length 1:8 splitter (all 96 paths matched within ≈ 1 mm)');
-      part(3, 3, 0.9, xc, 31, kk, W + ' LO root amplifier (HMC441-class), about +13 dBm out');
+      part(3, 3, 0.9, xc, L.amp, kk, W + ' LO root amplifier (HMC441-class), about +13 dBm out');
       inst(K.box(0.7, 0.4, 0.3), K.mat('cap', kk), nodes.map(function (n) { return { p: [n[0], n[1], ZB - 0.15], n: 'Wilkinson split (resistor and λ/4 arms not drawn)' }; }), back);
       inst(K.box(2.4, 2.4, 0.85), K.mat('chip', kk), drv, back);
       inst(K.g(cylZ(0.3, 0.04, 12)), K.mat('copper', kk), dots, back);
@@ -7245,8 +7627,8 @@ text-decoration:underline dotted;text-underline-offset:3px}
       smC.push({ p: [x, y, ZB - 3.55], n: n });
     }
     IFQ.forEach(function (q) { smpm(q.x, q.y, 'SMPM: IF out, quadrant ' + q.q + ', blind-mate to the X-band disc'); });
-    smpm(LO_OUT[0], LO_OUT[1], 'SMPM: dechirp LO out (RFoutB) to the X-band disc');
-    smpm(REF_IN[0], REF_IN[1], 'SMPM: 100 MHz REF in from the X-band disc');
+    smpm(lo[0], lo[1], 'SMPM: dechirp LO out (RFoutB) to the X-band disc');
+    smpm(ref[0], ref[1], 'SMPM: 100 MHz REF in from the X-band disc');
     lines(ifp, 0.3, km.iflna, 'rfline', 'IF path: combiner root → LNA → SMPM');
     inst(K.box(2, 2, 0.85), K.mat('chip', km.iflna), lna, back);
     inst(K.g(cylZ(0.35, 0.04, 12)), K.mat('copper', km.iflna), ifv, back);
@@ -7255,42 +7637,51 @@ text-decoration:underline dotted;text-underline-offset:3px}
     inst(K.g(cylZ(1.1, 0.12, 16)), K.mat('black', km.smpm), smC, back);
     /* beam-control CPLD with its ROW/COL select bundles, the board-to-board header */
     var cpTex = chipTex(K, 'BEAM CPLD', 'ROW / COL', 256, 256);
-    part(7, 7, 1.0, 0, -34, km.cpld, 'Beam-control CPLD: ROW/COL select lines, beam tables, 1.2 V level shifting', null, K.printed('chip', km.cpld, cpTex, 5));
+    part(7, 7, 1.0, 0, L.cpld, km.cpld, 'Beam-control CPLD: ROW/COL select lines, beam tables, 1.2 V level shifting', null, K.printed('chip', km.cpld, cpTex, 5));
     var sel = [];
     [-1, 1].forEach(function (s) {
       for (var t = 0; t < 6; t++) {
-        var y = -31.2 - t * 1.0, x = s * (9.5 + t * 0.9);
-        sel.push([[s * 3.5, y], [x, y], [x, -23.6]]);
+        var y = L.cpld + 2.8 - t * 1.0, x = s * (9.5 + t * 0.9);
+        sel.push([[s * 3.5, y], [x, y], [x, L.selTop]]);
       }
     });
-    for (var t = 0; t < 4; t++) sel.push([[-1.5 + t, -37.5], [-1.5 + t, -38.5]]);
+    for (var t = 0; t < 4; t++) sel.push([[-1.5 + t, L.cpld - 3.5], [-1.5 + t, L.b2b + 2.5]]);
     lines(sel, 0.2, km.cpld, 'copper', 'ROW / COL select and serial lines (12 + 8 per array, shared CLK / D / RST / EN)');
     var hdTex = canvasTex(K, 520, 100, function (x, W, H) {
       x.fillStyle = '#1f2427'; x.fillRect(0, 0, W, H);
       x.fillStyle = '#0f1214';
       for (var i = 0; i < 30; i++) for (var r = 0; r < 2; r++) x.fillRect(14 + i * 16.5, 26 + r * 30, 9, 16);
     });
-    part(26, 5, 4.5, 0, -41, km.b2b, 'Board-to-board header, 2 × 30 pins: SPI ×2, trigger / SYNC, enable, I²C, 12 V', 'black', K.printed('black', km.b2b, hdTex, 5));
-    /* 1.2 V POLs on the side lenses */
-    var ind = [], reg = [], cap = [];
+    part(26, 5, 4.5, 0, L.b2b, km.b2b, 'Board-to-board header, 2 × 30 pins: SPI ×2, trigger / SYNC, enable, I²C, 12 V', 'black', K.printed('black', km.b2b, hdTex, 5));
+    /* 1.2 V POLs: on the side lenses (Ø110) or in the bottom segment (Ø90) */
+    var ind = [], reg = [], cap = [], nInd = '1.2 V POL inductor (multiphase, ≈ 25 A for both arrays)';
     [-1, 1].forEach(function (s) {
-      [-6, 6].forEach(function (y) { ind.push({ p: [s * 38, y, ZB - 1.5], n: '1.2 V POL inductor (multiphase, ≈ 25 A for both arrays)' }); });
-      reg.push({ p: [s * 44.5, 0, ZB - 0.45], n: '1.2 V POL controller' });
-      [-12, 12].forEach(function (y) { [35, 38, 41].forEach(function (x) { cap.push({ p: [s * x, y, ZB - 0.4], n: 'Output capacitor' }); }); });
+      if (L.side) {
+        [-6, 6].forEach(function (y) { ind.push({ p: [s * 38, y, ZB - 1.5], n: nInd }); });
+        reg.push({ p: [s * 44.5, 0, ZB - 0.45], n: '1.2 V POL controller' });
+        [-12, 12].forEach(function (y) { [35, 38, 41].forEach(function (x) { cap.push({ p: [s * x, y, ZB - 0.4], n: 'Output capacitor' }); }); });
+      } else {
+        [16.8, 22.4].forEach(function (x) { ind.push({ p: [s * x, -31.2, ZB - 1.5], n: nInd }); });
+        reg.push({ p: [s * 17.5, -37.5, ZB - 0.45], n: '1.2 V POL controller' });
+        [21.5, 23.6].forEach(function (x) { cap.push({ p: [s * x, -36.3, ZB - 0.4], n: 'Output capacitor' }); });
+      }
     });
     inst(K.box(5, 5, 3), K.mat('ferrite', km.pol), ind, back);
     inst(K.box(4, 4, 0.9), K.mat('chip', km.pol), reg, back);
     inst(K.box(1.6, 0.8, 0.8), K.mat('cap', km.pol), cap, back);
     /* silkscreen on the back, read from behind */
-    var silk = backDecal(K, 110, 110, 9, function (x, s) {
-      function X(v) { return (55 - v) * s; } function Y(v) { return (55 - v) * s; }
+    var silk = backDecal(K, 2 * R, 2 * R, 9, function (x, s) {
+      function X(v) { return (R - v) * s; } function Y(v) { return (R - v) * s; }
       x.fillStyle = TOK.silk; x.strokeStyle = TOK.silk; x.lineWidth = 2; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.font = font(30, 700); x.fillText('L1 · W-BAND DISC', X(0), Y(-48.5));
+      if (L.side) { x.font = font(30, 700); x.fillText('L1 · W-BAND DISC', X(0), Y(-48.5)); }
+      else { x.save(); x.translate(X(-36.2), Y(0)); x.rotate(-Math.PI / 2); x.font = font(22, 700); x.fillText('L1 · W-BAND DISC', 0, 0); x.restore(); }
       x.font = font(19, 600);
-      x.fillText('TX LO', X(-15.7), Y(35.5)); x.fillText('RX LO', X(15.7), Y(35.5));
-      x.fillText('LO OUT', X(LO_OUT[0]), Y(43)); x.fillText('REF IN', X(REF_IN[0]), Y(43));
+      x.fillText('TX LO', X(-15.7), Y(L.loTxt)); x.fillText('RX LO', X(15.7), Y(L.loTxt));
+      x.fillText('LO OUT', X(lo[0]), Y(lo[1] + L.smTxt)); x.fillText('REF IN', X(ref[0]), Y(ref[1] + L.smTxt));
       IFQ.forEach(function (q) { x.fillText('IF ' + q.q, X(q.x + 4.6), Y(q.y)); });
-      x.fillText('BEAM CPLD', X(0), Y(-28.6)); x.fillText('1V2', X(-41), Y(-17)); x.fillText('1V2', X(41), Y(-17));
+      x.fillText('BEAM CPLD', X(0), Y(L.cpld + 5.4));
+      var pt = L.side ? [41, -17] : [19.6, -26.8];
+      x.fillText('1V2', X(-pt[0]), Y(pt[1])); x.fillText('1V2', X(pt[0]), Y(pt[1]));
       x.fillText('TX', X(-15.7), Y(-4)); x.fillText('RX', X(15.7), Y(-4));
       x.strokeRect(X(32.25), Y(23.15), 64.5 * s, 46.3 * s);
     });
@@ -7305,10 +7696,11 @@ text-decoration:underline dotted;text-underline-offset:3px}
       });
     }
     /* anchors */
-    A('tx', front, -15.7, 12, 0.95); A('rx', front, 15.7, 12, 0.95); A('septum', front, 0, -14, sh + 0.02);
-    A('synth', back, 0, 34, ZB - 3.05); A('txlo', back, -22.3, 28.6, ZB - 0.1); A('rxlo', back, 22.3, 28.6, ZB - 0.1);
-    A('iflna', back, 22.3, -13.5, ZB - 0.9); A('smpm', back, 9.1, -9.9, ZB - 3.65); A('cpld', back, 0, -34, ZB - 1.05);
-    A('pol', back, -38, 6, ZB - 3.05); A('b2b', back, 0, -41, ZB - 4.55); A('holes', front, 32.53, -32.53, 0.05);
+    A('tx', front, -15.7, 12, 0.95); A('rx', front, 15.7, 12, 0.95); A('septum', front, 0, -14, (o.arch ? o.arch(-14) : sh) + 0.02);
+    A('synth', back, 0, L.synth, ZB - 3.05); A('txlo', back, -22.3, TR[0], ZB - 0.1); A('rxlo', back, 22.3, TR[0], ZB - 0.1);
+    A('iflna', back, 22.3, -13.5, ZB - 0.9); A('smpm', back, 9.1, -9.9, ZB - 3.65); A('cpld', back, 0, L.cpld, ZB - 1.05);
+    if (L.side) A('pol', back, -38, 6, ZB - 3.05); else A('pol', back, -22.4, -31.2, ZB - 3.05);
+    A('b2b', back, 0, L.b2b, ZB - 4.55); A('holes', front, L.holes[3][0], L.holes[3][1], 0.05);
     return out;
   }
 
@@ -7636,7 +8028,235 @@ text-decoration:underline dotted;text-underline-offset:3px}
     return model;
   }
 
-  /* ===== The two viewers ===== */
+  /* ===== Viewer C: option B, the compact dome (unit frame: boresight +z, y up, patch plane z = 0; mm) ===== */
+  var DOME_R = 90, DOME_RIM = 48, DOME_ZC = 1 - Math.sqrt(DOME_R * DOME_R - DOME_RIM * DOME_RIM);   // cap centre z ≈ −75.1, inner apex +14.9
+  var DH4 = [[40, 0], [0, 40], [-40, 0], [0, -40]], T30 = Math.tan(30 * DEG), GLAND = [-22, -34], TPORT = [22, 22];
+  var WL_D = { r: 45, holes: DH4, holeTxt: 'r = 40 mm on 0 / 90 / 180 / 270°', holeLand: 2.4, land: 42.5, synth: 32.2, arm: 31.3, amp: 28.6,
+    tree: [26.6, 25.8, 25.0], drv: 23.0, lo: [-10, 37], ref: [10, 37], cpld: -26.5, selTop: -21.5, b2b: -33.5, side: false, loTxt: 34.6, smTxt: 4.4,
+    name: 'W-band disc L1: Ø90 × 2.0 mm, low-loss laminate stack-up' };
+  var DOME_NAMES = {
+    1: 'dome: λ/2 polycarbonate cap, R 90 mm', 2: 'white top ring and dark liner', 3: 'TX aperture, 8 × 12', 4: 'RX aperture, four quadrants',
+    5: 'arched septum fin and absorber', 6: 'W-band disc back (Ø90)', 7: 'six SMPM and the control header', 8: 'X-band disc',
+    9: 'shared spreader', 10: 'L3 compute side', 11: 'L3 power side', 12: 'body: white aluminium, Ø100 × 44 mm',
+    13: 'back plate, gland, pigtail, test port', 14: 'mount: wall plate or 30° wedge'
+  };
+  var KM_DOME = { tx: 3, rx: 4, septum: 5, synth: 6, txlo: 6, rxlo: 6, iflna: 6, smpm: 7, cpld: 6, pol: 6, b2b: 7, holes: 0 };
+  var BUL_D = IFQ.map(function (q) { return [q.x, q.y, 'IF ' + q.q]; }).concat([[-10, 37, 'dechirp LO'], [10, 37, 'REF in']]);
+  /* view presets: wall mount (boresight horizontal); on the wedge the unit hangs under a ceiling plate, so the presets follow the unit */
+  var CAM_WALL = { iso: [38, -14, 32], front: [0, 2, 32], side: [90, 2, 32], top: [0, 89.4, 32], back: [180, 2, 32] };
+  var CAM_WEDGE = { iso: [32, -26, 32], front: [0, -58, 32], side: [90, 2, 32], top: [0, 30, 32], back: [180, 58, 32] };
+
+  function buildDome(V) {
+    var K = V.kit(), st = V.st, root = new T.Group(), U = new T.Group(), groups = [], anchors = {}, lastE = 0;
+    root.add(U);
+    var model = { root: root, anchors: anchors, tags: [], dims: [], occTol: 1.2 };
+    function grp(off) { var g = new T.Group(); g.userData.off = off; U.add(g); groups.push(g); return g; }
+    function A(kk, g, x, y, z) { var a = new T.Object3D(); a.position.set(x, y, z); g.add(a); anchors[kk] = a; return a; }
+    function box(g, w, h, d, x, y, z, kind, kk, name, mats) { return mesh(K.box(w, h, d), mats || K.mat(kind, kk), x, y, z, g, name); }
+    function disc(g, r, t, z0, holes, kind, kk, name) { return mesh(K.g(discGeo(r, t, holes, 0.2, 72)), K.mat(kind, kk), 0, 0, z0, g, name); }
+    function lathe(pts) { var lg = new T.LatheGeometry(pts.map(function (p) { return new T.Vector2(p[0], p[1]); }), 128); lg.rotateX(Math.PI / 2); return K.g(lg); }
+    /* parts on one face of a disc: [x, y, w, h, t, kind, name, texture?]; s = +1 stacks towards +z from z0, −1 towards −z */
+    function parts(g, z0, s, kk, list) {
+      list.forEach(function (p) { box(g, p[2], p[3], p[4], p[0], p[1], z0 + s * p[4] / 2, p[5], kk, p[6], p[7] ? K.printed(p[5], kk, p[7], s > 0 ? 4 : 5) : null); });
+    }
+    var DH = DH4.map(function (h) { return { x: h[0], y: h[1], r: 1.7 }; });
+    var dome = grp(56), top = grp(44), shell = grp(0), l1 = grp(24), l2 = grp(0), l3 = grp(-22), bk = grp(-44), mt = grp(-60);
+    var shellParts = [];
+
+    /* 1: the dome, a spherical cap (inner R 90, rim Ø96 at z +1), smoked; the metallised strip on the septum line */
+    var th = Math.asin(DOME_RIM / DOME_R), dg = new T.SphereGeometry(DOME_R, 96, 20, 0, Math.PI * 2, 0, th);
+    dg.rotateX(Math.PI / 2); dg.translate(0, 0, DOME_ZC);
+    var dm = K.raw(new T.MeshStandardMaterial({ color: lin(TOK.smoke), metalness: 0, roughness: 0.08, transparent: true, opacity: 0.62,
+      depthWrite: false, side: T.DoubleSide, envMapIntensity: 0.75 }), 1);
+    dm.userData.pass = true;
+    mesh(K.g(dg), dm, 0, 0, 0, dome, 'Dome: λ/2 polycarbonate cap, 0.92 mm, inner R 90 mm, rim Ø96, smoked').renderOrder = 3;
+    var strip = arcGeo(DOME_R + 0.04, DOME_R + 0.2, Math.PI / 2 - th + 0.004, Math.PI / 2 + th - 0.004, 2.5, 64);
+    strip.applyMatrix4(new T.Matrix4().set(0, 0, 1, -1.25, 1, 0, 0, 0, 0, 1, 0, DOME_ZC, 0, 0, 0, 1));
+    mesh(K.g(strip), K.mat('zinc', 1), 0, 0, 0, dome, 'Metallised strip on the septum line: the dome version of the window mullion');
+    A(1, dome, -28, 20, DOME_ZC + Math.sqrt(DOME_R * DOME_R - 28 * 28 - 20 * 20) + 0.1);
+
+    /* 2, 12: body with the rounded shoulder (shared with the top ring), O-ring, two screw recesses, dark liner */
+    var SH = function (t) { return [48.2 + 1.8 * Math.cos(t), -3 + 6 * Math.sin(t)]; }, tS = Math.asin(4 / 6), bp = [[46, -39.1], [50, -39.1], [50, -39.1]], rp = [[48, 1]];
+    for (var i = 0; i <= 8; i++) { bp.push(SH(tS * i / 8)); rp.push(SH(tS + (Math.PI / 2 - tS) * i / 8)); }
+    bp.push(SH(tS), [46, 1], [46, 1], [46, -39.1]);
+    rp.splice(1, 0, SH(tS)); rp.push(SH(Math.PI / 2), [48, 3], [48, 3], [48, 1]);
+    var body = mesh(lathe(bp), K.mat('wpowder', 12), 0, 0, 0, shell, 'Body: die-cast aluminium, white powder coat, Ø100 mm (ribs to Ø116 optional, not shown)');
+    var ringM = mesh(lathe(rp), K.mat('wpowder', 2), 0, 0, 0, top, 'White top ring: holds the dome on an O-ring, ID 96 mm');
+    var oring = mesh(K.g(new T.TorusGeometry(46.9, 0.55, 8, 96)), K.mat('rubber', 2), 0, 0, 2.2, top, 'Dome O-ring');
+    var rec = [30, 150].map(function (a) {
+      var r = SH(Math.asin(0.6))[0] - 0.25;
+      return { p: [r * Math.cos(a * DEG), r * Math.sin(a * DEG), 0.6], r: [Math.PI / 2, a * DEG + Math.PI / 2, 0], n: 'Screw recess: one of the two screws that hold the top ring' };
+    });
+    var recM = inst(K.g(cylZ(1.7, 0.8, 20)), K.mat('liner', 2), rec, top), scrM = inst(K.g(cylZ(1.15, 0.9, 6)), K.mat('zinc', 2), rec, top);
+    var liner = mesh(K.g(ringGeo(45.3, 46, 10.8, 96)), K.mat('liner', 2), 0, 0, -9.9, shell, 'Dark liner ring, cosmetic (as in a camera)');
+    var lflange = mesh(K.g(ringGeo(42.6, 45.3, 0.7, 96)), K.mat('liner', 2), 0, 0, -0.9, shell, 'Dark liner ring over the rim of the W-band disc');
+    [body, ringM, recM, scrM, oring, liner, lflange].forEach(function (o) { shellParts.push({ o: o, m: o === oring || o === scrM ? null : o.material }); });
+    A(2, ringM, 48.9 * Math.cos(-50 * DEG), 48.9 * Math.sin(-50 * DEG), 2.6);
+    A(12, body, 50.05 * Math.cos(10 * DEG), 50.05 * Math.sin(10 * DEG), -18);
+
+    /* L1: the W-band disc (3–6, Ø90 re-pack, septum arched to 0.5 mm under the dome) and its spreader + clamp shoulder */
+    var wd = buildWDisc(V, KM_DOME, { layout: WL_D, arch: function (y) { return DOME_ZC + Math.sqrt(DOME_R * DOME_R - 4 - y * y) - 0.5 + 0.9; },
+      anchors: { tx: 3, rx: 4, septum: 5, synth: 6 } });
+    wd.group.position.z = -0.9;
+    l1.add(wd.group);
+    Object.keys(wd.anchors).forEach(function (k) { anchors[k] = wd.anchors[k]; });
+    anchors[3].position.x = -22;   // clear of the tall fin in the iso view
+    disc(l1, 45.6, 4, -9.9, BUL_D.map(function (b) { return { x: b[0], y: b[1], r: 3.0 }; }).concat([{ x: 0, y: -33.5, w: 28, h: 7, r: 1 }], DH), 'alu', 0,
+      'L1 spreader and clamp shoulder: 4 mm aluminium behind the W-band disc');
+
+    /* 7: SMPM bullets, receptacles and the header socket across the 8 mm gap (they plug into L2) */
+    function at(list, z, n) { return list.map(function (b) { return { p: [b[0], b[1], z], n: n + b[2] }; }); }
+    inst(K.g(cylZ(1.5, 8.6, 16)), K.mat('gold', 7), at(BUL_D, -11.2, 'SMPM blind-mate bullet: '), l2);
+    inst(K.g(cylZ(2.0, 2.4, 16)), K.mat('gold', 7), at(BUL_D, -16.7, 'SMPM receptacle on the X-band disc: '), l2);
+    box(l2, 26, 5, 10.5, 0, -33.5, -12.65, 'black', 7, 'Header socket: 2 × 30 pins, control and 12 V to the W-band disc');
+    A(7, l2, 22.3, 9.9 + 1.55, -11);
+
+    /* L2: the X-band disc (8) and the shared spreader (9) */
+    disc(l2, 45, 1.6, -19.5, DH, 'mask', 8, 'X-band disc L2: Ø90 mm');
+    inst(K.box(14, 10, 3), K.mat('zinc', 8), [[5, 22, 'UL'], [22.3, 22, 'UR'], [5, -22, 'LL'], [22.3, -22, 'LR']].map(function (c) {
+      return { p: [c[0], c[1], -16.4], n: 'RF front end ' + c[2] + ' under its can: coupler, LNA, DSA, BPF, splitter (3 mm into the SMPM gap)' }; }), l2);
+    var lmsTex = chipTex(K, 'LMS8001', 'QFN-56', 256, 256), laTex = chipTex(K, 'LA1214', '621-ball FBGA', 256, 256), ckTex = chipTex(K, 'LMK04832', 'jitter cleaner', 256, 256);
+    parts(l2, -17.9, 1, 8, [[-14, 8, 7, 7, 0.9, 'chip', 'LMS8001B #1: I channel, EXTLO 0°', lmsTex], [-14, -8, 7, 7, 0.9, 'chip', 'LMS8001B #2: Q channel, EXTLO 90°', lmsTex],
+      [-26, 0, 3.2, 2.5, 0.9, 'chip', '90° hybrid on the dechirp LO'], [-10, 31, 2, 2, 0.85, 'chip', 'Dechirp LO buffer amplifier']]);
+    var x2 = traceGeo([[[-10, 35], [-10, 32]], [[-10, 30], [-10, 25], [-26, 25], [-26, 1.25]], [[-24.4, 0.5], [-20, 0.5], [-20, 8], [-17.5, 8]],
+      [[-24.4, -0.5], [-20, -0.5], [-20, -8], [-17.5, -8]], [[-2, 20], [-14, 20], [-14, 11.5]], [[-2, -20], [-14, -20], [-14, -11.5]],
+      [[9.1, 11.9], [9.1, 17]], [[22.3, 11.9], [22.3, 17]], [[9.1, -11.9], [9.1, -17]], [[22.3, -11.9], [22.3, -17]]], 0.4, -17.88);
+    mesh(K.g(x2), K.mat('rfline', 8), 0, 0, 0, l2, 'X-band RF lines: IF to the front ends, dechirp LO to the hybrid and the LMS8001s').userData.thin = true;
+    parts(l2, -19.5, -1, 8, [[0, 0, 21, 21, 2.0, 'chip', 'NXP LA1214: 4T4R, 8 × VSPA, 2 × PCIe Gen3, 21 × 21 mm; presses into the shared spreader', laTex],
+      [27, -16, 9, 9, 0.9, 'chip', 'Clock jitter cleaner (LMK04832 or HMC7044)', ckTex], [-27, -16, 7, 7, 0.9, 'chip', 'MCU: SPI to the LMS8001s, DSAs and the synth; health'],
+      [27, 14, 14, 9, 6, 'zinc', 'OCXO, 14 × 9 × 6 mm, in a pocket of the shared spreader'], [-27, 14, 6, 5, 1.0, 'chip', 'QSPI flash']]);
+    box(l2, 21, 21, 0.2, 0, 0, -21.6, 'tpad', 8, 'Thermal pad: LA1214 to the shared spreader');
+    A(8, l2, 22.3, 22, -14.85);
+    disc(l2, 45.6, 4, -25.7, DH.concat([{ x: 0, y: -22, w: 32, h: 8, r: 1 }, { x: 27, y: 14, w: 16, h: 11, r: 1 }]), 'alu', 9,
+      'Shared spreader, 4 mm aluminium: the LA1214 presses into its top face, the i.MX 95 into its bottom face');
+    A(9, l2, 45.65 * Math.cos(-30 * DEG), 45.65 * Math.sin(-30 * DEG), -23.7);
+
+    /* L3: compute side A (10) facing L2, power side B (11) facing the back plate; the isolation slot fences off the PoE primary */
+    box(l3, 30, 6, 8, 0, -22, -23.5, 'black', 10, 'Mezzanine, 8 mm stack through the shared spreader: PCIe x1, 12 V, SYNC / GPIO, control');
+    disc(l3, 45, 1.6, -29.1, DH.concat([{ x: 0, y: -29, w: 64, h: 2.2, r: 1.1 }]), 'mask', 10, 'Compute + power disc L3: Ø90 mm, 2.2 mm isolation slot below the PoE primary');
+    var mxTex = chipTex(K, 'i.MX 95', '19 × 19 mm', 256, 256), ddrTex = chipTex(K, 'LPDDR5', 'x32', 256, 220), pdTex = chipTex(K, 'PoE PD', 'Type 3', 256, 256);
+    parts(l3, -27.5, 1, 10, [[0, 2, 19, 19, 1.6, 'chip', 'NXP i.MX 95: 6 × A55, Mali GPU, NPU, 19 × 19 mm; presses into the shared spreader', mxTex],
+      [-6, 20.5, 15, 12.4, 1.0, 'chip', 'LPDDR5, one x32 package, 12.4 × 15 mm', ddrTex], [20.5, 9.5, 11.5, 13, 1.0, 'chip', 'eMMC, 11.5 × 13 mm'],
+      [20, -7, 8, 8, 0.9, 'chip', 'PF09 PMIC for the i.MX 95'], [-17, -13, 10, 10, 0.9, 'chip', 'Ethernet PHY, 2.5GBASE-T']]);
+    box(l3, 19, 19, 0.2, 0, 2, -25.8, 'tpad', 10, 'Thermal pad: i.MX 95 to the shared spreader');
+    parts(l3, -29.1, -1, 11, [
+      [-22, -33, 10, 4, 5, 'black', 'Pigtail landing: the four pairs of the M12 X-coded cable'], [-11, -34, 7, 7, 4, 'ferrite', 'Common-mode choke (PoE primary)'],
+      [-18, -38.5, 4.3, 2.6, 2.1, 'black', 'TVS diode (PoE primary)'], [-6, -40.5, 6, 5, 0.9, 'chip', 'Active bridge: 4 MOSFETs and controller (PoE primary)'],
+      [6, -34, 5, 5, 0.9, 'chip', 'PoE++ Type 3 PD controller (TPS2372 / TPS23730 class)', pdTex], [14, -34, 5, 6, 1, 'chip', 'Primary MOSFET of the active-clamp converter'],
+      [6, -40.5, 4, 4, 0.9, 'chip', 'Active-clamp converter controller'], [23, -34, 7.3, 4.3, 4, 'elcap', 'Input bulk capacitor, low-profile polymer'],
+      [-22, -26, 12, 9, 5, 'black', 'Ethernet magnetics, across the isolation slot'],
+      [16, -23, 20, 16, 8, 'ferrite', 'Planar transformer of the isolated 12 V converter, ≈ 20 × 16 × 8 mm, across the slot'],
+      [16, -23, 22, 6, 6, 'copper', 'Planar transformer: PCB windings'], [-2, -22, 5, 6, 1, 'chip', 'Synchronous rectifier MOSFET (12 V side)'],
+      [32, -9, 10, 10, 6, 'ferrite', '12 V output inductor'], [24, 0, 7.3, 4.3, 4, 'elcap', '12 V bulk capacitor, low-profile polymer'],
+      [24, 6, 7.3, 4.3, 4, 'elcap', '12 V bulk capacitor, low-profile polymer'], [24, 12, 7.3, 4.3, 4, 'elcap', '12 V bulk capacitor, low-profile polymer'],
+      [-10, -20, 4, 4, 0.9, 'chip', 'PMBus sequencer'], [-10, -13, 3, 3, 0.9, 'chip', 'PMBus current / voltage monitor'], [-4, -13, 3, 3, 0.9, 'chip', 'PMBus current / voltage monitor']]);
+    var dec = [];
+    for (var di = 0; di < 6; di++) for (var dj = 0; dj < 6; dj++) dec.push({ p: [-6 + di * 2.4, -4 + dj * 2.4, -29.35], n: 'i.MX 95 decoupling capacitors (side B, under the processor)' });
+    inst(K.box(1.0, 0.5, 0.5), K.mat('cap', 10), dec, l3);
+    A(10, l3, 0, 2 - 9.55, -26.7);
+    A(11, l3, 16, -23 - 8.05, -33.1);
+
+    /* 13: back plate with the gland, the test-port cap and the thermal pad; the pigtail is rebuilt with the explode state */
+    disc(bk, 50, 4, -43.1, [], 'alu', 13, 'Back plate: 4 mm aluminium, the mounting face');
+    mesh(K.g(cylZ(7.2, 3, 6)), K.mat('zinc', 13), GLAND[0], GLAND[1], -44.6, bk, 'Cable gland, M16 class, for the 0.3 m pigtail').rotation.z = Math.PI / 6;
+    mesh(K.cylz(5.5, 4, 24), K.mat('rubber', 13), GLAND[0], GLAND[1], -48.1, bk, 'Cable gland seal');
+    mesh(K.cylz(5, 2.5, 24), K.mat('zinc', 13), TPORT[0], TPORT[1], -44.35, bk, 'Test port under a screw cap: lab REF in and debug');
+    box(bk, 6, 1, 0.4, TPORT[0], TPORT[1], -45.7, 'black', 13, 'Test port under a screw cap: lab REF in and debug');
+    disc(bk, 36, 0.5, -43.6, [{ x: TPORT[0], y: TPORT[1], r: 7 }], 'tpad', 13, 'Thermal pad, back plate to the mount (the heat path)');
+    A(13, bk, 50.05 * Math.cos(-40 * DEG), 50.05 * Math.sin(-40 * DEG), -41.1);
+
+    /* 14: mount: a flat wall plate, or a 30° wedge with a ceiling plate */
+    var wall = new T.Group(), wedge = new T.Group();
+    mt.add(wall); mt.add(wedge);
+    var sh4 = [45, 135, 225, 315].map(function (a) { return [54 * Math.cos(a * DEG), 54 * Math.sin(a * DEG), 'Wall screw']; });
+    disc(wall, 58, 6, -49.6, [{ x: GLAND[0], y: GLAND[1], r: 9 }, { x: TPORT[0], y: TPORT[1], r: 7 }].concat(sh4.map(function (s) { return { x: s[0], y: s[1], r: 2.2 }; })),
+      'alu', 14, 'Wall plate, Ø116 × 6 mm aluminium: cable hole, test-port access, 4 screws; it also takes the heat');
+    inst(K.g(cylZ(3.2, 1.6, 20)), K.mat('zinc', 14), at(sh4, -42.8, ''), wall);
+    var wg = cylZ(50, 1, 72), wp = wg.attributes.position;
+    for (var vi = 0; vi < wp.count; vi++) wp.setZ(vi, wp.getZ(vi) > 0 ? -43.6 : -49.6 - (50 - wp.getY(vi)) * T30);
+    wg.computeVertexNormals();
+    mesh(K.g(wg), K.mat('alu', 14), 0, 0, 0, wedge, 'Tilt wedge, 30°, aluminium: also the heat path to the ceiling');
+    var cp = mesh(K.box(130, 130, 5), K.mat('alu', 14), 0, 1.25, -49.6 - 50 * T30 - 2.5 * Math.cos(30 * DEG), wedge, 'Ceiling plate, 130 × 130 × 5 mm');
+    cp.rotation.x = 30 * DEG;
+    inst(K.g(cylZ(3.6, 1.4, 20)), K.mat('zinc', 14), [[-55, -55], [55, -55], [55, 55], [-55, 55]].map(function (c) { return { p: [c[0], c[1], 3.2], n: 'Ceiling screw' }; }), cp);
+    var a14 = A(14, mt, 0, 0, 0);
+
+    var cab = null, plug = new T.Group(), Z = new T.Vector3(0, 0, 1);
+    U.add(plug);
+    [[7.5, 30, 15, 'black', 'M12 X-coded plug: body and boot'], [9.6, 13, 36.5, 'zinc', 'M12 X-coded plug: coupling nut'], [6.5, 0.6, 43.2, 'black', 'M12 X-coded plug: contact insert']].forEach(function (c) {
+      mesh(K.cylz(c[0], c[1], 28), K.mat(c[3], 13), 0, 0, c[2], plug, c[4]).userData.noFit = true;
+    });
+    function updatePig(e) {
+      var w = !!st.wedge, ob = bk.userData.off * e, om = mt.userData.off * e;
+      var nOut = w ? new T.Vector3(0, 0.5, -Math.sqrt(3) / 2) : new T.Vector3(0, 0, -1), tv = w ? new T.Vector3(0, Math.sqrt(3) / 2, 0.5) : new T.Vector3(0, -1, 0);
+      var zr = (w ? -49.6 - (50 - GLAND[1]) * T30 - 5 / Math.cos(30 * DEG) : -49.6) + om;
+      var a = new T.Vector3(GLAND[0], GLAND[1], -50.1 + ob), b = new T.Vector3(GLAND[0], GLAND[1], Math.min(a.z - 4, zr - 2));
+      var c = b.clone().addScaledVector(nOut, 8), d = c.clone().addScaledVector(nOut, 6).addScaledVector(tv, 12), f = d.clone().addScaledVector(tv, 22);
+      var geo = new T.TubeGeometry(new T.CatmullRomCurve3([a, b, c, d, f], false, 'centripetal'), 48, 3.0, 10, false);
+      if (cab) { cab.geometry.dispose(); cab.geometry = geo; }
+      else { cab = mesh(geo, K.mat('cable', 13), 0, 0, 0, U, 'Pigtail, 0.3 m (shown shortened): 2.5GBASE-T + PoE++ to an M12 X-coded plug'); cab.userData.cable = true; cab.userData.noFit = true; }
+      plug.position.copy(f); plug.quaternion.setFromUnitVectors(Z, tv);
+    }
+    model.disposeCables = function () { if (cab) cab.geometry.dispose(); };
+
+    var cola = buildCola(K);
+    root.add(cola);
+    model.cola = cola;
+
+    model.tagMode = 'top';
+    model.tags = [
+      { b: 'L1', tl: ' W-band', obj: l1, pts: rimPts(45.6, -1.9, 24) },
+      { b: 'L2', tl: ' X-band', obj: l2, pts: rimPts(45.6, -18.7, 24) },
+      { b: 'L3', tl: ' compute + power', obj: l3, pts: rimPts(45.6, -28.3, 24) }
+    ];
+
+    /* shell On / See-through / Off (body, top ring, liner); exploded + On shows it see-through; the dome always stays */
+    var edges = [body, ringM].map(function (m) {
+      var e = new T.LineSegments(K.g(new T.EdgesGeometry(m.geometry, 30)), K.raw(new T.LineBasicMaterial({ color: lin(TOK.card), transparent: true, opacity: 0.85 }), 0));
+      e.userData.noPick = true; e.visible = false; m.add(e); return e;
+    });
+    function glassify(m, glass) {
+      if (!m.userData.solid) m.userData.solid = { color: m.color.clone(), metalness: m.metalness, roughness: m.roughness };
+      var s = m.userData.solid;
+      m.transparent = glass; m.opacity = glass ? 0.22 : 1; m.depthWrite = !glass;
+      m.color.copy(glass ? lin(TOK.cardT) : s.color); m.metalness = glass ? 0 : s.metalness; m.roughness = glass ? 0.08 : s.roughness;
+      m.needsUpdate = true;
+    }
+    model.onState = function () {
+      var mode = (st.exploded && st.shell === 'on') ? 'glass' : st.shell, glass = mode === 'glass', w = !!st.wedge;
+      shellParts.forEach(function (p) {
+        p.o.visible = mode !== 'off';
+        if (p.m) glassify(p.m, glass);
+        p.o.renderOrder = glass ? 2 : 0;
+      });
+      edges.forEach(function (e) { e.visible = glass; });
+      dm.opacity = mode === 'on' ? 0.8 : 0.45; /* smoked like a camera dome when closed; clearer when the shell is opened up */
+      U.rotation.x = w ? 60 * DEG : 0;
+      wall.visible = !w; wedge.visible = w;
+      if (w) a14.position.set(49.05, -10, -49.6 - 30 * T30); else a14.position.set(58.05 * Math.cos(-15 * DEG), 58.05 * Math.sin(-15 * DEG), -46.6);
+      cola.visible = !!st.cola;
+      if (w) cola.position.set(-120, -30, -10); else cola.position.set(-112, -57.5, -14.6);
+      updatePig(lastE);
+    };
+    model.hideOcc = function (k) { return st.shell === 'on' && !V.isExploding() && ((k >= 6 && k <= 11) || (st.cam === 'back' && k !== 14)); };
+    model.onTheme = function () {
+      edges.forEach(function (e) { e.material.color.copy(lin(TOK.card)); });
+      shellParts.forEach(function (p) { if (p.m && p.m.transparent) p.m.color.copy(lin(TOK.cardT)); });
+    };
+    model.explode = function (e, quick) {
+      lastE = e;
+      groups.forEach(function (g) { g.position.z = g.userData.off * e; });
+      if (!quick || !cab) updatePig(e);
+    };
+    model.afterFit = function (f) {   // turn the can's print to the camera of a view preset
+      var cam = new T.Vector3(Math.sin(f.phi) * Math.sin(f.theta), Math.cos(f.phi), Math.sin(f.phi) * Math.cos(f.theta)).multiplyScalar(f.r).add(f.target);
+      cola.rotation.y = Math.atan2(cam.x - cola.position.x, cam.z - cola.position.z) - 90 * DEG;
+    };
+    model.foot = { x: 0, y: -2000, z: 0, w: 0.001, d: 0.001 };   // wall or ceiling mounted: no floor shadow
+    return model;
+  }
+
+  /* ===== The three viewers ===== */
   function onOff(b, on) { if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
   function startAll() {
     Viewer({
@@ -7729,6 +8349,61 @@ text-decoration:underline dotted;text-underline-offset:3px}
       test: function (api, t) {
         if (t === 'glass' || t === 'off') { api.st.shell = t; api.setShell(t); }
         if (t === 'nosun') { api.st.sun = false; onOff(api.sunBtn, false); }
+      }
+    });
+    Viewer({
+      id: 'm3d', mode: 'dome',
+      idle: 'Interactive 3D model of option B, the compact dome. It loads when you scroll here.',
+      fallback: 'The side section below shows the same stack to scale.',
+      hintExtra: ' With the shell on, the numbers of the parts inside appear when you pick them in the list below.',
+      modes: {
+        dome: {
+          nk: 14, names: DOME_NAMES, build: buildDome, canExplode: true, camSeg: 'cam',
+          cams: ['iso', 'front', 'side', 'top', 'back'], defCam: 'iso', camDir: CAM_WALL,
+          camWord: { iso: 'iso', front: 'front', side: 'side', top: 'top', back: 'back' },
+          what: function (st) {
+            return 'Compact dome: Ø100 × 59 mm, three Ø90 mm discs' + (st.shell === 'glass' ? ', shell see-through' : st.shell === 'off' ? ', shell off' : '') +
+              (st.wedge ? ', 30° wedge under a ceiling plate' : '');
+          },
+          explodeWord: function (st) { return ', discs slid apart along the axis (' + (st.shell === 'off' ? '' : 'shell see-through, ') + 'gaps not to scale)'; },
+          explodeSay: ['Discs slid apart', 'Stack back together'],
+          extra: function (st) { return st.cola ? ' A 330 ml can (66 × 115 mm) stands beside it for scale.' : ''; },
+          say: 'Compact dome'
+        }
+      },
+      wire: function (api, el) {
+        var st = api.st, wedge = el('wedge'), cola = el('cola');
+        st.shell = 'on'; st.wedge = false;
+        st.cola = query('m3cola') ? query('m3cola') === 'on' : load_('cola') === true;
+        onOff(cola, st.cola);
+        var setShell = seg(el('shell'), 'data-m3-shell', function (v) {
+          if (v !== 'on' && v !== 'glass' && v !== 'off') return;
+          st.shell = v; setShell(v);
+          var m = api.model(); if (m) m.onState();
+          api.describe(); api.invalidate();
+          api.announce(v === 'on' ? 'Shell on' : v === 'glass' ? 'Shell see-through' : 'Shell off');
+        });
+        setShell('on');
+        api.setShell = setShell;
+        api.setWedge = function (on) { st.wedge = on; onOff(wedge, on); api.cfg.modes.dome.camDir = on ? CAM_WEDGE : CAM_WALL; };
+        api.setWedge(true); /* default: ceiling mount on the 30° wedge, the way the dome camera in the brief hangs */
+        wedge.addEventListener('click', function () {
+          api.setWedge(!st.wedge);
+          var m = api.model(); if (m) { m.onState(); api.setCamName(st.cam); }
+          api.describe();
+          api.announce(st.wedge ? '30° wedge and ceiling plate' : 'Flat wall plate');
+        });
+        cola.addEventListener('click', function () {
+          st.cola = !st.cola; onOff(cola, st.cola); save_('cola', st.cola);
+          var m = api.model(); if (m) { m.onState(); api.keepView(true); }
+          api.describe();
+          api.announce(st.cola ? 'Cola can shown for scale' : 'Cola can hidden');
+        });
+      },
+      test: function (api, t) {
+        if (t === 'glass' || t === 'off') { api.st.shell = t; api.setShell(t); }
+        if (t === 'wedge') api.setWedge(true);
+        if (t === 'wall') api.setWedge(false);
       }
     });
   }
