@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Isolation Simulation Log</title>
+<meta name="description" content="W-band FMCW radar: dated log of the CST simulations of TX-to-RX isolation between the two 8x12 patch arrays, newest first.">
+<script>try{var wbrT=localStorage.getItem('wbr.theme');if(wbrT==='light'||wbrT==='dark'){document.documentElement.setAttribute('data-theme',wbrT);}}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="iso.css">
+</head>
+<body>
+<div class="wrap">
+
+<div class="top">
+  <nav aria-label="Pages">
+    <a href="../">&larr; W-band radar platform</a>
+    <a href="./">Isolation status</a>
+    <a href="log.html" aria-current="page">Simulation log</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch colour theme">Theme</button>
+</div>
+
+<header>
+  <div class="kicker">W-band radar &middot; TX/RX isolation &middot; CST simulations</div>
+  <h1>Simulation log</h1>
+  <p class="lede">Every CST run of the TX/RX isolation study, newest first: what was simulated, the result, and what it means.
+  The current best numbers are on the <a href="./">status page</a>.</p>
+  <p class="meta">Last updated 25 Oct 2026. Requirement: 70&nbsp;dB isolation, i.e. coupling B &le; &minus;50.2&nbsp;dB
+  (definitions on the <a href="./#definitions">status page</a>). Numbers are worst cases over the &plusmn;20&deg; TX scan and
+  95&ndash;99.9&nbsp;GHz. Run names in <code>mono</code> are for reference.</p>
+</header>
+
+<!-- ===================== 25 Oct ===================== -->
+<section class="sheet" aria-labelledby="d-1025">
+  <h2 class="day" id="d-1025">25 Oct 2026</h2>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-run">running</span> &nbsp;<code>N8wr</code> &rarr; <code>N8wr2</code></div>
+    <h3>Radome cut above the wall: first attempt unstable, corrected run started</h3>
+    <dl>
+      <dt>Model</dt><dd>4&times;4 + 4&times;4, 5&nbsp;mm gap, radome + 5.87&nbsp;mm wall (converged boundary setting), plus a 5&nbsp;mm wide
+      metal strip through the full radome thickness above the wall, so the wall continues to the outer surface of the radome.
+      63.1&nbsp;M cells.</dd>
+      <dt>Result</dt><dd>The first model (<code>N8wr</code>) ran the metal strip into the absorbing side boundaries. The field energy
+      grew by about 2.5&nbsp;dB/ns instead of decaying: the run is numerically unstable and gives no usable result. The corrected
+      model (<code>N8wr2</code>) has the strip only over the length of the wall; it is now solving.</dd>
+      <dt>Why</dt><dd>On the radome + wall models the port data suggest that the remaining leak crosses the wall inside the radome
+      slab. If so, cutting the radome above the wall could give 10&nbsp;dB or more.</dd>
+    </dl>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>L2wa3</code></div>
+    <h3>2&times;12 boundary check: &minus;50.0 / &minus;50.9&nbsp;dB; full-panel estimate unchanged</h3>
+    <dl>
+      <dt>Model</dt><dd>2&times;12 + 2&times;12, radome + wall, re-run with 3&nbsp;mm air and 8 absorbing layers above the radome
+      (before: 1.75&nbsp;mm air, 4 layers).</dd>
+      <dt>Result</dt><dd>Corner / mid-gap channel: &minus;50.0 / &minus;50.9&nbsp;dB, i.e. 0.70 / 0.89&nbsp;dB worse than with the
+      old setting (&minus;50.7 / &minus;51.8&nbsp;dB). 18.3 / 14.9&nbsp;dB better than the plate alone.</dd>
+      <dt>Meaning</dt><dd>Same size of correction as on the 4&times;4 model (about 1&nbsp;dB). The full-panel estimate already
+      included 1&nbsp;dB, so it stays at about 65&nbsp;dB.</dd>
+    </dl>
+    <figure>
+      <a href="img/long-2x12-wall-vs-plate.png"><img src="img/long-2x12-wall-vs-plate.png" width="1760" height="858" loading="lazy"
+        alt="2 by 12 model: plate only reaches minus 31.7 and minus 36.1 dB; radome plus wall reaches minus 50.0 and minus 50.9 dB."></a>
+      <figcaption>2&times;12 model, 5&nbsp;mm gap: plate only vs radome + wall (converged boundaries).</figcaption>
+    </figure>
+  </article>
+</section>
+
+<!-- ===================== 24 Oct ===================== -->
+<section class="sheet" aria-labelledby="d-1024">
+  <h2 class="day" id="d-1024">24 Oct 2026</h2>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>N8wa3</code> <code>N8wa5</code></div>
+    <h3>Boundary check: the first radome runs were about 1&nbsp;dB optimistic; correction now settled</h3>
+    <dl>
+      <dt>Model</dt><dd>4&times;4 radome + wall re-run with 3&nbsp;mm air + 8 absorbing layers (58.8&nbsp;M cells, 1.65&nbsp;h) and
+      5&nbsp;mm air + 8 layers (65.3&nbsp;M cells, 1.73&nbsp;h). The original run had 1.75&nbsp;mm air and 4 layers.</dd>
+      <dt>Result</dt><dd>3&nbsp;mm vs original: +0.85 / +1.06&nbsp;dB (worse) &rarr; &minus;48.2 / &minus;49.1&nbsp;dB.
+      5&nbsp;mm vs 3&nbsp;mm: +0.02 / +0.04&nbsp;dB, i.e. converged.</dd>
+      <dt>Meaning</dt><dd>All radome runs from now on use 3&nbsp;mm air + 8 layers. With the correction neither 4&times;4 channel quite
+      meets &minus;50.2&nbsp;dB (1.1&ndash;2.0&nbsp;dB short on this scale).</dd>
+    </dl>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-run">queued</span> &nbsp;<code>A1w</code> (not built) &middot; memory test</div>
+    <h3>A full-size radome model is too big for the current machines; memory test queued</h3>
+    <dl>
+      <dt>Size</dt><dd>Full 8&times;12 + 8&times;12 with radome + wall: about 357&nbsp;M cells (the radome and the air above it roughly
+      double the vertical mesh). Memory estimate 125&ndash;165&nbsp;GB. The largest machine has 128&nbsp;GB; the GPU server has a
+      24&nbsp;GB GPU.</dd>
+      <dt>Test</dt><dd>Solve the 2&times;12 radome model with fewer CPU threads (the part of the setup that scales with threads),
+      log the memory every 20&nbsp;s, and scale the result to 357&nbsp;M cells. It runs after the radome-cut run on the same machine.</dd>
+      <dt>If it does not fit</dt><dd>Rely on the 2&times;12 extrapolation, trim the model (less air, coarser mesh above the radome),
+      simulate TX 8&times;12 + RX 2&times;12, or use a bigger machine.</dd>
+    </dl>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> <span class="tag t-est">estimate</span> &nbsp;<code>L2w</code> <code>L2c</code></div>
+    <h3>Full gap length (2&times;12): the wall stops the build-up along the gap; full panel estimated at about 65&nbsp;dB</h3>
+    <dl>
+      <dt>Model</dt><dd>TX 2&times;12 + RX 2&times;12 (the columns on each side of the gap, all 12 rows), 5&nbsp;mm gap. Radome + wall:
+      86.5&nbsp;M cells, 2.3&nbsp;h. Plate only, no radome: 52.8&nbsp;M cells, 2.1&nbsp;h.</dd>
+      <dt>Result</dt><dd>Plate: &minus;31.7 / &minus;36.1&nbsp;dB (corner / mid-gap). Radome + wall: &minus;50.7 / &minus;51.8&nbsp;dB
+      (old boundary setting; corrected on 25 Oct to &minus;50.0 / &minus;50.9). Going from 4 to 12 rows makes the coupling only
+      2.5 / 0.7&nbsp;dB worse with the wall, against 13.5 / 9.0&nbsp;dB with the plate.</dd>
+      <dt>Estimate</dt><dd>Full-size 5&nbsp;mm plate result + improvement of the wall on the 2&times;12 model + correction for the
+      six TX columns not in the 2&times;12 model + 1&nbsp;dB boundary correction: B about &minus;45&nbsp;dB (&minus;49.5 to
+      &minus;40.8) &rarr; leakage about &minus;36&nbsp;dBm &rarr; isolation about 65&nbsp;dB (61&ndash;69), about 5&nbsp;dB short.</dd>
+      <dt>Caveats</dt><dd>Estimate, not a full-size simulation. One channel type per model; generic radome.</dd>
+    </dl>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>A1cg8d72h18</code></div>
+    <h3>Full size, 8&nbsp;mm gap, plate 1.8&nbsp;mm high: 53.8&nbsp;dB</h3>
+    <dl>
+      <dt>Model</dt><dd>TX 8&times;12 + RX 8&times;12, 8&nbsp;mm gap, plate with 11 grooves 0.72&nbsp;mm deep, 1.8&nbsp;mm high, no
+      radome; RX corner channel. 190.6&nbsp;M cells, 11.8&nbsp;h, peak memory 65.8&nbsp;GB. Made from the built 8&nbsp;mm model by
+      replacing only the plate (6&nbsp;min instead of a 4.75&nbsp;h rebuild).</dd>
+      <dt>Result</dt><dd>&plusmn;20&deg;: B = &minus;34.0&nbsp;dB at 99.9&nbsp;GHz &rarr; &minus;24.8&nbsp;dBm &rarr; <b>53.8&nbsp;dB</b>
+      (16.2&nbsp;dB short). &plusmn;10&deg;: 55.9&nbsp;dB. Boresight: 62.2&nbsp;dB. 8.6&nbsp;dB better than the 5&nbsp;mm / 1.4&nbsp;mm
+      full-size run.</dd>
+      <dt>Caveats</dt><dd>Gap and plate changed together, so the 8.6&nbsp;dB cannot be split between them. 0.72&nbsp;mm grooves were
+      used because the run started before the 0.78&nbsp;mm / 1.8&nbsp;mm result was in (that one was 0.5&ndash;1.8&nbsp;dB better on
+      the 4&times;4 model). The full system was 10.4&nbsp;dB worse than the 4&times;4 model with this plate.</dd>
+    </dl>
+    <figure>
+      <a href="img/full-size-isolation-vs-frequency.png"><img src="img/full-size-isolation-vs-frequency.png" width="1650" height="814" loading="lazy"
+        alt="Isolation versus frequency for the two full-size runs: worst case 45.2 dB at 5 mm and 53.8 dB at 8 mm, below the 70 dB line."></a>
+      <figcaption>Full-size isolation vs frequency, 5&nbsp;mm (grey) and 8&nbsp;mm (blue).</figcaption>
+    </figure>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>N8w</code> <code>N8wg8</code> <code>N8a</code></div>
+    <h3>Radome + metal wall up to the radome: the biggest single improvement</h3>
+    <dl>
+      <dt>Model</dt><dd>4&times;4 + 4&times;4 with a generic radome (flat slab, &epsilon;r 3.0, loss tangent about 0.01, 0.888&nbsp;mm,
+      5&nbsp;mm above the patches) and the plate raised to a 5.87&nbsp;mm wall touching the radome. 5&nbsp;mm gap (55.2&nbsp;M cells,
+      1.5&nbsp;h) and 8&nbsp;mm gap (58.0&nbsp;M cells, 1.5&nbsp;h). The older radome-only run was re-evaluated on the same grid.</dd>
+      <dt>Result</dt><dd>Radome alone: &minus;28.0&nbsp;dB, 5.6&nbsp;dB <i>worse</i> than no radome. Radome + wall, 5&nbsp;mm:
+      &minus;49.0 / &minus;50.2&nbsp;dB as run (&minus;48.2 / &minus;49.1 after the boundary correction): 21&nbsp;dB better than the
+      radome alone and about 9&nbsp;dB better than the plate. 8&nbsp;mm with the wall: &minus;48.3 / &minus;49.7&nbsp;dB, no better
+      than 5&nbsp;mm.</dd>
+      <dt>Meaning</dt><dd>Closing the gap up to the radome is the strongest measure found. With the wall, a wider gap no longer helps.
+      The port data suggest that what is left crosses the wall inside the radome slab, which led to the radome-cut run.</dd>
+      <dt>Caveats</dt><dd>4&times;4 model; generic radome; the 8&nbsp;mm wall also had different grooves (11 &times; 0.72&nbsp;mm).</dd>
+    </dl>
+    <div class="figs2">
+      <figure>
+        <a href="img/sketch-radome-wall-cross-section.png"><img src="img/sketch-radome-wall-cross-section.png" width="1870" height="704" loading="lazy"
+          alt="Cross-section of the 4 by 4 model with the radome slab and the 5.87 mm wall touching it."></a>
+        <figcaption>Radome and wall in the 4&times;4 model.</figcaption>
+      </figure>
+      <figure>
+        <a href="img/mini-radome-wall-5mm.png"><img src="img/mini-radome-wall-5mm.png" width="1760" height="858" loading="lazy"
+          alt="4 by 4 model: open gap, radome only, plate only and radome plus wall; radome plus wall is close to the minus 50.2 dB line."></a>
+        <figcaption>4&times;4, 5&nbsp;mm gap: open gap, radome only, plate, radome + wall (corrected boundaries).</figcaption>
+      </figure>
+    </div>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>N3cg8d72</code> <code>N3cg8h18</code> <code>N3cg8d72h18</code></div>
+    <h3>Plate height matters, groove depth hardly does (8&nbsp;mm gap)</h3>
+    <dl>
+      <dt>Model</dt><dd>4&times;4 + 4&times;4, 8&nbsp;mm gap, 11-groove plate. Changed one at a time from 0.78&nbsp;mm deep / 1.4&nbsp;mm
+      high: depth 0.72&nbsp;mm, height 1.8&nbsp;mm, both. 34&ndash;38&nbsp;M cells, 1.5&ndash;2.6&nbsp;h each.</dd>
+      <dt>Result</dt><dd>Reference &minus;40.7 / &minus;42.3&nbsp;dB. Depth 0.72: &minus;42.5 / &minus;41.1 (mixed, about the noise
+      level). Height 1.8: &minus;45.6 / &minus;46.3 (4.9 / 4.0&nbsp;dB better). Both: &minus;45.0 / &minus;44.4.</dd>
+      <dt>Meaning</dt><dd>A taller plate, which closes more of the gap above the patches, is what helps. This pointed to raising it
+      all the way to the radome.</dd>
+    </dl>
+    <figure>
+      <a href="img/mini-plate-height-depth-8mm.png"><img src="img/mini-plate-height-depth-8mm.png" width="1760" height="858" loading="lazy"
+        alt="4 by 4 model, 8 mm gap: four plate variants; the 1.8 mm high plates are 4 to 5 dB better than the 1.4 mm ones."></a>
+      <figcaption>4&times;4, 8&nbsp;mm gap: plate height vs groove depth.</figcaption>
+    </figure>
+  </article>
+</section>
+
+<!-- ===================== 23 Oct ===================== -->
+<section class="sheet" aria-labelledby="d-1023">
+  <h2 class="day" id="d-1023">23 Oct 2026</h2>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>N3c_d072t3</code></div>
+    <h3>Shallower grooves (0.72&nbsp;mm) do not move the plate's best frequency into the band</h3>
+    <dl>
+      <dt>Model</dt><dd>4&times;4 + 4&times;4, 5&nbsp;mm gap, plate as before but 0.72&nbsp;mm deep grooves. 32.5&nbsp;M cells, 1.5&nbsp;h.</dd>
+      <dt>Result</dt><dd>&minus;39.9 / &minus;38.1&nbsp;dB, 0.4 / 2.6&nbsp;dB worse than 0.78&nbsp;mm. The plate's best frequency stays at
+      90.7&nbsp;GHz instead of moving to the predicted 96&ndash;98&nbsp;GHz.</dd>
+      <dt>Meaning</dt><dd>The strong effect at 90&ndash;91&nbsp;GHz is the plate removing the open gap's own coupling peak, which sits
+      where the wavelength equals the 3.3&nbsp;mm element pitch (90.8&nbsp;GHz). It is set by the array, not by the groove depth, so
+      the unit-cell prediction (22 Oct) did not hold. 0.78&nbsp;mm was kept.</dd>
+    </dl>
+    <figure>
+      <a href="img/mini-groove-depth-5mm.png"><img src="img/mini-groove-depth-5mm.png" width="1760" height="858" loading="lazy"
+        alt="4 by 4 model, 5 mm gap: open gap and plates with 0.78 and 0.72 mm grooves; both plates have their dip at 90 to 91 GHz."></a>
+      <figcaption>4&times;4, 5&nbsp;mm gap: groove depth 0.78 vs 0.72&nbsp;mm.</figcaption>
+    </figure>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-est">assessment</span></div>
+    <h3>Frequency-domain solver with tetrahedral mesh: probably not faster here</h3>
+    <dl>
+      <dt>What</dt><dd>A benchmark was prepared and its result conversion tested against the time-domain data (identical results).
+      From the time-domain results, a broadband frequency sweep would need 8&ndash;24 frequency samples in 95&ndash;100&nbsp;GHz with the
+      plate.</dd>
+      <dt>Meaning</dt><dd>The time-domain solver gives the whole 85&ndash;105&nbsp;GHz band per RX channel in one 1.5&ndash;3.5&nbsp;h
+      run of the 4&times;4 model. The frequency-domain solver would need a full solve per sample on a fine mesh. Not benchmarked;
+      low priority.</dd>
+    </dl>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>N3g8</code> <code>N3cg8</code></div>
+    <h3>8&nbsp;mm gap: 4&ndash;5&nbsp;dB without a plate, little extra with the plate</h3>
+    <dl>
+      <dt>Model</dt><dd>4&times;4 + 4&times;4, 8&nbsp;mm gap, open (26.9&nbsp;M cells, 1.8&nbsp;h) and with an 11-groove plate
+      0.78&nbsp;mm deep, 1.4&nbsp;mm high (34.9&nbsp;M cells, 2.7&nbsp;h).</dd>
+      <dt>Result</dt><dd>Open gap: &minus;38.0 / &minus;38.5&nbsp;dB, 4.3 / 5.1&nbsp;dB better than 5&nbsp;mm. With the plate:
+      &minus;40.7 / &minus;42.3&nbsp;dB, only 0.3 / 1.6&nbsp;dB better than the 5&nbsp;mm plate.</dd>
+      <dt>Meaning</dt><dd>Gap width alone is not the lever once the plate is in.</dd>
+    </dl>
+    <figure>
+      <a href="img/mini-gap-8mm.png"><img src="img/mini-gap-8mm.png" width="1760" height="858" loading="lazy"
+        alt="4 by 4 model: 5 and 8 mm gaps with and without the plate."></a>
+      <figcaption>4&times;4: 5&nbsp;mm vs 8&nbsp;mm gap, with and without the plate.</figcaption>
+    </figure>
+  </article>
+
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>A1c1</code></div>
+    <h3>Full size, 5&nbsp;mm gap, plate 1.4&nbsp;mm high: 45.2&nbsp;dB; worst case caused by a grating lobe</h3>
+    <dl>
+      <dt>Model</dt><dd>TX 8&times;12 + RX 8&times;12, 5&nbsp;mm gap, 7-groove plate 0.78&nbsp;mm deep, 1.4&nbsp;mm high, no radome;
+      RX corner channel. 171.7&nbsp;M cells, 18.1&nbsp;h, peak memory 63.4&nbsp;GB.</dd>
+      <dt>Result</dt><dd>&plusmn;20&deg;: B = &minus;25.4&nbsp;dB at 99.9&nbsp;GHz (TX at az &minus;16&deg;, el +6&deg;) &rarr;
+      &minus;16.2&nbsp;dBm &rarr; <b>45.2&nbsp;dB</b> (24.8&nbsp;dB short). &plusmn;10&deg;: 48.6&nbsp;dB. Boresight: 59.3&nbsp;dB.
+      Median direction: 63.4&nbsp;dB; 19&nbsp;% of directions meet &minus;41&nbsp;dBm. The full system is 15.3&nbsp;dB worse than the
+      4&times;4 model with the same plate.</dd>
+      <dt>Analysis</dt><dd>Steering away from the RX array is 7.4&nbsp;dB worse than towards it. At 99.9&nbsp;GHz the wavelength
+      (3.00&nbsp;mm) is below the 3.3&nbsp;mm pitch; in the worst directions a grating lobe runs along the panel surface towards the RX
+      corner. The strongest TX elements are 23&ndash;33&nbsp;mm along the gap, not the nearest one: energy guided along the gap adds up
+      almost in phase. A pitch below 2.89&nbsp;mm would keep that lobe out of the &plusmn;20&deg; scan.</dd>
+    </dl>
+    <div class="figs2">
+      <figure>
+        <a href="img/cst-full-model-5mm-plate.png"><img src="img/cst-full-model-5mm-plate.png" width="1800" height="1246" loading="lazy"
+          alt="CST screenshot of the full TX and RX arrays with the plate in the gap."></a>
+        <figcaption>CST model of the full system.</figcaption>
+      </figure>
+      <figure>
+        <a href="img/full-5mm-isolation-map-vs-steering.png"><img src="img/full-5mm-isolation-map-vs-steering.png" width="1568" height="1176" loading="lazy"
+          alt="Map of worst in-band isolation versus TX steering direction; the worst region is at negative azimuth and small positive elevation."></a>
+        <figcaption>Worst in-band isolation for each TX beam direction.</figcaption>
+      </figure>
+    </div>
+  </article>
+</section>
+
+<!-- ===================== 22 Oct ===================== -->
+<section class="sheet" aria-labelledby="d-1022">
+  <h2 class="day" id="d-1022">22 Oct 2026</h2>
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;unit cell (eigenmode)</div>
+    <h3>Unit-cell screening of groove depth (later not confirmed on the array)</h3>
+    <dl>
+      <dt>Model</dt><dd>One period of the corrugation (0.7&nbsp;mm period, 0.4&nbsp;mm groove, 1.4&nbsp;mm high), CST eigenmode solver,
+      depth 0.62&ndash;0.80&nbsp;mm; 18&nbsp;s per solve.</dd>
+      <dt>Result</dt><dd>Scaled to the 4&times;4 result, the prediction was that 0.714&nbsp;mm deep grooves would move the plate's best
+      frequency from 90&ndash;92&nbsp;GHz to 97.5&nbsp;GHz.</dd>
+      <dt>Outcome</dt><dd>Tested on the array on 23 Oct: it did not hold, because the 90&ndash;92&nbsp;GHz feature comes from the array
+      pitch, not from the grooves.</dd>
+    </dl>
+    <figure>
+      <a href="img/unitcell-groove-depth.png"><img src="img/unitcell-groove-depth.png" width="1125" height="720" loading="lazy"
+        alt="Unit-cell eigenmode frequency versus groove depth, with the predicted improvement peak crossing the 95 to 99.9 GHz band near 0.71 mm."></a>
+      <figcaption>Unit-cell eigenmode frequency vs groove depth and the (later disproved) predicted peak.</figcaption>
+    </figure>
+  </article>
+</section>
+
+<!-- ===================== 21 Oct ===================== -->
+<section class="sheet" aria-labelledby="d-1021">
+  <h2 class="day" id="d-1021">21 Oct 2026</h2>
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>N3c</code></div>
+    <h3>First test of the corrugated plate (4&times;4, 5&nbsp;mm gap): about 7&nbsp;dB</h3>
+    <dl>
+      <dt>Model</dt><dd>4&times;4 + 4&times;4, 5&nbsp;mm gap, no radome, metal plate 1.4&nbsp;mm high with 7 grooves 0.4&nbsp;&times;
+      0.78&nbsp;mm along the gap. 33.2&nbsp;M cells, 3.5&nbsp;h.</dd>
+      <dt>Result</dt><dd>&minus;33.7 / &minus;33.5&nbsp;dB without the plate &rarr; &minus;40.3 / &minus;40.7&nbsp;dB with it
+      (6.6 / 7.2&nbsp;dB better). The improvement is largest at 90&ndash;91&nbsp;GHz (25&ndash;30&nbsp;dB), below the band; in band it
+      is 1&ndash;9&nbsp;dB depending on frequency.</dd>
+      <dt>Ringing</dt><dd>With the plate the field energy decays slowly (about 2.4&nbsp;dB/ns instead of 14.5&nbsp;dB/ns) and is still at
+      &minus;49&nbsp;dB after 4&nbsp;ns. Later plate runs were stopped at 3&nbsp;ns; this changes the worst case by about
+      0.2&nbsp;dB.</dd>
+    </dl>
+    <div class="figs2">
+      <figure>
+        <a href="img/mini-plate-5mm.png"><img src="img/mini-plate-5mm.png" width="1760" height="858" loading="lazy"
+          alt="4 by 4 model, 5 mm gap: open gap versus corrugated plate; the plate gives about 7 dB in the worst case."></a>
+        <figcaption>4&times;4, 5&nbsp;mm gap: open gap vs plate.</figcaption>
+      </figure>
+      <figure>
+        <a href="img/cst-energy-decay-5mm-plate.png"><img src="img/cst-energy-decay-5mm-plate.png" width="1800" height="1246" loading="lazy"
+          alt="CST field energy versus time with the plate, decaying slowly."></a>
+        <figcaption>CST: slow energy decay with the plate (full-size run shown).</figcaption>
+      </figure>
+    </div>
+  </article>
+</section>
+
+<!-- ===================== earlier ===================== -->
+<section class="sheet" aria-labelledby="d-early">
+  <h2 class="day" id="d-early">Before 21 Oct 2026</h2>
+  <article class="entry">
+    <div class="when"><span class="tag t-sim">simulated</span> &nbsp;<code>N3</code> <code>N8a</code></div>
+    <h3>Reference runs without a plate</h3>
+    <dl>
+      <dt>Result</dt><dd>4&times;4 + 4&times;4, 5&nbsp;mm open gap: &minus;33.7 / &minus;33.5&nbsp;dB, with a strong coupling peak at
+      90.4&ndash;90.6&nbsp;GHz. The same with a generic radome over both arrays: &minus;28.0&nbsp;dB (worse). An earlier full-size model
+      without a plate (older numerical settings, about &plusmn;1&ndash;2&nbsp;dB) is used only as a rough reference.</dd>
+      <dt>Setup</dt><dd>Mesh, boundary and port settings were checked in this first stage; repeatability about &plusmn;1&nbsp;dB.</dd>
+    </dl>
+  </article>
+</section>
+
+<footer>
+  <p>CST Studio Suite 2026, time-domain solver unless noted. B = coupling into one RX channel with the whole TX beam on, relative to
+  one TX channel; isolation = 19.8&nbsp;dB &minus; B for the 96-channel panel.</p>
+  <p><a href="./">&larr; Isolation status</a> &middot; <a href="../">W-band radar platform</a></p>
+</footer>
+
+</div>
+<script>
+(function(){var b=document.getElementById('theme'),r=document.documentElement;
+function cur(){var t=r.getAttribute('data-theme');if(t)return t;return window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+function lab(){b.textContent=cur()==='dark'?'Light theme':'Dark theme';}
+b.addEventListener('click',function(){var n=cur()==='dark'?'light':'dark';r.setAttribute('data-theme',n);try{localStorage.setItem('wbr.theme',n);}catch(e){}lab();});
+lab();})();
+</script>
+</body>
+</html>

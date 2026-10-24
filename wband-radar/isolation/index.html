@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TX/RX Isolation Status</title>
+<meta name="description" content="W-band FMCW radar: current TX-to-RX isolation between the two 8x12 patch arrays, from CST simulations, against the 70 dB requirement.">
+<script>try{var wbrT=localStorage.getItem('wbr.theme');if(wbrT==='light'||wbrT==='dark'){document.documentElement.setAttribute('data-theme',wbrT);}}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="iso.css">
+</head>
+<body>
+<div class="wrap">
+
+<div class="top">
+  <nav aria-label="Pages">
+    <a href="../">&larr; W-band radar platform</a>
+    <a href="./" aria-current="page">Isolation status</a>
+    <a href="log.html">Simulation log</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch colour theme">Theme</button>
+</div>
+
+<header>
+  <div class="kicker">W-band radar &middot; TX/RX isolation &middot; CST simulations</div>
+  <h1>TX/RX isolation: where we are</h1>
+  <p class="lede">The radar has two identical 8&times;12 patch arrays side by side: TX and RX, 3.3&nbsp;mm element pitch, beams steered
+  by true time delay within &plusmn;20&deg; in azimuth and elevation, 95&ndash;99.9&nbsp;GHz. The requirement is <b>70&nbsp;dB</b> between
+  the whole TX panel and each RX channel. This page lists the best numbers reached so far and the CST pictures and graphs they come from.
+  Every step is in the <a href="log.html">simulation log</a>.</p>
+  <p class="meta">Last updated 25 Oct 2026. Simulated numbers and estimates are marked separately.</p>
+</header>
+
+<section class="sheet" id="numbers" aria-labelledby="h-numbers">
+  <h2 id="h-numbers">Current numbers</h2>
+  <div class="cards">
+    <div class="card req"><span class="lab">Requirement</span><span class="val">70 dB</span>
+      <span class="sub">leakage &le; &minus;41&nbsp;dBm into each RX channel with 29&nbsp;dBm total TX power</span></div>
+    <div class="card sim"><span class="lab">Best full-size simulation</span><span class="val">53.8 dB</span>
+      <span class="sub">8&nbsp;mm gap, corrugated plate 1.8&nbsp;mm high, no radome. 16.2&nbsp;dB short.</span></div>
+    <div class="card est"><span class="lab">Best design, estimated</span><span class="val">&asymp; 65 dB</span>
+      <span class="sub">radome + metal wall from the ground plate up to the radome; range 61&ndash;69&nbsp;dB. About 5&nbsp;dB short.
+      Estimate, not a full-size simulation.</span></div>
+  </div>
+  <p>All values are the <b>worst case</b>: the worst TX beam direction within &plusmn;20&deg; and the worst frequency in 95&ndash;99.9&nbsp;GHz,
+  for the RX corner channel next to the gap (the worst channel found so far). With the TX beam at boresight the full-size results are
+  59.3&nbsp;dB (5&nbsp;mm) and 62.2&nbsp;dB (8&nbsp;mm).</p>
+
+  <div class="tbl">
+  <table>
+    <caption class="note" style="text-align:left;caption-side:bottom;padding-top:8px">Isolation = 29&nbsp;dBm total TX power minus the leakage
+    into one RX channel. Leakage = 9.2&nbsp;dBm per TX channel + coupling B (see <a href="#definitions">definitions</a>).</caption>
+    <thead><tr><th>Configuration</th><th>Model</th><th class="n">Worst case<br>&plusmn;20&deg;</th><th class="n">&plusmn;10&deg;</th>
+      <th class="n">Boresight</th><th class="n">Leakage</th><th class="n">Short of<br>70&nbsp;dB</th><th>Basis</th></tr></thead>
+    <tbody>
+      <tr><td>5&nbsp;mm gap, corrugated plate 1.4&nbsp;mm high (0.78&nbsp;mm grooves), no radome</td><td>full 8&times;12 + 8&times;12<br><small>171.7&nbsp;M cells</small></td>
+        <td class="n">45.2&nbsp;dB</td><td class="n">48.6&nbsp;dB</td><td class="n">59.3&nbsp;dB</td><td class="n">&minus;16.2&nbsp;dBm</td><td class="n">24.8&nbsp;dB</td>
+        <td><span class="tag t-sim">simulated</span></td></tr>
+      <tr class="best"><td>8&nbsp;mm gap, corrugated plate 1.8&nbsp;mm high (0.72&nbsp;mm grooves), no radome</td><td>full 8&times;12 + 8&times;12<br><small>190.6&nbsp;M cells</small></td>
+        <td class="n">53.8&nbsp;dB</td><td class="n">55.9&nbsp;dB</td><td class="n">62.2&nbsp;dB</td><td class="n">&minus;24.8&nbsp;dBm</td><td class="n">16.2&nbsp;dB</td>
+        <td><span class="tag t-sim">simulated</span></td></tr>
+      <tr><td>5&nbsp;mm gap, radome + metal wall up to the radome</td><td>full panel<br><small>from the 2&times;12 and 4&times;4 runs</small></td>
+        <td class="n">&asymp;&nbsp;65&nbsp;dB<br><small>61&ndash;69</small></td><td class="n">&ndash;</td><td class="n">&ndash;</td>
+        <td class="n">&asymp;&nbsp;&minus;36&nbsp;dBm<br><small>&minus;40.3 to &minus;31.6</small></td><td class="n">&asymp;&nbsp;5&nbsp;dB<br><small>0.7&ndash;9.4</small></td>
+        <td><span class="tag t-est">estimate</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="sheet" id="full-size" aria-labelledby="h-full">
+  <h2 id="h-full">Full-size simulations (no radome)</h2>
+  <p>Both runs are the complete TX 8&times;12 + RX 8&times;12 system in CST (time-domain solver). One RX channel was excited, the corner
+  element next to the gap, and the TX beam was then formed for every steering direction from the coupling to all 96 TX elements.</p>
+  <figure>
+    <a href="img/full-size-isolation-vs-frequency.png"><img src="img/full-size-isolation-vs-frequency.png" width="1650" height="814" loading="lazy"
+      alt="Graph of isolation versus frequency for the two full-size runs. In the 95 to 99.9 GHz band the worst case is 45.2 dB for the 5 mm gap and 53.8 dB for the 8 mm gap; both are below the 70 dB requirement line."></a>
+    <figcaption>Isolation of the RX corner channel vs frequency. Solid: worst TX beam direction within &plusmn;20&deg;; dashed: TX beam at
+    boresight. The dots mark the worst value in the band: 45.2&nbsp;dB (5&nbsp;mm gap, 1.4&nbsp;mm plate) and 53.8&nbsp;dB (8&nbsp;mm gap,
+    1.8&nbsp;mm plate). Both worst cases are at 99.9&nbsp;GHz with the TX beam steered away from the RX array and slightly up
+    (az &minus;16&deg; / el +6&deg; and az &minus;17&deg; / el +7&deg;).</figcaption>
+  </figure>
+  <div class="figs2">
+    <figure>
+      <a href="img/cst-full-model-5mm-plate.png"><img src="img/cst-full-model-5mm-plate.png" width="1800" height="1246" loading="lazy"
+        alt="CST screenshot of the full model: TX 8 by 12 array on the left, RX 8 by 12 array on the right, a corrugated metal plate in the 5 mm gap between them."></a>
+      <figcaption>CST model of the full system, 5&nbsp;mm gap with the corrugated plate.</figcaption>
+    </figure>
+    <figure>
+      <a href="img/cst-gap-closeup-plate.png"><img src="img/cst-gap-closeup-plate.png" width="1800" height="1246" loading="lazy"
+        alt="CST close-up of the gap: the corrugated plate with grooves running along the gap between the TX and RX tiles."></a>
+      <figcaption>Close-up of the gap: the grooves run along the gap over the full ground-plate length.</figcaption>
+    </figure>
+    <figure>
+      <a href="img/cst-plate-end-profile.png"><img src="img/cst-plate-end-profile.png" width="1800" height="1246" loading="lazy"
+        alt="CST view of the plate seen from its end: seven grooves 0.4 mm wide and 0.78 mm deep, plate 1.4 mm high, between the TX and RX tiles."></a>
+      <figcaption>The 5&nbsp;mm plate seen from its end: 7 grooves 0.4&nbsp;mm wide, 0.78&nbsp;mm deep, 1.4&nbsp;mm high. The 8&nbsp;mm
+      version has 11 grooves and was run 1.8&nbsp;mm high with 0.72&nbsp;mm grooves.</figcaption>
+    </figure>
+    <figure>
+      <a href="img/sketch-plate-cross-section.png"><img src="img/sketch-plate-cross-section.png" width="1650" height="660" loading="lazy"
+        alt="Dimensioned cross-section drawing of the 5 mm plate: groove width 0.4, tooth 0.3, period 0.7, depth 0.78, height 1.4 mm above the ground plate."></a>
+      <figcaption>Dimensions of the 5&nbsp;mm plate as built in CST (all values in mm).</figcaption>
+    </figure>
+  </div>
+  <figure>
+    <a href="img/full-5mm-isolation-map-vs-steering.png"><img src="img/full-5mm-isolation-map-vs-steering.png" width="1568" height="1176" loading="lazy"
+      alt="Colour map of the worst in-band isolation for every TX steering direction, 5 mm gap. The worst region, 25.4 dB, is at azimuth minus 16 and elevation plus 6 degrees; only about 19 percent of directions meet minus 41 dBm."></a>
+    <figcaption>5&nbsp;mm gap: worst in-band isolation for each TX beam direction. The bad region is where the TX beam points away
+    from the RX array (negative azimuth) and slightly up. Purple lines: the &minus;41&nbsp;dBm requirement; about 19&nbsp;% of the
+    directions meet it over the whole band.</figcaption>
+  </figure>
+  <div class="box info">
+    <p><b>Why steering away from the RX array is worse.</b> At 99.9&nbsp;GHz the wavelength (3.00&nbsp;mm) is shorter than the
+    3.3&nbsp;mm element pitch, so the TX array has grating lobes. For the worst directions one grating lobe lies right along the
+    panel surface, pointing diagonally towards the RX corner. Energy then travels along the gap, and the TX elements along the
+    gap add up almost in phase. This is also why the full system is 10&ndash;15&nbsp;dB worse than the small 4&times;4 test models.
+    An amplitude taper would not remove a grating lobe; a smaller pitch (below 2.89&nbsp;mm) would.</p>
+  </div>
+</section>
+
+<section class="sheet" id="radome-wall" aria-labelledby="h-wall">
+  <h2 id="h-wall">Best design so far: radome + metal wall up to the radome</h2>
+  <p>The plate is raised from 1.4&nbsp;mm to 5.87&nbsp;mm, so it becomes a wall whose top touches the underside of the radome and
+  closes the air path between the arrays. The radome is a generic placeholder (flat slab, &epsilon;r 3.0, loss tangent about 0.01,
+  0.888&nbsp;mm thick, 5&nbsp;mm above the patches) until the real radome design is available.</p>
+  <figure>
+    <a href="img/sketch-radome-wall-cross-section.png"><img src="img/sketch-radome-wall-cross-section.png" width="1870" height="704" loading="lazy"
+      alt="Cross-section drawing of the 4 by 4 test model with the radome slab 5 mm above the patches and a 5.87 mm high corrugated wall in the gap touching the radome underside."></a>
+    <figcaption>Cross-section of the 4&times;4 test model with the radome and the wall.</figcaption>
+  </figure>
+  <p>A full-size model with the radome has about 357&nbsp;million cells and needs an estimated 125&ndash;165&nbsp;GB of memory, at or
+  above the 128&nbsp;GB of the largest machine available. So the radome + wall design was simulated on two smaller models: TX&nbsp;4&times;4 + RX&nbsp;4&times;4,
+  and TX&nbsp;2&times;12 + RX&nbsp;2&times;12 (the two columns on each side of the gap over the full 12-row gap length).</p>
+  <figure>
+    <a href="img/mini-radome-wall-5mm.png"><img src="img/mini-radome-wall-5mm.png" width="1760" height="858" loading="lazy"
+      alt="Graph for the 4 by 4 model: worst-case coupling versus frequency for open gap, radome only, plate only, and radome plus wall. Radome plus wall reaches minus 48.2 and minus 49.1 dB in band, close to the minus 50.2 dB requirement line."></a>
+    <figcaption>4&times;4 model, 5&nbsp;mm gap. Worst case in band, row-1 / corner channel: open gap &minus;33.7 / &minus;33.5&nbsp;dB,
+    radome alone &minus;28.0&nbsp;dB (row 1 only; worse than no radome), plate &minus;40.3 / &minus;40.7&nbsp;dB, radome + wall
+    &minus;48.2 / &minus;49.1&nbsp;dB. The requirement on this scale is &minus;50.2&nbsp;dB.</figcaption>
+  </figure>
+  <figure>
+    <a href="img/long-2x12-wall-vs-plate.png"><img src="img/long-2x12-wall-vs-plate.png" width="1760" height="858" loading="lazy"
+      alt="Graph for the 2 by 12 model: plate only gives minus 31.7 and minus 36.1 dB, radome plus wall gives minus 50.0 and minus 50.9 dB."></a>
+    <figcaption>2&times;12 model (full gap length), 5&nbsp;mm gap. Plate only: &minus;31.7&nbsp;dB (corner) / &minus;36.1&nbsp;dB (mid-gap).
+    Radome + wall: &minus;50.0 / &minus;50.9&nbsp;dB, 15&ndash;18&nbsp;dB better. With the wall, the 12-row model is no worse than the
+    4-row model: the wall stops the build-up along the gap.</figcaption>
+  </figure>
+  <div class="box">
+    <p><b>How the &asymp;&nbsp;65&nbsp;dB estimate is made.</b> Start from the full-size 5&nbsp;mm plate run (45.2&nbsp;dB). Add the
+    improvement of radome + wall over the plate measured on the 2&times;12 model (about 19&nbsp;dB for the corner channel). Then
+    correct for the six TX columns that the 2&times;12 model leaves out, using the column trend of the full-size runs, and for the
+    boundary setting. Result: coupling B about &minus;45&nbsp;dB (&minus;49.5 to &minus;40.8), leakage about &minus;36&nbsp;dBm,
+    isolation about 65&nbsp;dB (61&ndash;69). The range comes mainly from the missing TX columns. This is an estimate until a
+    full-size radome run is possible.</p>
+  </div>
+</section>
+
+<section class="sheet" id="numerics" aria-labelledby="h-num">
+  <h2 id="h-num">Numerical quality</h2>
+  <ul>
+    <li>Repeatability of the setup (mesh and boundary checks): about &plusmn;1&nbsp;dB.</li>
+    <li>The corrugated plate stores energy in its grooves, so the simulation rings for a long time. Runs with the plate were stopped
+    at 3&nbsp;ns (4&nbsp;ns for the first one) before the energy had fully decayed. Cutting the record by 10&nbsp;% moves the
+    worst-case values by 0.1&ndash;0.7&nbsp;dB, so the true worst case may be a few tenths of a dB higher.</li>
+    <li>Runs with radome + wall decay normally and stop on the &minus;60&nbsp;dB energy criterion.</li>
+    <li>Radome runs need enough air and absorbing layers above the radome. The first radome runs (1.75&nbsp;mm air, 4 layers) were
+    about 1&nbsp;dB optimistic; with 3&nbsp;mm air and 8 layers the values change by 0.02&ndash;0.04&nbsp;dB when the air is
+    increased further, so that setting is used from now on. The numbers on this page include this correction.</li>
+  </ul>
+  <div class="figs2">
+    <figure>
+      <a href="img/cst-energy-decay-5mm-plate.png"><img src="img/cst-energy-decay-5mm-plate.png" width="1800" height="1246" loading="lazy"
+        alt="CST plot of field energy versus time for the full-size 5 mm plate run: the energy decays slowly and is still at minus 46 dB after 3 ns."></a>
+      <figcaption>CST: field energy of the full-size 5&nbsp;mm run. With the plate it is still at &minus;46&nbsp;dB after 3&nbsp;ns
+      (without the plate the 4&times;4 model reaches &minus;60&nbsp;dB in about 2.2&nbsp;ns).</figcaption>
+    </figure>
+    <figure>
+      <a href="img/cst-port-signal-5mm-plate.png"><img src="img/cst-port-signal-5mm-plate.png" width="1800" height="1246" loading="lazy"
+        alt="CST time signal at the TX element most coupled to the RX corner channel: the main pulse arrives near 0.35 ns, followed by slowly decaying ringing up to 3 ns."></a>
+      <figcaption>CST: time signal at the TX element most coupled to the RX corner channel (5&nbsp;mm gap). The main pulse is followed by
+      a long, weak ringing tail.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="sheet" id="next" aria-labelledby="h-next">
+  <h2 id="h-next">Running now and next steps</h2>
+  <ul>
+    <li><span class="tag t-run">running</span> 4&times;4 model with the radome cut above the wall: a 5&nbsp;mm metal strip through the
+    radome, so the wall continues to the outer surface. The port data suggest that the remaining leak crosses the wall inside the
+    radome slab; this run tests that directly. The first attempt was numerically unstable and is being repeated with a corrected model.</li>
+    <li><span class="tag t-run">queued</span> Memory test: how much memory a radome model needs when the solver uses fewer CPU threads,
+    to see whether a full-size radome + wall run can fit in 128&nbsp;GB.</li>
+    <li>Then: confirm the best radome cut on the 2&times;12 model, and run the full-size radome + wall model if the memory test allows it.</li>
+    <li>Open: the real radome design and the final plate/wall CAD; RX channels other than the corner one at full size.</li>
+  </ul>
+</section>
+
+<section class="sheet" id="definitions" aria-labelledby="h-def">
+  <h2 id="h-def">Definitions</h2>
+  <ul>
+    <li><b>Requirement.</b> 29&nbsp;dBm total TX power (96 channels, 9.2&nbsp;dBm each). 70&nbsp;dB isolation means at most
+    &minus;41&nbsp;dBm leakage into any single RX channel, for any TX beam direction within &plusmn;20&deg; and any frequency in
+    95&ndash;99.9&nbsp;GHz. (RX input IP3 is &minus;18&nbsp;dBm; FMCW, so TX and RX are on at the same time.)</li>
+    <li><b>Coupling B.</b> Power into one RX channel with the whole TX beam on, relative to the power of one TX channel. Leakage =
+    9.2&nbsp;dBm + B; isolation = 29&nbsp;dBm &minus; leakage = 19.8&nbsp;dB &minus; B. The requirement is B &le; &minus;50.2&nbsp;dB.</li>
+    <li><b>Reduced models.</b> 4&times;4 + 4&times;4 and 2&times;12 + 2&times;12 models use the same element, gap and plate and are
+    shown on the B scale. They have fewer TX elements than the real panel, so their B is not the full-panel value: with the plate
+    the full system was 10&ndash;15&nbsp;dB worse than the 4&times;4 model.</li>
+    <li><b>Worst case.</b> Worst over all TX steering directions within &plusmn;20&deg; (1&deg; grid) and over 95&ndash;99.9&nbsp;GHz.
+    TX beams use ideal true-time-delay weights with uniform amplitude.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>CST Studio Suite 2026, time-domain solver. Isolation results from single-RX-port runs; TX beams formed from the simulated
+  coupling to every TX element (reciprocity).</p>
+  <p><a href="log.html">Simulation log &rarr;</a> &middot; <a href="../">W-band radar platform</a></p>
+</footer>
+
+</div>
+<script>
+(function(){var b=document.getElementById('theme'),r=document.documentElement;
+function cur(){var t=r.getAttribute('data-theme');if(t)return t;return window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+function lab(){b.textContent=cur()==='dark'?'Light theme':'Dark theme';}
+b.addEventListener('click',function(){var n=cur()==='dark'?'light':'dark';r.setAttribute('data-theme',n);try{localStorage.setItem('wbr.theme',n);}catch(e){}lab();});
+lab();})();
+</script>
+</body>
+</html>
